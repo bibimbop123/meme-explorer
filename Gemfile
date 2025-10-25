@@ -1,2 +1,4 @@
-gem 'rack', '~> 3.0'
-gem 'sinatra', '~> 4.2.1'
+source "https://rubygems.org"
+
+gem "sinatra"
+gem "rack"  # optional if Sinatra already pulls it in
