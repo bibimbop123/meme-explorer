@@ -5,6 +5,9 @@ GEM
     logger (1.7.0)
     mustermann (3.0.0)
       ruby2_keywords (~> 0.0.1)
+    nio4r (2.7.4)
+    puma (7.1.0)
+      nio4r (~> 2.0)
     rack (3.2.3)
     rack-protection (4.2.1)
       base64 (>= 0.1.0)
@@ -13,6 +16,8 @@ GEM
     rack-session (2.1.1)
       base64 (>= 0.1.0)
       rack (>= 3.0.0)
+    rackup (2.2.1)
+      rack (>= 3)
     ruby2_keywords (0.0.5)
     sinatra (4.2.1)
       logger (>= 1.6.0)
@@ -28,7 +33,9 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  puma (~> 7.1)
   rack
+  rackup (~> 2.2)
   sinatra
 
 BUNDLED WITH
