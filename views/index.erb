@@ -1,0 +1,6 @@
+<h2>Browse Meme Categories</h2>
+<ul>
+  <% MEMES.keys.each do |category| %>
+    <li><a href="/category/<%= category %>"><%= category.capitalize %></a></li>
+  <% end %>
+</ul>
