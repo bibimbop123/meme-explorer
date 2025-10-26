@@ -1,0 +1,17 @@
+<h2>Search Results</h2>
+
+<% if @results.empty? %>
+  <p>No memes found for "<%= params[:q] %>".</p>
+<% else %>
+  <ul>
+    <% @results.each do |category, meme| %>
+      <li>
+        <a href="/category/<%= category %>/meme/<%= meme[:title] %>">
+          <%= meme[:title] %> (<%= category.capitalize %>)
+        </a>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<p><a href="/">Back to Home</a></p>

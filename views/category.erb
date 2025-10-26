@@ -1,8 +1,11 @@
 <h2><%= @category_name.capitalize %> Memes</h2>
+
 <ul>
   <% @memes.each do |meme| %>
     <li>
-      <a href="/category/<%= @category_name %>/meme/<%= meme[:title] %>"><%= meme[:title] %></a>
+      <a href="/category/<%= @category_name %>/meme/<%= URI.encode_www_form_component(meme["title"]) %>">
+        <%= meme["title"] %>
+      </a>
     </li>
   <% end %>
 </ul>
