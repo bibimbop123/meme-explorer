@@ -1,9 +1,10 @@
 require 'sinatra/base'
-require 'sinatra/reloader'
+
 require 'yaml'
 
 class MemeExplorer < Sinatra::Base
   configure :development do
+    require 'sinatra/reloader's
     register Sinatra::Reloader
   end
 
