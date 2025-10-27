@@ -27,6 +27,7 @@ GEM
       rack-session (>= 2.0.0, < 3)
       tilt (~> 2.0)
     tilt (2.6.0)
+    yaml (0.4.0)
 
 PLATFORMS
   arm64-darwin-23
@@ -37,6 +38,7 @@ DEPENDENCIES
   rack
   rackup (~> 2.2)
   sinatra
+  yaml
 
 BUNDLED WITH
    2.6.5
