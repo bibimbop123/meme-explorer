@@ -1,5 +1,6 @@
-<h2><%= @meme["title"] || @meme["name"] %></h2>
-<img src="<%= @meme["file"] || @meme["url"] %>" alt="<%= @meme["title"] || @meme["name"] %>">
+<h2><%= @meme["title"] %></h2>
+<img src="<%= @meme["file"] || @meme["url"] %>" alt="<%= @meme["title"] %>">
+<p><%= @meme["subreddit"] ? "/r/#{@meme["subreddit"]}" : @category_name %></p>
 
 <p>Views: <%= @views %></p>
 <p><a href="/category/<%= @category_name %>">Back to <%= @category_name.capitalize %></a></p>

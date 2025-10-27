@@ -25,18 +25,17 @@ class MemeExplorer < Sinatra::Base
   end
 
   get '/random' do
-    if rand < 0.5  # 50% chance: local vs. API
+    if rand < 0.5
       category, memes = MEMES.to_a.sample
       @meme = memes.sample
       @category_name = category
     else
-      api_memes = fetch_api_memes
-      @meme = api_memes.sample if api_memes
-      @category_name = "API Memes"
+      api_meme = fetch_api_memes(1).first
+      @meme = api_meme
+      @category_name = "Reddit Memes"
     end
     erb :meme
-  end
-  
+  end  
 
   get '/search' do
     query = params[:q].to_s.downcase
@@ -67,15 +66,33 @@ class MemeExplorer < Sinatra::Base
   end
   
 
-  def fetch_api_memes
-    url = URI("https://api.imgflip.com/get_memes")
+  def fetch_api_memes(count = 10)
+    url = URI("https://meme-api.com/gimme/#{count}")  # get multiple memes
     response = Net::HTTP.get(url)
     data = JSON.parse(response)
-    data["data"]["memes"] if data["success"]
+  
+    # Meme-API can return a single meme or multiple memes depending on the count
+    memes = if data["memes"] # multiple memes
+              data["memes"]
+            elsif data["url"] # single meme
+              [data]
+            else
+              []
+            end
+  
+    memes.map do |m|
+      {
+        "title" => m["title"],
+        "url" => m["url"],
+        "postLink" => m["postLink"],
+        "subreddit" => m["subreddit"]
+      }
+    end
   rescue StandardError => e
     puts "API Error: #{e.message}"
     []
   end
+  
   
 
   run! if app_file == $0

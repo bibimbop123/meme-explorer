@@ -1,14 +1,17 @@
-<h1>🔥 Trending Memes (from Imgflip API)</h1>
+<h1>🔥 Fresh Memes from Reddit</h1>
 
-<% if @api_memes && !@api_memes.empty? %>
+<% if @api_memes.any? %>
   <div style="display:flex; flex-wrap:wrap; gap:1rem;">
     <% @api_memes.each do |meme| %>
-      <div style="width:200px; text-align:center;">
-        <img src="<%= meme["url"] %>" alt="<%= meme["name"] %>" width="200" />
-        <p><%= meme["name"] %></p>
+      <div style="width:250px; text-align:center;">
+        <a href="<%= meme["postLink"] %>" target="_blank">
+          <img src="<%= meme["url"] %>" alt="<%= meme["title"] %>" width="250">
+        </a>
+        <p><%= meme["title"] %></p>
+        <small>/r/<%= meme["subreddit"] %></small>
       </div>
     <% end %>
   </div>
 <% else %>
-  <p>Could not load memes from API 😢</p>
+  <p>No memes loaded 😢</p>
 <% end %>
