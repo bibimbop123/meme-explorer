@@ -25,7 +25,7 @@ class MemeExplorer < Sinatra::Base
   end
 
   get '/random' do
-    if rand < 0.5
+    if rand < 0.35
       category, memes = MEMES.to_a.sample
       @meme = memes.sample
       @category_name = category
