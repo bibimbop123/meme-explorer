@@ -1,6 +1,7 @@
 require 'sinatra/base'
 require 'yaml'
 require 'uri'
+require 'net/http'
 
 class MemeExplorer < Sinatra::Base
   configure :development do
@@ -24,11 +25,18 @@ class MemeExplorer < Sinatra::Base
   end
 
   get '/random' do
-    category, memes = MEMES.to_a.sample
-    @meme = memes.sample
-    @category_name = category
+    if rand < 0.5  # 50% chance: local vs. API
+      category, memes = MEMES.to_a.sample
+      @meme = memes.sample
+      @category_name = category
+    else
+      api_memes = fetch_api_memes
+      @meme = api_memes.sample if api_memes
+      @category_name = "API Memes"
+    end
     erb :meme
   end
+  
 
   get '/search' do
     query = params[:q].to_s.downcase
@@ -52,6 +60,23 @@ class MemeExplorer < Sinatra::Base
     @views = VIEW_COUNTS[@meme["title"]]
     erb :meme
   end
+
+  get '/api_memes' do
+    @api_memes = fetch_api_memes
+    erb :api_memes
+  end
+  
+
+  def fetch_api_memes
+    url = URI("https://api.imgflip.com/get_memes")
+    response = Net::HTTP.get(url)
+    data = JSON.parse(response)
+    data["data"]["memes"] if data["success"]
+  rescue StandardError => e
+    puts "API Error: #{e.message}"
+    []
+  end
+  
 
   run! if app_file == $0
 end

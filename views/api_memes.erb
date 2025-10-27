@@ -1,0 +1,14 @@
+<h1>🔥 Trending Memes (from Imgflip API)</h1>
+
+<% if @api_memes && !@api_memes.empty? %>
+  <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+    <% @api_memes.each do |meme| %>
+      <div style="width:200px; text-align:center;">
+        <img src="<%= meme["url"] %>" alt="<%= meme["name"] %>" width="200" />
+        <p><%= meme["name"] %></p>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <p>Could not load memes from API 😢</p>
+<% end %>
