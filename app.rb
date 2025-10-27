@@ -103,7 +103,7 @@ class MemeExplorer < Sinatra::Base
   end
   
 
-  def fetch_api_memes(count = 10)
+  def fetch_api_memes(count = 18)
     url = URI("https://meme-api.com/gimme/#{count}")  # get multiple memes
     response = Net::HTTP.get(url)
     data = JSON.parse(response)
