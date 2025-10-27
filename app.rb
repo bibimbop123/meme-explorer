@@ -33,16 +33,20 @@ class MemeExplorer < Sinatra::Base
     memes = fetch_fresh_memes.reject { |m| session[:seen_memes].include?(m["url"]) }
   
     if memes.empty?
-      session[:seen_memes] = []  # reset when all are seen
-      memes = fetch_fresh_memes
+      # fallback to local memes
+      category, local_memes = MEMES.to_a.sample
+      memes = local_memes
+      @category_name = category
+    else
+      @category_name = "Reddit Memes"
     end
   
     @meme = memes.sample
-    session[:seen_memes] << @meme["url"]
-  
-    @category_name = "Reddit Memes"
+    session[:seen_memes] << @meme["url"] if @meme["url"]
+    
     erb :meme
   end
+  
 
   get '/search' do
     query = params[:q].to_s.downcase
@@ -76,10 +80,28 @@ class MemeExplorer < Sinatra::Base
 
   def fetch_fresh_memes
     subreddit = POPULAR_SUBREDDITS.sample
-    response = HTTParty.get("https://meme-api.com/gimme/#{subreddit}/10")
-    JSON.parse(response.body)["memes"] rescue []
+    url = URI("https://meme-api.com/gimme/#{subreddit}/10")
+    
+    response = Net::HTTP.get(url)
+    data = JSON.parse(response)
+    
+    # Meme-API can return "memes" array or fallback
+    memes = data["memes"] || []
+    
+    # normalize meme data to match local structure
+    memes.map do |m|
+      {
+        "title" => m["title"],
+        "url" => m["url"],
+        "postLink" => m["postLink"],
+        "subreddit" => m["subreddit"]
+      }
+    end
+  rescue StandardError => e
+    puts "API Error in fetch_fresh_memes: #{e.message}"
+    []  # return empty array instead of crashing
   end
-
+  
 
   def fetch_api_memes(count = 10)
     url = URI("https://meme-api.com/gimme/#{count}")  # get multiple memes
