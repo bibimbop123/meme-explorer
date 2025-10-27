@@ -2,6 +2,8 @@ require 'sinatra/base'
 require 'yaml'
 require 'uri'
 require 'net/http'
+require 'httparty'
+require 'json'
 
 class MemeExplorer < Sinatra::Base
   configure :development do
@@ -24,18 +26,24 @@ class MemeExplorer < Sinatra::Base
     erb :category
   end
 
+  enable :sessions
+
   get '/random' do
-    if rand < 0.35
-      category, memes = MEMES.to_a.sample
-      @meme = memes.sample
-      @category_name = category
-    else
-      api_meme = fetch_api_memes(1).first
-      @meme = api_meme
-      @category_name = "Reddit Memes"
+    session[:seen_memes] ||= []
+  
+    memes = fetch_fresh_memes.reject { |m| session[:seen_memes].include?(m["url"]) }
+  
+    if memes.empty?
+      session[:seen_memes] = []  # reset when all are seen
+      memes = fetch_fresh_memes
     end
+  
+    @meme = memes.sample
+    session[:seen_memes] << @meme["url"]
+  
+    @category_name = "Reddit Memes"
     erb :meme
-  end  
+  end
 
   get '/search' do
     query = params[:q].to_s.downcase
@@ -64,7 +72,15 @@ class MemeExplorer < Sinatra::Base
     @api_memes = fetch_api_memes
     erb :api_memes
   end
-  
+
+  POPULAR_SUBREDDITS = %w[dankmemes memes wholesomeMemes me_irl ProgrammerHumor].freeze
+
+  def fetch_fresh_memes
+    subreddit = POPULAR_SUBREDDITS.sample
+    response = HTTParty.get("https://meme-api.com/gimme/#{subreddit}/10")
+    JSON.parse(response.body)["memes"] rescue []
+  end
+
 
   def fetch_api_memes(count = 10)
     url = URI("https://meme-api.com/gimme/#{count}")  # get multiple memes
@@ -93,6 +109,46 @@ class MemeExplorer < Sinatra::Base
     []
   end
   
+  # When user clicks "like"
+  post '/like' do
+    content_type :json
+    begin
+      meme_url = params[:url]
+      session[:liked_memes] ||= []
+  
+      if session[:liked_memes].include?(meme_url)
+        session[:liked_memes].delete(meme_url)
+        liked = false
+      else
+        session[:liked_memes] << meme_url
+        liked = true
+      end
+  
+      { liked: liked }.to_json
+    rescue => e
+      status 500
+      { error: e.message }.to_json
+    end
+  end  
+  
+
+  def weighted_subreddit
+    liked = session[:liked_memes] || []
+    liked_subs = liked.map do |url|
+      # Extract subreddit info from meme data if available
+      # For now, just random weight if liked
+      POPULAR_SUBREDDITS.sample
+    end
+  
+    weights = POPULAR_SUBREDDITS.map do |sub|
+      [sub, liked_subs.count(sub) + 1]
+    end
+  
+    weights.max_by { |_, w| rand ** (1.0 / w) }.first
+  end
+  
+  
+
   
 
   run! if app_file == $0
