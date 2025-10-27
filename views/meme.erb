@@ -1,17 +1,18 @@
 <div class="meme-container">
   <h2><%= @meme["title"] %></h2>
 
-  <img src="<%= @meme['file'] %>" alt="<%= @meme['title'] %>">
+  <!-- Unified image source -->
+  <img src="<%= @image_src %>" alt="<%= @meme["title"] %>">
+
+  <p>Category: <%= @category_name %></p>
   <p>Views: <%= @views %></p>
 
-
   <form id="like-form" action="/like" method="POST">
-    <input type="hidden" name="url" value="<%= @meme["url"] %>">
-    <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@meme["url"]) %>">
-        ❤️ <%= session[:liked_memes]&.include?(@meme["url"]) ? 'Unlike' : 'Like' %>
+    <input type="hidden" name="url" value="<%= @image_src %>">
+    <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+      ❤️ <%= session[:liked_memes]&.include?(@image_src) ? 'Unlike' : 'Like' %>
     </button>
   </form>
-
 </div>
 
 <script>
@@ -21,7 +22,10 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(form.action, { method: 'POST' });
+      const res = await fetch(form.action, { 
+        method: 'POST',
+        body: new URLSearchParams(new FormData(form))
+      });
       if (!res.ok) {
         const text = await res.text();
         console.error("Server error:", text);
@@ -43,8 +47,20 @@
   });
 </script>
 
-
 <style>
+  .meme-container {
+    text-align: center;
+    margin: 20px;
+  }
+
+  img {
+    width: 450px;
+    height: 550px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+
   button {
     background-color: #eee;
     border: none;
@@ -53,13 +69,15 @@
     cursor: pointer;
     border-radius: 8px;
     transition: 0.2s;
+    margin-top: 10px;
   }
+
   button.liked {
     background-color: #ff4d4d;
     color: white;
   }
-  img {
-    width: 450px;
-    height: 550px;
+
+  button:hover {
+    opacity: 0.9;
   }
 </style>
