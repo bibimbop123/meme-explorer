@@ -2,7 +2,6 @@ require 'sinatra/base'
 require 'yaml'
 require 'uri'
 require 'net/http'
-require 'httparty'
 require 'json'
 
 class MemeExplorer < Sinatra::Base
