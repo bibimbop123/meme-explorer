@@ -1,9 +1,109 @@
-<h1>Welcome to Meme Explorer</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Meme Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    font-family: 'Comic Neue', cursive;
+    background: #fefefe;
+    transition: background 0.5s ease;
+    overflow-x: hidden;
+  }
 
-<ul>
+  h1 {
+    text-align: center;
+    font-size: 3rem;
+    margin: 2rem 0;
+    color: #333;
+    transition: transform 0.3s ease;
+  }
+
+  h1:hover {
+    transform: scale(1.05) rotate(-2deg);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+    padding: 0 2rem 4rem;
+  }
+
+  .category-card {
+    background: white;
+    border-radius: 1rem;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: perspective(1000px) rotateY(0deg);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+  }
+
+  .category-card:hover {
+    transform: perspective(1000px) rotateY(5deg) scale(1.05);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  }
+
+  .category-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .category-card:hover img {
+    transform: scale(1.1);
+  }
+
+  .category-card h2 {
+    text-align: center;
+    margin: 0.5rem 0 1rem;
+    font-size: 1.2rem;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+
+<h1 id="headline">Your daily dose of memes, sorted by mood</h1>
+
+<div class="grid">
   <% MEMES.keys.each do |category| %>
-    <li>
-      <a href="/category/<%= category %>"><%= category.capitalize %> Memes</a>
-    </li>
+    <div class="category-card" data-category="<%= category %>">
+      <img src="<%= MEMES[category].first["file"] %>" alt="<%= category %> preview">
+      <h2><%= category.capitalize %> Memes</h2>
+    </div>
   <% end %>
-</ul>
+</div>
+
+<script>
+  // Hover & Click bounce
+  document.querySelectorAll('.category-card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        card.style.transform = '';
+        window.location.href = '/category/' + card.dataset.category;
+      }, 150);
+    });
+  });
+
+  // Headline mood color shifts
+  const colors = {
+    funny: "#FFF176",
+    wholesome: "#A5D6A7",
+    dank: "#9575CD"
+  };
+  const headline = document.getElementById('headline');
+  let categories = Object.keys(colors);
+  setInterval(() => {
+    let mood = categories[Math.floor(Math.random() * categories.length)];
+    document.body.style.background = colors[mood];
+  }, 5000);
+</script>
+</body>
+</html>

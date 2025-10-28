@@ -1,3 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Meme Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    font-family: 'Comic Neue', cursive;
+    background: #fefefe;
+    transition: background 0.5s ease;
+    overflow-x: hidden;
+  }
+
+  .meme-container {
+    max-width: 700px;
+    margin: 20px auto;
+    text-align: center;
+    padding: 10px;
+    position: relative;
+  }
+
+  img#meme-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  img#meme-image:hover {
+    transform: scale(1.05) rotate(-1deg);
+  }
+
+  .meme-meta p {
+    font-size: 14px;
+    color: #555;
+    margin: 4px 0;
+  }
+
+  button {
+    background-color: #eee;
+    border: none;
+    padding: 8px 14px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: 0.2s;
+    margin: 8px 5px 0 5px;
+  }
+
+  button.liked {
+    background-color: #ff4d4d;
+    color: white;
+  }
+
+  .meme-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  #next-meme-button {
+    background-color: #4caf50;
+    color: white;
+  }
+
+  #prev-meme-button {
+    background-color: #2196f3;
+    color: white;
+  }
+
+  .fade-in { opacity: 1; transition: opacity 0.3s ease; }
+  .fade-out { opacity: 0; transition: opacity 0.3s ease; }
+
+  @media (max-width: 500px) {
+    .meme-container { padding: 5px; }
+    button { width: 45%; margin: 5px 2%; }
+  }
+</style>
+</head>
+<body>
+
 <div class="meme-container">
   <div id="meme-wrapper" class="fade-in">
     <h2 id="meme-title"><%= @meme["title"] %></h2>
@@ -21,7 +106,6 @@
     <button id="prev-meme-button">⬅️ Prev</button>
     <button id="next-meme-button">➡️ Next</button>
   </div>
-
 </div>
 
 <script>
@@ -71,8 +155,6 @@
       await loadMeme(data);
     } catch (err) {
       console.error(err);
-    } finally {
-      loader.classList.add('hidden');
     }
   }
 
@@ -106,90 +188,11 @@
   nextButton.addEventListener('click', fetchNextMeme);
   prevButton.addEventListener('click', showPrevMeme);
 
-  // Keyboard navigation
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') fetchNextMeme();
     if (e.key === 'ArrowLeft') showPrevMeme();
   });
 </script>
 
-<style>
-  .meme-container {
-    max-width: 700px;
-    margin: 20px auto;
-    text-align: center;
-    padding: 10px;
-    position: relative;
-  }
-
-  img {
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transition: opacity 0.3s ease;
-  }
-
-  .meme-meta p {
-    font-size: 14px;
-    color: #555;
-    margin: 4px 0;
-  }
-
-  button {
-    background-color: #eee;
-    border: none;
-    padding: 8px 14px;
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: 0.2s;
-    margin: 8px 5px 0 5px;
-  }
-
-  button.liked {
-    background-color: #ff4d4d;
-    color: white;
-  }
-
-  .meme-controls {
-    display: flex;
-    justify-content: center;
-    margin-top: 12px;
-  }
-
-  #next-meme-button {
-    background-color: #4caf50;
-    color: white;
-  }
-
-  #prev-meme-button {
-    background-color: #2196f3;
-    color: white;
-  }
-
-  #loader {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 18px;
-    background: rgba(255,255,255,0.8);
-    padding: 10px 20px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .hidden { display: none; }
-
-  .fade-in { opacity: 1; transition: opacity 0.3s ease; }
-  .fade-out { opacity: 0; transition: opacity 0.3s ease; }
-
-  @media (max-width: 500px) {
-    .meme-container { padding: 5px; }
-    button { width: 45%; margin: 5px 2%; }
-  }
-</style>
+</body>
+</html>
