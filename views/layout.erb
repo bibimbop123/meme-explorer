@@ -173,8 +173,9 @@
     <p>Built with ❤️ using Sinatra</p>
   </footer>
 
-  <!-- Global Cursor Emoji Trail -->
+  <!-- Global Cursor Emoji Trail + Background Color Cycle -->
   <script>
+    // Emoji cursor trail
     const emojis = ["😂","🥰","😎","🤯","🔥"];
     document.addEventListener("mousemove", e => {
       const emoji = document.createElement("div");
@@ -195,6 +196,20 @@
         }
       }, 10);
     });
+
+    // Background color shifts (mood-based)
+    const colors = {
+      funny: "#FFF176",
+      wholesome: "#A5D6A7",
+      dank: "#9575CD",
+      selfcare: "#F48FB1"
+    };
+    const categories = Object.keys(colors);
+
+    setInterval(() => {
+      const mood = categories[Math.floor(Math.random() * categories.length)];
+      document.body.style.background = colors[mood];
+    }, 5000);
   </script>
 </body>
 </html>
