@@ -4,13 +4,16 @@
   <!-- Unified image source -->
   <img src="<%= @image_src %>" alt="<%= @meme["title"] %>">
 
-  <p>Category: <%= @category_name %></p>
-  <p>Views: <%= @views %></p>
+  <p>
+    Category: <%= @category_name %><br>
+    Subreddit: <%= @meme["subreddit"] || 'Local Meme' %><br>
+    Views: <%= @views %>
+  </p>
 
   <form id="like-form" action="/like" method="POST">
     <input type="hidden" name="url" value="<%= @image_src %>">
     <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
-      ❤️ <%= session[:liked_memes]&.include?(@image_src) ? 'Unlike' : 'Like' %>
+      <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
     </button>
   </form>
 </div>
@@ -26,6 +29,7 @@
         method: 'POST',
         body: new URLSearchParams(new FormData(form))
       });
+
       if (!res.ok) {
         const text = await res.text();
         console.error("Server error:", text);
@@ -49,27 +53,35 @@
 
 <style>
   .meme-container {
+    max-width: 700px;
+    margin: 20px auto;
     text-align: center;
-    margin: 20px;
+    padding: 10px;
   }
 
   img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     border-radius: 12px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  p {
+    font-size: 14px;
+    color: #555;
+    margin-top: 8px;
   }
 
   button {
     background-color: #eee;
     border: none;
-    padding: 8px 12px;
+    padding: 8px 14px;
     font-size: 16px;
     cursor: pointer;
     border-radius: 8px;
     transition: 0.2s;
-    margin-top: 10px;
+    margin-top: 12px;
   }
 
   button.liked {
@@ -79,5 +91,15 @@
 
   button:hover {
     opacity: 0.9;
+  }
+
+  @media (max-width: 500px) {
+    .meme-container {
+      padding: 5px;
+    }
+
+    button {
+      width: 100%;
+    }
   }
 </style>
