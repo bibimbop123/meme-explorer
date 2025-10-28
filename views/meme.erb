@@ -1,53 +1,115 @@
 <div class="meme-container">
-  <h2><%= @meme["title"] %></h2>
+  <div id="meme-wrapper" class="fade-in">
+    <h2 id="meme-title"><%= @meme["title"] %></h2>
+    <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme["title"] %>">
 
-  <!-- Unified image source -->
-  <img src="<%= @image_src %>" alt="<%= @meme["title"] %>">
+    <div class="meme-meta">
+      <p>Category: <span id="meme-category"><%= @category_name %></span></p>
+      <p>Subreddit: <span id="meme-subreddit"><%= @meme["subreddit"] || 'Local Meme' %></span></p>
+      <p>Views: <span id="meme-views"><%= @views %></span></p>
+    </div>
 
-  <p>
-    Category: <%= @category_name %><br>
-    Subreddit: <%= @meme["subreddit"] || 'Local Meme' %><br>
-    Views: <%= @views %>
-  </p>
+    <form id="like-form" action="/like" method="POST">
+      <input type="hidden" name="url" value="<%= @image_src %>">
+      <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+        <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
+      </button>
+    </form>
+  </div>
 
-  <form id="like-form" action="/like" method="POST">
-    <input type="hidden" name="url" value="<%= @image_src %>">
-    <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
-      <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
-    </button>
-  </form>
+  <div class="meme-controls">
+    <button id="prev-meme-button">⬅️ Prev</button>
+    <button id="next-meme-button">➡️ Next</button>
+  </div>
+
 </div>
 
 <script>
-  const form = document.getElementById('like-form');
-  const button = document.getElementById('like-button');
+  const likeForm = document.getElementById('like-form');
+  const likeButton = document.getElementById('like-button');
+  const nextButton = document.getElementById('next-meme-button');
+  const prevButton = document.getElementById('prev-meme-button');
+  const memeWrapper = document.getElementById('meme-wrapper');
 
-  form.addEventListener('submit', async (e) => {
+  let memeHistory = [];
+  let currentIndex = -1;
+
+  async function loadMeme(data) {
+    memeWrapper.classList.remove('fade-in');
+    memeWrapper.classList.add('fade-out');
+
+    await new Promise(res => setTimeout(res, 200));
+
+    document.getElementById('meme-title').textContent = data.title;
+    const image = document.getElementById('meme-image');
+    image.src = data.url;
+    image.alt = data.title;
+    document.getElementById('meme-category').textContent = data.category;
+    document.getElementById('meme-subreddit').textContent = data.subreddit || 'Local Meme';
+    document.getElementById('meme-views').textContent = data.views;
+
+    likeForm.querySelector('input[name="url"]').value = data.url;
+    if (data.liked) {
+      likeButton.textContent = '💔 Unlike';
+      likeButton.classList.add('liked');
+    } else {
+      likeButton.textContent = '❤️ Like';
+      likeButton.classList.remove('liked');
+    }
+
+    memeWrapper.classList.remove('fade-out');
+    memeWrapper.classList.add('fade-in');
+  }
+
+  async function fetchNextMeme() {
+    try {
+      const res = await fetch('/random.json');
+      const data = await res.json();
+      memeHistory = memeHistory.slice(0, currentIndex + 1);
+      memeHistory.push(data);
+      currentIndex++;
+      await loadMeme(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      loader.classList.add('hidden');
+    }
+  }
+
+  function showPrevMeme() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      loadMeme(memeHistory[currentIndex]);
+    }
+  }
+
+  likeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(form.action, { 
+      const res = await fetch(likeForm.action, { 
         method: 'POST',
-        body: new URLSearchParams(new FormData(form))
+        body: new URLSearchParams(new FormData(likeForm))
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Server error:", text);
-        return;
-      }
-
       const data = await res.json();
-
       if (data.liked) {
-        button.textContent = '💔 Unlike';
-        button.classList.add('liked');
+        likeButton.textContent = '💔 Unlike';
+        likeButton.classList.add('liked');
       } else {
-        button.textContent = '❤️ Like';
-        button.classList.remove('liked');
+        likeButton.textContent = '❤️ Like';
+        likeButton.classList.remove('liked');
       }
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error(err);
     }
+  });
+
+  nextButton.addEventListener('click', fetchNextMeme);
+  prevButton.addEventListener('click', showPrevMeme);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') fetchNextMeme();
+    if (e.key === 'ArrowLeft') showPrevMeme();
   });
 </script>
 
@@ -57,6 +119,7 @@
     margin: 20px auto;
     text-align: center;
     padding: 10px;
+    position: relative;
   }
 
   img {
@@ -65,12 +128,13 @@
     object-fit: contain;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: opacity 0.3s ease;
   }
 
-  p {
+  .meme-meta p {
     font-size: 14px;
     color: #555;
-    margin-top: 8px;
+    margin: 4px 0;
   }
 
   button {
@@ -81,7 +145,7 @@
     cursor: pointer;
     border-radius: 8px;
     transition: 0.2s;
-    margin-top: 12px;
+    margin: 8px 5px 0 5px;
   }
 
   button.liked {
@@ -89,17 +153,43 @@
     color: white;
   }
 
-  button:hover {
-    opacity: 0.9;
+  .meme-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
   }
 
-  @media (max-width: 500px) {
-    .meme-container {
-      padding: 5px;
-    }
+  #next-meme-button {
+    background-color: #4caf50;
+    color: white;
+  }
 
-    button {
-      width: 100%;
-    }
+  #prev-meme-button {
+    background-color: #2196f3;
+    color: white;
+  }
+
+  #loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    background: rgba(255,255,255,0.8);
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hidden { display: none; }
+
+  .fade-in { opacity: 1; transition: opacity 0.3s ease; }
+  .fade-out { opacity: 0; transition: opacity 0.3s ease; }
+
+  @media (max-width: 500px) {
+    .meme-container { padding: 5px; }
+    button { width: 45%; margin: 5px 2%; }
   }
 </style>

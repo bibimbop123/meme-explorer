@@ -11,10 +11,12 @@ class MemeExplorer < Sinatra::Base
   end
 
   MEMES = YAML.load_file("./data/memes.yml").transform_keys(&:to_s)
-  VIEW_COUNTS ||= Hash.new(0)
+  VIEW_COUNTS ||= Hash.new(0)  # Keyed by URL/file
   enable :sessions
 
-  # Expanded subreddit pool for more variety
+  # =========================
+  # Expanded subreddit pool
+  # =========================
   ALL_SUBREDDITS = %w[
     dankmemes memes wholesomeMemes me_irl ProgrammerHumor
     funny adviceanimals comedyheaven historymemes wholesomememes
@@ -34,6 +36,7 @@ class MemeExplorer < Sinatra::Base
   before do
     seen_cookie = request.cookies["seen_memes"]
     @seen_memes = seen_cookie ? JSON.parse(seen_cookie) : []
+    session[:liked_memes] ||= []
   end
 
   after do
@@ -61,8 +64,8 @@ class MemeExplorer < Sinatra::Base
   end
 
   get '/random' do
+    # Normal HTML route, use first meme from weighted pool
     memes = random_meme_pool.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
-
     if memes.empty?
       category, local_memes = MEMES.to_a.sample
       memes = local_memes
@@ -71,19 +74,53 @@ class MemeExplorer < Sinatra::Base
       @category_name = "Reddit & Local Memes"
     end
 
-    @meme = memes.sample
-    @image_src = @meme["url"] || @meme["file"]
-
-    seen_key = @meme["url"] || @meme["file"]
-    if seen_key
-      @seen_memes << seen_key
-      @seen_memes = @seen_memes.last(100) # keep only last 100 seen
+    weighted_memes = memes.flat_map do |m|
+      key = m["url"] || m["file"]
+      weight = session[:liked_memes].include?(key) ? 3 : 1
+      [m] * weight
     end
 
-    VIEW_COUNTS[@meme["title"]] += 1
-    @views = VIEW_COUNTS[@meme["title"]]
+    @meme = weighted_memes.sample
+    @image_src = @meme["url"] || @meme["file"]
+
+    seen_key = @image_src
+    @seen_memes << seen_key if seen_key
+    @seen_memes = @seen_memes.last(100)
+
+    VIEW_COUNTS[seen_key] += 1
+    @views = VIEW_COUNTS[seen_key]
 
     erb :meme
+  end
+
+  # JSON endpoint for dynamic next meme
+  get '/random.json' do
+    memes = random_meme_pool.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
+    memes = MEMES.values.flatten.sample(5) if memes.empty?
+
+    weighted_memes = memes.flat_map do |m|
+      key = m["url"] || m["file"]
+      weight = session[:liked_memes].include?(key) ? 3 : 1
+      [m] * weight
+    end
+
+    meme = weighted_memes.sample
+    key = meme["url"] || meme["file"]
+    @seen_memes << key
+    @seen_memes = @seen_memes.last(100)
+
+    VIEW_COUNTS[key] += 1
+    liked = session[:liked_memes].include?(key)
+
+    content_type :json
+    {
+      title: meme["title"],
+      url: key,
+      category: "Reddit & Local Memes",
+      subreddit: meme["subreddit"],
+      views: VIEW_COUNTS[key],
+      liked: liked
+    }.to_json
   end
 
   get '/search' do
@@ -105,8 +142,8 @@ class MemeExplorer < Sinatra::Base
     halt 404, "Meme not found" unless @meme
 
     @image_src = @meme["url"] || @meme["file"]
-    VIEW_COUNTS[@meme["title"]] += 1
-    @views = VIEW_COUNTS[@meme["title"]]
+    VIEW_COUNTS[@image_src] += 1
+    @views = VIEW_COUNTS[@image_src]
 
     erb :meme
   end
@@ -118,23 +155,18 @@ class MemeExplorer < Sinatra::Base
 
   post '/like' do
     content_type :json
-    begin
-      meme_url = params[:url]
-      session[:liked_memes] ||= []
+    meme_url = params[:url]
+    session[:liked_memes] ||= []
 
-      if session[:liked_memes].include?(meme_url)
-        session[:liked_memes].delete(meme_url)
-        liked = false
-      else
-        session[:liked_memes] << meme_url
-        liked = true
-      end
-
-      { liked: liked }.to_json
-    rescue => e
-      status 500
-      { error: e.message }.to_json
+    if session[:liked_memes].include?(meme_url)
+      session[:liked_memes].delete(meme_url)
+      liked = false
+    else
+      session[:liked_memes] << meme_url
+      liked = true
     end
+
+    { liked: liked }.to_json
   end
 
   # =========================
@@ -148,9 +180,8 @@ class MemeExplorer < Sinatra::Base
     (api_memes + global_randoms + local_memes).shuffle.uniq { |m| m["url"] || m["file"] }
   end
 
-  # Fetch memes from selected subreddits with multiple calls per subreddit
   def fetch_fresh_memes(batch_size = 20)
-    if Time.now - MEME_CACHE[:fetched_at] > 120 # refresh every 2 min
+    if Time.now - MEME_CACHE[:fetched_at] > 120
       MEME_CACHE[:memes] = get_memes_from_reddit(batch_size)
       MEME_CACHE[:fetched_at] = Time.now
     end
@@ -185,7 +216,6 @@ class MemeExplorer < Sinatra::Base
     memes.uniq { |m| m["url"] }
   end
 
-  # Fetch global random memes to increase variety
   def fetch_global_randoms(count = 20)
     url = URI("https://meme-api.com/gimme/#{count}")
     response = Net::HTTP.get(url)
