@@ -440,11 +440,11 @@ class MemeExplorer < Sinatra::Base
       end
     end
     METRICS ||= {}
-
+  
     # -----------------------
     # Defaults
     # -----------------------
-    @last_batch          = MEME_CACHE[:fetched_at] || Time.now
+    @last_batch          = (MEME_CACHE[:fetched_at] || Time.now).iso8601
     @total_memes         = 0
     @total_likes         = 0
     @total_views         = 0
@@ -466,7 +466,7 @@ class MemeExplorer < Sinatra::Base
     @tier3_calls         = 0
     @top_memes           = []
     @top_subreddits      = []
-
+  
     begin
       # -----------------------
       # DB Metrics
@@ -477,20 +477,33 @@ class MemeExplorer < Sinatra::Base
         db_sum_views  = safe_db_exec("SELECT SUM(views) AS sum FROM meme_stats").first
         no_likes      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
         no_views      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
-
+  
         @total_memes         = db_count["count"] || 0
         @total_likes         = db_sum_likes["sum"] || 0
         @total_views         = db_sum_views["sum"] || 0
         @memes_with_no_likes = no_likes["count"] || 0
         @memes_with_no_views = no_views["count"] || 0
-
-        top_memes_data = safe_db_exec("SELECT url, likes, views, (likes*2+views) AS score FROM meme_stats ORDER BY score DESC LIMIT 10")
+  
+        # Top 10 memes by score (likes*2 + views) including title & subreddit
+        top_memes_data = safe_db_exec("
+          SELECT title, subreddit, url, likes, views, (likes*2 + views) AS score
+          FROM meme_stats
+          ORDER BY score DESC
+          LIMIT 10
+        ")
         @top_memes = top_memes_data.map { |m| m.transform_keys(&:to_s) }
-
-        top_subreddit_data = safe_db_exec("SELECT subreddit, SUM(likes+views) AS score FROM meme_stats GROUP BY subreddit ORDER BY score DESC LIMIT 10")
+  
+        # Top 10 subreddits by total likes
+        top_subreddit_data = safe_db_exec("
+          SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
+          FROM meme_stats
+          GROUP BY subreddit
+          ORDER BY total_likes DESC
+          LIMIT 10
+        ")
         @top_subreddits = top_subreddit_data.map { |s| s.transform_keys(&:to_s) }
       end
-
+  
       # -----------------------
       # Redis Metrics
       # -----------------------
@@ -500,13 +513,13 @@ class MemeExplorer < Sinatra::Base
         @redis_no_views = REDIS.get("memes:no_views").to_i
         @redis_no_likes = REDIS.get("memes:no_likes").to_i
       end
-
+  
       # -----------------------
-      # Averages
+      # Averages & Other Metrics
       # -----------------------
       @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
       @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
-      @avg_request_time_ms = METRICS[:avg_request_time_ms].round(2) rescue 0
+      @avg_request_time_ms = METRICS[:avg_request_time_ms].to_f.round(2) rescue 0
       @total_requests      = METRICS[:total_requests] || 0
       @cache_hits          = METRICS[:cache_hits] || 0
       @cache_misses        = METRICS[:cache_misses] || 0
@@ -514,13 +527,14 @@ class MemeExplorer < Sinatra::Base
       @tier1_calls         = MEME_CACHE[:tier1_calls] || 0
       @tier2_calls         = MEME_CACHE[:tier2_calls] || 0
       @tier3_calls         = MEME_CACHE[:tier3_calls] || 0
-
+  
     rescue => e
       puts "Metrics error: #{e.class}: #{e.message}"
     end
-
+  
     erb :metrics
   end
+  
 
   # -----------------------
   # Helpers for safe DB execution
