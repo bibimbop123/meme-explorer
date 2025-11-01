@@ -1,0 +1,61 @@
+# data/subreddits.yml
+# Curated list of image-heavy subreddits with working direct image links
+popular:
+  # Primary Meme Subreddits (high-quality image posts with direct links)
+  - memes
+  - dankmemes
+  - funny
+  - wholesomememes
+  - me_irl
+  - CatsStandingUp
+  - IllegallySmolCats
+  - Eyebleach
+  - rarepuppers
+  - AnimalsBeingBros
+  - MadeMeSmile
+  - HumansBeingBros
+  - Cringetopia
+  - BikiniBottomTwitter
+  
+  # Entertainment & General Interest (reliable imgur/i.redd.it posts)
+  - nextfuckinglevel
+  - interestingasfuck
+  - oddlyinteresting
+  - oddlysatisfying
+  - pics
+  - gifs
+  - unexpected
+  - youseeingthisshit
+  - BeAmazed
+  - Damnthatsinteresting
+  
+  # Animals (always image-heavy, working links)
+  - Aww
+  - Eyebleach
+  - IllegallySmolCats
+  - Catswithjobs
+  - Illegallysmolbirds
+  - ExtremelyWatersports
+  - Zoomies
+  
+  # Nature & Photography (consistent direct image links)
+  - EarthPorn
+  - SkyPorn
+  - WaterPorn
+  - DesertPorn
+  - CityPorn
+  - NatureIsFuckingLit
+  - NatureIsFuckedUp
+  
+  # Mildly Interesting Category
+  - mildlyinteresting
+  - notinteresting
+  - Satisfyingas
+  
+  # Humor & Comics
+  - Comics
+  - HoldMyBeer
+  - WinStupidPrizes
+  - Whatcouldgowrong
+  - JusticeServed
+  - Instantkarma

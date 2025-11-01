@@ -1,24 +1,28 @@
 <% if @meme %>
 <div class="meme-container">
-  <h2 id="meme-title"><%= @meme["title"] %></h2>
-  <p id="meme-subreddit" class="meme-subtitle"><%= @meme["subreddit"] %></p>
+  <h2 id="meme-title"><%= @meme["title"] || "Untitled Meme" %></h2>
+  <p id="meme-subreddit" class="meme-subtitle"><%= @meme["subreddit"] || "Unknown Subreddit" %></p>
 
-  <img id="meme-img" src="<%= @image_src %>" alt="<%= @meme["title"] %>">
+  <img
+    id="meme-img"
+    src="<%= @image_src || '/images/funny1.jpeg' %>"
+    alt="<%= @meme["title"] || 'Meme Image' %>"
+    onerror="this.src='/images/funny1.jpeg';"
+  >
 
   <% likes_count = (@likes.to_i rescue 0) %>
-  <% if likes_count > 0 %>
-    <p>Likes: <%= likes_count %></p>
-  <% else %>
-    <p>Likes:</p>
-  <% end %>
+  <p>Likes: <span class="meme-likes"><%= likes_count > 0 ? likes_count : "" %></span></p>
 
   <form class="like-form" action="/like" method="POST" style="margin-top:10px;">
-    <input type="hidden" name="url" value="<%= @image_src %>">
-    <button type="submit" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+    <input type="hidden" name="url" value="<%= @image_src || '' %>">
+    <button
+      type="submit"
+      class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+    >
       <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
     </button>
-    <span class="meme-likes"><%= likes_count > 0 ? likes_count : "" %></span>
   </form>
+
 </div>
 <% else %>
 <p>No memes found!</p>
@@ -26,16 +30,12 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form.like-form");
-  if (!form) return;
-
   const memeImg = document.getElementById("meme-img");
   const memeTitle = document.getElementById("meme-title");
   const memeSub = document.getElementById("meme-subreddit");
-  const likesSpan = form.querySelector(".meme-likes");
-  const likeButton = form.querySelector("button");
-  const prevBtn = document.getElementById("prev-btn");
-  const nextBtn = document.getElementById("next-btn");
+  const likesSpan = document.querySelector(".meme-likes");
+  const likeButton = document.querySelector("form.like-form button");
+  const form = document.querySelector("form.like-form");
 
   let historyStack = [];
   let currentMeme = {
@@ -45,47 +45,41 @@ document.addEventListener("DOMContentLoaded", () => {
     likes: parseInt(likesSpan.innerText) || 0
   };
 
-  const updateMeme = (meme) => {
-    memeImg.src = meme.url;
-    memeImg.alt = meme.title;
-    memeTitle.innerText = meme.title;
-    memeSub.innerText = meme.subreddit;
-    form.querySelector("input[name='url']").value = meme.url;
-    likesSpan.textContent = meme.likes > 0 ? meme.likes : "";
-    likeButton.classList.remove("liked");
-    likeButton.textContent = "❤️ Like";
+  // Safe session store for liked memes
+  if (!window.sessionLikedMemes) window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
 
-    if (window.sessionLikedMemes?.includes(meme.url)) {
+  const updateMeme = (meme) => {
+    memeImg.src = meme.url || '/images/funny1.jpeg';
+    memeImg.alt = meme.title || "Meme Image";
+    memeTitle.innerText = meme.title || "Untitled Meme";
+    memeSub.innerText = meme.subreddit || "Unknown Subreddit";
+    form.querySelector("input[name='url']").value = meme.url || "";
+    likesSpan.textContent = meme.likes > 0 ? meme.likes : "";
+    
+    if (window.sessionLikedMemes.includes(meme.url)) {
       likeButton.textContent = "💔 Unlike";
       likeButton.classList.add("liked");
+    } else {
+      likeButton.textContent = "❤️ Like";
+      likeButton.classList.remove("liked");
     }
 
     currentMeme = meme;
   };
 
   const fetchMeme = async (direction) => {
-    nextBtn.disabled = true;
-    prevBtn.disabled = true;
-
-    if (direction === "prev" && historyStack.length > 0) {
-      const prev = historyStack.pop();
-      updateMeme(prev);
-      nextBtn.disabled = false;
-      prevBtn.disabled = false;
-      return;
-    }
-
     historyStack.push(currentMeme);
 
     try {
       const res = await fetch(`/random.json`);
+      if (!res.ok) throw new Error("Failed to fetch meme");
       const meme = await res.json();
+      // Ensure likes is numeric
+      meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
     } catch (err) {
-      console.error("Failed to fetch meme:", err);
-    } finally {
-      nextBtn.disabled = false;
-      prevBtn.disabled = false;
+      console.error(err);
+      alert("Could not load a new meme. Try again!");
     }
   };
 
@@ -101,8 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
 
-      if (!window.sessionLikedMemes) window.sessionLikedMemes = [];
-
       if (data.liked) {
         likeButton.textContent = "💔 Unlike";
         likeButton.classList.add("liked");
@@ -116,13 +108,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       likesSpan.textContent = data.likes > 0 ? data.likes : "";
     } catch (err) {
-      alert("Could not update like — please try again.");
       console.error(err);
+      alert("Could not update like — please try again.");
     }
   });
-
-  prevBtn?.addEventListener("click", () => fetchMeme("prev"));
-  nextBtn?.addEventListener("click", () => fetchMeme("next"));
 
   document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
