@@ -478,13 +478,13 @@ class MemeExplorer < Sinatra::Base
         no_likes      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
         no_views      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
   
-        @total_memes         = db_count["count"] || 0
-        @total_likes         = db_sum_likes["sum"] || 0
-        @total_views         = db_sum_views["sum"] || 0
-        @memes_with_no_likes = no_likes["count"] || 0
-        @memes_with_no_views = no_views["count"] || 0
+        @total_memes         = db_count["count"].to_i
+        @total_likes         = db_sum_likes["sum"].to_i
+        @total_views         = db_sum_views["sum"].to_i
+        @memes_with_no_likes = no_likes["count"].to_i
+        @memes_with_no_views = no_views["count"].to_i
   
-        # Top 10 memes by score (likes*2 + views) including title & subreddit
+        # Top 10 memes by score (likes*2 + views)
         top_memes_data = safe_db_exec("
           SELECT title, subreddit, url, likes, views, (likes*2 + views) AS score
           FROM meme_stats
@@ -508,6 +508,12 @@ class MemeExplorer < Sinatra::Base
       # Redis Metrics
       # -----------------------
       if REDIS
+        # If Redis keys do not exist, optionally initialize them from DB
+        REDIS.set("memes:views", @total_views) if REDIS.get("memes:views").nil?
+        REDIS.set("memes:likes", @total_likes) if REDIS.get("memes:likes").nil?
+        REDIS.set("memes:no_views", @memes_with_no_views) if REDIS.get("memes:no_views").nil?
+        REDIS.set("memes:no_likes", @memes_with_no_likes) if REDIS.get("memes:no_likes").nil?
+  
         @redis_views    = REDIS.get("memes:views").to_i
         @redis_likes    = REDIS.get("memes:likes").to_i
         @redis_no_views = REDIS.get("memes:no_views").to_i
