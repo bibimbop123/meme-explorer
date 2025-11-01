@@ -313,90 +313,86 @@ class MemeExplorer < Sinatra::Base
   end
   
   get "/metrics" do
-    # -----------------------
-    # Last batch fetched
-    # -----------------------
-    last_batch = MEME_CACHE[:fetched_at] || Time.now
+    begin
+      # -----------------------
+      # Safe caches and defaults
+      # -----------------------
+      MEME_CACHE ||= {}
+      REDIS ||= Redis.new
+      METRICS ||= {}
   
-    # -----------------------
-    # Aggregate stats from DB
-    # -----------------------
-    total_memes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first["count"] || 0
-    total_likes = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first["sum"] || 0
-    total_views = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first["sum"] || 0
-    avg_likes   = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
-    avg_views   = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
-    memes_with_no_likes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first["count"] || 0
-    memes_with_no_views = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first["count"] || 0
+      # -----------------------
+      # Last batch fetched
+      # -----------------------
+      @last_batch = MEME_CACHE[:fetched_at] || Time.now
   
-    # -----------------------
-    # Redis counters
-    # -----------------------
-    redis_views      = REDIS.get("total_views")&.to_i || 0
-    redis_likes      = REDIS.get("total_likes")&.to_i || 0
-    redis_no_views   = REDIS.get("memes_no_views")&.to_i || 0
-    redis_no_likes   = REDIS.get("memes_no_likes")&.to_i || 0
+      # -----------------------
+      # Aggregate stats from DB
+      # -----------------------
+      db_count = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
+      db_sum_likes = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
+      db_sum_views = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
   
-    # -----------------------
-    # App metrics
-    # -----------------------
-    avg_request_time_ms = METRICS[:avg_request_time_ms] || 0
-    total_requests      = METRICS[:total_requests] || 0
-    cache_hits          = METRICS[:cache_hits] || 0
-    cache_misses        = METRICS[:cache_misses] || 0
-    api_calls           = METRICS[:api_calls] || 0
-    tier1_calls         = METRICS[:tier1_calls] || 0
-    tier2_calls         = METRICS[:tier2_calls] || 0
-    tier3_calls         = METRICS[:tier3_calls] || 0
+      @total_memes = db_count ? db_count["count"] : 0
+      @total_likes = db_sum_likes ? db_sum_likes["sum"].to_i : 0
+      @total_views = db_sum_views ? db_sum_views["sum"].to_i : 0
   
-    # -----------------------
-    # Top 10 memes by likes
-    # -----------------------
-    top_memes = DB.execute("
-      SELECT url, title, subreddit, likes, views 
-      FROM meme_stats 
-      ORDER BY likes DESC, views DESC 
-      LIMIT 10
-    ")
+      @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
+      @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
   
-    # -----------------------
-    # Top 10 subreddits by likes
-    # -----------------------
-    top_subreddits = DB.execute("
-      SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
-      FROM meme_stats
-      GROUP BY subreddit
-      ORDER BY total_likes DESC
-      LIMIT 10
-    ")
+      @memes_with_no_likes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first&.dig("count") || 0
+      @memes_with_no_views = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first&.dig("count") || 0
   
-    # -----------------------
-    # Render metrics page
-    # -----------------------
-    erb :metrics, locals: {
-      last_batch: last_batch,
-      total_memes: total_memes,
-      total_likes: total_likes,
-      total_views: total_views,
-      redis_views: redis_views,
-      redis_likes: redis_likes,
-      redis_no_views: redis_no_views,
-      redis_no_likes: redis_no_likes,
-      avg_likes: avg_likes,
-      avg_views: avg_views,
-      memes_with_no_likes: memes_with_no_likes,
-      memes_with_no_views: memes_with_no_views,
-      avg_request_time_ms: avg_request_time_ms,
-      total_requests: total_requests,
-      cache_hits: cache_hits,
-      cache_misses: cache_misses,
-      api_calls: api_calls,
-      tier1_calls: tier1_calls,
-      tier2_calls: tier2_calls,
-      tier3_calls: tier3_calls,
-      top_memes: top_memes,
-      top_subreddits: top_subreddits
-    }
+      # -----------------------
+      # Redis counters
+      # -----------------------
+      @redis_views    = REDIS.get("total_views")&.to_i || 0
+      @redis_likes    = REDIS.get("total_likes")&.to_i || 0
+      @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
+      @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
+  
+      # -----------------------
+      # App metrics
+      # -----------------------
+      @avg_request_time_ms = METRICS[:avg_request_time_ms] || 0
+      @total_requests      = METRICS[:total_requests] || 0
+      @cache_hits          = METRICS[:cache_hits] || 0
+      @cache_misses        = METRICS[:cache_misses] || 0
+      @api_calls           = METRICS[:api_calls] || 0
+      @tier1_calls         = METRICS[:tier1_calls] || 0
+      @tier2_calls         = METRICS[:tier2_calls] || 0
+      @tier3_calls         = METRICS[:tier3_calls] || 0
+  
+      # -----------------------
+      # Top 10 memes by likes
+      # -----------------------
+      @top_memes = DB.execute("
+        SELECT url, title, subreddit, likes, views 
+        FROM meme_stats 
+        ORDER BY likes DESC, views DESC 
+        LIMIT 10
+      ")
+  
+      # -----------------------
+      # Top 10 subreddits by likes
+      # -----------------------
+      @top_subreddits = DB.execute("
+        SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
+        FROM meme_stats
+        GROUP BY subreddit
+        ORDER BY total_likes DESC
+        LIMIT 10
+      ")
+  
+      # -----------------------
+      # Render metrics page
+      # -----------------------
+      erb :metrics
+    rescue => e
+      puts "Error in /metrics: #{e.class} - #{e.message}"
+      puts e.backtrace
+      halt 500, "Internal Server Error"
+    end
   end
   
   

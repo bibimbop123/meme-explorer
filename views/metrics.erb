@@ -2,232 +2,239 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Meme Explorer Metrics Dashboard 📊</title>
+  <title>Meme Metrics Dashboard</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- DataTables CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+
   <style>
     body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin: 2rem;
-      background-color: #f4f5f7;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f6fa;
       color: #333;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 1rem;
+      margin-bottom: 2rem;
     }
 
-    .dashboard-grid {
+    .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
       margin-bottom: 2rem;
     }
 
     .card {
       background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      padding: 1.5rem;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-
-    ul { list-style: none; padding: 0; line-height: 1.6; }
-    li { margin-bottom: 0.5rem; }
-
-    .badge {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
+      padding: 1rem;
       border-radius: 8px;
-      font-weight: bold;
-      color: #fff;
-      font-size: 0.9rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      text-align: center;
     }
-    .badge-blue { background-color: #2c7be5; }
-    .badge-green { background-color: #1db954; }
-    .badge-red { background-color: #e63757; }
-    .badge-yellow { background-color: #ffbf47; }
+
+    .card h3 {
+      margin: 0.5rem 0;
+      font-size: 1.2rem;
+      color: #555;
+    }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 0.5rem;
-    }
-    th, td {
-      padding: 0.5rem;
-      text-align: left;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
-    tr:nth-child(even) {
-      background-color: #fafafa;
+      margin-bottom: 2rem;
     }
 
-    .charts {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-top: 2rem;
+    th, td {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      text-align: left;
     }
+
+    th {
+      background-color: #2980b9;
+      color: white;
+      cursor: pointer;
+    }
+
+    a {
+      color: #2980b9;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .chart-container {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
   </style>
 </head>
 <body>
-  <h1>Meme Explorer Metrics Dashboard 📊</h1>
-  <p style="text-align:center; margin-bottom:2rem;">
-    Last meme fetch from API: <%= last_batch&.strftime("%B %d, %Y %H:%M:%S") || "N/A" %>
-  </p>
 
-  <!-- First Row: Overall Stats & Cache Metrics -->
-  <div class="dashboard-grid">
-    <!-- Overall Stats -->
+  <h1>Meme Metrics Dashboard</h1>
+  <p style="text-align:center;">Last updated: <%= @last_batch %></p>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
     <div class="card">
-      <h2>Overall Stats</h2>
-      <ul>
-        <li>Total memes tracked: <span class="badge badge-blue"><%= total_memes %></span></li>
-        <li>Total likes: <span class="badge badge-green"><%= total_likes %></span></li>
-        <li>Total views: <span class="badge badge-green"><%= total_views %></span></li>
-        <li>Average likes per meme: <span class="badge badge-blue"><%= avg_likes %></span></li>
-        <li>Average views per meme: <span class="badge badge-blue"><%= avg_views %></span></li>
-        <li>Memes with no likes: <span class="badge badge-red"><%= memes_with_no_likes %></span></li>
-        <li>Memes with no views: <span class="badge badge-red"><%= memes_with_no_views %></span></li>
-      </ul>
+      <h3>Total Memes</h3>
+      <p><%= @total_memes %></p>
     </div>
-
-    <!-- Cache & In-Memory Metrics -->
     <div class="card">
-      <h2>Cache & In-Memory Metrics</h2>
-      <ul>
-        <li>Redis views counter: <span class="badge badge-green"><%= redis_views %></span></li>
-        <li>Redis likes counter: <span class="badge badge-green"><%= redis_likes %></span></li>
-        <li>Redis memes with no views: <span class="badge badge-red"><%= redis_no_views %></span></li>
-        <li>Redis memes with no likes: <span class="badge badge-red"><%= redis_no_likes %></span></li>
-        <li>Average request time (ms): <span class="badge badge-yellow"><%= avg_request_time_ms.round(2) %></span></li>
-        <li>Total requests: <span class="badge badge-blue"><%= total_requests %></span></li>
-        <li>Cache hits: <span class="badge badge-green"><%= cache_hits %></span></li>
-        <li>Cache misses: <span class="badge badge-red"><%= cache_misses %></span></li>
-        <li>API calls: <span class="badge badge-blue"><%= api_calls %></span></li>
-        <li>Tier 1 random calls: <span class="badge badge-yellow"><%= tier1_calls %></span></li>
-        <li>Tier 2 random calls: <span class="badge badge-yellow"><%= tier2_calls %></span></li>
-        <li>Tier 3 random calls: <span class="badge badge-yellow"><%= tier3_calls %></span></li>
-      </ul>
+      <h3>Total Likes</h3>
+      <p><%= @total_likes %></p>
+    </div>
+    <div class="card">
+      <h3>Total Views</h3>
+      <p><%= @total_views %></p>
+    </div>
+    <div class="card">
+      <h3>Average Likes</h3>
+      <p><%= @avg_likes %></p>
+    </div>
+    <div class="card">
+      <h3>Average Views</h3>
+      <p><%= @avg_views %></p>
+    </div>
+    <div class="card">
+      <h3>Memes with No Likes</h3>
+      <p><%= @memes_with_no_likes %></p>
+    </div>
+    <div class="card">
+      <h3>Memes with No Views</h3>
+      <p><%= @memes_with_no_views %></p>
     </div>
   </div>
-<!-- Second Row: Top Memes Table -->
-<div class="card">
-  <h2>Top Memes</h2>
-  <table>
+
+  <!-- Redis Counters -->
+  <div class="stats-grid">
+    <div class="card">
+      <h3>Redis Likes</h3>
+      <p><%= @redis_likes %></p>
+    </div>
+    <div class="card">
+      <h3>Redis Views</h3>
+      <p><%= @redis_views %></p>
+    </div>
+    <div class="card">
+      <h3>Redis No Likes</h3>
+      <p><%= @redis_no_likes %></p>
+    </div>
+    <div class="card">
+      <h3>Redis No Views</h3>
+      <p><%= @redis_no_views %></p>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-container">
+    <canvas id="likesViewsChart" height="100"></canvas>
+  </div>
+
+  <script>
+    const ctx = document.getElementById('likesViewsChart').getContext('2d');
+    const likesViewsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: <%= @top_memes.map { |m| m["title"] }.to_json %>,
+        datasets: [
+          {
+            label: 'Likes',
+            data: <%= @top_memes.map { |m| m["likes"] }.to_json %>,
+            backgroundColor: 'rgba(41, 128, 185, 0.7)'
+          },
+          {
+            label: 'Views',
+            data: <%= @top_memes.map { |m| m["views"] }.to_json %>,
+            backgroundColor: 'rgba(231, 76, 60, 0.7)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: true, text: 'Top Memes Likes vs Views' }
+        }
+      }
+    });
+  </script>
+
+  <!-- Tables -->
+  <h2>Top 10 Memes by Likes</h2>
+  <table id="memesTable">
     <thead>
       <tr>
         <th>Title</th>
         <th>Subreddit</th>
-        <th style="text-align:center;">Likes</th>
-        <th style="text-align:center;">Views</th>
+        <th>Likes</th>
+        <th>Views</th>
+        <th>URL</th>
       </tr>
     </thead>
     <tbody>
-      <% (top_memes || []).each do |meme| %>
+      <% @top_memes.each do |meme| %>
         <tr>
-          <td>
-            <a href="<%= meme["url"] %>" target="_blank" style="color:#2c7be5; text-decoration:none;">
-              <%= meme["title"] %>
-            </a>
-          </td>
+          <td><%= meme["title"] %></td>
           <td><%= meme["subreddit"] %></td>
-          <td style="text-align:center; color:#2c7be5;"><%= meme["likes"] %></td>
-          <td style="text-align:center; color:#1db954;"><%= meme["views"] %></td>
+          <td><%= meme["likes"] %></td>
+          <td><%= meme["views"] %></td>
+          <td><a href="<%= meme["url"] %>" target="_blank">link</a></td>
         </tr>
       <% end %>
     </tbody>
   </table>
-</div>
 
-  <!-- Third Row: Top Subreddits Table -->
-  <div class="card">
-    <h2>Top Subreddits</h2>
-    <table>
-      <thead>
+  <h2>Top 10 Subreddits by Likes</h2>
+  <table id="subredditsTable">
+    <thead>
+      <tr>
+        <th>Subreddit</th>
+        <th>Total Likes</th>
+        <th>Memes Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @top_subreddits.each do |sub| %>
         <tr>
-          <th>Subreddit</th>
-          <th style="text-align:center;">Total Likes</th>
-          <th style="text-align:center;">Memes Count</th>
+          <td><%= sub["subreddit"] %></td>
+          <td><%= sub["total_likes"] %></td>
+          <td><%= sub["count"] %></td>
         </tr>
-      </thead>
-      <tbody>
-        <% (top_subreddits || []).each do |sub| %>
-          <tr>
-            <td><%= sub["subreddit"] %></td>
-            <td style="text-align:center; color:#2c7be5;"><%= sub["total_likes"] %></td>
-            <td style="text-align:center;"><%= sub["count"] %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+      <% end %>
+    </tbody>
+  </table>
 
-  <!-- Fourth Row: Charts / Trends Placeholder -->
-  <div class="charts">
-    <div class="card">
-      <h2>Likes Over Time</h2>
-      <canvas id="likesChart" height="100"></canvas>
-    </div>
-    <div class="card">
-      <h2>Views Over Time</h2>
-      <canvas id="viewsChart" height="100"></canvas>
-    </div>
-    <div class="card">
-      <h2>Cache Hits vs Misses</h2>
-      <canvas id="cacheChart" height="100"></canvas>
-    </div>
-  </div>
-
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // Example Chart.js data, you can replace with real data
-    const likesChart = new Chart(document.getElementById('likesChart'), {
-      type: 'line',
-      data: {
-        labels: ['Today','Yesterday','2 Days Ago','3 Days Ago','4 Days Ago'],
-        datasets: [{
-          label: 'Likes',
-          data: [12, 19, 7, 15, 9],
-          borderColor: '#2c7be5',
-          fill: false,
-          tension: 0.3
-        }]
-      }
-    });
-
-    const viewsChart = new Chart(document.getElementById('viewsChart'), {
-      type: 'line',
-      data: {
-        labels: ['Today','Yesterday','2 Days Ago','3 Days Ago','4 Days Ago'],
-        datasets: [{
-          label: 'Views',
-          data: [120, 190, 70, 150, 90],
-          borderColor: '#1db954',
-          fill: false,
-          tension: 0.3
-        }]
-      }
-    });
-
-    const cacheChart = new Chart(document.getElementById('cacheChart'), {
-      type: 'bar',
-      data: {
-        labels: ['Cache Hits', 'Cache Misses', 'API Calls'],
-        datasets: [{
-          label: 'Counts',
-          data: [<%= cache_hits %>, <%= cache_misses %>, <%= api_calls %>],
-          backgroundColor: ['#2c7be5','#e63757','#ffbf47']
-        }]
-      }
+    $(document).ready(function () {
+      $('#memesTable').DataTable({
+        pageLength: 10,
+        lengthChange: false
+      });
+      $('#subredditsTable').DataTable({
+        pageLength: 10,
+        lengthChange: false
+      });
     });
   </script>
+
 </body>
 </html>
