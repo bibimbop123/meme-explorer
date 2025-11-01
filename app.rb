@@ -26,7 +26,7 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Redis & Config
   # -----------------------
-  REDIS_URL = ENV.fetch("REDIS_URL", "redis://red-d42v6u24d50c73a5goqg:6379")
+  REDIS_URL = ENV.fetch("REDIS_URL", "rediss://red-d42v6u24d50c73a5goqg:UD3EpN1aQXznpIRseNj0ULS0qRNo8SvS@oregon-keyvalue.render.com:6379")
   REDIS = Redis.new(url: REDIS_URL)
   DB = ::DB  # Use DB connection from db/setup.rb
 
