@@ -122,18 +122,27 @@ class MemeExplorer < Sinatra::Base
   def self.fetch_reddit_memes_static(subreddits = nil, limit = 15)
     subreddits ||= YAML.load_file("data/subreddits.yml")["popular"]
     memes = []
-    subreddits = subreddits.sample(10) if subreddits.size > 10
+    subreddits = subreddits.sample(8) if subreddits.size > 8
 
     subreddits.each do |subreddit|
       begin
         url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
         uri = URI(url)
         
-        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 5) do |http|
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10) do |http|
           request = Net::HTTP::Get.new(uri.request_uri)
-          request["User-Agent"] = "MemeExplorer/1.0"
+          request["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          request["Accept"] = "application/json"
+          request["Accept-Language"] = "en-US,en;q=0.9"
           
           response = http.request(request)
+          
+          # Check if response is JSON
+          unless response.content_type&.include?("json")
+            puts "Non-JSON response from r/#{subreddit}: #{response.content_type}"
+            next
+          end
+          
           data = JSON.parse(response.body)
 
           data["data"]["children"].each do |post|
@@ -152,8 +161,11 @@ class MemeExplorer < Sinatra::Base
             memes << meme
           end
         end
+        sleep 0.5  # Rate limiting - be nice to Reddit
+      rescue JSON::ParserError => e
+        puts "JSON parse error from r/#{subreddit}: #{e.message}"
       rescue => e
-        puts "Error fetching from r/#{subreddit}: #{e.message}"
+        puts "Error fetching from r/#{subreddit}: #{e.class} - #{e.message}"
       end
     end
 
