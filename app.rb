@@ -159,9 +159,9 @@ class MemeExplorer < Sinatra::Base
       }.sample
     end
 
-    def fetch_fresh_memes(batch_size = 20)
+    def fetch_fresh_memes(batch_size = 50)
       if Time.now - (MEME_CACHE[:fetched_at] ||= Time.at(0)) > 120
-        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(8).flat_map do |sub|
+        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(20).flat_map do |sub|
           2.times.map do
             url = URI("https://meme-api.com/gimme/#{sub}/#{batch_size}")
             begin
@@ -176,16 +176,31 @@ class MemeExplorer < Sinatra::Base
       MEME_CACHE[:memes]
     end
 
-    def tier_random(level: 3)
+    def tiered_random(level: 3)
+      session[:seen_memes] ||= []
+
+      db_memes = DB.execute("SELECT rowid, *, (likes * 2 + views) AS score FROM meme_stats").map { |r| r.transform_keys(&:to_s) }
+      all_memes = db_memes.uniq { |m| m["url"] || m["file"] }
+      
+
       case level
-      when 1 then flatten_memes.sample
-      when 2 then weighted_sample(flatten_memes)
+      when 1
+        all_memes.sample
+      when 2
+        weighted_pool = all_memes.flat_map do |m|
+          key = m["file"] || m["url"]
+          session[:liked_memes]&.include?(key) ? [m] * 3 : [m]
+        end
+        weighted_pool.sample
       else
-        local = flatten_memes
-        all_candidates = (local + fetch_fresh_memes(10)).uniq { |m| m["url"] || m["file"] }
-        unseen = all_candidates.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
-        pool = unseen.any? ? unseen : all_candidates
-        weighted_sample(pool)
+        unseen = all_memes.reject { |m| session[:seen_memes].include?(m["url"] || m["file"]) }
+        pool = unseen.any? ? unseen : all_memes
+
+        weighted_pool = pool.flat_map do |m|
+          key = m["file"] || m["url"]
+          session[:liked_memes]&.include?(key) ? [m] * 3 : [m]
+        end
+        weighted_pool.sample
       end
     end
 
@@ -197,6 +212,115 @@ class MemeExplorer < Sinatra::Base
     def like_meme(file)
       DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [file])
     end
+
+    def next_meme
+      meme = tiered_random(level: 3)
+      return nil unless meme
+
+      key = meme["file"] || meme["url"]
+      session[:seen_memes] << key
+      session[:seen_memes] = session[:seen_memes].last(200)
+
+      meme
+    end
+
+    def push_meme_history(meme)
+      session[:meme_history] ||= []
+      session[:meme_index] ||= -1
+
+      current_key = meme["url"] || meme["file"]
+      if session[:meme_history][session[:meme_index]] != current_key
+        session[:meme_history] = session[:meme_history][0..session[:meme_index]]
+        session[:meme_history] << current_key
+        session[:meme_index] = session[:meme_history].size - 1
+      end
+
+      session[:meme_history] = session[:meme_history].last(200)
+    end
+
+    def meme_from_history(offset = 0)
+      session[:meme_history] ||= []
+      session[:meme_index] ||= -1
+
+      new_index = session[:meme_index] + offset
+      return nil if new_index < 0 || new_index >= session[:meme_history].size
+
+      session[:meme_index] = new_index
+      key = session[:meme_history][new_index]
+
+      meme = DB.execute("SELECT * FROM meme_stats WHERE url = ?", [key]).first
+      meme ||= flatten_memes.find { |m| (m["file"] || m["url"]) == key }
+      meme
+    end
+
+    # -----------------------
+    # Unified helper for /random & /random.json
+    # -----------------------
+    def navigate_meme(direction: "next")
+      session[:meme_history] ||= []
+      session[:meme_index] ||= -1
+      session[:liked_memes] ||= []
+
+      case direction
+      when "prev"
+        session[:meme_index] = [session[:meme_index] - 1, 0].max
+      else
+        all_memes    = flatten_memes
+        fresh_memes  = fetch_fresh_memes(10)
+        candidates   = (all_memes + fresh_memes).uniq { |m| m["url"] || m["file"] }
+
+        unseen = candidates.reject { |m| session[:meme_history].map { |x| x["url"] || x["file"] }.include?(m["url"] || m["file"]) }
+        pool = unseen.any? ? unseen : candidates
+
+        weighted_pool = pool.flat_map do |m|
+          key = m["file"] || m["url"]
+          session[:liked_memes].include?(key) ? [m] * 3 : [m]
+        end
+
+        meme = weighted_pool.sample
+        session[:meme_history] << meme
+        session[:meme_index] = session[:meme_history].size - 1
+      end
+
+      session[:meme_history][session[:meme_index]]
+    end
+
+    def navigate_meme(direction: "next")
+      session[:meme_history] ||= []
+      session[:meme_index] ||= -1
+      session[:liked_memes] ||= []
+  
+      if direction == "prev"
+        # Navigate backward
+        session[:meme_index] = [session[:meme_index] - 1, 0].max
+      else
+        # Next meme
+        # Get memes from DB only + optional API fetch
+        db_memes = DB.execute("SELECT *, (likes * 2 + views) AS score FROM meme_stats").map { |r| r.transform_keys(&:to_s) }
+        fresh_memes = fetch_fresh_memes(10)  # optional, from API
+        candidates = (db_memes + fresh_memes).uniq { |m| m["url"] }
+  
+        # Filter unseen for history
+        seen_keys = session[:meme_history].map { |x| x["url"] }
+        unseen = candidates.reject { |m| seen_keys.include?(m["url"]) }
+        pool = unseen.any? ? unseen : candidates
+  
+        # Weighted sampling for liked memes
+        weighted_pool = pool.flat_map do |m|
+          session[:liked_memes]&.include?(m["url"]) ? [m] * 3 : [m]
+        end
+  
+        meme = weighted_pool.sample
+        return nil unless meme
+  
+        # Push to history
+        session[:meme_history] << meme
+        session[:meme_index] = session[:meme_history].size - 1
+      end
+  
+      # Return meme at current index
+      session[:meme_history][session[:meme_index]]
+    end
   end
 
   # -----------------------
@@ -206,92 +330,30 @@ class MemeExplorer < Sinatra::Base
     redirect "/random"
   end
 
-  # -----------------------
-  # Serve random meme page
-  # -----------------------
   get "/random" do
-    # Initialize seen memes in session
-    session[:seen_memes] ||= []
-  
-    # Fetch all cached memes (flattened)
-    all_memes = flatten_memes
-  
-    # Add fresh memes from API or popular subreddits
-    fresh_memes = fetch_fresh_memes(10)
-    candidates = (all_memes + fresh_memes).uniq { |m| m["url"] || m["file"] }
-  
-    # Filter out memes already seen in this session
-    unseen = candidates.reject { |m| session[:seen_memes].include?(m["url"] || m["file"]) }
-  
-    # If all memes are seen, reset the unseen list (loop)
-    pool = unseen.any? ? unseen : candidates
-  
-    # Weighted sample: liked memes have higher chance to appear again
-    weighted_pool = pool.flat_map do |m|
-      key = m["file"] || m["url"]
-      session[:liked_memes]&.include?(key) ? [m] * 3 : [m]
-    end
-  
-    @meme = weighted_pool.sample
-  
-    # Track that we’ve seen this meme
-    session[:seen_memes] << (@meme["url"] || @meme["file"])
-  
-    # Set image source for the template
-    @image_src = @meme["url"] || @meme["file"]
-  
+    @meme = navigate_meme(direction: params[:direction] || "next")
+    halt 404, "No memes found!" unless @meme
+    @image_src = @meme["url"]
     erb :random
   end
   
-  
-  # -----------------------
-  # JSON random meme route with subreddit filtering & next/prev
-  # -----------------------
   get "/random.json" do
-    session[:seen_memes] ||= []
-  
-    # Fetch memes not recently seen
-    placeholders = (['?'] * ALL_POPULAR_SUBS.size).join(',')
-    unseen_memes = DB.execute(<<-SQL, ALL_POPULAR_SUBS)
-      SELECT rowid, *, (likes * 2 + views) AS score
-      FROM meme_stats
-      WHERE subreddit IN (#{placeholders})
-        AND url NOT IN (#{(['?'] * session[:seen_memes].size).join(',')})
-    SQL
-    unseen_memes = unseen_memes.shuffle unless unseen_memes.empty?
-  
-    # If all memes seen recently, reset the seen list
-    if unseen_memes.empty?
-      session[:seen_memes] = []
-      unseen_memes = DB.execute(<<-SQL, ALL_POPULAR_SUBS)
-        SELECT rowid, *, (likes * 2 + views) AS score
-        FROM meme_stats
-        WHERE subreddit IN (#{placeholders})
-      SQL
-      unseen_memes = unseen_memes.shuffle
-    end
-  
-    # Weighted randomness: favor high-score memes but still allow low-score ones
-    weighted_pool = unseen_memes.flat_map { |m| [m] * ([m["score"].to_i, 1].max) }
-    @meme = weighted_pool.sample
-  
+    @meme = navigate_meme(direction: params[:direction] || "next")
     halt 404, { error: "No memes found" }.to_json unless @meme
-  
-    # Track meme as seen in this session
-    session[:seen_memes] << @meme["url"]
-    session[:seen_memes] = session[:seen_memes].last(50) # keep last 50
   
     content_type :json
     {
       title: @meme["title"],
       url: @meme["url"],
       subreddit: @meme["subreddit"],
-      likes: @meme["likes"]
+      likes: @meme["likes"] || 0,
+      index: session[:meme_index],
+      history_size: session[:meme_history].size
     }.to_json
   end
-  
+
   # -----------------------
-  # Trending route
+  # Trending
   # -----------------------
   get "/trending" do
     db_memes = DB.execute("SELECT url, title, subreddit, views, likes, (likes * 2 + views) AS score FROM meme_stats")
@@ -346,7 +408,6 @@ class MemeExplorer < Sinatra::Base
 
   post "/like" do
     content_type :json
-
     url = params[:url]
     session[:liked_memes] ||= []
 
@@ -354,20 +415,11 @@ class MemeExplorer < Sinatra::Base
 
     if meme
       liked = session[:liked_memes].include?(url)
+      new_likes = liked ? [meme["likes"] - 1, 0].max : meme["likes"] + 1
+      DB.execute("UPDATE meme_stats SET likes = ? WHERE url = ?", [new_likes, url])
 
-      if liked
-        new_likes = [meme["likes"] - 1, 0].max
-        DB.execute("UPDATE meme_stats SET likes = ? WHERE url = ?", [new_likes, url])
-        session[:liked_memes].delete(url)
-        liked = false
-      else
-        new_likes = meme["likes"] + 1
-        DB.execute("UPDATE meme_stats SET likes = ? WHERE url = ?", [new_likes, url])
-        session[:liked_memes] << url
-        liked = true
-      end
-
-      { liked: liked, likes: new_likes }.to_json
+      liked ? session[:liked_memes].delete(url) : session[:liked_memes] << url
+      { liked: !liked, likes: new_likes }.to_json
     else
       status 404
       { error: "Meme not found" }.to_json
@@ -388,7 +440,7 @@ class MemeExplorer < Sinatra::Base
       end
     end
     METRICS ||= {}
-  
+
     # -----------------------
     # Defaults
     # -----------------------
@@ -414,7 +466,7 @@ class MemeExplorer < Sinatra::Base
     @tier3_calls         = 0
     @top_memes           = []
     @top_subreddits      = []
-  
+
     begin
       # -----------------------
       # DB Metrics
@@ -425,85 +477,63 @@ class MemeExplorer < Sinatra::Base
         db_sum_views  = safe_db_exec("SELECT SUM(views) AS sum FROM meme_stats").first
         no_likes      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
         no_views      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
-  
-        @total_memes         = db_count&.dig("count").to_i
-        @total_likes         = db_sum_likes&.dig("sum").to_i
-        @total_views         = db_sum_views&.dig("sum").to_i
-        @memes_with_no_likes = no_likes&.dig("count").to_i
-        @memes_with_no_views = no_views&.dig("count").to_i
-  
-        @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
-        @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
-  
-        @top_memes = safe_db_exec("
-          SELECT url, title, subreddit, likes, views
-          FROM meme_stats
-          ORDER BY likes DESC, views DESC
-          LIMIT 10
-        ")
-  
-        @top_subreddits = safe_db_exec("
-          SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
-          FROM meme_stats
-          GROUP BY subreddit
-          ORDER BY total_likes DESC
-          LIMIT 10
-        ")
+
+        @total_memes         = db_count["count"] || 0
+        @total_likes         = db_sum_likes["sum"] || 0
+        @total_views         = db_sum_views["sum"] || 0
+        @memes_with_no_likes = no_likes["count"] || 0
+        @memes_with_no_views = no_views["count"] || 0
+
+        top_memes_data = safe_db_exec("SELECT url, likes, views, (likes*2+views) AS score FROM meme_stats ORDER BY score DESC LIMIT 10")
+        @top_memes = top_memes_data.map { |m| m.transform_keys(&:to_s) }
+
+        top_subreddit_data = safe_db_exec("SELECT subreddit, SUM(likes+views) AS score FROM meme_stats GROUP BY subreddit ORDER BY score DESC LIMIT 10")
+        @top_subreddits = top_subreddit_data.map { |s| s.transform_keys(&:to_s) }
       end
-  
+
       # -----------------------
       # Redis Metrics
       # -----------------------
       if REDIS
-        @redis_views    = safe_redis_get("total_views")
-        @redis_likes    = safe_redis_get("total_likes")
-        @redis_no_views = safe_redis_get("memes_no_views")
-        @redis_no_likes = safe_redis_get("memes_no_likes")
+        @redis_views    = REDIS.get("memes:views").to_i
+        @redis_likes    = REDIS.get("memes:likes").to_i
+        @redis_no_views = REDIS.get("memes:no_views").to_i
+        @redis_no_likes = REDIS.get("memes:no_likes").to_i
       end
-  
+
       # -----------------------
-      # Metrics Hash
+      # Averages
       # -----------------------
-      @avg_request_time_ms = METRICS[:avg_request_time_ms] || 0
+      @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
+      @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
+      @avg_request_time_ms = METRICS[:avg_request_time_ms].round(2) rescue 0
       @total_requests      = METRICS[:total_requests] || 0
       @cache_hits          = METRICS[:cache_hits] || 0
       @cache_misses        = METRICS[:cache_misses] || 0
-      @api_calls           = METRICS[:api_calls] || 0
-      @tier1_calls         = METRICS[:tier1_calls] || 0
-      @tier2_calls         = METRICS[:tier2_calls] || 0
-      @tier3_calls         = METRICS[:tier3_calls] || 0
-  
-      erb :metrics
-  
+      @api_calls           = MEME_CACHE[:api_calls] || 0
+      @tier1_calls         = MEME_CACHE[:tier1_calls] || 0
+      @tier2_calls         = MEME_CACHE[:tier2_calls] || 0
+      @tier3_calls         = MEME_CACHE[:tier3_calls] || 0
+
     rescue => e
-      puts "Error in /metrics: #{e.class} - #{e.message}"
-      puts e.backtrace
-      halt 500, "Internal Server Error"
+      puts "Metrics error: #{e.class}: #{e.message}"
     end
-  end
-  
-  # -----------------------
-  # Safe DB exec helper
-  # -----------------------
-  def safe_db_exec(sql, params = [])
-    DB.execute(sql, params)
-  rescue => e
-    puts "DB error: #{e.class} - #{e.message}"
-    []
-  end
-  
-  # -----------------------
-  # Safe Redis get helper
-  # -----------------------
-  def safe_redis_get(key)
-    Integer(REDIS.get(key) || 0)
-  rescue => e
-    puts "Redis error: #{e.class} - #{e.message}"
-    0
+
+    erb :metrics
   end
 
   # -----------------------
-  # Server Start
+  # Helpers for safe DB execution
   # -----------------------
-  run! if $PROGRAM_NAME == __FILE__
+  def safe_db_exec(query)
+    DB.execute(query)
+  rescue SQLite3::Exception => e
+    puts "DB Error: #{e.class}: #{e.message}"
+    []
+  end
+
+  # -----------------------
+  # Start the server if run directly
+  # -----------------------
+  run! if app_file == $0
 end
