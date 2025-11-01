@@ -46,6 +46,7 @@ GEM
     net-http (0.7.0)
       uri
     nio4r (2.7.4)
+    ostruct (0.6.3)
     puma (7.1.0)
       nio4r (~> 2.0)
     rack (3.2.3)
@@ -111,6 +112,7 @@ DEPENDENCIES
   httparty
   json
   net-http
+  ostruct
   puma
   rack-attack
   rackup

@@ -16,6 +16,7 @@ require "active_support/cache"
 require "sqlite3"
 require "net/http"
 require "thread"
+require "ostruct"
 
 require_relative "./db/setup"
 
@@ -200,6 +201,43 @@ class MemeExplorer < Sinatra::Base
       puts "DB error: #{e.message}"
       nil
     end
+
+    def respond_to
+      if request.accept.include?("application/json")
+        yield OpenStruct.new(json: ->(&block){ block.call })
+      else
+        yield OpenStruct.new(html: ->(&block){ block.call })
+      end
+    end
+
+    def load_popular_subreddits
+      # Attempt to load from file
+      file_subs = {}
+      if File.exist?("data/subreddits.yml")
+        begin
+          file_subs = YAML.load_file("data/subreddits.yml") || {}
+        rescue => e
+          puts "Warning: Could not parse subreddits.yml - #{e.message}"
+        end
+      end
+  
+      # Default categories in case file is missing or empty
+      default_subs = {
+        funny: ["funny", "memes", "dankmemes"],
+        gaming: ["gaming", "gamememes"],
+        wholesome: ["wholesomememes", "aww"],
+        tech: ["programmerhumor", "techmemes"]
+      }
+  
+      # Merge file_subs over default_subs, symbolizing keys
+      merged = default_subs.merge(file_subs.transform_keys(&:to_sym)) do |_key, default_val, file_val|
+        Array(file_val) # Ensure file value is always an array
+      end
+  
+      # Freeze to prevent accidental modification
+      merged.each { |k, v| merged[k] = Array(v) }
+      merged.freeze
+    end
   end
   # -----------------------
   # Routes
@@ -267,35 +305,133 @@ class MemeExplorer < Sinatra::Base
     @memes = combined.sort_by { |m| -m["score"] }.first(20)
     erb :trending
   end
-
-  get "/category/:category" do
-    category = params[:category].to_sym
-    halt 404, { error: "Category not found" }.to_json unless POPULAR_SUBREDDITS.key?(category)
-
-    subreddits = POPULAR_SUBREDDITS[category]
-    memes = fetch_fresh_memes(batch_size: 50).select { |m| subreddits.include?(m["subreddit"]) }
-    content_type :json
-    memes.to_json
+  before "/category/*" do
+    # Hardcoded fallback categories
+    @categories = {
+      funny: ["funny"],
+      wholesome: ["wholesome"],
+      dank: ["dank"],
+      selfcare: ["selfcare"]
+    }
   end
-
-  # -----------------------
-  # New category routes
-  # -----------------------
+  
   get "/category/:name" do
-    @category_name = params[:name]
-    @memes = get_cached_memes[@category_name] || []
-    erb :category, layout: :layout
-  end
-
-  get "/category/:name/meme/:title" do
-    @category_name = params[:name]
-    @meme = (get_cached_memes[@category_name] || []).find do |m|
-      URI.encode_www_form_component(m["title"]) == params[:title]
+    category_name = params[:name].to_sym
+  
+    # Hardcoded fallback categories
+    categories = {
+      funny: ["funny"],
+      wholesome: ["wholesome"],
+      dank: ["dank"],
+      selfcare: ["selfcare"]
+    }
+    subreddits = categories[category_name]
+    halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
+  
+    # -----------------------
+    # Local memes
+    # -----------------------
+    local_memes = if MEMES.is_a?(Hash)
+                    MEMES[category_name.to_s] || []
+                  else
+                    MEMES.select { |m| subreddits.include?(m["subreddit"]) } rescue []
+                  end
+  
+    # -----------------------
+    # API memes
+    # -----------------------
+    api_memes = []
+    begin
+      api_memes = fetch_fresh_memes(batch_size: 50).select do |m|
+        subreddits.include?(m["subreddit"])
+      end
+    rescue => e
+      puts "API fetch error: #{e.message}"
     end
-    @image_src = @meme ? @meme["file"] : "/images/placeholder.png"
-    @views = @meme ? DB.execute("SELECT views FROM meme_stats WHERE url = ?", [@image_src]).first&.first || 0 : 0
+  
+    # -----------------------
+    # Combine safely
+    # -----------------------
+    @memes = (Array(local_memes) + Array(api_memes)).uniq { |m| m["url"] || m["file"] }
+  
+    # -----------------------
+    # Fail-safe defaults if empty
+    # -----------------------
+    if @memes.empty?
+      @memes = [
+        { "title" => "No memes available", "file" => "/images/placeholder.png", "subreddit" => category_name.to_s }
+      ]
+    end
+  
+    # -----------------------
+    # Respond based on requested format
+    # -----------------------
+    if request.accept.include?("application/json")
+      content_type :json
+      @memes.to_json
+    else
+      @category_name = category_name
+      erb :category, layout: :layout
+    end
+  end
+  
+  get "/category/:name/meme/:title" do
+    category_name = params[:name].to_sym
+  
+    # Hardcoded fallback categories
+    categories = {
+      funny: ["funny"],
+      wholesome: ["wholesome"],
+      dank: ["dank"],
+      selfcare: ["selfcare"]
+    }
+  
+    subreddits = categories[category_name]
+    halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
+  
+    # -----------------------
+    # Local memes
+    # -----------------------
+    local_memes = if MEMES.is_a?(Hash)
+                    MEMES[category_name.to_s] || []
+                  else
+                    MEMES.select { |m| subreddits.include?(m["subreddit"]) } rescue []
+                  end
+  
+    # -----------------------
+    # API memes
+    # -----------------------
+    api_memes = []
+    begin
+      api_memes = fetch_fresh_memes(batch_size: 50).select do |m|
+        subreddits.include?(m["subreddit"])
+      end
+    rescue => e
+      puts "API fetch error: #{e.message}"
+    end
+  
+    # -----------------------
+    # Combine safely
+    # -----------------------
+    combined_memes = (Array(local_memes) + Array(api_memes)).uniq { |m| m["url"] || m["file"] }
+  
+    # -----------------------
+    # Find the requested meme
+    # -----------------------
+    requested_title = URI.decode_www_form_component(params[:title])
+    @meme = combined_memes.find { |m| m["title"] == requested_title }
+    halt 404, { error: "Meme not found in category" }.to_json unless @meme
+  
+    # -----------------------
+    # Set image source and views
+    # -----------------------
+    @image_src = @meme["file"] || @meme["url"]
+    @views = DB.get_first_value("SELECT views FROM meme_stats WHERE url = ?", [@image_src]).to_i
+  
     erb :random, layout: :layout
   end
+  
+  
 
   get "/search" do
     query = params[:q]&.downcase

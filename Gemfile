@@ -25,6 +25,7 @@ gem "rack-attack"
 gem "sqlite3"
 gem "sidekiq"
 gem "thread"
+gem "ostruct"
 
 group :development do
   gem "rerun"
