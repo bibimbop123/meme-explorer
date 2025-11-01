@@ -159,9 +159,9 @@ class MemeExplorer < Sinatra::Base
       }.sample
     end
 
-    def fetch_fresh_memes(batch_size = 100)
+    def fetch_fresh_memes(batch_size = 78)
       if Time.now - (MEME_CACHE[:fetched_at] ||= Time.at(0)) > 120
-        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(75).flat_map do |sub|
+        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(50).flat_map do |sub|
           2.times.map do
             url = URI("https://meme-api.com/gimme/#{sub}/#{batch_size}")
             begin
@@ -256,60 +256,36 @@ class MemeExplorer < Sinatra::Base
     # -----------------------
     # Unified helper for /random & /random.json
     # -----------------------
-    def navigate_meme(direction: "next")
-      session[:meme_history] ||= []
-      session[:meme_index] ||= -1
-      session[:liked_memes] ||= []
-
-      case direction
-      when "prev"
-        session[:meme_index] = [session[:meme_index] - 1, 0].max
-      else
-        all_memes    = flatten_memes
-        fresh_memes  = fetch_fresh_memes(10)
-        candidates   = (all_memes + fresh_memes).uniq { |m| m["url"] || m["file"] }
-
-        unseen = candidates.reject { |m| session[:meme_history].map { |x| x["url"] || x["file"] }.include?(m["url"] || m["file"]) }
-        pool = unseen.any? ? unseen : candidates
-
-        weighted_pool = pool.flat_map do |m|
-          key = m["file"] || m["url"]
-          session[:liked_memes].include?(key) ? [m] * 3 : [m]
-        end
-
-        meme = weighted_pool.sample
-        session[:meme_history] << meme
-        session[:meme_index] = session[:meme_history].size - 1
-      end
-
-      session[:meme_history][session[:meme_index]]
+    def meme_key(m)
+      m["url"] || m["file"]
     end
-
+  
     def navigate_meme(direction: "next")
       session[:meme_history] ||= []
       session[:meme_index] ||= -1
       session[:liked_memes] ||= []
   
       if direction == "prev"
-        # Navigate backward
+        # Navigate backward safely
         session[:meme_index] = [session[:meme_index] - 1, 0].max
       else
-        # Next meme
-        # Get memes from DB only + optional API fetch
+        # Fetch memes from DB + YAML cache
         db_memes = DB.execute("SELECT *, (likes * 2 + views) AS score FROM meme_stats").map { |r| r.transform_keys(&:to_s) }
-        fresh_memes = fetch_fresh_memes(10)  # optional, from API
-        candidates = (db_memes + fresh_memes).uniq { |m| m["url"] }
+        fresh_memes = fetch_fresh_memes(10)
+        yaml_memes = flatten_memes
+        candidates = (db_memes + fresh_memes + yaml_memes).uniq { |m| meme_key(m) }
   
-        # Filter unseen for history
-        seen_keys = session[:meme_history].map { |x| x["url"] }
-        unseen = candidates.reject { |m| seen_keys.include?(m["url"]) }
+        # Filter unseen memes
+        seen_keys = session[:meme_history].map { |m| meme_key(m) }
+        unseen = candidates.reject { |m| seen_keys.include?(meme_key(m)) }
         pool = unseen.any? ? unseen : candidates
   
-        # Weighted sampling for liked memes
+        # Weighted sampling: liked memes appear 3x
         weighted_pool = pool.flat_map do |m|
-          session[:liked_memes]&.include?(m["url"]) ? [m] * 3 : [m]
+          session[:liked_memes]&.include?(meme_key(m)) ? [m] * 3 : [m]
         end
   
+        # Pick a random meme safely
         meme = weighted_pool.sample
         return nil unless meme
   
@@ -318,7 +294,7 @@ class MemeExplorer < Sinatra::Base
         session[:meme_index] = session[:meme_history].size - 1
       end
   
-      # Return meme at current index
+      # Return current meme
       session[:meme_history][session[:meme_index]]
     end
   end
@@ -334,30 +310,36 @@ class MemeExplorer < Sinatra::Base
     @meme = navigate_meme(direction: params[:direction] || "next")
     halt 404, "No memes found!" unless @meme
   
-    # Increment Redis counters
-    if REDIS
-      REDIS.incr("memes:views")          # total views counter
-      REDIS.incr("memes:no_views") if @meme["views"].to_i.zero?
-      REDIS.incr("memes:likes")          # total likes (if user likes it)
-      REDIS.incr("memes:no_likes") if @meme["likes"].to_i.zero?
+    # Increment Redis counters safely
+    if REDIS && @meme
+      REDIS.incr("memes:views")
+      REDIS.incr("memes:no_views") if (@meme["views"] || 0).to_i.zero?
+      REDIS.incr("memes:likes")
+      REDIS.incr("memes:no_likes") if (@meme["likes"] || 0).to_i.zero?
     end
   
-    @image_src = @meme["url"]
+    # Use 'url' if available, otherwise fallback to 'file'
+    @image_src = @meme["url"] || @meme["file"] || "/images/placeholder.png"
     erb :random
   end
+  
   
   get "/random.json" do
     @meme = navigate_meme(direction: params[:direction] || "next")
     halt 404, { error: "No memes found" }.to_json unless @meme
   
     content_type :json
+  
+    key = @meme["url"] || @meme["file"]
+  
     {
-      title: @meme["title"],
-      url: @meme["url"],
-      subreddit: @meme["subreddit"],
-      likes: @meme["likes"] || 0,
+      title: @meme["title"] || "Untitled",
+      url: key || "/images/placeholder.png",
+      subreddit: @meme["subreddit"] || "local",
+      likes: (@meme["likes"] || 0).to_i,
+      views: (@meme["views"] || 0).to_i,
       index: session[:meme_index],
-      history_size: session[:meme_history].size
+      history_size: session[:meme_history]&.size || 0
     }.to_json
   end
 
