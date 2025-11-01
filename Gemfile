@@ -24,6 +24,7 @@ gem "rack-attack"
 # Optional (for Tier 2)
 gem "sqlite3"
 gem "sidekiq"
+gem "thread"
 
 group :development do
   gem "rerun"
