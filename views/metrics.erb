@@ -85,12 +85,50 @@
       margin-bottom: 2rem;
     }
 
+    .badge {
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .badge-green { background-color: #27ae60; }
+    .badge-red { background-color: #c0392b; }
+    .badge-yellow { background-color: #f39c12; }
+    .badge-blue { background-color: #2980b9; }
+
   </style>
 </head>
 <body>
 
   <h1>Meme Metrics Dashboard</h1>
-  <p style="text-align:center;">Last updated: <%= @last_batch %></p>
+  <p style="text-align:center;">
+    Last updated: <%= @last_batch %> |
+    Next batch in: <span id="nextBatchCountdown"></span>
+  </p>
+
+  <!-- Countdown Timer Script -->
+  <script>
+    // Batch interval in seconds (matches fetch_fresh_memes)
+    const batchInterval = 120;
+
+    // Last batch timestamp from server
+    const lastBatchTime = new Date("<%= @last_batch %>").getTime();
+
+    const countdownElement = document.getElementById('nextBatchCountdown');
+
+    function updateCountdown() {
+      const now = new Date().getTime();
+      let secondsLeft = batchInterval - Math.floor((now - lastBatchTime) / 1000);
+      if (secondsLeft < 0) secondsLeft = 0;
+      const minutes = Math.floor(secondsLeft / 60);
+      const seconds = secondsLeft % 60;
+      countdownElement.textContent = `${minutes}m ${seconds}s`;
+    }
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+  </script>
 
   <!-- Stats Cards -->
   <div class="stats-grid">
@@ -141,6 +179,38 @@
     <div class="card">
       <h3>Redis No Views</h3>
       <p><%= @redis_no_views %></p>
+    </div>
+    <div class="card">
+      <h3>Avg Request Time (ms)</h3>
+      <p><%= @avg_request_time_ms.round(2) %></p>
+    </div>
+    <div class="card">
+      <h3>Total Requests</h3>
+      <p><%= @total_requests %></p>
+    </div>
+    <div class="card">
+      <h3>Cache Hits</h3>
+      <p><%= @cache_hits %></p>
+    </div>
+    <div class="card">
+      <h3>Cache Misses</h3>
+      <p><%= @cache_misses %></p>
+    </div>
+    <div class="card">
+      <h3>API Calls</h3>
+      <p><%= @api_calls %></p>
+    </div>
+    <div class="card">
+      <h3>Tier 1 Random Calls</h3>
+      <p><%= @tier1_calls %></p>
+    </div>
+    <div class="card">
+      <h3>Tier 2 Random Calls</h3>
+      <p><%= @tier2_calls %></p>
+    </div>
+    <div class="card">
+      <h3>Tier 3 Random Calls</h3>
+      <p><%= @tier3_calls %></p>
     </div>
   </div>
 
