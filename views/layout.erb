@@ -25,8 +25,9 @@
     <a href="/category/wholesome">Wholesome</a>
     <a href="/category/dank">Dank</a>
     <a href="/category/selfcare">Self Care</a>
-    <a href="/random">Random 🎲</a>
     <a href="/trending">Trending</a>
+    <a href="/metrics">📈 Metrics</a>
+    <a href="/random">Random 🎲</a>
   </nav>
 </header>
 
@@ -44,3 +45,41 @@
 </footer>
 </body>
 </html>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("form.like-form").forEach(form => {
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const button = form.querySelector("button");
+      const url = form.querySelector("input[name='url']").value;
+      const likesSpan = form.closest(".meme-container").querySelector("#meme-likes");
+
+      try {
+        const res = await fetch(form.action, {
+          method: "POST",
+          body: new URLSearchParams(new FormData(form)),
+          headers: { "Accept": "application/json" }
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+
+        // Update button & likes
+        if (data.liked) {
+          button.textContent = "💔 Unlike";
+          button.classList.add("liked");
+        } else {
+          button.textContent = "❤️ Like";
+          button.classList.remove("liked");
+        }
+
+        if (likesSpan) likesSpan.textContent = data.likes;
+
+      } catch (err) {
+        console.error("Like AJAX error:", err);
+      }
+    });
+  });
+});
+</script>

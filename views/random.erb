@@ -7,12 +7,18 @@
     <p>Views: <%= @views || 0 %></p>
   </div>
 
-  <form id="like-form" action="/like" method="POST" style="margin-top:10px;">
+    <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
+<% likes = result ? result["likes"] : 0 %>
+<p>Likes: <span id="meme-likes"><%= likes %></span></p>
+
+
+  <form class="like-form" action="/like" method="POST" style="margin-top:10px;">
     <input type="hidden" name="url" value="<%= @image_src %>">
-    <button type="submit">
-      <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
+    <button type="submit" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+        <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
     </button>
   </form>
+
 
   <div style="margin-top:12px;">
     <a href="/random" style="text-decoration:none;background:#4caf50;color:#fff;padding:8px 16px;border-radius:8px;">Next Random Meme ➡️</a>

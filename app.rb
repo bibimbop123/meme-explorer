@@ -233,20 +233,30 @@ class MemeExplorer < Sinatra::Base
 
   post "/like" do
     content_type :json
+  
     file = params["url"]
-    like_meme(file) if file
+    halt 400, { error: "Missing URL" }.to_json unless file
+  
     session[:liked_memes] ||= []
-    liked = if file
-      if session[:liked_memes].include?(file)
-        session[:liked_memes].delete(file)
-        false
-      else
-        session[:liked_memes] << file
-        true
-      end
-    end
-    { liked: liked }.to_json
+  
+    liked = if session[:liked_memes].include?(file)
+              session[:liked_memes].delete(file)
+              DB.execute("UPDATE meme_stats SET likes = likes - 1 WHERE url = ?", [file])
+              false
+            else
+              session[:liked_memes] << file
+              DB.execute("INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, 'Unknown', 'local', 0, 0)", [file])
+              DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [file])
+              true
+            end
+  
+    # ✅ FIX HERE — use hash key, not array index
+    row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first
+    likes = row ? row["likes"] : 0
+  
+    { liked: liked, likes: likes, url: file }.to_json
   end
+  
 
   # -----------------------
   # Trending with API integration
@@ -274,7 +284,7 @@ class MemeExplorer < Sinatra::Base
   
     erb :trending, layout: :layout
   end
-  
+
   get "/search" do
     query = params[:q]&.downcase
     @results = {}
@@ -303,9 +313,28 @@ class MemeExplorer < Sinatra::Base
   end
 
   get "/metrics" do
-    content_type :json
-    METRICS.to_json
-  end
+    # Gather stats
+    total_memes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first&.[]("count") || 0
+    total_likes = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first&.[]("sum") || 0
+    total_views = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first&.[]("sum") || 0
+    avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
+    avg_views = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
+  
+    # Fetch breakdowns
+    top_memes = DB.execute("SELECT title, url, likes, views, subreddit FROM meme_stats ORDER BY likes DESC LIMIT 10")
+    top_subreddits = DB.execute("SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count FROM meme_stats GROUP BY subreddit ORDER BY total_likes DESC LIMIT 10")
+  
+    # Render HTML only
+    erb :metrics, locals: {
+      total_memes: total_memes,
+      total_likes: total_likes,
+      total_views: total_views,
+      avg_likes: avg_likes,
+      avg_views: avg_views,
+      top_memes: top_memes,
+      top_subreddits: top_subreddits
+    }
+  end  
 
   run! if app_file == $0
 end

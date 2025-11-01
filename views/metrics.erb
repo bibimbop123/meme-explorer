@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meme Explorer — Metrics Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem auto;
+      max-width: 900px;
+      background: #f4f4f4;
+      color: #333;
+      line-height: 1.5;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 1.5rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: transform 0.15s ease;
+    }
+    .stat:hover {
+      transform: translateY(-2px);
+    }
+    .stat h2 {
+      margin: 0;
+      font-size: 2rem;
+      color: #007aff;
+    }
+    .stat p {
+      margin: 0.25rem 0 0;
+      color: #555;
+      font-size: 0.9rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: 600;
+    }
+    tr:hover {
+      background: #fafafa;
+    }
+    a {
+      color: #007aff;
+      text-decoration: none;
+    }
+    footer {
+      text-align: center;
+      color: #888;
+      margin-top: 3rem;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Meme Explorer Metrics Dashboard</h1>
+
+  <div class="stats">
+    <div class="stat">
+      <h2><%= total_memes %></h2>
+      <p>Total Memes</p>
+    </div>
+    <div class="stat">
+      <h2><%= total_likes %></h2>
+      <p>Total Likes</p>
+    </div>
+    <div class="stat">
+      <h2><%= total_views %></h2>
+      <p>Total Views</p>
+    </div>
+    <div class="stat">
+      <h2><%= avg_likes %></h2>
+      <p>Avg Likes per Meme</p>
+    </div>
+    <div class="stat">
+      <h2><%= avg_views %></h2>
+      <p>Avg Views per Meme</p>
+    </div>
+  </div>
+
+  <h2>🔥 Top 10 Liked Memes</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Subreddit</th>
+        <th>Likes</th>
+        <th>Views</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% top_memes.each do |meme| %>
+        <tr>
+          <td><a href="<%= meme["url"] %>" target="_blank"><%= meme["title"] %></a></td>
+          <td><%= meme["subreddit"] %></td>
+          <td><%= meme["likes"] %></td>
+          <td><%= meme["views"] %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <h2>🏆 Top 10 Subreddits by Likes</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Subreddit</th>
+        <th>Total Likes</th>
+        <th>Meme Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% top_subreddits.each do |sub| %>
+        <tr>
+          <td><%= sub["subreddit"] %></td>
+          <td><%= sub["total_likes"] %></td>
+          <td><%= sub["count"] %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <footer>
+    Meme Explorer Analytics — <%= Time.now.strftime("%B %d, %Y") %>
+  </footer>
+</body>
+</html>

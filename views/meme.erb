@@ -9,12 +9,20 @@
       <p>Views: <span id="meme-views"><%= @views %></span></p>
     </div>
 
-    <form id="like-form" action="/like" method="POST">
-      <input type="hidden" name="url" value="<%= @image_src %>">
-      <button type="submit" id="like-button" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
-        <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
-      </button>
-    </form>
+    <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
+<% likes = result ? result["likes"] : 0 %>
+<p>Likes: <span id="meme-likes"><%= likes %></span></p>
+
+
+
+
+  <form class="like-form" action="/like" method="POST" style="margin-top:10px;">
+    <input type="hidden" name="url" value="<%= @image_src %>">
+    <button type="submit" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+      <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
+    </button>
+  </form>
+
   </div>
 
   <div class="meme-controls">
@@ -75,15 +83,35 @@ async function fetchNextMeme() {
 
 function showPrevMeme() { if(currentIndex>0){ currentIndex--; loadMeme(memeHistory[currentIndex]); } }
 
-likeForm.addEventListener('submit', async e=>{
+likeForm.addEventListener('submit', async e => {
   e.preventDefault();
-  try{
-    const res = await fetch(likeForm.action,{method:'POST', body:new URLSearchParams(new FormData(likeForm))});
+  const url = likeForm.querySelector('input[name="url"]').value;
+
+  try {
+    const res = await fetch('/like', {
+      method: 'POST',
+      body: new URLSearchParams({ url }),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
     const data = await res.json();
-    if(data.liked){ likeButton.textContent='💔 Unlike'; likeButton.classList.add('liked'); }
-    else{ likeButton.textContent='❤️ Like'; likeButton.classList.remove('liked'); }
-  }catch(err){ console.error(err); }
+
+    if (data.liked) {
+      likeButton.textContent = '💔 Unlike';
+      likeButton.classList.add('liked');
+    } else {
+      likeButton.textContent = '❤️ Like';
+      likeButton.classList.remove('liked');
+    }
+
+    // Optional: update likes count display
+    const likesElem = document.getElementById('meme-likes');
+    if (likesElem) likesElem.textContent = `❤️ ${data.likes}`;
+
+  } catch (err) {
+    console.error('Like failed:', err);
+  }
 });
+
 
 nextButton.addEventListener('click', fetchNextMeme);
 prevButton.addEventListener('click', showPrevMeme);
