@@ -7,7 +7,7 @@
     id="meme-img"
     src="<%= @image_src || '/images/funny1.jpeg' %>"
     alt="<%= @meme["title"] || 'Meme Image' %>"
-    onerror="this.src='/images/funny1.jpeg';"
+    onerror="handleImageError(this);"
   >
 
   <% likes_count = (@likes.to_i rescue 0) %>
@@ -117,6 +117,26 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Could not update like — please try again.");
     }
   });
+
+  // Handle broken images - auto-skip and report
+  window.handleImageError = async function(img) {
+    const brokenUrl = img.src;
+    console.log("Image failed to load:", brokenUrl);
+    
+    // Report broken URL to backend
+    try {
+      await fetch("/report-broken-image", {
+        method: "POST",
+        body: new URLSearchParams({ url: brokenUrl }),
+        headers: { "Accept": "application/json" }
+      });
+    } catch (err) {
+      console.log("Could not report broken image");
+    }
+    
+    // Auto-fetch next meme (seamless transition)
+    fetchMeme("next");
+  };
 
   document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {

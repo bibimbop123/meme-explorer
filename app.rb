@@ -14,8 +14,11 @@ require "sqlite3"
 require "net/http"
 require "thread"
 require "ostruct"
+require "oauth2"
+require "httparty"
 
 require_relative "./db/setup"
+
 
 $VERBOSE = nil # suppress warnings
 
@@ -65,27 +68,68 @@ class MemeExplorer < Sinatra::Base
     set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
   end
 
-  # Background thread to populate cache with Reddit memes
+  # OAuth2 Reddit Configuration
+  REDDIT_OAUTH_CLIENT_ID = ENV.fetch("REDDIT_CLIENT_ID", "")
+  REDDIT_OAUTH_CLIENT_SECRET = ENV.fetch("REDDIT_CLIENT_SECRET", "")
+
+  # Pre-warm cache immediately on startup with LOCAL MEMES ONLY (non-blocking)
   Thread.new do
+    begin
+      puts "🔥 Pre-warming cache with local memes..."
+      
+      local_memes = begin
+        yaml_data = YAML.load_file("data/memes.yml")
+        if yaml_data.is_a?(Hash)
+          yaml_data.values.flatten.compact
+        else
+          yaml_data || []
+        end
+      rescue
+        []
+      end
+      
+      MEME_CACHE[:memes] = local_memes.shuffle
+      MEME_CACHE[:last_refresh] = Time.now
+      puts "✅ Cache pre-warmed with #{local_memes.size} local memes (Reddit memes loading in background)"
+    rescue => e
+      puts "⚠️ Cache init error: #{e.class}"
+    end
+  end
+
+  # Background cache refresh - 60 second interval (non-blocking)
+  Thread.new do
+    sleep 5  # Wait for app to fully start
     loop do
       begin
-        # Call class method to fetch Reddit memes
-        meme_pool = MemeExplorer.fetch_reddit_memes_static(POPULAR_SUBREDDITS, 20)
-        puts "Fetched #{meme_pool.size} memes from Reddit"
+        reddit_token = REDIS&.get("reddit:access_token") rescue nil
         
-        # Validate memes
-        validated = meme_pool.select do |m|
-          m["url"] && m["url"].match?(/^https?:\/\//)
+        if reddit_token
+          meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(reddit_token, POPULAR_SUBREDDITS, 25) rescue []
+        else
+          meme_pool = MemeExplorer.fetch_reddit_memes_static(POPULAR_SUBREDDITS, 25) rescue []
         end
         
-        puts "Validated #{validated.size} memes with working URLs"
-        MEME_CACHE[:memes] = validated.shuffle
+        validated = meme_pool.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
+        MEME_CACHE[:memes] = validated.shuffle unless validated.empty?
         MEME_CACHE[:last_refresh] = Time.now
       rescue => e
-        puts "Cache refresh error: #{e.class} - #{e.message}"
-        puts e.backtrace[0..5]
+        # Silent fail - continue with cached memes
       end
-      sleep 120
+      sleep 60
+    end
+  end
+
+  # Hourly database cleanup (non-blocking)
+  Thread.new do
+    sleep 3600  # Wait 1 hour before first cleanup
+    loop do
+      begin
+        DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND datetime(first_failed_at) < datetime('now', '-1 day')")
+        DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND datetime(updated_at) < datetime('now', '-7 days')")
+      rescue => e
+        # Silent fail
+      end
+      sleep 3600
     end
   end
 
@@ -119,10 +163,94 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Static Methods (for background thread)
   # -----------------------
+  def self.fetch_reddit_memes_authenticated(access_token, subreddits = nil, limit = 15)
+    require "httparty"
+    
+    memes = []
+    subreddits = subreddits.sample(8) if subreddits&.size.to_i > 8
+    
+    subreddits.each do |subreddit|
+      begin
+        url = "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}"
+        
+        response = HTTParty.get(url,
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "User-Agent" => "MemeExplorer/1.0 (by YourRedditUsername)"
+          },
+          timeout: 15
+        )
+        
+        if response.success?
+          data = response.parsed_response
+          
+          data["data"]["children"].each do |post|
+            post_data = post["data"]
+            next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
+            
+            meme = {
+              "title" => post_data["title"],
+              "url" => post_data["url"],
+              "subreddit" => post_data["subreddit"],
+              "likes" => post_data["ups"] || 0
+            }
+            memes << meme
+          end
+        end
+        sleep 1
+      rescue => e
+        puts "Error fetching from r/#{subreddit} (authenticated): #{e.message}"
+      end
+    end
+    
+    memes
+  end
+
   def self.fetch_reddit_memes_static(subreddits = nil, limit = 15)
-    # Reddit API requests are heavily blocked - return empty and rely on fallback
-    puts "Reddit API access blocked - using local memes only"
-    []
+    memes = []
+    subreddits ||= YAML.load_file("data/subreddits.yml")["popular"]
+    subreddits = subreddits.sample(8) if subreddits.size > 8
+
+    user_agents = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ]
+
+    subreddits.each do |subreddit|
+      begin
+        url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
+        uri = URI(url)
+        
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10, open_timeout: 10) do |http|
+          request = Net::HTTP::Get.new(uri.request_uri)
+          request["User-Agent"] = user_agents.sample
+          request["Accept"] = "application/json"
+          http.request(request)
+        end
+        
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          data["data"]["children"].each do |post|
+            post_data = post["data"]
+            next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
+            
+            meme = {
+              "title" => post_data["title"],
+              "url" => post_data["url"],
+              "subreddit" => post_data["subreddit"],
+              "likes" => post_data["ups"] || 0
+            }
+            memes << meme
+          end
+        end
+        sleep 0.5
+      rescue => e
+        # Silently skip errors
+      end
+    end
+    
+    memes
   end
 
   def self.extract_image_url_static(post_data)
@@ -229,50 +357,73 @@ class MemeExplorer < Sinatra::Base
     # Fetch memes from popular subreddits with working image links
     def fetch_reddit_memes(subreddits = POPULAR_SUBREDDITS, limit = 15)
       memes = []
-      subreddits = subreddits.sample(5) if subreddits.size > 5
+      subreddits = subreddits.sample(8) if subreddits.size > 8
+
+      # Multiple user agents to avoid blocking
+      user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
+        "curl/7.64.1"
+      ]
 
       subreddits.each do |subreddit|
-        begin
-          url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
-          uri = URI(url)
-          
-          Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10, open_timeout: 10) do |http|
-            request = Net::HTTP::Get.new(uri.request_uri)
-            request["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            request["Accept"] = "application/json"
+        attempts = 0
+        max_attempts = 3
+        
+        while attempts < max_attempts
+          begin
+            url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
+            uri = URI(url)
             
-            response = http.request(request)
-            
-            next unless response.code == "200"
-            
-            body = response.body
-            data = JSON.parse(body)
+            Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 15, open_timeout: 15) do |http|
+              request = Net::HTTP::Get.new(uri.request_uri)
+              request["User-Agent"] = user_agents[attempts % user_agents.size]
+              request["Accept"] = "application/json, text/javascript, */*; q=0.01"
+              request["Accept-Language"] = "en-US,en;q=0.9"
+              request["Accept-Encoding"] = "gzip, deflate"
+              request["DNT"] = "1"
+              request["Connection"] = "keep-alive"
+              request["Upgrade-Insecure-Requests"] = "1"
+              
+              response = http.request(request)
+              
+              if response.code == "200"
+                body = response.body
+                data = JSON.parse(body)
 
-            data["data"]["children"].each do |post|
-              post_data = post["data"]
-              next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
+                data["data"]["children"].each do |post|
+                  post_data = post["data"]
+                  next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
 
-              # Extract working image URLs from Reddit posts
-              image_url = extract_image_url(post_data)
-              next unless image_url && image_url.match?(/^https?:\/\//)
+                  image_url = extract_image_url(post_data)
+                  next unless image_url && image_url.match?(/^https?:\/\//)
 
-              meme = {
-                "title" => post_data["title"],
-                "url" => image_url,
-                "subreddit" => post_data["subreddit"],
-                "likes" => post_data["ups"] || 0
-              }
-              memes << meme
+                  meme = {
+                    "title" => post_data["title"],
+                    "url" => image_url,
+                    "subreddit" => post_data["subreddit"],
+                    "likes" => post_data["ups"] || 0
+                  }
+                  memes << meme
+                end
+                break  # Success, exit retry loop
+              else
+                attempts += 1
+                sleep 2 if attempts < max_attempts
+              end
             end
+          rescue JSON::ParserError => e
+            attempts += 1
+            sleep 2 if attempts < max_attempts
+          rescue => e
+            attempts += 1
+            sleep 2 if attempts < max_attempts
           end
-          sleep 1  # Be respectful to Reddit
-        rescue JSON::ParserError => e
-          # Silently skip on JSON parse errors
-          next
-        rescue => e
-          # Silently skip on other errors
-          next
         end
+        
+        sleep 1.5  # Be respectful to Reddit between requests
       end
 
       memes
@@ -380,6 +531,135 @@ class MemeExplorer < Sinatra::Base
       puts "DB Error: #{e.message}"
       nil
     end
+
+    # Pre-validate image URL (HEAD request to check if accessible)
+    def is_image_accessible?(url)
+      return false unless url&.match?(/^https?:\/\//)
+      
+      begin
+        uri = URI(url)
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 5, open_timeout: 5) do |http|
+          http.head(uri.request_uri)
+        end
+        
+        # Check if response indicates accessible image
+        response.code == "200" && response["Content-Type"]&.include?("image")
+      rescue
+        false
+      end
+    end
+
+    # Track broken image URL
+    def report_broken_image(url)
+      return unless url
+      
+      begin
+        DB.execute(
+          "INSERT INTO broken_images (url, failure_count) VALUES (?, 1) ON CONFLICT(url) DO UPDATE SET failure_count = failure_count + 1, last_failed_at = CURRENT_TIMESTAMP",
+          [url]
+        )
+      rescue => e
+        puts "Error tracking broken image: #{e.message}"
+      end
+    end
+
+    # Check if URL is known to be broken
+    def is_image_broken?(url)
+      return false unless url
+      
+      begin
+        result = DB.execute("SELECT failure_count FROM broken_images WHERE url = ?", [url]).first
+        result && result["failure_count"].to_i >= 2
+      rescue
+        false
+      end
+    end
+
+    # Get next valid meme (skip broken URLs)
+    def get_next_valid_meme
+      memes = random_memes_pool
+      return nil if memes.empty?
+
+      session[:meme_history] ||= []
+      last_meme_url = session[:meme_history].last
+
+      # Try to find a meme with working image
+      attempts = 0
+      max_attempts = [memes.size, 30].min
+      
+      while attempts < max_attempts
+        candidate = memes.sample
+        candidate_id = candidate["url"] || candidate["file"]
+        
+        # Skip if already shown or image is broken
+        if candidate_id != last_meme_url && is_valid_meme?(candidate) && !is_image_broken?(candidate_id)
+          meme_identifier = candidate_id
+          session[:meme_history] << meme_identifier
+          session[:meme_history] = session[:meme_history].last(30)
+          return candidate
+        end
+        attempts += 1
+      end
+
+      nil
+    end
+  end
+
+  # -----------------------
+  # OAuth Routes
+  # -----------------------
+  get "/auth/reddit" do
+    client = OAuth2::Client.new(
+      REDDIT_OAUTH_CLIENT_ID,
+      REDDIT_OAUTH_CLIENT_SECRET,
+      site: "https://www.reddit.com",
+      authorize_url: "/api/v1/authorize",
+      token_url: "/api/v1/access_token"
+    )
+    
+    redirect client.auth_code.authorize_url(
+      redirect_uri: "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback",
+      response_type: "code",
+      state: SecureRandom.hex(16),
+      scope: "read",
+      duration: "permanent"
+    )
+  end
+
+  get "/auth/reddit/callback" do
+    code = params[:code]
+    halt 400, "No authorization code received" unless code
+
+    client = OAuth2::Client.new(
+      REDDIT_OAUTH_CLIENT_ID,
+      REDDIT_OAUTH_CLIENT_SECRET,
+      site: "https://www.reddit.com",
+      authorize_url: "/api/v1/authorize",
+      token_url: "/api/v1/access_token"
+    )
+
+    begin
+      token = client.auth_code.get_token(
+        code,
+        redirect_uri: "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback",
+        headers: {
+          "User-Agent" => "MemeExplorer/1.0"
+        }
+      )
+
+      # Store access token in Redis (expires in 1 hour)
+      if REDIS
+        REDIS.setex("reddit:access_token", 3600, token.token)
+        REDIS.setex("reddit:token_expires_at", 3600, (Time.now + 3600).to_i.to_s)
+      end
+
+      session[:reddit_token] = token.token
+      session[:reddit_user] = token.params["name"] rescue nil
+
+      "✅ Successfully authenticated with Reddit! Access token stored. Redirecting..."
+    rescue => e
+      "❌ OAuth Error: #{e.message}"
+    end
   end
 
   # -----------------------
@@ -432,6 +712,16 @@ class MemeExplorer < Sinatra::Base
   
     content_type :json
     { liked: liked_now, likes: likes }.to_json
+  end
+
+  post "/report-broken-image" do
+    url = params[:url]
+    halt 400, { error: "No URL provided" }.to_json unless url
+
+    report_broken_image(url)
+    
+    content_type :json
+    { reported: true, message: "Broken image tracked" }.to_json
   end
   
   get "/trending" do

@@ -21,6 +21,12 @@ gem "colorize"  # 👈 for readable logs
 gem "redis"
 gem "rack-attack"
 
+# Authentication
+gem "oauth2", "~> 2.0"
+
+# Scheduling
+gem "whenever", require: false
+
 # Optional (for Tier 2)
 gem "sqlite3"
 gem "sidekiq"
