@@ -1,17 +1,15 @@
 <div class="meme-container" style="text-align:center; max-width:700px; margin:0 auto;">
-  <h2><%= @meme["title"] %></h2>
-  <img src="<%= @image_src %>" alt="<%= @meme["title"] %>" style="max-width:100%; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+  <h2 id="meme-title"><%= @meme["title"] %></h2>
+  <img id="meme-img" src="<%= @image_src %>" alt="<%= @meme["title"] %>" style="max-width:100%; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2); margin-top:10px;">
 
   <div class="meme-meta" style="margin-top:8px; font-size:14px; color:#555;">
     <p>Category: <%= @category_name || "Random" %></p>
     <p>Views: <%= @views || 0 %></p>
   </div>
 
-    <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
-    <% @likes = result ? result["likes"] : 0 %>
-    <p>Likes: <span class="meme-likes"><%= @likes %></span></p>
-
-
+  <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
+  <% @likes = result ? result["likes"] : 0 %>
+  <p>Likes: <span class="meme-likes"><%= @likes %></span></p>
 
   <form class="like-form" action="/like" method="POST" style="margin-top:10px;">
     <input type="hidden" name="url" value="<%= @image_src %>">
@@ -20,8 +18,13 @@
     </button>
   </form>
 
-
-  <div style="margin-top:12px;">
-    <a href="/random" style="text-decoration:none;background:#4caf50;color:#fff;padding:8px 16px;border-radius:8px;">Next Random Meme ➡️</a>
+  <!-- Prev / Next buttons -->
+  <div style="margin-top:20px; display:flex; justify-content:center; gap:12px;">
+    <button id="prev-btn" style="padding:8px 16px; background:#f44336; color:#fff; border:none; border-radius:8px; cursor:pointer;">
+      ⬅️ Previous
+    </button>
+    <button id="next-btn" style="padding:8px 16px; background:#4caf50; color:#fff; border:none; border-radius:8px; cursor:pointer;">
+      Next ➡️
+    </button>
   </div>
 </div>

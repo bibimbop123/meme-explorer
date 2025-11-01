@@ -213,19 +213,61 @@ class MemeExplorer < Sinatra::Base
   end
 
   get "/random" do
-    @meme = tier3_random || { "title" => "No memes", "file" => "/images/placeholder.png", "subreddit" => "local" }
-    increment_view(@meme["file"] || @meme["url"], title: @meme["title"], subreddit: @meme["subreddit"]) if @meme["file"]
+    direction = params[:direction]
+    session[:meme_history] ||= []
+    session[:meme_index] ||= -1
+  
+    if direction == "prev"
+      # Go back one meme in history (if possible)
+      if session[:meme_index] > 0
+        session[:meme_index] -= 1
+      end
+      @meme = session[:meme_history][session[:meme_index]]
+    else
+      # Next meme (default behavior)
+      @meme = tier3_random || { "title" => "No memes", "file" => "/images/placeholder.png", "subreddit" => "local" }
+  
+      # Store it in the session history
+      session[:meme_history] << @meme
+      session[:meme_index] = session[:meme_history].size - 1
+  
+      # Increment view count only for new memes
+      increment_view(@meme["file"] || @meme["url"], title: @meme["title"], subreddit: @meme["subreddit"]) if @meme["file"]
+    end
+  
     @image_src = @meme["file"] || @meme["url"]
     @category_name = @meme["subreddit"]
+  
     erb :random, layout: :layout
   end
+  
 
   get "/random.json" do
     content_type :json
-    meme = tier3_random || flatten_memes.sample
-    increment_view(meme["file"] || meme["url"], title: meme["title"], subreddit: meme["subreddit"])
-    { title: meme["title"], url: meme["file"] || meme["url"], subreddit: meme["subreddit"] }.to_json
+    direction = params[:direction]
+    session[:meme_history] ||= []
+    session[:meme_index] ||= -1
+  
+    if direction == "prev"
+      if session[:meme_index] > 0
+        session[:meme_index] -= 1
+      end
+      meme = session[:meme_history][session[:meme_index]]
+    else
+      meme = tier3_random || { "title" => "No memes", "file" => "/images/placeholder.png", "subreddit" => "local" }
+      session[:meme_history] << meme
+      session[:meme_index] = session[:meme_history].size - 1
+      increment_view(meme["file"] || meme["url"], title: meme["title"], subreddit: meme["subreddit"]) if meme["file"]
+    end
+  
+    {
+      title: meme["title"],
+      subreddit: meme["subreddit"],
+      url: meme["file"] || meme["url"],
+      likes: DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [meme["file"] || meme["url"]]).first&.fetch("likes", 0) || 0
+    }.to_json
   end
+  
 
   get "/category/:name" do
     @category_name = params[:name]

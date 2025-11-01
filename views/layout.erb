@@ -1,64 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
-<<head>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Meme Explorer 😎 | Explore Funny, Wholesome & Trending Memes</title>
 
-  <!-- 🔍 Basic SEO -->
   <meta name="description" content="Explore funny, wholesome, and trending memes from across the web. Meme Explorer 😎 is your daily dose of laughter, positivity, and viral humor!">
   <meta name="keywords" content="memes, funny memes, wholesome memes, dank memes, trending memes, Meme Explorer, meme search, meme app">
   <meta name="author" content="Meme Explorer Team">
 
-  <!-- 📱 Mobile Optimization -->
   <meta name="theme-color" content="#e52e71">
   <meta name="apple-mobile-web-app-capable" content="yes">
 
-  <!-- 💬 Open Graph / Facebook / Discord / LinkedIn -->
   <meta property="og:title" content="Meme Explorer 😎 | Discover Funny & Trending Memes">
   <meta property="og:description" content="Your daily meme adventure — funny, wholesome, and trending memes all in one place!">
   <meta property="og:image" content="./images/funny2.jpeg">
   <meta property="og:url" content="https://meme-explorer.onrender.com">
   <meta property="og:type" content="website">
 
-  <!-- 🐦 Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Meme Explorer 😎">
   <meta name="twitter:description" content="Explore the funniest memes online — wholesome, dank, and trending in one place!">
   <meta name="twitter:image" content="./images/funny2.jpeg">
 
-  <!-- 🔗 Favicon & Manifest -->
   <link rel="icon" href="./images/funny2.jpeg" type="image/jpeg">
   <link rel="apple-touch-icon" href="/images/favicon.png">
   <link rel="manifest" href="/manifest.json">
 
-  <!-- 🎨 Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
 
-  <!-- 💅 Styles -->
   <style>
     body { font-family: 'Comic Neue', cursive; margin:0; background:#fefefe; transition:0.5s; }
     header { background:linear-gradient(90deg,#ff8a00,#e52e71); color:#fff; padding:20px; text-align:center; position:sticky; top:0; z-index:100; }
     header nav { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
     header nav a { background: rgba(255,255,255,0.15); color:#fff; padding:8px 14px; border-radius:8px; font-weight:600; text-decoration:none; transition:0.2s; }
     header nav a:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px);}
-    main { max-width:1100px; margin:0 auto; padding:20px;}
+    main { max-width:700px; margin:40px auto; padding:20px; text-align:center; }
     footer { text-align:center; padding:20px; background:#333; color:#fff;}
     form { text-align:center; margin:20px 0;}
     form input[type=text]{padding:10px;border-radius:12px 0 0 12px;border:1px solid #ccc;width:260px;}
     form button{padding:10px 16px;border:none;border-radius:0 12px 12px 0;background:#e52e71;color:#fff;cursor:pointer;}
-    img { max-width:100%; border-radius:8px; }
-    button.liked {
-      background: #ff4f81 !important;
-      color: #fff;
-      transform: scale(1.05);
+    img { max-width:100%; border-radius:12px; margin-top:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+    button.liked { background: #ff4f81 !important; color: #fff; transform: scale(1.05); transition: 0.2s; }
+    button.liked:hover { background: #ff769f !important; }
+    .meme-subtitle { color:#888; margin-top:5px; }
+    .meme-likes { margin-left:10px; font-weight:bold; }
+
+    /* 🔘 Prev/Next button styles */
+    .nav-buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    .nav-buttons button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
       transition: 0.2s;
     }
-    button.liked:hover {
-      background: #ff769f !important;
-    }
-
+    #prev-btn { background: #f44336; }
+    #next-btn { background: #4caf50; }
+    .nav-buttons button:hover { opacity: 0.9; transform: scale(1.05); }
   </style>
 </head>
 
@@ -82,23 +89,63 @@
 </form>
 
 <main>
-  <%= yield %>
+  <div class="meme-container">
+    <h2 id="meme-title"><%= @meme["title"] %></h2>
+    <p id="meme-subreddit" class="meme-subtitle"><%= @meme["subreddit"] %></p>
+
+    <img id="meme-img" src="<%= @image_src %>" alt="<%= @meme["title"] %>">
+
+    <form class="like-form" action="/like" method="post">
+      <input type="hidden" name="url" value="<%= @image_src %>">
+      <button type="submit" class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>">
+        <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
+      </button>
+      <span class="meme-likes">
+        <%= DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first["likes"] rescue 0 %>
+      </span>
+    </form>
+
+    <!-- ✅ Prev / Next Buttons -->
+    <div class="nav-buttons">
+      <button id="prev-btn">⬅️ Previous</button>
+      <button id="next-btn">Next ➡️</button>
+    </div>
+  </div>
 </main>
 
 <footer>
   <p>Built with ❤️ using Sinatra</p>
 </footer>
-</body>
-</html>
+
 <script>
- document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
+  const fetchMeme = async (direction) => {
+    try {
+      const res = await fetch(`/random.json?direction=${direction}`);
+      const meme = await res.json();
+
+      document.getElementById("meme-img").src = meme.url;
+      document.getElementById("meme-img").alt = meme.title;
+      document.getElementById("meme-title").innerText = meme.title;
+      document.getElementById("meme-subreddit").innerText = meme.subreddit;
+
+      const form = document.querySelector("form.like-form");
+      form.querySelector("input[name='url']").value = meme.url;
+      const button = form.querySelector("button");
+      button.classList.remove("liked");
+      button.textContent = "❤️ Like";
+      form.querySelector(".meme-likes").textContent = meme.likes || 0;
+    } catch (err) {
+      console.error("Failed to fetch meme:", err);
+    }
+  };
+
+  // Like button AJAX
   document.querySelectorAll("form.like-form").forEach(form => {
     form.addEventListener("submit", async e => {
       e.preventDefault();
-
       const button = form.querySelector("button");
-      const url = form.querySelector("input[name='url']").value;
-      const likesSpan = form.closest(".meme-container").querySelector(".meme-likes");
+      const likesSpan = form.querySelector(".meme-likes");
 
       try {
         const res = await fetch(form.action, {
@@ -106,11 +153,9 @@
           body: new URLSearchParams(new FormData(form)),
           headers: { "Accept": "application/json" }
         });
-
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Request failed");
 
-        // Update button & likes
         if (data.liked) {
           button.textContent = "💔 Unlike";
           button.classList.add("liked");
@@ -119,14 +164,26 @@
           button.classList.remove("liked");
         }
 
-        if (likesSpan) likesSpan.textContent = data.likes;
-
+        likesSpan.textContent = data.likes;
       } catch (err) {
         alert("Could not update like — please try again.");
-        console.error("Like AJAX error:", err);
+        console.error(err);
       }
     });
   });
-});
 
+  // ✅ Button event listeners
+  document.getElementById("prev-btn").addEventListener("click", () => fetchMeme("prev"));
+  document.getElementById("next-btn").addEventListener("click", () => fetchMeme("next"));
+
+  // ✅ Spacebar loads next meme
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space" || e.key === " ") {
+      e.preventDefault();
+      fetchMeme("next");
+    }
+  });
+});
 </script>
+</body>
+</html>
