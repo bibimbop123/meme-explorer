@@ -46,6 +46,19 @@ def increment_like(url)
   SQL
 end
 
+def increment_view(file, title:, subreddit:)
+  DB.execute(
+    "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 0, 0)",
+    [file, title, subreddit]
+  )
+  DB.execute("UPDATE meme_stats SET views = views + 1 WHERE url = ?", [file])
+
+  # --- Update Redis global metrics ---
+  REDIS.incr("memes:views")              # total views
+  REDIS.incr("memes:no_views") if DB.execute("SELECT views FROM meme_stats WHERE url = ?", [file]).first["views"] == 1
+end
+
+
 # -----------------------
 # Optional: Migration for existing tables
 # -----------------------
