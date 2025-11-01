@@ -163,7 +163,52 @@ class MemeExplorer < Sinatra::Base
     # API fetching
     # -----------------------
     MEME_CACHE ||= { memes: [], fetched_at: Time.at(0) }
-    POPULAR_SUBREDDITS ||= %w[dankmemes me_irl memes ProgrammerHumor funny wholesomememes].freeze
+    POPULAR_SUBREDDITS ||= %w[
+  funny
+  memes
+  dankmemes
+  wholesomememes
+  PrequelMemes
+  AdviceAnimals
+  meme
+  me_irl
+  meirl
+  terriblefacebookmemes
+  ComedyCemetery
+  holdmybeer
+  Whatcouldgowrong
+  facepalm
+  blunderyears
+  therewasanattempt
+  instant_regret
+  Animemes
+  HistoryMemes
+  madlads
+  surrealmemes
+  softwaregore
+  CrappyDesign
+  titlegore
+  PublicFreakout
+  Unexpected
+  BreadStapledToTrees
+  nocontextpics
+  perfectTiming
+  ContagiousLaughter
+  wholesome
+  AnimalsBeingDerps
+  UnexpectedlyWholesome
+  cringepics
+  OldPeopleFacebook
+  ProgrammerHumor
+  techsupportgore
+  CodeReviewHumor
+  EngineeringMemes
+  sbubby
+  ihadastroke
+  ZillowGoneWild
+  OldSchoolCoolMemes
+  Catstandingup
+].freeze
 
     def fetch_fresh_memes(batch_size = 20)
       if Time.now - MEME_CACHE[:fetched_at] > 120
