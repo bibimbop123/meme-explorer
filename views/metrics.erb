@@ -4,82 +4,29 @@
   <meta charset="UTF-8">
   <title>Meme Explorer — Metrics Dashboard</title>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 2rem auto;
-      max-width: 900px;
-      background: #f4f4f4;
-      color: #333;
-      line-height: 1.5;
-    }
-    h1, h2 {
-      text-align: center;
-    }
-    h1 {
-      margin-bottom: 1.5rem;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .stat {
-      background: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      text-align: center;
-      transition: transform 0.15s ease;
-    }
-    .stat:hover {
-      transform: translateY(-2px);
-    }
-    .stat h2 {
-      margin: 0;
-      font-size: 2rem;
-      color: #007aff;
-    }
-    .stat p {
-      margin: 0.25rem 0 0;
-      color: #555;
-      font-size: 0.9rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-    }
-    th, td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-    }
-    th {
-      background: #f0f0f0;
-      font-weight: 600;
-    }
-    tr:hover {
-      background: #fafafa;
-    }
-    a {
-      color: #007aff;
-      text-decoration: none;
-    }
-    footer {
-      text-align: center;
-      color: #888;
-      margin-top: 3rem;
-      font-size: 0.85rem;
-    }
+    body { font-family: system-ui, sans-serif; margin:2rem auto; max-width:900px; background:#f4f4f4; color:#333; line-height:1.5; }
+    h1, h2 { text-align:center; }
+    h1 { margin-bottom:1.5rem; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat { background:white; padding:1rem; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); text-align:center; transition: transform 0.15s ease; }
+    .stat:hover { transform: translateY(-2px); }
+    .stat h2 { margin:0; font-size:2rem; color:#007aff; }
+    .stat p { margin:0.25rem 0 0; color:#555; font-size:0.9rem; }
+    table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:2rem; }
+    th, td { padding:0.75rem; text-align:left; border-bottom:1px solid #eee; }
+    th { background:#f0f0f0; font-weight:600; }
+    tr:hover { background:#fafafa; }
+    a { color:#007aff; text-decoration:none; }
+    footer { text-align:center; color:#888; margin-top:3rem; font-size:0.85rem; }
+    .last-batch { text-align:center; margin-bottom:1rem; color:#555; font-size:0.9rem; }
   </style>
 </head>
 <body>
   <h1>📊 Meme Explorer Metrics Dashboard</h1>
+
+  <p class="last-batch">
+    Last meme batch fetched: <%= last_batch.strftime("%B %d, %Y %H:%M:%S") %>
+  </p>
 
   <div class="stats">
     <div class="stat">

@@ -266,7 +266,7 @@ class MemeExplorer < Sinatra::Base
   
     erb :trending, layout: :layout
   end
-  
+
   get "/search" do
     query = params[:q]&.downcase
     @results = {}
@@ -308,6 +308,8 @@ class MemeExplorer < Sinatra::Base
     # -----------------------
     # Aggregate stats
     # -----------------------
+    last_batch = MEME_CACHE[:fetched_at] || Time.now
+
     total_memes  = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first["count"] || 0
     total_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first["sum"] || 0
     total_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first["sum"] || 0
@@ -344,8 +346,10 @@ class MemeExplorer < Sinatra::Base
       memes_with_no_likes: memes_with_no_likes,
       memes_with_no_views: memes_with_no_views,
       top_memes: top_memes,
-      top_subreddits: top_subreddits
+      top_subreddits: top_subreddits,
+      last_batch: last_batch
     }
+    
   end
   
   run! if app_file == $0
