@@ -487,11 +487,11 @@ class MemeExplorer < Sinatra::Base
         no_likes      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
         no_views      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
   
-        @total_memes         = db_count["count"].to_i
-        @total_likes         = db_sum_likes["sum"].to_i
-        @total_views         = db_sum_views["sum"].to_i
-        @memes_with_no_likes = no_likes["count"].to_i
-        @memes_with_no_views = no_views["count"].to_i
+        @total_memes         = (db_count["count"] || 0).to_i
+        @total_likes         = (db_sum_likes["sum"] || 0).to_i
+        @total_views         = (db_sum_views["sum"] || 0).to_i
+        @memes_with_no_likes = (no_likes["count"] || 0).to_i
+        @memes_with_no_views = (no_views["count"] || 0).to_i
   
         # Top 10 memes by score (likes*2 + views)
         top_memes_data = safe_db_exec("
@@ -514,14 +514,14 @@ class MemeExplorer < Sinatra::Base
       end
   
       # -----------------------
-      # Redis Metrics
+      # Redis Metrics (sync with DB)
       # -----------------------
       if REDIS
-        # If Redis keys do not exist, optionally initialize them from DB
-        REDIS.set("memes:views", @total_views) if REDIS.get("memes:views").nil?
-        REDIS.set("memes:likes", @total_likes) if REDIS.get("memes:likes").nil?
-        REDIS.set("memes:no_views", @memes_with_no_views) if REDIS.get("memes:no_views").nil?
-        REDIS.set("memes:no_likes", @memes_with_no_likes) if REDIS.get("memes:no_likes").nil?
+        # Ensure Redis always reflects DB totals
+        REDIS.set("memes:views", @total_views)
+        REDIS.set("memes:likes", @total_likes)
+        REDIS.set("memes:no_views", @memes_with_no_views)
+        REDIS.set("memes:no_likes", @memes_with_no_likes)
   
         @redis_views    = REDIS.get("memes:views").to_i
         @redis_likes    = REDIS.get("memes:likes").to_i
@@ -545,6 +545,7 @@ class MemeExplorer < Sinatra::Base
   
     rescue => e
       puts "Metrics error: #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
     end
   
     erb :metrics
