@@ -120,62 +120,9 @@ class MemeExplorer < Sinatra::Base
   # Static Methods (for background thread)
   # -----------------------
   def self.fetch_reddit_memes_static(subreddits = nil, limit = 15)
-    subreddits ||= YAML.load_file("data/subreddits.yml")["popular"]
-    memes = []
-    subreddits = subreddits.sample(8) if subreddits.size > 8
-
-    subreddits.each do |subreddit|
-      begin
-        url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
-        uri = URI(url)
-        
-        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10) do |http|
-          request = Net::HTTP::Get.new(uri.request_uri)
-          request["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-          request["Accept"] = "application/json, text/plain, */*"
-          request["Accept-Language"] = "en-US,en;q=0.9"
-          request["Accept-Encoding"] = "gzip, deflate, br"
-          request["Connection"] = "keep-alive"
-          request["Referer"] = "https://www.reddit.com/"
-          request["Sec-Fetch-Dest"] = "empty"
-          request["Sec-Fetch-Mode"] = "cors"
-          request["Sec-Fetch-Site"] = "same-origin"
-          
-          response = http.request(request)
-          
-          # Check if response is JSON
-          unless response.content_type&.include?("json")
-            puts "Non-JSON response from r/#{subreddit}: #{response.content_type}"
-            next
-          end
-          
-          data = JSON.parse(response.body)
-
-          data["data"]["children"].each do |post|
-            post_data = post["data"]
-            next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
-
-            image_url = extract_image_url_static(post_data)
-            next unless image_url && image_url.match?(/^https?:\/\//)
-
-            meme = {
-              "title" => post_data["title"],
-              "url" => image_url,
-              "subreddit" => post_data["subreddit"],
-              "likes" => post_data["ups"] || 0
-            }
-            memes << meme
-          end
-        end
-        sleep 0.5  # Rate limiting - be nice to Reddit
-      rescue JSON::ParserError => e
-        puts "JSON parse error from r/#{subreddit}: #{e.message}"
-      rescue => e
-        puts "Error fetching from r/#{subreddit}: #{e.class} - #{e.message}"
-      end
-    end
-
-    memes
+    # Reddit API requests are heavily blocked - return empty and rely on fallback
+    puts "Reddit API access blocked - using local memes only"
+    []
   end
 
   def self.extract_image_url_static(post_data)
