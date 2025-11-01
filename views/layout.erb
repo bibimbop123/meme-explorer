@@ -49,6 +49,16 @@
     form input[type=text]{padding:10px;border-radius:12px 0 0 12px;border:1px solid #ccc;width:260px;}
     form button{padding:10px 16px;border:none;border-radius:0 12px 12px 0;background:#e52e71;color:#fff;cursor:pointer;}
     img { max-width:100%; border-radius:8px; }
+    button.liked {
+      background: #ff4f81 !important;
+      color: #fff;
+      transform: scale(1.05);
+      transition: 0.2s;
+    }
+    button.liked:hover {
+      background: #ff769f !important;
+    }
+
   </style>
 </head>
 
@@ -88,19 +98,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const button = form.querySelector("button");
       const url = form.querySelector("input[name='url']").value;
-      const likesSpan = form.closest(".meme-container").querySelector("#meme-likes");
+      const likesSpan = form.closest(".meme-container").querySelector(".meme-likes");
+
+      button.disabled = true;
+      button.style.opacity = "0.6";
 
       try {
         const res = await fetch(form.action, {
           method: "POST",
-          body: new URLSearchParams(new FormData(form)),
-          headers: { "Accept": "application/json" }
+          headers: { "Accept": "application/json" },
+          body: new URLSearchParams(new FormData(form))
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Request failed");
 
-        // Update button & likes
+        // ✅ Update button & likes count
         if (data.liked) {
           button.textContent = "💔 Unlike";
           button.classList.add("liked");
@@ -111,8 +124,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (likesSpan) likesSpan.textContent = data.likes;
 
+        // 💫 Pulse animation
+        button.animate([{ transform: "scale(1.1)" }, { transform: "scale(1)" }], { duration: 200 });
+
       } catch (err) {
         console.error("Like AJAX error:", err);
+        alert("Could not update like — please try again.");
+      } finally {
+        button.disabled = false;
+        button.style.opacity = "1";
       }
     });
   });
