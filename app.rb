@@ -333,6 +333,15 @@ class MemeExplorer < Sinatra::Base
   get "/random" do
     @meme = navigate_meme(direction: params[:direction] || "next")
     halt 404, "No memes found!" unless @meme
+  
+    # Increment Redis counters
+    if REDIS
+      REDIS.incr("memes:views")          # total views counter
+      REDIS.incr("memes:no_views") if @meme["views"].to_i.zero?
+      REDIS.incr("memes:likes")          # total likes (if user likes it)
+      REDIS.incr("memes:no_likes") if @meme["likes"].to_i.zero?
+    end
+  
     @image_src = @meme["url"]
     erb :random
   end
@@ -425,6 +434,24 @@ class MemeExplorer < Sinatra::Base
       { error: "Meme not found" }.to_json
     end
   end
+
+  post "/like/:id" do
+    meme_id = params[:id]
+    
+    # Update DB
+    DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE id = ?", meme_id)
+    
+    # Update Redis
+    if REDIS
+      REDIS.incr("memes:likes")
+      # If it was previously 0 likes, decrement no_likes counter
+      likes = DB.execute("SELECT likes FROM meme_stats WHERE id = ?", meme_id).first["likes"].to_i
+      REDIS.decr("memes:no_likes") if likes == 1
+    end
+  
+    redirect back
+  end
+  
 
   # -----------------------
   # Metrics route
