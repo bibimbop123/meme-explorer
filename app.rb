@@ -1,8 +1,3 @@
-# app.rb
-# -----------------------
-# Core dependencies
-# -----------------------
-# app.rb
 # -----------------------
 # Core dependencies
 # -----------------------
@@ -52,17 +47,34 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Constants
   # -----------------------
-  POPULAR_SUBREDDITS = [
-    # Funny / Meme-focused
-    "funny", "memes", "dankmemes", "PrequelMemes", "bonehurtingjuice",
-    "okbuddyretard", "ComedyCemetery", "me_irl", "teenagers", "Animemes",
-    "surrealmemes", "2meirl4meirl", "ProgrammerHumor", "HistoryMemes", "shittylifeprotips",
-
-    # Wholesome / Feel-good
-    "wholesomememes", "MadeMeSmile", "Eyebleach", "aww", "AnimalsBeingBros",
-    "rarepuppers", "HumansBeingBros", "WholesomeGifs", "GetMotivated",
-    "UpliftingNews", "nonononoyes"
-  ].freeze
+  POPULAR_SUBREDDITS = {
+    funny_memes: [
+      "funny", "memes", "dankmemes", "PrequelMemes", "bonehurtingjuice",
+      "okbuddyretard", "ComedyCemetery", "me_irl", "teenagers", "Animemes",
+      "surrealmemes", "2meirl4meirl", "shittylifeprotips", "ProgrammerHumor",
+      "HistoryMemes"
+    ],
+    wholesome: [
+      "wholesomememes", "MadeMeSmile", "Eyebleach", "aww", "AnimalsBeingBros",
+      "rarepuppers", "HumansBeingBros", "WholesomeGifs", "GetMotivated",
+      "UpliftingNews", "nonononoyes"
+    ],
+    tech_cs: [
+      "coding", "javascript", "python", "ruby", "programming", "MachineLearning",
+      "computerscience", "cscareerquestions", "techmemes", "devops", "learnprogramming",
+      "frontend", "backend", "webdev", "softwareengineering", "opensource"
+    ],
+    finance_business: [
+      "stocks", "wallstreetbets", "investing", "financialindependence",
+      "businesshub", "economics", "Entrepreneur", "personalfinance",
+      "valueinvesting", "CryptoCurrency", "StockMarketMemes", "FinanceMemes"
+    ],
+    gaming_entertainment: [
+      "gaming", "gamephysics", "pcgaming", "boardgames", "movies", "television",
+      "Marvel", "StarWars", "anime", "memesaboutgames"
+    ]
+  }.freeze
+  ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.values.flatten.freeze
 
   MEME_CACHE = {}
   MEMES = YAML.load_file("data/memes.yml")
@@ -149,7 +161,7 @@ class MemeExplorer < Sinatra::Base
 
     def fetch_fresh_memes(batch_size = 20)
       if Time.now - (MEME_CACHE[:fetched_at] ||= Time.at(0)) > 120
-        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.sample(8).flat_map do |sub|
+        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(8).flat_map do |sub|
           2.times.map do
             url = URI("https://meme-api.com/gimme/#{sub}/#{batch_size}")
             begin
@@ -194,31 +206,80 @@ class MemeExplorer < Sinatra::Base
     redirect "/random"
   end
 
+  # -----------------------
+  # Serve random meme page
+  # -----------------------
   get "/random" do
-    @meme = DB.execute("SELECT * FROM meme_stats ORDER BY RANDOM() LIMIT 1").first
-    @image_src = @meme["url"] if @meme
+    # Initialize seen memes in session
+    session[:seen_memes] ||= []
+  
+    # Fetch all cached memes (flattened)
+    all_memes = flatten_memes
+  
+    # Add fresh memes from API or popular subreddits
+    fresh_memes = fetch_fresh_memes(10)
+    candidates = (all_memes + fresh_memes).uniq { |m| m["url"] || m["file"] }
+  
+    # Filter out memes already seen in this session
+    unseen = candidates.reject { |m| session[:seen_memes].include?(m["url"] || m["file"]) }
+  
+    # If all memes are seen, reset the unseen list (loop)
+    pool = unseen.any? ? unseen : candidates
+  
+    # Weighted sample: liked memes have higher chance to appear again
+    weighted_pool = pool.flat_map do |m|
+      key = m["file"] || m["url"]
+      session[:liked_memes]&.include?(key) ? [m] * 3 : [m]
+    end
+  
+    @meme = weighted_pool.sample
+  
+    # Track that we’ve seen this meme
+    session[:seen_memes] << (@meme["url"] || @meme["file"])
+  
+    # Set image source for the template
+    @image_src = @meme["url"] || @meme["file"]
+  
     erb :random
   end
   
-  # Serve random/prev/next meme as JSON for JS navigation
-  get "/random.json" do
-    direction = params[:direction]
-    current_url = params[:current_url]
   
-    if current_url
-      current_meme = DB.execute("SELECT * FROM meme_stats WHERE url = ?", [current_url]).first
-      if current_meme
-        case direction
-        when "next"
-          @meme = DB.execute("SELECT * FROM meme_stats WHERE id > ? ORDER BY id ASC LIMIT 1", [current_meme["id"]]).first
-        when "prev"
-          @meme = DB.execute("SELECT * FROM meme_stats WHERE id < ? ORDER BY id DESC LIMIT 1", [current_meme["id"]]).first
-        end
-      end
+  # -----------------------
+  # JSON random meme route with subreddit filtering & next/prev
+  # -----------------------
+  get "/random.json" do
+    session[:seen_memes] ||= []
+  
+    # Fetch memes not recently seen
+    placeholders = (['?'] * ALL_POPULAR_SUBS.size).join(',')
+    unseen_memes = DB.execute(<<-SQL, ALL_POPULAR_SUBS)
+      SELECT rowid, *, (likes * 2 + views) AS score
+      FROM meme_stats
+      WHERE subreddit IN (#{placeholders})
+        AND url NOT IN (#{(['?'] * session[:seen_memes].size).join(',')})
+    SQL
+    unseen_memes = unseen_memes.shuffle unless unseen_memes.empty?
+  
+    # If all memes seen recently, reset the seen list
+    if unseen_memes.empty?
+      session[:seen_memes] = []
+      unseen_memes = DB.execute(<<-SQL, ALL_POPULAR_SUBS)
+        SELECT rowid, *, (likes * 2 + views) AS score
+        FROM meme_stats
+        WHERE subreddit IN (#{placeholders})
+      SQL
+      unseen_memes = unseen_memes.shuffle
     end
   
-    # fallback: random meme if no next/prev found
-    @meme ||= DB.execute("SELECT * FROM meme_stats ORDER BY RANDOM() LIMIT 1").first
+    # Weighted randomness: favor high-score memes but still allow low-score ones
+    weighted_pool = unseen_memes.flat_map { |m| [m] * ([m["score"].to_i, 1].max) }
+    @meme = weighted_pool.sample
+  
+    halt 404, { error: "No memes found" }.to_json unless @meme
+  
+    # Track meme as seen in this session
+    session[:seen_memes] << @meme["url"]
+    session[:seen_memes] = session[:seen_memes].last(50) # keep last 50
   
     content_type :json
     {
@@ -228,7 +289,10 @@ class MemeExplorer < Sinatra::Base
       likes: @meme["likes"]
     }.to_json
   end
-
+  
+  # -----------------------
+  # Trending route
+  # -----------------------
   get "/trending" do
     db_memes = DB.execute("SELECT url, title, subreddit, views, likes, (likes * 2 + views) AS score FROM meme_stats")
                  .map { |r| r.transform_keys(&:to_s) }
@@ -250,7 +314,9 @@ class MemeExplorer < Sinatra::Base
     erb :trending
   end
 
-
+  # -----------------------
+  # Category routes
+  # -----------------------
   get "/category/:name" do
     @category_name = params[:name]
     @memes = get_cached_memes[@category_name] || []
@@ -267,7 +333,6 @@ class MemeExplorer < Sinatra::Base
     erb :random, layout: :layout
   end
 
-
   get "/search" do
     query = params[:q]&.downcase
     @results = {}
@@ -281,41 +346,38 @@ class MemeExplorer < Sinatra::Base
 
   post "/like" do
     content_type :json
-  
+
     url = params[:url]
     session[:liked_memes] ||= []
-  
-    # Fetch existing meme stats
+
     meme = DB.execute("SELECT * FROM meme_stats WHERE url = ?", [url]).first
-  
+
     if meme
       liked = session[:liked_memes].include?(url)
-  
+
       if liked
-        # Unlike: decrease likes, remove from session
         new_likes = [meme["likes"] - 1, 0].max
         DB.execute("UPDATE meme_stats SET likes = ? WHERE url = ?", [new_likes, url])
         session[:liked_memes].delete(url)
         liked = false
       else
-        # Like: increase likes, add to session
         new_likes = meme["likes"] + 1
         DB.execute("UPDATE meme_stats SET likes = ? WHERE url = ?", [new_likes, url])
         session[:liked_memes] << url
         liked = true
       end
-  
+
       { liked: liked, likes: new_likes }.to_json
     else
       status 404
       { error: "Meme not found" }.to_json
     end
   end
-  
+
+  # -----------------------
+  # Metrics route
+  # -----------------------
   get "/metrics" do
-    # -----------------------
-    # Safe caches and defaults
-    # -----------------------
     MEME_CACHE ||= {}
     REDIS ||= begin
       begin
@@ -326,81 +388,39 @@ class MemeExplorer < Sinatra::Base
       end
     end
     METRICS ||= {}
-  
+
     begin
-      # -----------------------
-      # Last batch fetched
-      # -----------------------
       @last_batch = MEME_CACHE[:fetched_at] || Time.now
-  
-      # -----------------------
-      # Initialize metrics
-      # -----------------------
-      @total_memes = 0
-      @total_likes = 0
-      @total_views = 0
-      @memes_with_no_likes = 0
-      @memes_with_no_views = 0
-      @redis_views = 0
-      @redis_likes = 0
-      @redis_no_views = 0
-      @redis_no_likes = 0
-      @avg_likes = 0
-      @avg_views = 0
-      @avg_request_time_ms = 0
-      @total_requests = 0
-      @cache_hits = 0
-      @cache_misses = 0
-      @api_calls = 0
-      @tier1_calls = 0
-      @tier2_calls = 0
-      @tier3_calls = 0
-      @top_memes = []
-      @top_subreddits = []
-  
-      # -----------------------
-      # Aggregate stats from DB
-      # -----------------------
+      @total_memes = @total_likes = @total_views = @memes_with_no_likes = @memes_with_no_views = 0
+      @redis_views = @redis_likes = @redis_no_views = @redis_no_likes = 0
+      @avg_likes = @avg_views = @avg_request_time_ms = @total_requests = @cache_hits = @cache_misses = 0
+      @api_calls = @tier1_calls = @tier2_calls = @tier3_calls = 0
+      @top_memes = @top_subreddits = []
+
       if defined?(DB)
-        begin
-          db_count      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
-          db_sum_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
-          db_sum_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
-          no_likes      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
-          no_views      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
-  
-          @total_memes = db_count&.dig("count").to_i
-          @total_likes = db_sum_likes&.dig("sum").to_i
-          @total_views = db_sum_views&.dig("sum").to_i
-          @memes_with_no_likes = no_likes&.dig("count").to_i
-          @memes_with_no_views = no_views&.dig("count").to_i
-  
-          @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
-          @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
-        rescue => e
-          puts "Warning: Could not aggregate DB stats - #{e.class}: #{e.message}"
-        end
-      else
-        puts "Warning: DB not defined"
+        db_count      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
+        db_sum_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
+        db_sum_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
+        no_likes      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
+        no_views      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
+
+        @total_memes = db_count&.dig("count").to_i
+        @total_likes = db_sum_likes&.dig("sum").to_i
+        @total_views = db_sum_views&.dig("sum").to_i
+        @memes_with_no_likes = no_likes&.dig("count").to_i
+        @memes_with_no_views = no_views&.dig("count").to_i
+
+        @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
+        @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
       end
-  
-      # -----------------------
-      # Redis counters (safe)
-      # -----------------------
+
       if REDIS
-        begin
-          @redis_views    = REDIS.get("total_views")&.to_i || 0
-          @redis_likes    = REDIS.get("total_likes")&.to_i || 0
-          @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
-          @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
-        rescue => e
-          puts "Warning: Redis read failed - #{e.class}: #{e.message}"
-        end
+        @redis_views    = REDIS.get("total_views")&.to_i || 0
+        @redis_likes    = REDIS.get("total_likes")&.to_i || 0
+        @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
+        @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
       end
-  
-      # -----------------------
-      # App metrics
-      # -----------------------
+
       @avg_request_time_ms = METRICS[:avg_request_time_ms] || 0
       @total_requests      = METRICS[:total_requests] || 0
       @cache_hits          = METRICS[:cache_hits] || 0
@@ -409,48 +429,32 @@ class MemeExplorer < Sinatra::Base
       @tier1_calls         = METRICS[:tier1_calls] || 0
       @tier2_calls         = METRICS[:tier2_calls] || 0
       @tier3_calls         = METRICS[:tier3_calls] || 0
-  
-      # -----------------------
-      # Top memes & subreddits
-      # -----------------------
-      if defined?(DB)
-        begin
-          @top_memes = DB.execute("
-            SELECT url, title, subreddit, likes, views
-            FROM meme_stats
-            ORDER BY likes DESC, views DESC
-            LIMIT 10
-          ")
-  
-          @top_subreddits = DB.execute("
-            SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
-            FROM meme_stats
-            GROUP BY subreddit
-            ORDER BY total_likes DESC
-            LIMIT 10
-          ")
-        rescue => e
-          puts "Warning: Could not fetch top memes/subreddits - #{e.class}: #{e.message}"
-        end
-      end
-  
-      # -----------------------
-      # Render metrics page
-      # -----------------------
+
+      @top_memes = DB.execute("
+        SELECT url, title, subreddit, likes, views
+        FROM meme_stats
+        ORDER BY likes DESC, views DESC
+        LIMIT 10
+      ")
+
+      @top_subreddits = DB.execute("
+        SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
+        FROM meme_stats
+        GROUP BY subreddit
+        ORDER BY total_likes DESC
+        LIMIT 10
+      ")
+
       erb :metrics
-  
     rescue => e
       puts "Error in /metrics: #{e.class} - #{e.message}"
       puts e.backtrace
       halt 500, "Internal Server Error"
     end
-  end  
-  
+  end
 
   # -----------------------
   # Server Start
   # -----------------------
-  if $PROGRAM_NAME == __FILE__
-    MemeExplorer.run! port: 4567, bind: "0.0.0.0"
-  end
+  run! if $PROGRAM_NAME == __FILE__
 end

@@ -1,5 +1,5 @@
-# db/setup.rb
 require "sqlite3"
+require "redis"
 
 DB = SQLite3::Database.new("db/memes.db")
 
@@ -21,43 +21,24 @@ DB.execute <<-SQL
 SQL
 
 # -----------------------
+# Add rowid column for navigation (SQLite has implicit rowid)
+# -----------------------
+# Note: rowid exists automatically unless you declare WITHOUT ROWID
+
+# -----------------------
 # Helper methods for views/likes
 # -----------------------
-def increment_view(url)
-  DB.execute <<-SQL, [url]
-    INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes)
-    VALUES (?, 'Unknown', 'local', 0, 0);
-  SQL
-
-  DB.execute <<-SQL, [url]
-    UPDATE meme_stats
-    SET views = views + 1,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE url = ?;
-  SQL
+def increment_view(url, title: "Unknown", subreddit: "local")
+  DB.execute(
+    "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 0, 0)",
+    [url, title, subreddit]
+  )
+  DB.execute("UPDATE meme_stats SET views = views + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
 end
 
 def increment_like(url)
-  DB.execute <<-SQL, [url]
-    UPDATE meme_stats
-    SET likes = likes + 1,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE url = ?;
-  SQL
+  DB.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
 end
-
-def increment_view(file, title:, subreddit:)
-  DB.execute(
-    "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 0, 0)",
-    [file, title, subreddit]
-  )
-  DB.execute("UPDATE meme_stats SET views = views + 1 WHERE url = ?", [file])
-
-  # --- Update Redis global metrics ---
-  REDIS.incr("memes:views")              # total views
-  REDIS.incr("memes:no_views") if DB.execute("SELECT views FROM meme_stats WHERE url = ?", [file]).first["views"] == 1
-end
-
 
 # -----------------------
 # Optional: Migration for existing tables
@@ -67,10 +48,8 @@ begin
 rescue SQLite3::SQLException
   puts "Migrating meme_stats table to add updated_at column..."
 
-  # 1. Rename old table
   DB.execute("ALTER TABLE meme_stats RENAME TO meme_stats_old;")
 
-  # 2. Create new table with updated_at
   DB.execute <<-SQL
     CREATE TABLE meme_stats (
       url TEXT PRIMARY KEY,
@@ -82,13 +61,11 @@ rescue SQLite3::SQLException
     );
   SQL
 
-  # 3. Copy data from old table
   DB.execute <<-SQL
     INSERT INTO meme_stats (url, title, subreddit, views, likes)
     SELECT url, title, subreddit, views, likes FROM meme_stats_old;
   SQL
 
-  # 4. Drop old table
   DB.execute("DROP TABLE meme_stats_old;")
   puts "Migration complete."
 end
