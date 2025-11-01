@@ -313,14 +313,21 @@ class MemeExplorer < Sinatra::Base
   end
   
   get "/metrics" do
-    begin
-      # -----------------------
-      # Safe caches and defaults
-      # -----------------------
-      MEME_CACHE ||= {}
-      REDIS ||= Redis.new
-      METRICS ||= {}
+    # -----------------------
+    # Safe caches and defaults
+    # -----------------------
+    MEME_CACHE ||= {}
+    REDIS ||= begin
+      begin
+        Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
+      rescue => e
+        puts "Warning: Redis not available - #{e.class}: #{e.message}"
+        nil
+      end
+    end
+    METRICS ||= {}
   
+    begin
       # -----------------------
       # Last batch fetched
       # -----------------------
@@ -329,27 +336,45 @@ class MemeExplorer < Sinatra::Base
       # -----------------------
       # Aggregate stats from DB
       # -----------------------
-      db_count = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
-      db_sum_likes = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
-      db_sum_views = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
+      @total_memes      = 0
+      @total_likes      = 0
+      @total_views      = 0
+      @memes_with_no_likes = 0
+      @memes_with_no_views = 0
   
-      @total_memes = db_count ? db_count["count"] : 0
-      @total_likes = db_sum_likes ? db_sum_likes["sum"].to_i : 0
-      @total_views = db_sum_views ? db_sum_views["sum"].to_i : 0
+      if defined?(DB)
+        db_count      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
+        db_sum_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
+        db_sum_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
+        no_likes      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
+        no_views      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
   
+        @total_memes  = db_count ? db_count["count"].to_i : 0
+        @total_likes  = db_sum_likes ? db_sum_likes["sum"].to_i : 0
+        @total_views  = db_sum_views ? db_sum_views["sum"].to_i : 0
+        @memes_with_no_likes = no_likes ? no_likes["count"].to_i : 0
+        @memes_with_no_views = no_views ? no_views["count"].to_i : 0
+      else
+        puts "Warning: DB not defined or unavailable"
+      end
+  
+      # -----------------------
+      # Averages
+      # -----------------------
       @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
       @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
   
-      @memes_with_no_likes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first&.dig("count") || 0
-      @memes_with_no_views = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first&.dig("count") || 0
-  
       # -----------------------
-      # Redis counters
+      # Redis counters (safe)
       # -----------------------
-      @redis_views    = REDIS.get("total_views")&.to_i || 0
-      @redis_likes    = REDIS.get("total_likes")&.to_i || 0
-      @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
-      @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
+      if REDIS
+        @redis_views    = REDIS.get("total_views")&.to_i || 0
+        @redis_likes    = REDIS.get("total_likes")&.to_i || 0
+        @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
+        @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
+      else
+        @redis_views = @redis_likes = @redis_no_views = @redis_no_likes = 0
+      end
   
       # -----------------------
       # App metrics
@@ -364,37 +389,43 @@ class MemeExplorer < Sinatra::Base
       @tier3_calls         = METRICS[:tier3_calls] || 0
   
       # -----------------------
-      # Top 10 memes by likes
+      # Top memes & subreddits
       # -----------------------
-      @top_memes = DB.execute("
-        SELECT url, title, subreddit, likes, views 
-        FROM meme_stats 
-        ORDER BY likes DESC, views DESC 
-        LIMIT 10
-      ")
+      @top_memes = []
+      @top_subreddits = []
   
-      # -----------------------
-      # Top 10 subreddits by likes
-      # -----------------------
-      @top_subreddits = DB.execute("
-        SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
-        FROM meme_stats
-        GROUP BY subreddit
-        ORDER BY total_likes DESC
-        LIMIT 10
-      ")
+      if defined?(DB)
+        begin
+          @top_memes = DB.execute("
+            SELECT url, title, subreddit, likes, views
+            FROM meme_stats
+            ORDER BY likes DESC, views DESC
+            LIMIT 10
+          ")
+  
+          @top_subreddits = DB.execute("
+            SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
+            FROM meme_stats
+            GROUP BY subreddit
+            ORDER BY total_likes DESC
+            LIMIT 10
+          ")
+        rescue => e
+          puts "Warning: Could not fetch top memes/subreddits - #{e.class}: #{e.message}"
+        end
+      end
   
       # -----------------------
       # Render metrics page
       # -----------------------
       erb :metrics
+  
     rescue => e
       puts "Error in /metrics: #{e.class} - #{e.message}"
       puts e.backtrace
       halt 500, "Internal Server Error"
     end
-  end
-  
+  end  
   
 
   # -----------------------
