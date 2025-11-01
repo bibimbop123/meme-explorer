@@ -53,73 +53,88 @@
 
   <main>
     <%= yield %>
+
+    <!-- ✅ Navigation Buttons -->
+    <div class="nav-buttons">
+      <button id="prev-btn">⬅️ Previous</button>
+      <button id="next-btn">Next ➡️</button>
+    </div>
   </main>
 
   <footer>
     <p>Built with ❤️ using Sinatra</p>
   </footer>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form.like-form");
-  const memeImg = document.getElementById("meme-img");
-  const memeTitle = document.getElementById("meme-title");
-  const memeSub = document.getElementById("meme-subreddit");
-  const likesSpan = form?.querySelector(".meme-likes");
-  const likeButton = form?.querySelector("button");
+  <!-- ✅ Store liked memes in session -->
+  <script>
+    window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
+  </script>
 
-  const fetchMeme = async (direction) => {
-    try {
-      const res = await fetch(`/random.json?direction=${direction}&current_url=${form.querySelector("input[name='url']").value}`);
-      const meme = await res.json();
+  <!-- ✅ Main JS -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.querySelector("form.like-form");
+      const memeImg = document.getElementById("meme-img");
+      const memeTitle = document.getElementById("meme-title");
+      const memeSub = document.getElementById("meme-subreddit");
+      const likesSpan = form?.querySelector(".meme-likes");
+      const likeButton = form?.querySelector("button");
 
-      memeImg.src = meme.url;
-      memeImg.alt = meme.title;
-      memeTitle.innerText = meme.title;
-      memeSub.innerText = meme.subreddit;
+      const fetchMeme = async (direction) => {
+        try {
+          const currentUrl = form?.querySelector("input[name='url']")?.value;
+          const res = await fetch(`/random.json?direction=${direction}&current_url=${encodeURIComponent(currentUrl || "")}`);
+          const meme = await res.json();
 
-      form.querySelector("input[name='url']").value = meme.url;
-      likeButton.classList.remove("liked");
-      likeButton.textContent = "❤️ Like";
-      likesSpan.textContent = meme.likes || 0;
-    } catch (err) {
-      console.error("Failed to fetch meme:", err);
-    }
-  };
+          memeImg.src = meme.url;
+          memeImg.alt = meme.title;
+          memeTitle.innerText = meme.title;
+          memeSub.innerText = meme.subreddit;
 
-  form?.addEventListener("submit", async e => {
-    e.preventDefault();
-    try {
-      const res = await fetch(form.action, {
-        method: "POST",
-        body: new URLSearchParams(new FormData(form)),
-        headers: { "Accept": "application/json" }
+          if (form) {
+            form.querySelector("input[name='url']").value = meme.url;
+            likeButton.classList.remove("liked");
+            likeButton.textContent = "❤️ Like";
+            likesSpan.textContent = meme.likes || 0;
+          }
+        } catch (err) {
+          console.error("Failed to fetch meme:", err);
+        }
+      };
+
+      form?.addEventListener("submit", async e => {
+        e.preventDefault();
+        try {
+          const res = await fetch(form.action, {
+            method: "POST",
+            body: new URLSearchParams(new FormData(form)),
+            headers: { "Accept": "application/json" }
+          });
+          const data = await res.json();
+          if (data.liked) {
+            likeButton.textContent = "💔 Unlike";
+            likeButton.classList.add("liked");
+          } else {
+            likeButton.textContent = "❤️ Like";
+            likeButton.classList.remove("liked");
+          }
+          likesSpan.textContent = data.likes;
+        } catch (err) {
+          alert("Could not update like — please try again.");
+          console.error(err);
+        }
       });
-      const data = await res.json();
-      if (data.liked) {
-        likeButton.textContent = "💔 Unlike";
-        likeButton.classList.add("liked");
-      } else {
-        likeButton.textContent = "❤️ Like";
-        likeButton.classList.remove("liked");
-      }
-      likesSpan.textContent = data.likes;
-    } catch (err) {
-      alert("Could not update like — please try again.");
-      console.error(err);
-    }
-  });
 
-  document.getElementById("prev-btn")?.addEventListener("click", () => fetchMeme("prev"));
-  document.getElementById("next-btn")?.addEventListener("click", () => fetchMeme("next"));
+      document.getElementById("prev-btn")?.addEventListener("click", () => fetchMeme("prev"));
+      document.getElementById("next-btn")?.addEventListener("click", () => fetchMeme("next"));
 
-  document.addEventListener("keydown", e => {
-    if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
-      e.preventDefault();
-      fetchMeme("next");
-    }
-  });
-});
-</script>
+      document.addEventListener("keydown", e => {
+        if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
+          e.preventDefault();
+          fetchMeme("next");
+        }
+      });
+    });
+  </script>
 </body>
 </html>

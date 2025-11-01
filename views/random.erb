@@ -15,21 +15,23 @@
     </button>
     <span class="meme-likes"><%= @likes %></span>
   </form>
-
-  <div class="nav-buttons">
-    <button id="prev-btn">⬅️ Previous</button>
-    <button id="next-btn">Next ➡️</button>
-  </div>
 </div>
+<% else %>
+<p>No memes found!</p>
+<% end %>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("form.like-form");
+  if (!form) return;
+
   const memeImg = document.getElementById("meme-img");
   const memeTitle = document.getElementById("meme-title");
   const memeSub = document.getElementById("meme-subreddit");
   const likesSpan = form.querySelector(".meme-likes");
   const likeButton = form.querySelector("button");
+  const prevBtn = document.getElementById("prev-btn");
+  const nextBtn = document.getElementById("next-btn");
 
   // Keep a local stack for previous memes
   let historyStack = [];
@@ -40,14 +42,39 @@ document.addEventListener("DOMContentLoaded", () => {
     likes: parseInt(likesSpan.innerText)
   };
 
+  const updateMeme = (meme) => {
+    memeImg.src = meme.url;
+    memeImg.alt = meme.title;
+    memeTitle.innerText = meme.title;
+    memeSub.innerText = meme.subreddit;
+    form.querySelector("input[name='url']").value = meme.url;
+    likesSpan.textContent = meme.likes || 0;
+    likeButton.classList.remove("liked");
+    likeButton.textContent = "❤️ Like";
+
+    currentMeme = meme;
+
+    // Reflect session liked memes
+    if (window.sessionLikedMemes?.includes(meme.url)) {
+      likeButton.textContent = "💔 Unlike";
+      likeButton.classList.add("liked");
+    }
+  };
+
   const fetchMeme = async (direction) => {
+    // disable while loading
+    nextBtn.disabled = true;
+    prevBtn.disabled = true;
+
     if (direction === "prev" && historyStack.length > 0) {
       const prev = historyStack.pop();
       updateMeme(prev);
+      nextBtn.disabled = false;
+      prevBtn.disabled = false;
       return;
     }
 
-    // Save current meme to history before fetching next
+    // Save current meme before fetching next
     historyStack.push(currentMeme);
 
     try {
@@ -56,30 +83,14 @@ document.addEventListener("DOMContentLoaded", () => {
       updateMeme(meme);
     } catch (err) {
       console.error("Failed to fetch meme:", err);
+    } finally {
+      // re-enable buttons
+      nextBtn.disabled = false;
+      prevBtn.disabled = false;
     }
   };
 
-  const updateMeme = (meme) => {
-    memeImg.src = meme.url;
-    memeImg.alt = meme.title;
-    memeTitle.innerText = meme.title;
-    memeSub.innerText = meme.subreddit;
-    form.querySelector("input[name='url']").value = meme.url;
-
-    likesSpan.textContent = meme.likes || 0;
-    likeButton.classList.remove("liked");
-    likeButton.textContent = "❤️ Like";
-
-    // Update current meme
-    currentMeme = meme;
-
-    // Reflect session liked memes
-    if (window.sessionLikedMemes && window.sessionLikedMemes.includes(meme.url)) {
-      likeButton.textContent = "💔 Unlike";
-      likeButton.classList.add("liked");
-    }
-  };
-
+  // ❤️ Like/Unlike logic
   form.addEventListener("submit", async e => {
     e.preventDefault();
     try {
@@ -91,14 +102,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (!window.sessionLikedMemes) window.sessionLikedMemes = [];
+      const memeUrl = form.querySelector("input[name='url']").value;
+
       if (data.liked) {
         likeButton.textContent = "💔 Unlike";
         likeButton.classList.add("liked");
-        window.sessionLikedMemes.push(form.querySelector("input[name='url']").value);
+        if (!window.sessionLikedMemes.includes(memeUrl))
+          window.sessionLikedMemes.push(memeUrl);
       } else {
         likeButton.textContent = "❤️ Like";
         likeButton.classList.remove("liked");
-        window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== form.querySelector("input[name='url']").value);
+        window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== memeUrl);
       }
 
       likesSpan.textContent = data.likes;
@@ -108,9 +122,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.getElementById("prev-btn").addEventListener("click", () => fetchMeme("prev"));
-  document.getElementById("next-btn").addEventListener("click", () => fetchMeme("next"));
+  // Navigation
+  prevBtn?.addEventListener("click", () => fetchMeme("prev"));
+  nextBtn?.addEventListener("click", () => fetchMeme("next"));
 
+  // Spacebar navigation
   document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
       e.preventDefault();
@@ -119,6 +135,3 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 </script>
-<% else %>
-<p>No memes found!</p>
-<% end %>

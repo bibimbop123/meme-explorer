@@ -159,9 +159,9 @@ class MemeExplorer < Sinatra::Base
       }.sample
     end
 
-    def fetch_fresh_memes(batch_size = 78)
+    def fetch_fresh_memes(batch_size = 250)
       if Time.now - (MEME_CACHE[:fetched_at] ||= Time.at(0)) > 120
-        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(50).flat_map do |sub|
+        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(150).flat_map do |sub|
           2.times.map do
             url = URI("https://meme-api.com/gimme/#{sub}/#{batch_size}")
             begin
@@ -325,24 +325,17 @@ class MemeExplorer < Sinatra::Base
   
   
   get "/random.json" do
-    @meme = navigate_meme(direction: params[:direction] || "next")
-    halt 404, { error: "No memes found" }.to_json unless @meme
+    meme = navigate_meme(direction: params[:direction] || "next")
+    halt 404, { error: "No memes found" }.to_json unless meme
+  
+    # Fetch live like count from the DB
+    stats = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [meme["url"]]).first
+    meme["likes"] = stats ? stats["likes"] : 0
   
     content_type :json
-  
-    key = @meme["url"] || @meme["file"]
-  
-    {
-      title: @meme["title"] || "Untitled",
-      url: key || "/images/placeholder.png",
-      subreddit: @meme["subreddit"] || "local",
-      likes: (@meme["likes"] || 0).to_i,
-      views: (@meme["views"] || 0).to_i,
-      index: session[:meme_index],
-      history_size: session[:meme_history]&.size || 0
-    }.to_json
+    meme.to_json
   end
-
+  
   # -----------------------
   # Trending
   # -----------------------
