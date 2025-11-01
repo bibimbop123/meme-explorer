@@ -2,121 +2,232 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Meme Explorer — Metrics Dashboard</title>
+  <title>Meme Explorer Metrics Dashboard 📊</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin:2rem auto; max-width:900px; background:#f4f4f4; color:#333; line-height:1.5; }
-    h1, h2 { text-align:center; }
-    h1 { margin-bottom:1.5rem; }
-    .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:2rem; }
-    .stat { background:white; padding:1rem; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); text-align:center; transition: transform 0.15s ease; }
-    .stat:hover { transform: translateY(-2px); }
-    .stat h2 { margin:0; font-size:2rem; color:#007aff; }
-    .stat p { margin:0.25rem 0 0; color:#555; font-size:0.9rem; }
-    table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:2rem; }
-    th, td { padding:0.75rem; text-align:left; border-bottom:1px solid #eee; }
-    th { background:#f0f0f0; font-weight:600; }
-    tr:hover { background:#fafafa; }
-    a { color:#007aff; text-decoration:none; }
-    footer { text-align:center; color:#888; margin-top:3rem; font-size:0.85rem; }
-    .last-batch { text-align:center; margin-bottom:1rem; color:#555; font-size:0.9rem; }
-    .timer { text-align:center; margin-bottom:1rem; font-size:1rem; color:#ff4500; }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 2rem;
+      background-color: #f4f5f7;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    ul { list-style: none; padding: 0; line-height: 1.6; }
+    li { margin-bottom: 0.5rem; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    .badge-blue { background-color: #2c7be5; }
+    .badge-green { background-color: #1db954; }
+    .badge-red { background-color: #e63757; }
+    .badge-yellow { background-color: #ffbf47; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
-  <h1>📊 Meme Explorer Metrics Dashboard</h1>
-
-  <p class="last-batch">
-    Last meme batch fetched: <%= last_batch.strftime("%B %d, %Y %H:%M:%S") %>
+  <h1>Meme Explorer Metrics Dashboard 📊</h1>
+  <p style="text-align:center; margin-bottom:2rem;">
+    Last meme fetch from API: <%= last_batch&.strftime("%B %d, %Y %H:%M:%S") || "N/A" %>
   </p>
 
-  <p class="timer">
-    Next meme batch in: <span id="countdown">--:--</span>
-  </p>
+  <!-- First Row: Overall Stats & Cache Metrics -->
+  <div class="dashboard-grid">
+    <!-- Overall Stats -->
+    <div class="card">
+      <h2>Overall Stats</h2>
+      <ul>
+        <li>Total memes tracked: <span class="badge badge-blue"><%= total_memes %></span></li>
+        <li>Total likes: <span class="badge badge-green"><%= total_likes %></span></li>
+        <li>Total views: <span class="badge badge-green"><%= total_views %></span></li>
+        <li>Average likes per meme: <span class="badge badge-blue"><%= avg_likes %></span></li>
+        <li>Average views per meme: <span class="badge badge-blue"><%= avg_views %></span></li>
+        <li>Memes with no likes: <span class="badge badge-red"><%= memes_with_no_likes %></span></li>
+        <li>Memes with no views: <span class="badge badge-red"><%= memes_with_no_views %></span></li>
+      </ul>
+    </div>
 
-  <div class="stats">
-    <div class="stat">
-      <h2><%= total_memes %></h2>
-      <p>Total Memes</p>
-    </div>
-    <div class="stat">
-      <h2><%= total_likes %></h2>
-      <p>Total Likes</p>
-    </div>
-    <div class="stat">
-      <h2><%= total_views %></h2>
-      <p>Total Views</p>
-    </div>
-    <div class="stat">
-      <h2><%= avg_likes %></h2>
-      <p>Avg Likes per Meme</p>
-    </div>
-    <div class="stat">
-      <h2><%= avg_views %></h2>
-      <p>Avg Views per Meme</p>
+    <!-- Cache & In-Memory Metrics -->
+    <div class="card">
+      <h2>Cache & In-Memory Metrics</h2>
+      <ul>
+        <li>Redis views counter: <span class="badge badge-green"><%= redis_views %></span></li>
+        <li>Redis likes counter: <span class="badge badge-green"><%= redis_likes %></span></li>
+        <li>Redis memes with no views: <span class="badge badge-red"><%= redis_no_views %></span></li>
+        <li>Redis memes with no likes: <span class="badge badge-red"><%= redis_no_likes %></span></li>
+        <li>Average request time (ms): <span class="badge badge-yellow"><%= avg_request_time_ms.round(2) %></span></li>
+        <li>Total requests: <span class="badge badge-blue"><%= total_requests %></span></li>
+        <li>Cache hits: <span class="badge badge-green"><%= cache_hits %></span></li>
+        <li>Cache misses: <span class="badge badge-red"><%= cache_misses %></span></li>
+        <li>API calls: <span class="badge badge-blue"><%= api_calls %></span></li>
+        <li>Tier 1 random calls: <span class="badge badge-yellow"><%= tier1_calls %></span></li>
+        <li>Tier 2 random calls: <span class="badge badge-yellow"><%= tier2_calls %></span></li>
+        <li>Tier 3 random calls: <span class="badge badge-yellow"><%= tier3_calls %></span></li>
+      </ul>
     </div>
   </div>
-
-  <h2>🔥 Top 10 Liked Memes</h2>
+<!-- Second Row: Top Memes Table -->
+<div class="card">
+  <h2>Top Memes</h2>
   <table>
     <thead>
       <tr>
         <th>Title</th>
         <th>Subreddit</th>
-        <th>Likes</th>
-        <th>Views</th>
+        <th style="text-align:center;">Likes</th>
+        <th style="text-align:center;">Views</th>
       </tr>
     </thead>
     <tbody>
-      <% top_memes.each do |meme| %>
+      <% (top_memes || []).each do |meme| %>
         <tr>
-          <td><a href="<%= meme["url"] %>" target="_blank"><%= meme["title"] %></a></td>
+          <td>
+            <a href="<%= meme["url"] %>" target="_blank" style="color:#2c7be5; text-decoration:none;">
+              <%= meme["title"] %>
+            </a>
+          </td>
           <td><%= meme["subreddit"] %></td>
-          <td><%= meme["likes"] %></td>
-          <td><%= meme["views"] %></td>
+          <td style="text-align:center; color:#2c7be5;"><%= meme["likes"] %></td>
+          <td style="text-align:center; color:#1db954;"><%= meme["views"] %></td>
         </tr>
       <% end %>
     </tbody>
   </table>
+</div>
 
-  <h2>🏆 Top 10 Subreddits by Likes</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Subreddit</th>
-        <th>Total Likes</th>
-        <th>Meme Count</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% top_subreddits.each do |sub| %>
+  <!-- Third Row: Top Subreddits Table -->
+  <div class="card">
+    <h2>Top Subreddits</h2>
+    <table>
+      <thead>
         <tr>
-          <td><%= sub["subreddit"] %></td>
-          <td><%= sub["total_likes"] %></td>
-          <td><%= sub["count"] %></td>
+          <th>Subreddit</th>
+          <th style="text-align:center;">Total Likes</th>
+          <th style="text-align:center;">Memes Count</th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% (top_subreddits || []).each do |sub| %>
+          <tr>
+            <td><%= sub["subreddit"] %></td>
+            <td style="text-align:center; color:#2c7be5;"><%= sub["total_likes"] %></td>
+            <td style="text-align:center;"><%= sub["count"] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 
-  <footer>
-    Meme Explorer Analytics — <%= Time.now.strftime("%B %d, %Y") %>
-  </footer>
+  <!-- Fourth Row: Charts / Trends Placeholder -->
+  <div class="charts">
+    <div class="card">
+      <h2>Likes Over Time</h2>
+      <canvas id="likesChart" height="100"></canvas>
+    </div>
+    <div class="card">
+      <h2>Views Over Time</h2>
+      <canvas id="viewsChart" height="100"></canvas>
+    </div>
+    <div class="card">
+      <h2>Cache Hits vs Misses</h2>
+      <canvas id="cacheChart" height="100"></canvas>
+    </div>
+  </div>
 
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // Countdown timer until next batch
-    const lastBatch = new Date("<%= last_batch.iso8601 %>");
-    const batchInterval = 180; // seconds
+    // Example Chart.js data, you can replace with real data
+    const likesChart = new Chart(document.getElementById('likesChart'), {
+      type: 'line',
+      data: {
+        labels: ['Today','Yesterday','2 Days Ago','3 Days Ago','4 Days Ago'],
+        datasets: [{
+          label: 'Likes',
+          data: [12, 19, 7, 15, 9],
+          borderColor: '#2c7be5',
+          fill: false,
+          tension: 0.3
+        }]
+      }
+    });
 
-    function updateCountdown() {
-      const now = new Date();
-      let diff = Math.max(batchInterval - Math.floor((now - lastBatch) / 1000), 0);
-      const minutes = Math.floor(diff / 60).toString().padStart(2,'0');
-      const seconds = (diff % 60).toString().padStart(2,'0');
-      document.getElementById("countdown").textContent = `${minutes}:${seconds}`;
-    }
+    const viewsChart = new Chart(document.getElementById('viewsChart'), {
+      type: 'line',
+      data: {
+        labels: ['Today','Yesterday','2 Days Ago','3 Days Ago','4 Days Ago'],
+        datasets: [{
+          label: 'Views',
+          data: [120, 190, 70, 150, 90],
+          borderColor: '#1db954',
+          fill: false,
+          tension: 0.3
+        }]
+      }
+    });
 
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
+    const cacheChart = new Chart(document.getElementById('cacheChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Cache Hits', 'Cache Misses', 'API Calls'],
+        datasets: [{
+          label: 'Counts',
+          data: [<%= cache_hits %>, <%= cache_misses %>, <%= api_calls %>],
+          backgroundColor: ['#2c7be5','#e63757','#ffbf47']
+        }]
+      }
+    });
   </script>
 </body>
 </html>

@@ -1,2 +1,3 @@
-require "./app"
-run MemeExplorer
+configure do
+  set :server, :puma
+end

@@ -1,15 +1,48 @@
-<h1>🔥 Trending Memes</h1>
+<h1 style="text-align:center; margin-bottom:1.5rem;">🔥 Trending Memes</h1>
 
-<% if @memes.empty? %>
-  <p>No trending memes yet 😢</p>
+<% if @memes.nil? || @memes.empty? %>
+  <p style="text-align:center; margin-top:2rem;">No trending memes yet 😢</p>
 <% else %>
-  <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:1rem;">
     <% @memes.each do |meme| %>
-      <div style="width:250px; text-align:center; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-        <img src="<%= meme[:url] %>" alt="<%= meme[:title] %>" width="250" style="display:block;">
-        <p style="margin:4px 0;"><%= meme[:title] %></p>
-        <small style="color:#777;">/r/<%= meme[:subreddit] %> | ❤️ <%= meme[:likes] %> | 👁️ <%= meme[:views] %></small>
+      <div class="meme-card">
+        <img src="<%= meme_image_src(meme) %>" alt="<%= meme["title"] || "Untitled Meme" %>" style="width:100%;">
+        <p style="margin:0.5rem 0; font-weight:500; padding:0 0.5rem; word-wrap:break-word;">
+          <%= meme["title"] || "Untitled Meme" %>
+        </p>
+        <small style="color:#777; display:block; margin-bottom:0.75rem; font-size:0.85rem;">
+          /r/<%= meme["subreddit"] || "local" %> | ❤️ <%= meme["likes"] || 0 %> | 👁️ <%= meme["views"] || 0 %>
+        </small>
       </div>
     <% end %>
   </div>
 <% end %>
+
+<style>
+  .meme-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-width: 250px;
+    width: 100%;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .meme-card:hover {
+    transform: translateY(-4px);
+  }
+
+  @media (max-width: 768px) {
+    .meme-card {
+      max-width: 45%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .meme-card {
+      max-width: 100%;
+    }
+  }
+</style>
