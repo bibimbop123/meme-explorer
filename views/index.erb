@@ -10,69 +10,64 @@
 </div>
 
 <style>
-  h1 {
-    text-align: center;
-    font-size: 3rem;
-    margin: 2rem 0;
-    color: #333;
-    transition: transform 0.3s ease;
-  }
+h1 {
+  text-align: center;
+  font-size: 3rem;
+  margin: 2rem 0;
+  color: #333;
+  transition: transform 0.3s ease;
+}
 
-  h1:hover {
-    transform: scale(1.05) rotate(-2deg);
-  }
+h1:hover { transform: scale(1.05) rotate(-2deg); }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 2rem;
-    padding: 0 2rem 4rem;
-  }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  padding: 0 2rem 4rem;
+}
 
-  .category-card {
-    background: white;
-    border-radius: 1rem;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transform: perspective(1000px) rotateY(0deg);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    position: relative;
-  }
+.category-card {
+  background: white;
+  border-radius: 1rem;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transform: perspective(1000px) rotateY(0deg);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
 
-  .category-card:hover {
-    transform: perspective(1000px) rotateY(5deg) scale(1.05);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-  }
+.category-card:hover {
+  transform: perspective(1000px) rotateY(5deg) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
 
-  .category-card img {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-  }
+.category-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
 
-  .category-card:hover img {
-    transform: scale(1.1);
-  }
+.category-card:hover img { transform: scale(1.1); }
 
-  .category-card h2 {
-    text-align: center;
-    margin: 0.5rem 0 1rem;
-    font-size: 1.2rem;
-    color: #555;
-  }
+.category-card h2 {
+  text-align: center;
+  margin: 0.5rem 0 1rem;
+  font-size: 1.2rem;
+  color: #555;
+}
 </style>
 
 <script>
-  // Hover bounce effect on click
-  document.querySelectorAll('.category-card').forEach(card => {
-    card.addEventListener('click', () => {
-      card.style.transform = 'scale(1.2)';
-      setTimeout(() => {
-        card.style.transform = '';
-        window.location.href = '/category/' + card.dataset.category;
-      }, 150);
-    });
+document.querySelectorAll('.category-card').forEach(card => {
+  card.addEventListener('click', () => {
+    card.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+      card.style.transform = '';
+      window.location.href = '/category/' + card.dataset.category;
+    }, 150);
   });
+});
 </script>

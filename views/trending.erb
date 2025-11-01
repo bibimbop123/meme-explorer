@@ -1,0 +1,15 @@
+<h1>🔥 Trending Memes</h1>
+
+<% if @memes.empty? %>
+  <p>No trending memes yet 😢</p>
+<% else %>
+  <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+    <% @memes.each do |meme| %>
+      <div style="width:250px; text-align:center; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+        <img src="<%= meme[:url] %>" alt="<%= meme[:title] %>" width="250" style="display:block;">
+        <p style="margin:4px 0;"><%= meme[:title] %></p>
+        <small style="color:#777;">/r/<%= meme[:subreddit] %> | ❤️ <%= meme[:likes] %> | 👁️ <%= meme[:views] %></small>
+      </div>
+    <% end %>
+  </div>
+<% end %>

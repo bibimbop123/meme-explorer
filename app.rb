@@ -1,256 +1,310 @@
-require 'sinatra/base'
-require 'yaml'
-require 'uri'
-require 'net/http'
-require 'json'
+# app.rb
+require "sinatra/base"
+require "yaml"
+require "json"
+require "redis"
+require "rack/attack"
+require "securerandom"
+require "uri"
+require "time"
+require "active_support"
+require "active_support/cache"
+require "sqlite3"
+require "net/http"
+
+require_relative "./db/setup" # defines DB
+
+# -----------------------
+# Redis setup
+# -----------------------
+REDIS_URL = ENV.fetch("REDIS_URL", "redis://localhost:6379/0")
+REDIS = Redis.new(url: REDIS_URL)
+
+# -----------------------
+# Rack::Attack
+# -----------------------
+Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/1"))
+class Rack::Attack
+  safelist("allow-localhost") { |req| ["127.0.0.1", "::1"].include?(req.ip) }
+  throttle("req/ip", limit: 60, period: 60) { |req| req.ip unless req.path.start_with?("/assets") }
+
+  self.throttled_responder = lambda do |env|
+    [429, { "Content-Type" => "application/json" }, [{ error: "Too many requests. Please slow down." }.to_json]]
+  end
+end
 
 class MemeExplorer < Sinatra::Base
-  configure :development do
-    require 'sinatra/reloader'
-    register Sinatra::Reloader
+  configure do
+    set :server, :puma
+    enable :sessions
+    set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
+
+    MEMES = YAML.load_file("data/memes.yml")
+    METRICS = {
+      cache_hits: 0,
+      cache_misses: 0,
+      api_calls: 0,
+      total_requests: 0,
+      avg_request_time_ms: 0.0,
+      tier1_calls: 0,
+      tier2_calls: 0,
+      tier3_calls: 0
+    }
+
+    Thread.new do
+      loop do
+        REDIS.setex("memes:latest", 180, MEMES.to_json)
+        sleep 180
+      end
+    end
   end
 
-  MEMES = YAML.load_file("./data/memes.yml").transform_keys(&:to_s)
-  VIEW_COUNTS ||= Hash.new(0)  # Keyed by URL/file
-  enable :sessions
+  use Rack::Attack
 
-  # =========================
-  # Expanded subreddit pool
-  # =========================
-  ALL_SUBREDDITS = %w[
-    dankmemes memes wholesomeMemes me_irl ProgrammerHumor
-    funny adviceanimals comedyheaven historymemes wholesomememes
-    starterpacks prequelmemes okbuddyretard memeEconomy
-    surrealmemes pewdiepieSubmissions ITMemes TerribleFacebookMemes
-    gamingmemes PoliticalHumor antiwork nextfuckinglevel
-    WhitePeopleTwitter BlackPeopleTwitter teenagers
-    cats memes_of_the_dank dogmemes wholesomeanimemes
-  ].freeze
-
-  POPULAR_SUBREDDITS = ALL_SUBREDDITS.sample(8)
-  MEME_CACHE = { memes: [], fetched_at: Time.at(0) }
-
-  # =========================
-  # Cookie Setup for Seen Memes
-  # =========================
   before do
-    seen_cookie = request.cookies["seen_memes"]
-    @seen_memes = seen_cookie ? JSON.parse(seen_cookie) : []
+    @start_time = Time.now
+    @seen_memes = request.cookies["seen_memes"] ? JSON.parse(request.cookies["seen_memes"]) : []
     session[:liked_memes] ||= []
   end
 
   after do
-    response.set_cookie("seen_memes", {
+    duration = ((Time.now - @start_time) * 1000).round(2)
+    METRICS[:total_requests] += 1
+    total = METRICS[:total_requests]
+    avg = METRICS[:avg_request_time_ms]
+    METRICS[:avg_request_time_ms] = ((avg * (total - 1)) + duration) / total.to_f
+
+    response.set_cookie(
+      "seen_memes",
       value: @seen_memes.to_json,
       path: "/",
-      expires: Time.now + 60*60*24*30, # 30 days
+      expires: Time.now + 60*60*24*30,
       httponly: true
-    })
+    )
   end
 
-  # =========================
-  # Routes
-  # =========================
-
-  get '/' do
-    erb :index
-  end
-
-  get '/category/:name' do
-    @category_name = params[:name]
-    @memes = MEMES[@category_name]
-    halt 404, "Category not found" unless @memes
-    erb :category
-  end
-
-  get '/random' do
-    # Normal HTML route, use first meme from weighted pool
-    memes = random_meme_pool.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
-    if memes.empty?
-      category, local_memes = MEMES.to_a.sample
-      memes = local_memes
-      @category_name = category
-    else
-      @category_name = "Reddit & Local Memes"
+  helpers do
+    # -----------------------
+    # Memes caching
+    # -----------------------
+    def get_cached_memes
+      cached = REDIS.get("memes:latest")
+      if cached
+        METRICS[:cache_hits] += 1
+        JSON.parse(cached)
+      else
+        METRICS[:cache_misses] += 1
+        REDIS.setex("memes:latest", 180, MEMES.to_json)
+        MEMES
+      end
+    rescue
+      MEMES
     end
 
-    weighted_memes = memes.flat_map do |m|
-      key = m["url"] || m["file"]
-      weight = session[:liked_memes].include?(key) ? 3 : 1
-      [m] * weight
-    end
-
-    @meme = weighted_memes.sample
-    @image_src = @meme["url"] || @meme["file"]
-
-    seen_key = @image_src
-    @seen_memes << seen_key if seen_key
-    @seen_memes = @seen_memes.last(100)
-
-    VIEW_COUNTS[seen_key] += 1
-    @views = VIEW_COUNTS[seen_key]
-
-    erb :meme
-  end
-
-  # JSON endpoint for dynamic next meme
-  get '/random.json' do
-    memes = random_meme_pool.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
-    memes = MEMES.values.flatten.sample(5) if memes.empty?
-
-    weighted_memes = memes.flat_map do |m|
-      key = m["url"] || m["file"]
-      weight = session[:liked_memes].include?(key) ? 3 : 1
-      [m] * weight
-    end
-
-    meme = weighted_memes.sample
-    key = meme["url"] || meme["file"]
-    @seen_memes << key
-    @seen_memes = @seen_memes.last(100)
-
-    VIEW_COUNTS[key] += 1
-    liked = session[:liked_memes].include?(key)
-
-    content_type :json
-    {
-      title: meme["title"],
-      url: key,
-      category: "Reddit & Local Memes",
-      subreddit: meme["subreddit"],
-      views: VIEW_COUNTS[key],
-      liked: liked
-    }.to_json
-  end
-
-  get '/search' do
-    query = params[:q].to_s.downcase
-    @results = MEMES.flat_map do |category, memes|
-      memes.select { |m| m["title"].downcase.include?(query) }
-           .map { |m| [category, m] }
-    end
-    erb :search_results
-  end
-
-  get '/category/:category/meme/:title' do
-    @category_name = params[:category]
-    category_memes = MEMES[@category_name]
-    halt 404, "Category not found" unless category_memes
-
-    title = URI.decode_www_form_component(params[:title])
-    @meme = category_memes.find { |m| m["title"] == title }
-    halt 404, "Meme not found" unless @meme
-
-    @image_src = @meme["url"] || @meme["file"]
-    VIEW_COUNTS[@image_src] += 1
-    @views = VIEW_COUNTS[@image_src]
-
-    erb :meme
-  end
-
-  get '/api_memes' do
-    @api_memes = fetch_api_memes
-    erb :api_memes
-  end
-
-  post '/like' do
-    content_type :json
-    meme_url = params[:url]
-    session[:liked_memes] ||= []
-
-    if session[:liked_memes].include?(meme_url)
-      session[:liked_memes].delete(meme_url)
-      liked = false
-    else
-      session[:liked_memes] << meme_url
-      liked = true
-    end
-
-    { liked: liked }.to_json
-  end
-
-  # =========================
-  # Helpers
-  # =========================
-
-  def random_meme_pool
-    api_memes = fetch_fresh_memes(20)
-    global_randoms = fetch_global_randoms(20)
-    local_memes = MEMES.values.flatten.sample(10)
-    (api_memes + global_randoms + local_memes).shuffle.uniq { |m| m["url"] || m["file"] }
-  end
-
-  def fetch_fresh_memes(batch_size = 20)
-    if Time.now - MEME_CACHE[:fetched_at] > 120
-      MEME_CACHE[:memes] = get_memes_from_reddit(batch_size)
-      MEME_CACHE[:fetched_at] = Time.now
-    end
-    MEME_CACHE[:memes]
-  end
-
-  def get_memes_from_reddit(batch_size = 20)
-    memes = []
-
-    POPULAR_SUBREDDITS.sample(8).each do |subreddit|
-      2.times do
-        url = URI("https://meme-api.com/gimme/#{subreddit}/#{batch_size}")
-        begin
-          response = Net::HTTP.get(url)
-          data = JSON.parse(response)
-          new_memes = data["memes"] || []
-          memes.concat(new_memes.map do |m|
-            {
-              "title" => m["title"],
-              "url" => m["url"],
-              "postLink" => m["postLink"],
-              "subreddit" => m["subreddit"]
-            }
-          end)
-        rescue => e
-          puts "API error for #{subreddit}: #{e.message}"
-          next
-        end
+    def flatten_memes
+      get_cached_memes.values.flatten.map do |m|
+        m["subreddit"] ||= "local"
+        m
       end
     end
 
-    memes.uniq { |m| m["url"] }
-  end
-
-  def fetch_global_randoms(count = 20)
-    url = URI("https://meme-api.com/gimme/#{count}")
-    response = Net::HTTP.get(url)
-    data = JSON.parse(response)
-    (data["memes"] || [data]).compact.map do |m|
-      { "title" => m["title"], "url" => m["url"], "postLink" => m["postLink"], "subreddit" => m["subreddit"] }
+    # -----------------------
+    # Weighted sampling
+    # -----------------------
+    def weighted_sample(memes)
+      weighted = memes.flat_map { |m| key = m["file"] || m["url"]; session[:liked_memes].include?(key) ? [m]*3 : [m] }
+      weighted.sample
     end
-  rescue
-    []
+
+    # -----------------------
+    # Tiered random algorithms
+    # -----------------------
+    def tier1_random
+      METRICS[:tier1_calls] += 1
+      flatten_memes.sample
+    end
+
+    def tier2_random
+      METRICS[:tier2_calls] += 1
+      weighted_sample(flatten_memes)
+    end
+
+    def tier3_random(top_n_subs = 5)
+      METRICS[:tier3_calls] += 1
+      subreddits = get_cached_memes.keys.sample(top_n_subs)
+      local_memes = subreddits.flat_map { |sub| get_cached_memes[sub] || [] }
+      api_memes = fetch_fresh_memes(10)
+      all_candidates = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }
+      unseen = all_candidates.reject { |m| @seen_memes.include?(m["url"] || m["file"]) }
+      pool = unseen.any? ? unseen : all_candidates
+      weighted = pool.flat_map do |m|
+        key = m["url"] || m["file"]
+        session[:liked_memes].include?(key) ? [m]*3 : [m]
+      end
+      weighted.sample
+    end
+
+    # -----------------------
+    # Database tracking
+    # -----------------------
+    def increment_view(file, title:, subreddit:)
+      DB.execute(
+        "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 0, 0)",
+        [file, title, subreddit]
+      )
+      DB.execute("UPDATE meme_stats SET views = views + 1 WHERE url = ?", [file])
+    end
+
+    def like_meme(file)
+      DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [file])
+    end
+
+    # -----------------------
+    # API fetching
+    # -----------------------
+    MEME_CACHE ||= { memes: [], fetched_at: Time.at(0) }
+    POPULAR_SUBREDDITS ||= %w[dankmemes me_irl memes ProgrammerHumor funny wholesomememes].freeze
+
+    def fetch_fresh_memes(batch_size = 20)
+      if Time.now - MEME_CACHE[:fetched_at] > 120
+        MEME_CACHE[:memes] = get_memes_from_reddit(batch_size)
+        MEME_CACHE[:fetched_at] = Time.now
+      end
+      MEME_CACHE[:memes]
+    end
+
+    def get_memes_from_reddit(batch_size = 20)
+      memes = []
+      POPULAR_SUBREDDITS.sample(8).each do |subreddit|
+        2.times do
+          url = URI("https://meme-api.com/gimme/#{subreddit}/#{batch_size}")
+          begin
+            response = Net::HTTP.get(url)
+            data = JSON.parse(response)
+            new_memes = data["memes"] || []
+            memes.concat(new_memes.map do |m|
+              { "title" => m["title"], "url" => m["url"], "postLink" => m["postLink"], "subreddit" => m["subreddit"] }
+            end)
+          rescue => e
+            puts "API error for #{subreddit}: #{e.message}"
+            next
+          end
+        end
+      end
+      memes.uniq { |m| m["url"] }
+    end
+
+    def fetch_top_trending(limit = 10)
+      db_memes = DB.execute(
+        "SELECT url, title, subreddit, views, likes FROM meme_stats ORDER BY likes DESC, views DESC LIMIT ?",
+        [limit]
+      ).map { |r| { url: r[0], title: r[1], subreddit: r[2], views: r[3], likes: r[4] } }
+
+      api_memes = fetch_fresh_memes(limit).map do |m|
+        { url: m["url"], title: m["title"], subreddit: m["subreddit"], views: 0, likes: 0 }
+      end
+
+      # Combine and deduplicate by URL
+      (db_memes + api_memes).uniq { |m| m[:url] }.first(limit)
+    end
   end
 
-  def fetch_api_memes(count = 18)
-    url = URI("https://meme-api.com/gimme/#{count}")
-    response = Net::HTTP.get(url)
-    data = JSON.parse(response)
+  # -----------------------
+  # Routes
+  # -----------------------
+  get "/" do
+    redirect "/random"
+  end
 
-    memes = if data["memes"]
-              data["memes"]
-            elsif data["url"]
-              [data]
-            else
-              []
-            end
+  get "/random" do
+    @meme = tier3_random || { "title" => "No memes", "file" => "/images/placeholder.png", "subreddit" => "local" }
+    increment_view(@meme["file"] || @meme["url"], title: @meme["title"], subreddit: @meme["subreddit"]) if @meme["file"]
+    @image_src = @meme["file"] || @meme["url"]
+    @category_name = @meme["subreddit"]
+    erb :random, layout: :layout
+  end
 
-    memes.map do |m|
+  get "/random.json" do
+    content_type :json
+    meme = tier3_random || flatten_memes.sample
+    increment_view(meme["file"] || meme["url"], title: meme["title"], subreddit: meme["subreddit"])
+    { title: meme["title"], url: meme["file"] || meme["url"], subreddit: meme["subreddit"] }.to_json
+  end
+
+  post "/like" do
+    content_type :json
+    file = params["url"]
+    like_meme(file) if file
+    session[:liked_memes] ||= []
+    liked = if file
+      if session[:liked_memes].include?(file)
+        session[:liked_memes].delete(file)
+        false
+      else
+        session[:liked_memes] << file
+        true
+      end
+    end
+    { liked: liked }.to_json
+  end
+
+  # -----------------------
+  # Trending with API integration
+  # -----------------------
+  get "/trending" do
+    raw_memes = DB.execute(<<-SQL)
+      SELECT url, title, subreddit, views, likes,
+             (likes * 2 + views) / (JULIANDAY('now') - JULIANDAY(updated_at) + 1) AS trending_score
+      FROM meme_stats
+      ORDER BY trending_score DESC
+      LIMIT 20;
+    SQL
+  
+    # Convert frozen SQLite rows into a mutable array of hashes
+    @memes = raw_memes.map do |row|
       {
-        "title" => m["title"],
-        "url" => m["url"],
-        "postLink" => m["postLink"],
-        "subreddit" => m["subreddit"]
+        url: row["url"],
+        title: row["title"],
+        subreddit: row["subreddit"],
+        views: row["views"],
+        likes: row["likes"],
+        trending_score: row["trending_score"]
       }
     end
-  rescue StandardError => e
-    puts "API Error: #{e.message}"
-    []
+  
+    erb :trending, layout: :layout
+  end
+  
+  get "/search" do
+    query = params[:q]&.downcase
+    @results = {}
+    flatten_memes.each do |m|
+      if query && m["title"].downcase.include?(query)
+        @results[m["subreddit"]] = { title: m["title"], file: m["file"] }
+      end
+    end
+    erb :search, layout: :layout
+  end
+
+  get "/category/:name" do
+    @category_name = params[:name]
+    @memes = get_cached_memes[@category_name] || []
+    erb :category, layout: :layout
+  end
+
+  get "/category/:name/meme/:title" do
+    @category_name = params[:name]
+    @meme = (get_cached_memes[@category_name] || []).find do |m|
+      URI.encode_www_form_component(m["title"]) == params[:title]
+    end
+    @image_src = @meme ? @meme["file"] : "/images/placeholder.png"
+    @views = @meme ? DB.execute("SELECT views FROM meme_stats WHERE url = ?", [@image_src]).first&.first || 0 : 0
+    erb :random, layout: :layout
+  end
+
+  get "/metrics" do
+    content_type :json
+    METRICS.to_json
   end
 
   run! if app_file == $0

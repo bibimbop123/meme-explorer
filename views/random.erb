@@ -1,0 +1,20 @@
+<div class="meme-container" style="text-align:center; max-width:700px; margin:0 auto;">
+  <h2><%= @meme["title"] %></h2>
+  <img src="<%= @image_src %>" alt="<%= @meme["title"] %>" style="max-width:100%; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+
+  <div class="meme-meta" style="margin-top:8px; font-size:14px; color:#555;">
+    <p>Category: <%= @category_name || "Random" %></p>
+    <p>Views: <%= @views || 0 %></p>
+  </div>
+
+  <form id="like-form" action="/like" method="POST" style="margin-top:10px;">
+    <input type="hidden" name="url" value="<%= @image_src %>">
+    <button type="submit">
+      <%= session[:liked_memes]&.include?(@image_src) ? '💔 Unlike' : '❤️ Like' %>
+    </button>
+  </form>
+
+  <div style="margin-top:12px;">
+    <a href="/random" style="text-decoration:none;background:#4caf50;color:#fff;padding:8px 16px;border-radius:8px;">Next Random Meme ➡️</a>
+  </div>
+</div>

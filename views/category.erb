@@ -1,13 +1,19 @@
 <h2><%= @category_name.capitalize %> Memes</h2>
 
-<ul>
-  <% @memes.each do |meme| %>
-    <li>
-      <a href="/category/<%= @category_name %>/meme/<%= URI.encode_www_form_component(meme["title"]) %>">
-        <%= meme["title"] %>
-      </a>
-    </li>
-  <% end %>
-</ul>
+<% if @memes.empty? %>
+  <p>No memes found in this category 😢</p>
+<% else %>
+  <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+    <% @memes.each do |meme| %>
+      <div style="width:250px; text-align:center; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+        <a href="/category/<%= @category_name %>/meme/<%= URI.encode_www_form_component(meme["title"]) %>">
+          <img src="<%= meme["file"] %>" alt="<%= meme["title"] %>" width="250" style="display:block;">
+        </a>
+        <p style="margin:4px 0;"><%= meme["title"] %></p>
+        <small style="color:#777;">Category: <%= @category_name %></small>
+      </div>
+    <% end %>
+  </div>
+<% end %>
 
-<p><a href="/">Back to Home</a></p>
+<p style="margin-top:20px;"><a href="/">Back to Home</a></p>

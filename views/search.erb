@@ -1,12 +1,12 @@
 <h2>Search Results</h2>
 
 <% if @results.empty? %>
-  <p>No memes found for "<%= params[:q] %>".</p>
+  <p>No memes found for "<%= params[:q] %>" 😢</p>
 <% else %>
   <ul>
     <% @results.each do |category, meme| %>
       <li>
-        <a href="/category/<%= category %>/meme/<%= meme[:title] %>">
+        <a href="/category/<%= category %>/meme/<%= URI.encode_www_form_component(meme[:title]) %>">
           <%= meme[:title] %> (<%= category.capitalize %>)
         </a>
       </li>
@@ -14,4 +14,4 @@
   </ul>
 <% end %>
 
-<p><a href="/">Back to Home</a></p>
+<p style="margin-top:20px;"><a href="/">Back to Home</a></p>

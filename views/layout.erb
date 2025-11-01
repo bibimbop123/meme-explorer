@@ -5,211 +5,42 @@
 <title>Meme Explorer 😎</title>
 <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
 <style>
-  /* === Global Styles === */
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    font-family: 'Comic Neue', cursive;
-    background: #fefefe;
-    color: #333;
-    line-height: 1.5;
-    transition: background 0.4s ease;
-    min-height: 100vh;
-  }
-
-  a { text-decoration: none; color: inherit; }
-
-  /* === Header & Navigation === */
-  header {
-    background: linear-gradient(90deg, #ff8a00, #e52e71);
-    color: #fff;
-    padding: 20px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
-
-  header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-    transition: transform 0.3s ease;
-  }
-
-  header h1:hover {
-    transform: scale(1.05) rotate(-2deg);
-  }
-
-  header nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-  }
-
-  header nav a {
-    background: rgba(255,255,255,0.15);
-    color: #fff;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-weight: 600;
-    transition: background 0.2s, transform 0.2s;
-  }
-
-  header nav a:hover {
-    background: rgba(255,255,255,0.35);
-    transform: translateY(-2px);
-  }
-
-  /* === Search Form === */
-  form {
-    text-align: center;
-    margin: 20px 0;
-  }
-
-  form input[type="text"] {
-    padding: 10px 14px;
-    font-size: 16px;
-    border-radius: 12px 0 0 12px;
-    border: 1px solid #ccc;
-    width: 260px;
-    transition: 0.3s;
-  }
-
-  form input[type="text"]:focus {
-    outline: none;
-    border-color: #e52e71;
-    box-shadow: 0 0 5px rgba(229,46,113,0.5);
-  }
-
-  form button {
-    padding: 10px 16px;
-    font-size: 16px;
-    border-radius: 0 12px 12px 0;
-    border: none;
-    background: #e52e71;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 600;
-    transition: 0.2s;
-  }
-
-  form button:hover {
-    background: #ff8a00;
-  }
-
-  /* === Main Content === */
-  main {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 20px 60px;
-  }
-
-  /* === Footer === */
-  footer {
-    text-align: center;
-    padding: 20px 10px;
-    background: #333;
-    color: #fff;
-    font-size: 0.9rem;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-  }
-
-  /* === Cursor Emoji Trail === */
-  .cursor-emoji {
-    position: absolute;
-    pointer-events: none;
-    font-size: 20px;
-    user-select: none;
-    opacity: 0.8;
-    transition: transform 0.2s ease, opacity 0.5s ease;
-    z-index: 1000;
-  }
-
-  /* === Responsive Styles === */
-  @media (max-width: 768px) {
-    header h1 { font-size: 2rem; }
-    form input[type="text"] { width: 180px; }
-  }
-
-  @media (max-width: 500px) {
-    header h1 { font-size: 1.8rem; }
-    header nav a { padding: 6px 10px; font-size: 14px; }
-    form input[type="text"] { width: 140px; }
-  }
+  body { font-family: 'Comic Neue', cursive; margin:0; background:#fefefe; transition:0.5s; }
+  header { background:linear-gradient(90deg,#ff8a00,#e52e71); color:#fff; padding:20px; text-align:center; position:sticky; top:0; z-index:100; }
+  header nav { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  header nav a { background: rgba(255,255,255,0.15); color:#fff; padding:8px 14px; border-radius:8px; font-weight:600; text-decoration:none; transition:0.2s; }
+  header nav a:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px);}
+  main { max-width:1100px; margin:0 auto; padding:20px;}
+  footer { text-align:center; padding:20px; background:#333; color:#fff;}
+  form { text-align:center; margin:20px 0;}
+  form input[type=text]{padding:10px;border-radius:12px 0 0 12px;border:1px solid #ccc;width:260px;}
+  form button{padding:10px 16px;border:none;border-radius:0 12px 12px 0;background:#e52e71;color:#fff;cursor:pointer;}
 </style>
 </head>
-
 <body>
-  <header>
-    <h1><a href="/">Meme Explorer 😎</a></h1>
-    <nav>
-      <a href="/category/funny">Funny</a>
-      <a href="/category/wholesome">Wholesome</a>
-      <a href="/category/dank">Dank</a>
-      <a href="/category/selfcare">Self Care</a>
-      <a href="/api_memes">API Memes</a>
-      <a href="/random">Random Meme 🎲</a>
-    </nav>
-  </header>
+<header>
+  <h1><a href="/" style="color:white;text-decoration:none;">Meme Explorer 😎</a></h1>
+  <nav>
+    <a href="/category/funny">Funny</a>
+    <a href="/category/wholesome">Wholesome</a>
+    <a href="/category/dank">Dank</a>
+    <a href="/category/selfcare">Self Care</a>
+    <a href="/random">Random 🎲</a>
+    <a href="/trending">Trending</a>
+  </nav>
+</header>
 
-  <form action="/search" method="get">
-    <input type="text" name="q" placeholder="Search memes..." />
-    <button>Search</button>
-  </form>
+<form action="/search" method="get">
+  <input type="text" name="q" placeholder="Search memes..." value="<%= params[:q] %>">
+  <button>Search</button>
+</form>
 
-  <main>
-    <%= yield %>
-  </main>
+<main>
+  <%= yield %>
+</main>
 
-  <footer>
-    <p>Built with ❤️ using Sinatra</p>
-  </footer>
-
-  <!-- Global Cursor Emoji Trail + Background Color Cycle -->
-  <script>
-    // Emoji cursor trail
-    const emojis = ["😂","🥰","😎","🤯","🔥"];
-    document.addEventListener("mousemove", e => {
-      const emoji = document.createElement("div");
-      emoji.className = "cursor-emoji";
-      emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-      emoji.style.left = e.pageX + "px";
-      emoji.style.top = e.pageY + "px";
-      document.body.appendChild(emoji);
-
-      let offset = 0;
-      const interval = setInterval(() => {
-        offset += 1;
-        emoji.style.transform = `translateY(-${offset}px)`;
-        emoji.style.opacity = (1 - offset / 50);
-        if (offset > 50) {
-          clearInterval(interval);
-          emoji.remove();
-        }
-      }, 10);
-    });
-
-    // Background color shifts (mood-based)
-    const colors = {
-      funny: "#FFF176",
-      wholesome: "#A5D6A7",
-      dank: "#9575CD",
-      selfcare: "#F48FB1"
-    };
-    const categories = Object.keys(colors);
-
-    setInterval(() => {
-      const mood = categories[Math.floor(Math.random() * categories.length)];
-      document.body.style.background = colors[mood];
-    }, 5000);
-  </script>
+<footer>
+  <p>Built with ❤️ using Sinatra</p>
+</footer>
 </body>
 </html>
