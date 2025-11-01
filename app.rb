@@ -131,9 +131,15 @@ class MemeExplorer < Sinatra::Base
         
         Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10) do |http|
           request = Net::HTTP::Get.new(uri.request_uri)
-          request["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-          request["Accept"] = "application/json"
+          request["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          request["Accept"] = "application/json, text/plain, */*"
           request["Accept-Language"] = "en-US,en;q=0.9"
+          request["Accept-Encoding"] = "gzip, deflate, br"
+          request["Connection"] = "keep-alive"
+          request["Referer"] = "https://www.reddit.com/"
+          request["Sec-Fetch-Dest"] = "empty"
+          request["Sec-Fetch-Mode"] = "cors"
+          request["Sec-Fetch-Site"] = "same-origin"
           
           response = http.request(request)
           
