@@ -51,6 +51,7 @@ class MemeExplorer < Sinatra::Base
       tier3_calls: 0
     }
 
+    # Preload memes cache periodically
     Thread.new do
       loop do
         REDIS.setex("memes:latest", 180, MEMES.to_json)
@@ -191,12 +192,18 @@ class MemeExplorer < Sinatra::Base
       DB.execute("UPDATE meme_stats SET views = views + 1 WHERE url = ?", [file])
       REDIS.incr("memes:views")
       REDIS.incr("memes:no_views") if DB.execute("SELECT views FROM meme_stats WHERE url = ?", [file]).first["views"] == 1
+    rescue => e
+      puts "Increment view error: #{e.message}"
     end
 
-    def like_meme(file)
-      DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [file])
-      REDIS.incr("memes:likes")
-      REDIS.decr("memes:no_likes") if DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first["likes"] == 1
+    def like_meme(file, increment: true)
+      DB.execute("INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, 'Unknown', 'local', 0, 0)", [file])
+      DB.execute("UPDATE meme_stats SET likes = likes + ? WHERE url = ?", [increment ? 1 : -1, file])
+      REDIS.incr("memes:likes") if increment
+      REDIS.decr("memes:likes") unless increment
+      REDIS.decr("memes:no_likes") if increment && DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first["likes"] == 1
+    rescue => e
+      puts "Like meme error: #{e.message}"
     end
 
     def fetch_top_trending(limit = 10)
@@ -227,89 +234,33 @@ class MemeExplorer < Sinatra::Base
     { title: meme["title"], url: meme["file"] || meme["url"], subreddit: meme["subreddit"] }.to_json
   end
 
-  get "/category/:name" do
-    @category_name = params[:name]
-    @memes = get_cached_memes[@category_name] || []
-    erb :category, layout: :layout
-  end
-
-  get "/category/:name/meme/:title" do
-    @category_name = params[:name]
-    @meme = (get_cached_memes[@category_name] || []).find do |m|
-      URI.encode_www_form_component(m["title"]) == params[:title]
-    end
-    @image_src = @meme ? @meme["file"] : "/images/placeholder.png"
-    @views = @meme ? DB.execute("SELECT views FROM meme_stats WHERE url = ?", [@image_src]).first&.first || 0 : 0
-    erb :random, layout: :layout
-  end
-
-  get "/trending" do
-    raw_memes = DB.execute(<<-SQL)
-      SELECT url, title, subreddit, views, likes,
-             (likes * 2 + views) / (JULIANDAY('now') - JULIANDAY(updated_at) + 1) AS trending_score
-      FROM meme_stats
-      ORDER BY trending_score DESC
-      LIMIT 20;
-    SQL
-  
-    # Convert frozen SQLite rows into a mutable array of hashes
-    @memes = raw_memes.map do |row|
-      {
-        url: row["url"],
-        title: row["title"],
-        subreddit: row["subreddit"],
-        views: row["views"],
-        likes: row["likes"],
-        trending_score: row["trending_score"]
-      }
-    end
-  
-    erb :trending, layout: :layout
-  end
-
-  get "/search" do
-    query = params[:q]&.downcase
-    @results = {}
-    flatten_memes.each do |m|
-      if query && m["title"].downcase.include?(query)
-        @results[m["subreddit"]] = { title: m["title"], file: m["file"] }
-      end
-    end
-    erb :search, layout: :layout
-  end
-
   post "/like" do
     content_type :json
     file = params["url"]
     halt 400, { error: "Missing URL" }.to_json unless file
+
     session[:liked_memes] ||= []
 
     liked = if session[:liked_memes].include?(file)
               session[:liked_memes].delete(file)
-              DB.execute("UPDATE meme_stats SET likes = likes - 1 WHERE url = ?", [file])
-              REDIS.decr("memes:likes")
+              like_meme(file, increment: false)
               false
             else
               session[:liked_memes] << file
-              DB.execute("INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, 'Unknown', 'local', 0, 0)", [file])
-              DB.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [file])
-              REDIS.incr("memes:likes")
-              if DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first["likes"] == 1
-                REDIS.decr("memes:no_likes")
-              end
+              like_meme(file, increment: true)
               true
             end
 
-    likes = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first["likes"]
-    { liked: liked, likes: likes, url: file }.to_json
+    likes_count = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [file]).first["likes"] rescue 0
+
+    { liked: liked, likes: likes_count, url: file }.to_json
   end
 
+  # -----------------------
+  # Metrics & search routes
+  # -----------------------
   get "/metrics" do
-    # -----------------------
-    # Aggregate stats
-    # -----------------------
     last_batch = MEME_CACHE[:fetched_at] || Time.now
-
     total_memes  = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first["count"] || 0
     total_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first["sum"] || 0
     total_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first["sum"] || 0
@@ -317,15 +268,8 @@ class MemeExplorer < Sinatra::Base
     avg_views    = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
     memes_with_no_likes = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first["count"]
     memes_with_no_views = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first["count"]
-  
-    # -----------------------
-    # Top 10 memes
-    # -----------------------
+
     top_memes = DB.execute("SELECT url, title, subreddit, likes, views FROM meme_stats ORDER BY likes DESC, views DESC LIMIT 10")
-  
-    # -----------------------
-    # Top 10 subreddits by likes
-    # -----------------------
     top_subreddits = DB.execute("
       SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
       FROM meme_stats
@@ -333,10 +277,7 @@ class MemeExplorer < Sinatra::Base
       ORDER BY total_likes DESC
       LIMIT 10
     ")
-  
-    # -----------------------
-    # Render ERB metrics page
-    # -----------------------
+
     erb :metrics, locals: {
       total_memes: total_memes,
       total_likes: total_likes,
@@ -349,8 +290,7 @@ class MemeExplorer < Sinatra::Base
       top_subreddits: top_subreddits,
       last_batch: last_batch
     }
-    
   end
-  
+
   run! if app_file == $0
 end
