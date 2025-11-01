@@ -229,19 +229,24 @@ class MemeExplorer < Sinatra::Base
     # Fetch memes from popular subreddits with working image links
     def fetch_reddit_memes(subreddits = POPULAR_SUBREDDITS, limit = 15)
       memes = []
-      subreddits = subreddits.sample(10) if subreddits.size > 10
+      subreddits = subreddits.sample(5) if subreddits.size > 5
 
       subreddits.each do |subreddit|
         begin
           url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
           uri = URI(url)
           
-          Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 5) do |http|
+          Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10, open_timeout: 10) do |http|
             request = Net::HTTP::Get.new(uri.request_uri)
-            request["User-Agent"] = "MemeExplorer/1.0"
+            request["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            request["Accept"] = "application/json"
             
             response = http.request(request)
-            data = JSON.parse(response.body)
+            
+            next unless response.code == "200"
+            
+            body = response.body
+            data = JSON.parse(body)
 
             data["data"]["children"].each do |post|
               post_data = post["data"]
@@ -260,8 +265,13 @@ class MemeExplorer < Sinatra::Base
               memes << meme
             end
           end
+          sleep 1  # Be respectful to Reddit
+        rescue JSON::ParserError => e
+          # Silently skip on JSON parse errors
+          next
         rescue => e
-          puts "Error fetching from r/#{subreddit}: #{e.message}"
+          # Silently skip on other errors
+          next
         end
       end
 
