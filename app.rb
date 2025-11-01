@@ -159,9 +159,9 @@ class MemeExplorer < Sinatra::Base
       }.sample
     end
 
-    def fetch_fresh_memes(batch_size = 50)
+    def fetch_fresh_memes(batch_size = 100)
       if Time.now - (MEME_CACHE[:fetched_at] ||= Time.at(0)) > 120
-        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(20).flat_map do |sub|
+        MEME_CACHE[:memes] = POPULAR_SUBREDDITS.values.flatten.sample(75).flat_map do |sub|
           2.times.map do
             url = URI("https://meme-api.com/gimme/#{sub}/#{batch_size}")
             begin
