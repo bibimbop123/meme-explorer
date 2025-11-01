@@ -334,46 +334,68 @@ class MemeExplorer < Sinatra::Base
       @last_batch = MEME_CACHE[:fetched_at] || Time.now
   
       # -----------------------
-      # Aggregate stats from DB
+      # Initialize metrics
       # -----------------------
-      @total_memes      = 0
-      @total_likes      = 0
-      @total_views      = 0
+      @total_memes = 0
+      @total_likes = 0
+      @total_views = 0
       @memes_with_no_likes = 0
       @memes_with_no_views = 0
+      @redis_views = 0
+      @redis_likes = 0
+      @redis_no_views = 0
+      @redis_no_likes = 0
+      @avg_likes = 0
+      @avg_views = 0
+      @avg_request_time_ms = 0
+      @total_requests = 0
+      @cache_hits = 0
+      @cache_misses = 0
+      @api_calls = 0
+      @tier1_calls = 0
+      @tier2_calls = 0
+      @tier3_calls = 0
+      @top_memes = []
+      @top_subreddits = []
   
+      # -----------------------
+      # Aggregate stats from DB
+      # -----------------------
       if defined?(DB)
-        db_count      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
-        db_sum_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
-        db_sum_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
-        no_likes      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
-        no_views      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
+        begin
+          db_count      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats").first
+          db_sum_likes  = DB.execute("SELECT SUM(likes) AS sum FROM meme_stats").first
+          db_sum_views  = DB.execute("SELECT SUM(views) AS sum FROM meme_stats").first
+          no_likes      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0").first
+          no_views      = DB.execute("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0").first
   
-        @total_memes  = db_count ? db_count["count"].to_i : 0
-        @total_likes  = db_sum_likes ? db_sum_likes["sum"].to_i : 0
-        @total_views  = db_sum_views ? db_sum_views["sum"].to_i : 0
-        @memes_with_no_likes = no_likes ? no_likes["count"].to_i : 0
-        @memes_with_no_views = no_views ? no_views["count"].to_i : 0
+          @total_memes = db_count&.dig("count").to_i
+          @total_likes = db_sum_likes&.dig("sum").to_i
+          @total_views = db_sum_views&.dig("sum").to_i
+          @memes_with_no_likes = no_likes&.dig("count").to_i
+          @memes_with_no_views = no_views&.dig("count").to_i
+  
+          @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
+          @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
+        rescue => e
+          puts "Warning: Could not aggregate DB stats - #{e.class}: #{e.message}"
+        end
       else
-        puts "Warning: DB not defined or unavailable"
+        puts "Warning: DB not defined"
       end
-  
-      # -----------------------
-      # Averages
-      # -----------------------
-      @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
-      @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
   
       # -----------------------
       # Redis counters (safe)
       # -----------------------
       if REDIS
-        @redis_views    = REDIS.get("total_views")&.to_i || 0
-        @redis_likes    = REDIS.get("total_likes")&.to_i || 0
-        @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
-        @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
-      else
-        @redis_views = @redis_likes = @redis_no_views = @redis_no_likes = 0
+        begin
+          @redis_views    = REDIS.get("total_views")&.to_i || 0
+          @redis_likes    = REDIS.get("total_likes")&.to_i || 0
+          @redis_no_views = REDIS.get("memes_no_views")&.to_i || 0
+          @redis_no_likes = REDIS.get("memes_no_likes")&.to_i || 0
+        rescue => e
+          puts "Warning: Redis read failed - #{e.class}: #{e.message}"
+        end
       end
   
       # -----------------------
@@ -391,9 +413,6 @@ class MemeExplorer < Sinatra::Base
       # -----------------------
       # Top memes & subreddits
       # -----------------------
-      @top_memes = []
-      @top_subreddits = []
-  
       if defined?(DB)
         begin
           @top_memes = DB.execute("
