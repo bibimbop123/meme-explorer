@@ -9,9 +9,9 @@
       <p>Views: <span id="meme-views"><%= @views %></span></p>
     </div>
 
-    <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
-<% likes = result ? result["likes"] : 0 %>
-<p>Likes: <span id="meme-likes"><%= likes %></span></p>
+  <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
+  <% @likes = result ? result["likes"] : 0 %>
+  <p>Likes: <span class="meme-likes"><%= @likes %></span></p>
 
 
 

@@ -91,7 +91,7 @@
 </body>
 </html>
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("form.like-form").forEach(form => {
     form.addEventListener("submit", async e => {
       e.preventDefault();
@@ -100,20 +100,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const url = form.querySelector("input[name='url']").value;
       const likesSpan = form.closest(".meme-container").querySelector(".meme-likes");
 
-      button.disabled = true;
-      button.style.opacity = "0.6";
-
       try {
         const res = await fetch(form.action, {
           method: "POST",
-          headers: { "Accept": "application/json" },
-          body: new URLSearchParams(new FormData(form))
+          body: new URLSearchParams(new FormData(form)),
+          headers: { "Accept": "application/json" }
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Request failed");
 
-        // ✅ Update button & likes count
+        // Update button & likes
         if (data.liked) {
           button.textContent = "💔 Unlike";
           button.classList.add("liked");
@@ -124,17 +121,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (likesSpan) likesSpan.textContent = data.likes;
 
-        // 💫 Pulse animation
-        button.animate([{ transform: "scale(1.1)" }, { transform: "scale(1)" }], { duration: 200 });
-
       } catch (err) {
-        console.error("Like AJAX error:", err);
         alert("Could not update like — please try again.");
-      } finally {
-        button.disabled = false;
-        button.style.opacity = "1";
+        console.error("Like AJAX error:", err);
       }
     });
   });
 });
+
 </script>
