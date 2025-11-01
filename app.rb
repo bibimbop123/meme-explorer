@@ -227,6 +227,57 @@ class MemeExplorer < Sinatra::Base
     { title: meme["title"], url: meme["file"] || meme["url"], subreddit: meme["subreddit"] }.to_json
   end
 
+  get "/category/:name" do
+    @category_name = params[:name]
+    @memes = get_cached_memes[@category_name] || []
+    erb :category, layout: :layout
+  end
+
+  get "/category/:name/meme/:title" do
+    @category_name = params[:name]
+    @meme = (get_cached_memes[@category_name] || []).find do |m|
+      URI.encode_www_form_component(m["title"]) == params[:title]
+    end
+    @image_src = @meme ? @meme["file"] : "/images/placeholder.png"
+    @views = @meme ? DB.execute("SELECT views FROM meme_stats WHERE url = ?", [@image_src]).first&.first || 0 : 0
+    erb :random, layout: :layout
+  end
+
+  get "/trending" do
+    raw_memes = DB.execute(<<-SQL)
+      SELECT url, title, subreddit, views, likes,
+             (likes * 2 + views) / (JULIANDAY('now') - JULIANDAY(updated_at) + 1) AS trending_score
+      FROM meme_stats
+      ORDER BY trending_score DESC
+      LIMIT 20;
+    SQL
+  
+    # Convert frozen SQLite rows into a mutable array of hashes
+    @memes = raw_memes.map do |row|
+      {
+        url: row["url"],
+        title: row["title"],
+        subreddit: row["subreddit"],
+        views: row["views"],
+        likes: row["likes"],
+        trending_score: row["trending_score"]
+      }
+    end
+  
+    erb :trending, layout: :layout
+  end
+  
+  get "/search" do
+    query = params[:q]&.downcase
+    @results = {}
+    flatten_memes.each do |m|
+      if query && m["title"].downcase.include?(query)
+        @results[m["subreddit"]] = { title: m["title"], file: m["file"] }
+      end
+    end
+    erb :search, layout: :layout
+  end
+
   post "/like" do
     content_type :json
     file = params["url"]
