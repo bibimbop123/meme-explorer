@@ -1,61 +1,192 @@
 # data/subreddits.yml
-# Curated list of image-heavy subreddits with working direct image links
+# Expanded list of funny and interesting subreddits
 popular:
-  # Primary Meme Subreddits (high-quality image posts with direct links)
+  # Core Funny Subreddits
+  - funny
   - memes
   - dankmemes
-  - funny
-  - wholesomememes
-  - me_irl
-  - CatsStandingUp
-  - IllegallySmolCats
-  - Eyebleach
-  - rarepuppers
-  - AnimalsBeingBros
-  - MadeMeSmile
-  - HumansBeingBros
   - Cringetopia
-  - BikiniBottomTwitter
-  
-  # Entertainment & General Interest (reliable imgur/i.redd.it posts)
-  - nextfuckinglevel
-  - interestingasfuck
-  - oddlyinteresting
-  - oddlysatisfying
-  - pics
-  - gifs
-  - unexpected
-  - youseeingthisshit
-  - BeAmazed
-  - Damnthatsinteresting
-  
-  # Animals (always image-heavy, working links)
-  - Aww
-  - Eyebleach
-  - IllegallySmolCats
-  - Catswithjobs
-  - Illegallysmolbirds
-  - ExtremelyWatersports
-  - Zoomies
-  
-  # Nature & Photography (consistent direct image links)
-  - EarthPorn
-  - SkyPorn
-  - WaterPorn
-  - DesertPorn
-  - CityPorn
-  - NatureIsFuckingLit
-  - NatureIsFuckedUp
-  
-  # Mildly Interesting Category
-  - mildlyinteresting
-  - notinteresting
-  - Satisfyingas
-  
-  # Humor & Comics
-  - Comics
   - HoldMyBeer
   - WinStupidPrizes
   - Whatcouldgowrong
   - JusticeServed
   - Instantkarma
+  - BikiniBottomTwitter
+  - me_irl
+  - 2meirl4meirl
+  - DeepFriedMemes
+  - ComedyHeaven
+  - CursedImages
+  - Cursed_Memes
+  - Blursed_Images
+  - terriblefacebookmemes
+  - comedycemetery
+  - therewasanattempt
+  
+  # Interesting & Fascinating
+  - interestingasfuck
+  - Damnthatsinteresting
+  - nextfuckinglevel
+  - BeAmazed
+  - oddlyinteresting
+  - Beyblade
+  - todayilearned
+  - educationalgifs
+  - gifsthatkeepongiving
+  - blackmagicfuckery
+  - toptalent
+  - Whatisthis
+  - ThatsInsane
+  - Unexpected
+  - youseeingthisshit
+  
+  # Entertaining & Satisfying
+  - oddlysatisfying
+  - Satisfyingas
+  - gifs
+  - videos
+  - instant_regret
+  - facepalm
+  - therewasanattempt
+  - IdiotsInCars
+  - IdiotsOnBikes
+  - FailsafeGaming
+  - Whatswrongwithyourdog
+  
+  # Nature & Animals (Funny Focus)
+  - AnimalsBeingBros
+  - Zoomies
+  - IllegallySmolCats
+  - Catswithjobs
+  - IllegallySmolCats
+  - Illegallysmolbirds
+  - Eyebleach
+  - rarepuppers
+  - IllegallySmolDogs
+  - Aww
+  - Ducks
+  - Catsstandingup
+  - Tippytaps
+  - MurderedByWords
+  
+  # Comics & Meme Formats
+  - Comics
+  - webcomics
+  - Animemes
+  - wholesomememes
+  - meme_economy
+  - templates
+  - antimeme
+  
+  # Misc Funny
+  - Fake_History
+  - fakehistoryporn
+  - feemagers
+  - banned_from
+  - Tinder
+  - creepypodcast
+  - NoFap
+  - FiftyFifty
+  - thathappened
+  - thatHappened
+  - thriftstorehauls
+  - holdmycosmo
+  - holdmyjuicebox
+  - holdmyfries
+  - holdmybeer
+  - holdmycatnip
+  - holdmyredbull
+  - holdmysquids
+  
+  # Technology & Programming
+  - programming
+  - learnprogramming
+  - coding
+  - webdev
+  - frontend
+  - backend
+  - devops
+  - cybersecurity
+  - technology
+  - gadgets
+  - Futurology
+  - artificial
+  - machinelearning
+  - datascience
+  - linux
+  - java
+  - python
+  - javascript
+  - golang
+  - rust
+  - ProgrammerHumor
+  - talesfromtechsupport
+  
+  # Business & Entrepreneurship
+  - business
+  - entrepreneur
+  - startups
+  - startup_jobs
+  - sales
+  - marketing
+  - economics
+  - investing
+  - personalfinance
+  - financialcareers
+  - biztok
+  - ForeverUnfulfilled
+  - antiwork
+  - Work
+  
+  # Stocks & Investing
+  - stocks
+  - investing
+  - wallstreetbets
+  - investing_for_beginners
+  - bogleheads
+  - securityanalysis
+  - dividends
+  - pennystocks
+  - cryptocurrency
+  - Bitcoin
+  - Ethereum
+  - options
+  - daytrading
+  
+  # Music
+  - Music
+  - LetsTalkMusic
+  - hiphopheads
+  - electronicmusic
+  - guitars
+  - Guitar
+  - drums
+  - Drums
+  - piano
+  - audiophile
+  - vinyl
+  - recordcollecting
+  - musicproduction
+  - makinghiphop
+  - trapproduction
+  - weAreTheMusicMakers
+  
+  # Sports
+  - sports
+  - basketball
+  - nba
+  - nfl
+  - football
+  - soccer
+  - tennis
+  - baseball
+  - hockey
+  - Gaming
+  - pcgaming
+  - gaming
+  - esports
+  - leagueoflegends
+  - dota2
+  - valorant
+  - counterstrike
+  - fortnite

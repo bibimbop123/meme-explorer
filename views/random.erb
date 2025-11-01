@@ -1,4 +1,4 @@
-<% if @meme %>
+<% if @meme && @meme.is_a?(Hash) && @meme["title"] %>
 <div class="meme-container">
   <h2 id="meme-title"><%= @meme["title"] || "Untitled Meme" %></h2>
   <p id="meme-subreddit" class="meme-subtitle"><%= @meme["subreddit"] || "Unknown Subreddit" %></p>
@@ -25,7 +25,7 @@
 
 </div>
 <% else %>
-<p>No memes found!</p>
+<p style="text-align: center; margin-top: 50px; font-size: 18px;">Loading memes...</p>
 <% end %>
 
 <script>
@@ -36,6 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const likesSpan = document.querySelector(".meme-likes");
   const likeButton = document.querySelector("form.like-form button");
   const form = document.querySelector("form.like-form");
+
+  // Guard against null elements
+  if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form) {
+    return;
+  }
 
   let historyStack = [];
   let currentMeme = {
