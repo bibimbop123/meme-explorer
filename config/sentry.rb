@@ -19,14 +19,16 @@ Sentry.init do |config|
     'ActionController::RoutingError'
   ]
   
-  # Sensitive data - don't send
-  config.sanitize_fields = %w[
-    password
-    password_confirmation
-    authorization
-    token
-    access_token
-    refresh_token
-    api_key
-  ]
+  # Filter sensitive data before sending to Sentry
+  config.before_send = lambda do |event, hint|
+    # Remove sensitive fields from request data
+    if event.request
+      event.request.cookies.clear if event.request.cookies
+      if event.request.env
+        event.request.env.delete('HTTP_AUTHORIZATION')
+        event.request.env.delete('HTTP_X_API_KEY')
+      end
+    end
+    event
+  end
 end

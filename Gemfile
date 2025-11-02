@@ -21,14 +21,14 @@ gem "dotenv"
 # Caching and persistence
 gem "redis"
 gem "rack-attack"
+gem "pg", "~> 1.5"  # PostgreSQL adapter
 
 # Authentication
 gem "oauth2", "~> 2.0"
 gem "bcrypt", "~> 3.1" # Password hashing
 
 # Error tracking and monitoring
-gem "sentry-ruby"
-gem "sentry-sinatra"
+gem "sentry-ruby", "~> 5.0"
 
 # Scheduling
 gem "whenever", require: false
@@ -47,5 +47,4 @@ end
 
 group :development do
   gem "rerun"
-  gem "dotenv"
 end

@@ -24,6 +24,14 @@ require_relative "./db/setup"
 require_relative "./lib/error_handler"
 require "digest"
 
+# Sentry Error Tracking (if configured)
+begin
+  require 'sentry-ruby'
+  require_relative './config/sentry'
+rescue LoadError
+  puts "⚠️  Sentry not available - error tracking disabled"
+end
+
 
 $VERBOSE = nil # suppress warnings
 
@@ -1333,14 +1341,14 @@ class MemeExplorer < Sinatra::Base
   # Routes
   # -----------------------
   get "/" do
-    @meme = navigate_meme(direction: "next")
+    @meme = navigate_meme_v3(direction: "next")
     @image_src = meme_image_src(@meme)
     erb :random
   end
 
   # Render random meme page
   get "/random" do
-    @meme = navigate_meme(direction: "random")
+    @meme = navigate_meme_v3(direction: "random")
     halt 404, "No memes found!" unless @meme
   
     @image_src = meme_image_src(@meme)
