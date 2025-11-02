@@ -23,14 +23,9 @@
     </button>
   </form>
 
-  <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-    <button onclick="goPrevious()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-      ← Previous
-    </button>
-    <button onclick="goNext()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-      Next →
-    </button>
-  </div>
+  <p style="margin-top: 20px; font-size: 12px; color: #666; text-align: center;">
+    💡 <strong>Space</strong> = Next • <strong>Shift+Space</strong> = Previous
+  </p>
 
 </div>
 <% else %>
@@ -79,22 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     currentMeme = meme;
-  };
-
-  const fetchMeme = async (direction) => {
-    historyStack.push(currentMeme);
-
-    try {
-      const res = await fetch(`/random.json`);
-      if (!res.ok) throw new Error("Failed to fetch meme");
-      const meme = await res.json();
-      // Ensure likes is numeric
-      meme.likes = parseInt(meme.likes) || 0;
-      updateMeme(meme);
-    } catch (err) {
-      console.error(err);
-      alert("Could not load a new meme. Try again!");
-    }
   };
 
   form.addEventListener("submit", async e => {
