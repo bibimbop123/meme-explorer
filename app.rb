@@ -748,7 +748,7 @@ class MemeExplorer < Sinatra::Base
       subreddit: @meme["subreddit"],
       file: @meme["file"],
       url: @meme["url"],
-      permalink: @meme["permalink"],  # <-- include Reddit link
+      permalink: @meme["permalink"] || "",
       likes: get_meme_likes(@meme["url"] || @meme["file"])
     }.to_json
   end
