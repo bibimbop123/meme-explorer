@@ -856,15 +856,28 @@ class MemeExplorer < Sinatra::Base
         return post_data["url"]
       end
 
-      # imgur direct links
+      # imgur direct links (all formats)
       if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
         return post_data["url"]
       end
 
-      # Check media metadata for preview image
+      # Other image hosts
+      if post_data["url"]&.match?(/^https:\/\/(media\.|external-)?[a-z0-9\-]+\.(jpg|jpeg|png|gif|webp)/i)
+        return post_data["url"]
+      end
+
+      # Check media metadata for preview image - handle reddit's internal preview
       if post_data["preview"]&.dig("images", 0, "source", "url")
         url = post_data["preview"]["images"][0]["source"]["url"]
         return url.gsub("&amp;", "&") if url
+      end
+
+      # Try gallery image first
+      if post_data["gallery_data"]&.dig("items")&.first
+        gallery_id = post_data["gallery_data"]["items"].first["media_id"]
+        if post_data["media_metadata"]&.dig(gallery_id, "s", "x")
+          return post_data["media_metadata"][gallery_id]["s"]["x"]
+        end
       end
 
       nil
