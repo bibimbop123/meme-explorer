@@ -1015,114 +1015,55 @@ class MemeExplorer < Sinatra::Base
   end
 
   get "/metrics" do
-    MEME_CACHE ||= {}
-    REDIS ||= begin
-      begin
-        Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0")).tap(&:ping)
-      rescue => e
-        puts "Warning: Redis not available - #{e.class}: #{e.message}"
-        nil
-      end
-    end
-    METRICS ||= {}
-  
-    # -----------------------
-    # Defaults
-    # -----------------------
-    @last_batch          = (MEME_CACHE[:fetched_at] || Time.now).iso8601
+    # Initialize defaults first
     @total_memes         = 0
     @total_likes         = 0
     @total_views         = 0
+    @total_users         = 0
+    @total_saved_memes   = 0
     @memes_with_no_likes = 0
     @memes_with_no_views = 0
-    @redis_views         = 0
-    @redis_likes         = 0
-    @redis_no_views      = 0
-    @redis_no_likes      = 0
     @avg_likes           = 0
     @avg_views           = 0
-    @avg_request_time_ms = 0
-    @total_requests      = 0
-    @cache_hits          = 0
-    @cache_misses        = 0
-    @api_calls           = 0
-    @tier1_calls         = 0
-    @tier2_calls         = 0
-    @tier3_calls         = 0
     @top_memes           = []
     @top_subreddits      = []
-  
+
     begin
-      # -----------------------
-      # DB Metrics
-      # -----------------------
       if defined?(DB) && DB
-        db_count      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats")&.first
-        db_sum_likes  = safe_db_exec("SELECT SUM(likes) AS sum FROM meme_stats")&.first
-        db_sum_views  = safe_db_exec("SELECT SUM(views) AS sum FROM meme_stats")&.first
-        no_likes      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE likes = 0")&.first
-        no_views      = safe_db_exec("SELECT COUNT(*) AS count FROM meme_stats WHERE views = 0")&.first
-  
-        @total_memes         = (db_count&.dig("count") || 0).to_i
-        @total_likes         = (db_sum_likes&.dig("sum") || 0).to_i
-        @total_views         = (db_sum_views&.dig("sum") || 0).to_i
-        @memes_with_no_likes = (no_likes&.dig("count") || 0).to_i
-        @memes_with_no_views = (no_views&.dig("count") || 0).to_i
-  
-        # Top 10 memes by score (likes*2 + views)
-        top_memes_data = safe_db_exec("
-          SELECT title, subreddit, url, likes, views, (likes*2 + views) AS score
+        # Get meme stats
+        @total_memes = (DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0).to_i
+        @total_likes = (DB.get_first_value("SELECT SUM(likes) FROM meme_stats") || 0).to_i
+        @total_views = (DB.get_first_value("SELECT SUM(views) FROM meme_stats") || 0).to_i
+        @total_users = (DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
+        @total_saved_memes = (DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
+        @memes_with_no_likes = (DB.get_first_value("SELECT COUNT(*) FROM meme_stats WHERE likes = 0") || 0).to_i
+        @memes_with_no_views = (DB.get_first_value("SELECT COUNT(*) FROM meme_stats WHERE views = 0") || 0).to_i
+
+        # Calculate averages
+        @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
+        @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
+
+        # Top memes
+        @top_memes = DB.execute("
+          SELECT title, subreddit, url, likes, views
           FROM meme_stats
-          ORDER BY score DESC
+          ORDER BY (likes * 2 + views) DESC
           LIMIT 10
-        ")
-        @top_memes = top_memes_data.map { |m| m.transform_keys(&:to_s) } if top_memes_data
-  
-        # Top 10 subreddits by total likes
-        top_subreddit_data = safe_db_exec("
+        ").map { |row| row.transform_keys(&:to_s) }
+
+        # Top subreddits
+        @top_subreddits = DB.execute("
           SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
           FROM meme_stats
           GROUP BY subreddit
           ORDER BY total_likes DESC
           LIMIT 10
-        ")
-        @top_subreddits = top_subreddit_data.map { |s| s.transform_keys(&:to_s) } if top_subreddit_data
+        ").map { |row| row.transform_keys(&:to_s) }
       end
-  
-      # -----------------------
-      # Redis Metrics (sync with DB)
-      # -----------------------
-      if REDIS
-        REDIS.set("memes:views", @total_views)
-        REDIS.set("memes:likes", @total_likes)
-        REDIS.set("memes:no_views", @memes_with_no_views)
-        REDIS.set("memes:no_likes", @memes_with_no_likes)
-  
-        @redis_views    = REDIS.get("memes:views").to_i
-        @redis_likes    = REDIS.get("memes:likes").to_i
-        @redis_no_views = REDIS.get("memes:no_views").to_i
-        @redis_no_likes = REDIS.get("memes:no_likes").to_i
-      end
-  
-      # -----------------------
-      # Averages & Other Metrics
-      # -----------------------
-      @avg_likes           = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
-      @avg_views           = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
-      @avg_request_time_ms = METRICS[:avg_request_time_ms].to_f.round(2) rescue 0
-      @total_requests      = METRICS[:total_requests] || 0
-      @cache_hits          = METRICS[:cache_hits] || 0
-      @cache_misses        = METRICS[:cache_misses] || 0
-      @api_calls           = MEME_CACHE[:api_calls] || 0
-      @tier1_calls         = MEME_CACHE[:tier1_calls] || 0
-      @tier2_calls         = MEME_CACHE[:tier2_calls] || 0
-      @tier3_calls         = MEME_CACHE[:tier3_calls] || 0
-  
     rescue => e
       puts "Metrics error: #{e.class}: #{e.message}"
-      puts e.backtrace.join("\n")
     end
-  
+
     erb :metrics
   end
 
