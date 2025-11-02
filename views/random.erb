@@ -23,6 +23,15 @@
     </button>
   </form>
 
+  <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+    <button onclick="goPrevious()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+      ← Previous
+    </button>
+    <button onclick="goNext()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+      Next →
+    </button>
+  </div>
+
 </div>
 <% else %>
 <p style="text-align: center; margin-top: 50px; font-size: 18px;">Loading memes...</p>
@@ -138,10 +147,37 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchMeme("next");
   };
 
+  // Global functions for button clicks
+  window.goNext = async function() {
+    try {
+      const res = await fetch(`/random.json`);
+      if (!res.ok) throw new Error("Failed to fetch meme");
+      const meme = await res.json();
+      meme.likes = parseInt(meme.likes) || 0;
+      updateMeme(meme);
+    } catch (err) {
+      console.error("Error fetching next meme:", err);
+      alert("Could not load a new meme. Try again!");
+    }
+  };
+
+  window.goPrevious = function() {
+    if (historyStack.length > 0) {
+      const prevMeme = historyStack.pop();
+      updateMeme(prevMeme);
+    } else {
+      alert("No previous memes to go back to");
+    }
+  };
+
   document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
       e.preventDefault();
-      fetchMeme("next");
+      if (e.shiftKey) {
+        window.goPrevious();
+      } else {
+        window.goNext();
+      }
     }
   });
 });
