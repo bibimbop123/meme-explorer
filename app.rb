@@ -261,10 +261,10 @@ class MemeExplorer < Sinatra::Base
     memes
   end
 
-  def self.fetch_reddit_memes_static(subreddits = nil, limit = 15)
+  def self.fetch_reddit_memes_static(subreddits = nil, limit = 100)
     memes = []
     subreddits ||= YAML.load_file("data/subreddits.yml")["popular"]
-    subreddits = subreddits.sample(8) if subreddits.size > 8
+    subreddits = subreddits.sample(40) if subreddits.size > 40
 
     user_agents = [
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -499,9 +499,9 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Fetch memes from popular subreddits with working image links
-    def fetch_reddit_memes(subreddits = POPULAR_SUBREDDITS, limit = 15)
+    def fetch_reddit_memes(subreddits = POPULAR_SUBREDDITS, limit = 45)
       memes = []
-      subreddits = subreddits.sample(8) if subreddits.size > 8
+      subreddits = subreddits.sample(25) if subreddits.size > 30
 
       # Multiple user agents to avoid blocking
       user_agents = [
@@ -604,7 +604,7 @@ class MemeExplorer < Sinatra::Base
       end
 
       # Fetch fresh API memes first (primary source)
-      api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS, 20) rescue []
+      api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS, 50) rescue []
       
       # Only add local memes as fallback
       local_memes = if api_memes.empty?
