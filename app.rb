@@ -1765,20 +1765,31 @@ class MemeExplorer < Sinatra::Base
     # Wrap Redis or DB calls in safe error handling
     begin
       @user = get_user(user_id)
-      @saved_memes = get_user_saved_memes(user_id)
+      
+      # Ensure @user is not nil - provide default structure
+      if @user.nil?
+        halt 500, "User not found in database"
+      end
+      
+      @saved_memes = get_user_saved_memes(user_id) || []
       
       # Get user's liked memes from user_meme_stats
-      @liked_memes = DB.execute(
-        "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
-        [user_id]
-      ).map { |row| row.transform_keys(&:to_s) }
+      @liked_memes = begin
+        results = DB.execute(
+          "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
+          [user_id]
+        ) || []
+        results.map { |row| row.transform_keys(&:to_s) }
+      rescue => e
+        puts "Error fetching liked memes: #{e.message}"
+        []
+      end
   
     rescue => e
-      # Log the error but allow page to render
-      puts "Error fetching memes for user #{user_id}: #{e.message}"
-      @user ||= nil
-      @saved_memes ||= []
-      @liked_memes ||= []
+      # Log the error and return proper error response
+      puts "Profile Error: #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
+      halt 500, "Error loading profile: #{e.message}"
     end
   
     # Count stats

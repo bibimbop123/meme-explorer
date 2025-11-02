@@ -2,8 +2,11 @@
   <h1>My Profile</h1>
   
   <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-    <p><strong>Email:</strong> <%= @user["email"] %></p>
-    <p><strong>Member Since:</strong> <%= @user["created_at"] %></p>
+    <% if @user %>
+      <p><strong>Username:</strong> <%= @user["reddit_username"] || @user["email"] || "User" %></p>
+      <p><strong>Email:</strong> <%= @user["email"] || "Not provided" %></p>
+      <p><strong>Member Since:</strong> <%= @user["created_at"] || "Unknown" %></p>
+    <% end %>
     <hr>
     <p>📌 <strong><%= @saved_count %></strong> memes saved</p>
     <p>❤️ <strong><%= @liked_count %></strong> memes liked (all-time)</p>
