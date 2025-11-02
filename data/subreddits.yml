@@ -1,324 +1,104 @@
-# Tier 1: BEST CONTENT - Funny & Memes (50% priority)
+# MEME EXPLORER SUBREDDITS - CURATED FOR WHOLESOME/INTERESTING/EDUCATIONAL
+# Based on audit: 28 confirmed working subreddits with reliable image delivery
+# Removed non-performing tiers (stocks, music, sports/gaming)
+
+# TIER 1: WHOLESOME & HUMOR (50% priority) - BEST PERFORMERS
 tier_1:
-  - funny
-  - memes
-  - dankmemes
-  - Cringetopia
-  - HoldMyBeer
-  - WinStupidPrizes
-  - WhatCouldGoWrong
-  - JusticeServed
-  - InstantKarma
-  - me_irl
-  - 2meirl4meirl
-  - DeepFriedMemes
-  - ComedyHeaven
-  - CursedImages
-  - Cursed_Memes
-  - Blursed_Images
-  - terriblefacebookmemes
-  - comedycemetery
-  - therewasanattempt
+  - funny              # ✅ 5 images - core humor
+  - memes              # ✅ 10 images - internet culture
+  - dankmemes          # ✅ 10 images - edgy but quality
+  - me_irl             # ✅ 9 images - relatable memes
+  - ComedyHeaven       # ✅ 10 images - absurd humor
+  - comedycemetery     # ✅ 10 images - bad memes (ironically funny)
+  - terriblefacebookmemes  # ✅ 4 images - wholesome bad memes
+  - MadeMeSmile        # Wholesomeness focus
+  - IllegallySmolCats  # Cute animals
+  - IllegallySmolDogs  # Cute animals
+  - Eyebleach          # Wholesome animals
 
-# Tier 2: EXCELLENT CONTENT - Interesting & Fascinating (25% priority)
+# TIER 2: INTERESTING & AMAZING (25% priority) - ENGAGING CONTENT
 tier_2:
-  - interestingasfuck
-  - Damnthatsinteresting
-  - nextfuckinglevel
-  - BeAmazed
-  - oddlyinteresting
-  - todayilearned
-  - educationalgifs
-  - gifsthatkeepongiving
-  - blackmagicfuckery
-  - toptalent
-  - Whatisthis
-  - ThatsInsane
-  - Unexpected
-  - youseeingthisshit
-  - mindblowing
+  - interestingasfuck  # ✅ 3 images - fascinating
+  - ThatsInsane        # ✅ 5 images - wow moments
+  - Damnthatsinteresting  # High quality interesting posts
+  - BeAmazed           # Visually interesting content
+  - NextFuckingLevel   # Impressive achievements
+  - TopTalent          # Skilled performances
 
-# Tier 3: VERY GOOD CONTENT - Entertaining & Satisfying (15% priority)
+# TIER 3: SATISFYING & ENTERTAINING (15% priority) - HIGH ENGAGEMENT
 tier_3:
-  - oddlysatisfying
-  - Satisfyingas
-  - gifs
-  - videos
-  - instant_regret
-  - facepalm
-  - IdiotsInCars
-  - IdiotsOnBikes
-  - FailsafeGaming
-  - Whatswrongwithyourdog
+  - oddlysatisfying    # ✅ 1 image - reliable source
+  - gifs               # ✅ 5 images - motion content
+  - facepalm           # ✅ 8 images - funny mistakes
+  - instant_regret     # Comedic moments
+  - Unexpected         # Surprising content
 
-# Tier 4: GOOD CONTENT - Nature & Animals (10% priority)
+# TIER 4: WHOLESOME ANIMALS (10% priority) - PET & NATURE CONTENT
 tier_4:
-  - AnimalsBeingBros
-  - Zoomies
-  - IllegallySmolCats
-  - Catswithjobs
-  - Illegallysmolbirds
-  - Eyebleach
-  - rarepuppers
-  - IllegallySmolDogs
-  - Aww
-  - Ducks
-  - Catsstandingup
-  - Tippytaps
-  - MurderedByWords
+  - Zoomies            # ✅ 2 images - energetic pets
+  - Catswithjobs       # ✅ 3 images - cats in situations
+  - rarepuppers        # Rare dog moments
+  - IllegallySmolAnimals  # Cute small creatures
+  - Aww                # General cuteness
+  - Ducks              # Wholesome bird content
+  - MurderedByWords    # ✅ 10 images - clever comebacks
 
-# Tier 5: DECENT CONTENT - Comics & Meme Formats (8% priority)
+# TIER 5: EDUCATIONAL & QUALITY (8% priority) - LEARNING CONTENT
 tier_5:
-  - Comics
-  - webcomics
-  - Animemes
-  - wholesomememes
-  - meme_economy
-  - templates
-  - antimeme
+  - Animemes           # ✅ 8 images - anime culture
+  - educationalgifs    # Learning through GIFs
+  - LearnUselessFacts  # Fun facts for all
+  - gifsthatkeepongiving  # Long-form educational
 
-# Tier 6: NICHE CONTENT - Technology & Programming (6% priority)
+# TIER 6: NICHE & COMMUNITY (6% priority) - SPECIFIC COMMUNITIES
 tier_6:
-  - programming
-  - learnprogramming
-  - coding
-  - webdev
-  - frontend
-  - backend
-  - devops
-  - cybersecurity
-  - technology
-  - gadgets
-  - Futurology
-  - artificial
-  - machinelearning
-  - datascience
-  - linux
-  - java
-  - python
-  - javascript
-  - golang
-  - rust
-  - ProgrammerHumor
-  - talesfromtechsupport
+  - ProgrammerHumor    # ✅ 10 images - tech humor
+  - webdev             # ✅ 4 images - web development
+  - backend            # ✅ 1 image - backend development
+  - datascience        # ✅ 2 images - data science humor
+  - linux              # ✅ 4 images - Linux culture
+  - java               # ✅ 2 images - Java programming
+  - antiwork           # ✅ 5 images - workplace humor
 
-# Tier 7: NICHE CONTENT - Business & Entrepreneurship (4% priority)
-tier_7:
-  - business
-  - entrepreneur
-  - startups
-  - startup_jobs
-  - sales
-  - marketing
-  - economics
-  - investing
-  - personalfinance
-  - financialcareers
-  - biztok
-  - ForeverUnfulfilled
-  - antiwork
-  - Work
-
-# Tier 8: NICHE CONTENT - Stocks & Investing (2% priority)
-tier_8:
-  - stocks
-  - investing
-  - wallstreetbets
-  - investing_for_beginners
-  - bogleheads
-  - securityanalysis
-  - dividends
-  - pennystocks
-  - cryptocurrency
-  - Bitcoin
-  - Ethereum
-  - options
-  - daytrading
-
-# Tier 9: NICHE CONTENT - Music (2% priority)
-tier_9:
-  - Music
-  - LetsTalkMusic
-  - hiphopheads
-  - electronicmusic
-  - guitars
-  - Guitar
-  - drums
-  - Drums
-  - piano
-  - audiophile
-  - vinyl
-  - recordcollecting
-  - musicproduction
-  - makinghiphop
-  - trapproduction
-  - weAreTheMusicMakers
-
-# Tier 10: NICHE CONTENT - Sports & Gaming (1% priority)
-tier_10:
-  - sports
-  - basketball
-  - nba
-  - nfl
-  - football
-  - soccer
-  - tennis
-  - baseball
-  - hockey
-  - Gaming
-  - pcgaming
-  - esports
-  - leagueoflegends
-  - dota2
-  - valorant
-  - counterstrike
-  - fortnite
-
-# Legacy popular list (includes all tiers)
+# Legacy compatibility - includes all tiers
 popular:
   - funny
   - memes
   - dankmemes
-  - Cringetopia
-  - HoldMyBeer
-  - WinStupidPrizes
-  - WhatCouldGoWrong
-  - JusticeServed
-  - InstantKarma
   - me_irl
-  - 2meirl4meirl
-  - DeepFriedMemes
   - ComedyHeaven
-  - CursedImages
-  - Cursed_Memes
-  - Blursed_Images
-  - terriblefacebookmemes
   - comedycemetery
-  - therewasanattempt
-  - interestingasfuck
-  - Damnthatsinteresting
-  - nextfuckinglevel
-  - BeAmazed
-  - oddlyinteresting
-  - todayilearned
-  - educationalgifs
-  - gifsthatkeepongiving
-  - blackmagicfuckery
-  - toptalent
-  - Whatisthis
-  - ThatsInsane
-  - Unexpected
-  - youseeingthisshit
-  - mindblowing
-  - oddlysatisfying
-  - Satisfyingas
-  - gifs
-  - videos
-  - instant_regret
-  - facepalm
-  - IdiotsInCars
-  - IdiotsOnBikes
-  - FailsafeGaming
-  - Whatswrongwithyourdog
-  - AnimalsBeingBros
-  - Zoomies
+  - terriblefacebookmemes
+  - MadeMeSmile
   - IllegallySmolCats
-  - Catswithjobs
-  - Illegallysmolbirds
-  - Eyebleach
-  - rarepuppers
   - IllegallySmolDogs
+  - Eyebleach
+  - interestingasfuck
+  - ThatsInsane
+  - Damnthatsinteresting
+  - BeAmazed
+  - NextFuckingLevel
+  - TopTalent
+  - oddlysatisfying
+  - gifs
+  - facepalm
+  - instant_regret
+  - Unexpected
+  - Zoomies
+  - Catswithjobs
+  - rarepuppers
+  - IllegallySmolAnimals
   - Aww
   - Ducks
-  - Catsstandingup
-  - Tippytaps
   - MurderedByWords
-  - Comics
-  - webcomics
   - Animemes
-  - wholesomememes
-  - meme_economy
-  - templates
-  - antimeme
-  - programming
-  - learnprogramming
-  - coding
+  - educationalgifs
+  - LearnUselessFacts
+  - gifsthatkeepongiving
+  - ProgrammerHumor
   - webdev
-  - frontend
   - backend
-  - devops
-  - cybersecurity
-  - technology
-  - gadgets
-  - Futurology
-  - artificial
-  - machinelearning
   - datascience
   - linux
   - java
-  - python
-  - javascript
-  - golang
-  - rust
-  - ProgrammerHumor
-  - talesfromtechsupport
-  - business
-  - entrepreneur
-  - startups
-  - startup_jobs
-  - sales
-  - marketing
-  - economics
-  - investing
-  - personalfinance
-  - financialcareers
-  - biztok
-  - ForeverUnfulfilled
   - antiwork
-  - Work
-  - stocks
-  - investing
-  - wallstreetbets
-  - investing_for_beginners
-  - bogleheads
-  - securityanalysis
-  - dividends
-  - pennystocks
-  - cryptocurrency
-  - Bitcoin
-  - Ethereum
-  - options
-  - daytrading
-  - Music
-  - LetsTalkMusic
-  - hiphopheads
-  - electronicmusic
-  - guitars
-  - Guitar
-  - drums
-  - Drums
-  - piano
-  - audiophile
-  - vinyl
-  - recordcollecting
-  - musicproduction
-  - makinghiphop
-  - trapproduction
-  - weAreTheMusicMakers
-  - sports
-  - basketball
-  - nba
-  - nfl
-  - football
-  - soccer
-  - tennis
-  - baseball
-  - hockey
-  - Gaming
-  - pcgaming
-  - esports
-  - leagueoflegends
-  - dota2
-  - valorant
-  - counterstrike
-  - fortnite
