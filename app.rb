@@ -813,18 +813,30 @@ class MemeExplorer < Sinatra::Base
         }
       )
 
-      # Store access token in Redis (expires in 1 hour)
+      # Get Reddit user info
+      reddit_username = token.params["name"] rescue nil
+      reddit_id = token.params["id"] rescue nil
+      
+      halt 400, "Failed to get Reddit user info" unless reddit_username
+
+      # Store access token in Redis
       if REDIS
         REDIS.setex("reddit:access_token", 3600, token.token)
         REDIS.setex("reddit:token_expires_at", 3600, (Time.now + 3600).to_i.to_s)
       end
 
+      # Create or find user
+      user_id = create_or_find_user(reddit_username, reddit_id, nil)
+      
+      # Set session
+      session[:user_id] = user_id
+      session[:reddit_username] = reddit_username
       session[:reddit_token] = token.token
-      session[:reddit_user] = token.params["name"] rescue nil
 
-      "✅ Successfully authenticated with Reddit! Access token stored. Redirecting..."
+      redirect "/profile"
     rescue => e
-      "❌ OAuth Error: #{e.message}"
+      puts "OAuth Error: #{e.class}: #{e.message}"
+      halt 400, "OAuth authentication failed: #{e.message}"
     end
   end
 
