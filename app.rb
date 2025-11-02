@@ -1499,7 +1499,104 @@ class MemeExplorer < Sinatra::Base
       redirect '/login'
     end
   end
-  
+
+  # Reddit OAuth Login
+  get "/auth/reddit" do
+    state = SecureRandom.hex(16)
+    session[:oauth_state] = state
+    
+    client = OAuth2::Client.new(
+      REDDIT_OAUTH_CLIENT_ID,
+      REDDIT_OAUTH_CLIENT_SECRET,
+      site: "https://www.reddit.com",
+      authorize_url: "/api/v1/authorize",
+      token_url: "/api/v1/access_token"
+    )
+
+    auth_url = client.auth_code.authorize_url(
+      redirect_uri: "#{request.base_url}/auth/reddit/callback",
+      scope: "identity",
+      state: state
+    )
+
+    redirect auth_url
+  end
+
+  get "/auth/reddit/callback" do
+    halt 403, "Invalid state token" unless params[:state] == session[:oauth_state]
+
+    if params[:error]
+      session.clear
+      redirect "/login?error=#{params[:error]}"
+    end
+
+    begin
+      code = params[:code]
+      halt 400, "No authorization code" unless code
+
+      client = OAuth2::Client.new(
+        REDDIT_OAUTH_CLIENT_ID,
+        REDDIT_OAUTH_CLIENT_SECRET,
+        site: "https://www.reddit.com",
+        authorize_url: "/api/v1/authorize",
+        token_url: "/api/v1/access_token"
+      )
+
+      token = client.auth_code.get_token(
+        code,
+        redirect_uri: "#{request.base_url}/auth/reddit/callback"
+      )
+
+      user_info = HTTParty.get(
+        "https://oauth.reddit.com/api/v1/me",
+        headers: {
+          "Authorization" => "Bearer #{token.token}",
+          "User-Agent" => "MemeExplorer/1.0"
+        }
+      )
+
+      reddit_username = user_info["name"]
+      reddit_id = user_info["id"]
+      
+      halt 400, "Invalid Reddit response" unless reddit_username && reddit_id
+
+      user_email = "reddit_#{reddit_id}@memes.local"
+      
+      begin
+        user = DB.execute(
+          "SELECT id FROM users WHERE email = ?",
+          [user_email]
+        ).first
+
+        unless user
+          DB.execute(
+            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            [user_email, BCrypt::Password.create("reddit_oauth_#{reddit_id}"), Time.now]
+          )
+          user = DB.execute(
+            "SELECT id FROM users WHERE email = ?",
+            [user_email]
+          ).first
+        end
+
+        session[:user_id] = user["id"]
+        session[:reddit_username] = reddit_username
+        session[:reddit_id] = reddit_id
+
+        redirect "/profile"
+      rescue => e
+        puts "Database error: #{e.message}"
+        redirect "/login?error=database_error"
+      end
+
+    rescue OAuth2::Error => e
+      puts "OAuth2 error: #{e.message}"
+      redirect "/login?error=oauth_error"
+    rescue => e
+      puts "Auth error: #{e.class}: #{e.message}"
+      redirect "/login?error=auth_error"
+    end
+  end
 
   get "/signup" do
     erb :signup
