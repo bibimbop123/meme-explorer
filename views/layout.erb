@@ -9,32 +9,145 @@
   <link rel="manifest" href="/manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
 
+  <!-- =========================
+       MOBILE-FIRST LAYOUT CSS
+       ========================= -->
   <style>
-    body { font-family: 'Comic Neue', cursive; margin:0; background:#fefefe; transition:0.5s; }
-    header { background:linear-gradient(90deg,#ff8a00,#e52e71); color:#fff; padding:20px; text-align:center; position:sticky; top:0; z-index:100; }
-    header nav { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    header nav a { background: rgba(255,255,255,0.15); color:#fff; padding:8px 14px; border-radius:8px; font-weight:600; text-decoration:none; transition:0.2s; }
-    header nav a:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px);}
-    main { max-width:700px; margin:40px auto; padding:20px; text-align:center; }
-    footer { text-align:center; padding:20px; background:#333; color:#fff;}
-    form { text-align:center; margin:20px 0;}
-    form input[type=text]{padding:10px;border-radius:12px 0 0 12px;border:1px solid #ccc;width:260px;}
-    form button{padding:10px 16px;border:none;border-radius:0 12px 12px 0;background:#e52e71;color:#fff;cursor:pointer;}
-    img { max-width:100%; border-radius:12px; margin-top:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+    body {
+      font-family: 'Comic Neue', cursive;
+      margin: 0;
+      background: #fefefe;
+      color: #333;
+      font-size: clamp(14px, 4vw, 16px);
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(90deg,#ff8a00,#e52e71);
+      color: #fff;
+      padding: 1em 1.5em;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5em;
+    }
+
+    header h1 a {
+      color: white;
+      text-decoration: none;
+      font-size: 1.8rem;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5em;
+    }
+
+    nav a {
+      padding: 0.5em 1em;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+
+    nav a:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+
+    form.search-form {
+      display: flex;
+      justify-content: center;
+      margin: 1em 0;
+      flex-wrap: wrap;
+      gap: 0.5em;
+    }
+
+    form.search-form input[type="text"] {
+      padding: 0.75em 1em;
+      border-radius: 12px 0 0 12px;
+      border: 1px solid #ccc;
+      flex: 1 1 180px;
+      min-width: 180px;
+    }
+
+    form.search-form button {
+      padding: 0.75em 1em;
+      border-radius: 0 12px 12px 0;
+      border: none;
+      cursor: pointer;
+      background: #e52e71;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    main {
+      flex: 1;
+      max-width: 100%;
+      margin: 1em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5em;
+    }
+
+    .meme-single img {
+      max-width: 95%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .meme-title { font-size: 1.25rem; font-weight: bold; margin-top: 0.5em; }
+    .meme-subtitle { color: #888; font-size: 0.95rem; margin-top: 0.25em; }
+    .meme-likes { margin-top: 0.5em; font-weight: bold; }
+
+    .nav-buttons { display: flex; justify-content: center; gap: 1em; flex-wrap: wrap; }
+    .nav-buttons button { min-width: 100px; padding: 0.75em 1.25em; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    #prev-btn { background: #f44336; color: #fff; }
+    #next-btn { background: #4caf50; color: #fff; }
+
+    .meme-grid { display: grid; grid-template-columns: 1fr; gap: 1.5em; width: 100%; }
+
+    footer { text-align: center; padding: 1.5em; background: #333; color: #fff; font-size: 0.85rem; }
+
+    /* =========================
+       TABLET / MEDIUM SCREENS
+       ========================= */
+    @media(min-width: 768px) {
+      header { flex-direction: row; justify-content: space-between; padding: 1em 2.5em; }
+      main { max-width: 720px; margin: 2em auto; }
+      .meme-single img { max-width: 70%; }
+      .meme-grid { grid-template-columns: repeat(2, 1fr); gap: 2em; }
+      footer { font-size: 0.9rem; }
+    }
+
+    /* =========================
+       DESKTOP / LARGE SCREENS
+       ========================= */
+    @media(min-width: 1200px) {
+      main { max-width: 1100px; margin: 3em auto; }
+      .meme-single img { max-width: 50%; border-radius: 16px; }
+      header nav a { margin: 0 15px; font-size: 1.05rem; }
+      .meme-grid { grid-template-columns: repeat(3, 1fr); gap: 2.5em; }
+      footer { padding: 2em; font-size: 1rem; }
+    }
+
     button.liked { background: #ff4f81 !important; color: #fff; transform: scale(1.05); transition: 0.2s; }
     button.liked:hover { background: #ff769f !important; }
-    .meme-subtitle { color:#888; margin-top:5px; }
-    .meme-likes { margin-left:10px; font-weight:bold; }
-    .nav-buttons { margin-top: 20px; display: flex; justify-content: center; gap: 12px; }
-    .nav-buttons button { padding: 10px 18px; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    #prev-btn { background: #f44336; }
-    #next-btn { background: #4caf50; }
-    .nav-buttons button:hover { opacity: 0.9; transform: scale(1.05); }
   </style>
 </head>
 <body>
+  <!-- ================= HEADER ================= -->
   <header>
-    <h1><a href="/" style="color:white;text-decoration:none;">Meme Explorer 😎</a></h1>
+    <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
     <nav>
       <a href="/category/funny">Funny</a>
       <a href="/category/wholesome">Wholesome</a>
@@ -46,11 +159,13 @@
     </nav>
   </header>
 
-  <form action="/search" method="get">
+  <!-- ================= SEARCH FORM ================= -->
+  <form class="search-form" action="/search" method="get">
     <input type="text" name="q" placeholder="Search memes..." value="<%= params[:q] %>">
-    <button>Search</button>
+    <button type="submit">Search</button>
   </form>
 
+  <!-- ================= MAIN CONTENT ================= -->
   <main>
     <%= yield %>
 
@@ -60,122 +175,122 @@
     </div>
   </main>
 
+  <!-- ================= FOOTER ================= -->
   <footer>
     <p>Built with ❤️ using Sinatra</p>
   </footer>
 
-  <!-- Store liked memes in session -->
+  <!-- ================= SESSION DATA ================= -->
   <script>
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
   </script>
 
-  <!-- Main JS -->
+  <!-- ================= INTERACTIVE JS ================= -->
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const form = document.querySelector("form.like-form");
-    if (!form) return;
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.querySelector("form.like-form");
+      if (!form) return;
 
-    const memeImg = document.getElementById("meme-img");
-    const memeTitle = document.getElementById("meme-title");
-    const memeSub = document.getElementById("meme-subreddit");
-    const likesSpan = form.querySelector(".meme-likes");
-    const likeButton = form.querySelector("button");
-    const prevBtn = document.getElementById("prev-btn");
-    const nextBtn = document.getElementById("next-btn");
+      const memeImg = document.getElementById("meme-img");
+      const memeTitle = document.getElementById("meme-title");
+      const memeSub = document.getElementById("meme-subreddit");
+      const likesSpan = form.querySelector(".meme-likes");
+      const likeButton = form.querySelector("button");
+      const prevBtn = document.getElementById("prev-btn");
+      const nextBtn = document.getElementById("next-btn");
 
-    let historyStack = [];
-    let currentMeme = {
-      url: memeImg.src,
-      title: memeTitle.innerText,
-      subreddit: memeSub.innerText,
-      likes: parseInt(likesSpan.textContent) || 0
-    };
+      let historyStack = [];
+      let currentMeme = {
+        url: memeImg.src,
+        title: memeTitle.innerText,
+        subreddit: memeSub.innerText,
+        likes: parseInt(likesSpan.textContent) || 0
+      };
 
-    const updateLikeButton = (liked) => {
-      likeButton.textContent = liked ? "💔 Unlike" : "❤️ Like";
-      likeButton.classList.toggle("liked", liked);
-    };
+      const updateLikeButton = (liked) => {
+        likeButton.textContent = liked ? "💔 Unlike" : "❤️ Like";
+        likeButton.classList.toggle("liked", liked);
+      };
 
-    const updateLikesDisplay = (likes) => {
-      likesSpan.textContent = likes > 0 ? likes : "";
-    };
+      const updateLikesDisplay = (likes) => {
+        likesSpan.textContent = likes > 0 ? likes : "";
+      };
 
-    const updateMeme = (meme) => {
-      memeImg.src = meme.url;
-      memeImg.alt = meme.title;
-      memeTitle.innerText = meme.title;
-      memeSub.innerText = meme.subreddit;
-      form.querySelector("input[name='url']").value = meme.url;
-      updateLikesDisplay(meme.likes || 0);
-      updateLikeButton(window.sessionLikedMemes?.includes(meme.url));
-      currentMeme = meme;
-    };
+      const updateMeme = (meme) => {
+        memeImg.src = meme.url;
+        memeImg.alt = meme.title;
+        memeTitle.innerText = meme.title;
+        memeSub.innerText = meme.subreddit;
+        form.querySelector("input[name='url']").value = meme.url;
+        updateLikesDisplay(meme.likes || 0);
+        updateLikeButton(window.sessionLikedMemes?.includes(meme.url));
+        currentMeme = meme;
+      };
 
-    const fetchMeme = async (direction) => {
-      nextBtn.disabled = true;
-      prevBtn.disabled = true;
+      const fetchMeme = async (direction) => {
+        nextBtn.disabled = true;
+        prevBtn.disabled = true;
 
-      if (direction === "prev" && historyStack.length > 0) {
-        const prev = historyStack.pop();
-        updateMeme(prev);
-        nextBtn.disabled = false;
-        prevBtn.disabled = false;
-        return;
-      }
-
-      historyStack.push(currentMeme);
-
-      try {
-        const currentUrl = form.querySelector("input[name='url']").value;
-        const res = await fetch(`/random.json?direction=${direction}&current_url=${encodeURIComponent(currentUrl)}`);
-        const meme = await res.json();
-        updateMeme(meme);
-      } catch (err) {
-        console.error("Failed to fetch meme:", err);
-      } finally {
-        nextBtn.disabled = false;
-        prevBtn.disabled = false;
-      }
-    };
-
-    // Like/Unlike AJAX
-    likeButton.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const memeUrl = form.querySelector("input[name='url']").value;
-
-      try {
-        const res = await fetch("/like", {
-          method: "POST",
-          body: new URLSearchParams({ url: memeUrl }),
-          headers: { "Accept": "application/json" }
-        });
-        const data = await res.json();
-
-        if (!window.sessionLikedMemes) window.sessionLikedMemes = [];
-        if (data.liked) {
-          if (!window.sessionLikedMemes.includes(memeUrl)) window.sessionLikedMemes.push(memeUrl);
-        } else {
-          window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== memeUrl);
+        if (direction === "prev" && historyStack.length > 0) {
+          const prev = historyStack.pop();
+          updateMeme(prev);
+          nextBtn.disabled = false;
+          prevBtn.disabled = false;
+          return;
         }
 
-        updateLikesDisplay(data.likes);
-        updateLikeButton(data.liked);
-      } catch (err) {
-        alert("Could not update like — please try again.");
-        console.error(err);
-      }
-    });
+        historyStack.push(currentMeme);
 
-    prevBtn?.addEventListener("click", () => fetchMeme("prev"));
-    nextBtn?.addEventListener("click", () => fetchMeme("next"));
+        try {
+          const currentUrl = form.querySelector("input[name='url']").value;
+          const res = await fetch(`/random.json?direction=${direction}&current_url=${encodeURIComponent(currentUrl)}`);
+          const meme = await res.json();
+          updateMeme(meme);
+        } catch (err) {
+          console.error("Failed to fetch meme:", err);
+        } finally {
+          nextBtn.disabled = false;
+          prevBtn.disabled = false;
+        }
+      };
 
-    document.addEventListener("keydown", (e) => {
-      if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
+      likeButton.addEventListener("click", async (e) => {
         e.preventDefault();
-        fetchMeme("next");
-      }
+        const memeUrl = form.querySelector("input[name='url']").value;
+
+        try {
+          const res = await fetch("/like", {
+            method: "POST",
+            body: new URLSearchParams({ url: memeUrl }),
+            headers: { "Accept": "application/json" }
+          });
+          const data = await res.json();
+
+          if (!window.sessionLikedMemes) window.sessionLikedMemes = [];
+          if (data.liked) {
+            if (!window.sessionLikedMemes.includes(memeUrl)) window.sessionLikedMemes.push(memeUrl);
+          } else {
+            window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== memeUrl);
+          }
+
+          updateLikesDisplay(data.likes);
+          updateLikeButton(data.liked);
+        } catch (err) {
+          alert("Could not update like — please try again.");
+          console.error(err);
+        }
+      });
+
+      prevBtn?.addEventListener("click", () => fetchMeme("prev"));
+      nextBtn?.addEventListener("click", () => fetchMeme("next"));
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
+          e.preventDefault();
+          fetchMeme("next");
+        }
+      });
     });
-  });
   </script>
 </body>
 </html>

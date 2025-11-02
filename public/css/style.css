@@ -2,49 +2,104 @@
    BASE / MOBILE-FIRST
    ========================= */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #fafafa;
-  color: #333;
   margin: 0;
   padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   text-align: center;
-  font-size: clamp(14px, 4vw, 16px); /* Responsive font size */
+  background: #fafafa;
+  color: #333;
+  font-size: clamp(14px, 4vw, 16px);
 }
 
+/* ---------- HEADER ---------- */
 header {
-  background: #222;
-  color: white;
-  padding: 1em;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5em;
+  padding: 1em;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-header a {
-  color: #f7df1e;
+header a.logo {
+  font-weight: bold;
   text-decoration: none;
-  margin: 0 5px;
-  font-weight: 500;
 }
 
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+/* ---------- SEARCH FORM ---------- */
+form.search-form {
+  margin: 1em auto;
+  display: flex;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+form.search-form input[type="text"] {
+  padding: 0.75em 1em;
+  border-radius: 12px 0 0 12px;
+  border: 1px solid #ccc;
+  flex: 1;
+  min-width: 180px;
+}
+
+form.search-form button {
+  padding: 0.75em 1em;
+  border-radius: 0 12px 12px 0;
+  border: none;
+  cursor: pointer;
+}
+
+/* ---------- MAIN CONTENT ---------- */
 main {
-  margin: 1.5em;
+  margin: 1.5em 1em;
+  max-width: 100%;
 }
 
-img {
-  max-width: 90%;
+/* Single Meme Image */
+.meme-single img {
+  max-width: 95%;
   height: auto;
   border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   display: block;
   margin: 1em auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-form {
-  margin-top: 1em;
+/* Navigation Buttons */
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1em;
+  margin-top: 1.5em;
 }
 
+.nav-buttons button {
+  min-width: 100px;
+  padding: 0.5em 1em;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Meme Grid for multiple memes */
+.meme-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5em;
+  margin-top: 1.5em;
+}
+
+/* ---------- FOOTER ---------- */
 footer {
   margin-top: 2em;
   padding: 1em;
@@ -53,40 +108,27 @@ footer {
 }
 
 /* =========================
-   MEME GRID (MOBILE)
+   TABLET / MEDIUM SCREENS
    ========================= */
-.meme-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5em;
-}
-
-/* =========================
-   TABLETS
-   ========================= */
-@media (min-width: 768px) {
+@media(min-width: 768px) {
   header {
     flex-direction: row;
-    justify-content: center;
+    justify-content: space-between;
+    padding: 1em 3em;
   }
 
   main {
-    margin: 2.5em auto;
     max-width: 720px;
+    margin: 2em auto;
   }
 
-  img {
+  .meme-single img {
     max-width: 70%;
-    border-radius: 14px;
   }
 
   .meme-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 2em;
-  }
-
-  form {
-    margin-top: 1.5em;
   }
 
   footer {
@@ -97,18 +139,18 @@ footer {
 /* =========================
    DESKTOP / LARGE SCREENS
    ========================= */
-@media (min-width: 1200px) {
+@media(min-width: 1200px) {
   main {
-    margin: 3em auto;
     max-width: 1100px;
+    margin: 3em auto;
   }
 
-  img {
+  .meme-single img {
     max-width: 50%;
     border-radius: 16px;
   }
 
-  header a {
+  header nav a {
     margin: 0 15px;
     font-size: 1.1em;
   }
@@ -119,28 +161,7 @@ footer {
   }
 
   footer {
+    padding: 2em;
     font-size: 1em;
   }
-}
-
-/* =========================
-   EXTRA TOUCHES
-   ========================= */
-button, input[type="submit"] {
-  cursor: pointer;
-  padding: 0.5em 1em;
-  border-radius: 8px;
-  border: none;
-  background-color: #f7df1e;
-  color: #222;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-
-button:hover, input[type="submit"]:hover {
-  background-color: #e6c300;
-}
-
-a:hover {
-  text-decoration: underline;
 }
