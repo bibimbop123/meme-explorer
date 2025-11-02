@@ -1137,17 +1137,16 @@ class MemeExplorer < Sinatra::Base
     erb :login
   end
 
-  post "/login" do
-    email = params[:email]
-    password = params[:password]
-
-    user = find_user_by_email(email)
-    halt 401, "Invalid email or password" unless user && verify_password(password, user["password_hash"])
-
-    session[:user_id] = user["id"]
-    session[:email] = email
-    redirect "/profile"
+  post '/login' do
+    user = User.find_by(email: params[:email])
+    if user && user.authenticate(params[:password])
+      session[:user_id] = user.id
+      redirect '/profile'
+    else
+      redirect '/login'
+    end
   end
+  
 
   get "/signup" do
     erb :signup
@@ -1178,23 +1177,36 @@ class MemeExplorer < Sinatra::Base
   # User Profile & Features
   # -----------------------
   get "/profile" do
-    halt 401, "Not logged in" unless session[:user_id]
-
-    @user = get_user(session[:user_id])
-    @saved_memes = get_user_saved_memes(session[:user_id])
-    
-    # Get user's liked memes from user_meme_stats
-    @liked_memes = DB.execute(
-      "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
-      [session[:user_id]]
-    ).map { |row| row.transform_keys(&:to_s) }
-    
+    # Check session safely
+    user_id = session[:user_id] rescue nil
+    halt 401, "Not logged in" unless user_id
+  
+    # Wrap Redis or DB calls in safe error handling
+    begin
+      @user = get_user(user_id)
+      @saved_memes = get_user_saved_memes(user_id)
+      
+      # Get user's liked memes from user_meme_stats
+      @liked_memes = DB.execute(
+        "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
+        [user_id]
+      ).map { |row| row.transform_keys(&:to_s) }
+  
+    rescue => e
+      # Log the error but allow page to render
+      puts "Error fetching memes for user #{user_id}: #{e.message}"
+      @user ||= nil
+      @saved_memes ||= []
+      @liked_memes ||= []
+    end
+  
     # Count stats
     @saved_count = @saved_memes.size
     @liked_count = @liked_memes.size
-
+  
     erb :profile
   end
+  
 
   post "/api/save-meme" do
     halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
