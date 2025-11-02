@@ -69,21 +69,11 @@ class MemeExplorer < Sinatra::Base
     set :server, :puma
     enable :sessions
     set :session_secret, ENV.fetch("SESSION_SECRET", "fallback-secret-key-default")
-    
-    # Use Redis for sessions if available, otherwise fall back to cookies
-    if REDIS
-      use Rack::Session::Redis, {
-        redis: REDIS,
-        key: 'meme_explorer.session',
-        expire_after: 60 * 60 * 24 * 30  # 30 days
-      }
-    else
-      set :cookie_options, {
-        secure: true,
-        httponly: true,
-        same_site: :lax
-      }
-    end
+    set :cookie_options, {
+      secure: true,
+      httponly: true,
+      same_site: :lax
+    }
   end
 
   # OAuth2 Reddit Configuration
