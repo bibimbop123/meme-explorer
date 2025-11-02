@@ -1358,30 +1358,69 @@ class MemeExplorer < Sinatra::Base
   end
   
   get "/random.json" do
-    @meme = navigate_meme(direction: "random")
-    halt 404, { error: "No memes found" }.to_json if @meme.nil?
-  
+    # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
+    # This fixes the OAuth issue where new users only saw local memes
+    memes = random_memes_pool
+    halt 404, { error: "No memes found" }.to_json if memes.empty?
+    
+    # Track in session history and pick from pool
+    session[:meme_history] ||= []
+    session[:last_subreddit] ||= nil
+    last_meme_url = session[:meme_history].last
+    
+    # Find a new meme that's different from last shown
+    @meme = nil
+    attempts = 0
+    max_attempts = [memes.size, 30].min
+    
+    while attempts < max_attempts
+      candidate = memes.sample
+      candidate_id = candidate["url"] || candidate["file"]
+      
+      if candidate_id && candidate_id != last_meme_url
+        @meme = candidate
+        break
+      end
+      attempts += 1
+    end
+    
+    halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
+    
+    # Track in session history
+    meme_identifier = @meme["url"] || @meme["file"]
+    session[:meme_history] << meme_identifier
+    session[:meme_history] = session[:meme_history].last(100)
+    session[:last_subreddit] = @meme["subreddit"]&.downcase
+    
     image_url = @meme["url"] || @meme["file"]
-  
+    
     reddit_path = nil
     if @meme["reddit_post_urls"]&.is_a?(Array)
       post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
       reddit_path = post_url
     end
-  
+    
     # Try to get permalink from meme
     if !reddit_path && @meme["permalink"].to_s.strip != ""
       reddit_path = @meme["permalink"]
     end
-  
+    
     # Strip domain if full URL
     if reddit_path&.start_with?("http")
       uri = URI.parse(reddit_path)
       reddit_path = uri.path
     end
-  
-    puts "DEBUG /random.json - meme: #{@meme["title"]}, permalink: #{@meme["permalink"].inspect}, reddit_path: #{reddit_path.inspect}"
-  
+    
+    # Track view in meme_stats if it's an API meme (not local file)
+    if !image_url.start_with?("/")
+      meme_title = @meme["title"] || "Unknown"
+      meme_subreddit = @meme["subreddit"] || "reddit"
+      DB.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+        [image_url, meme_title, meme_subreddit]
+      ) rescue nil
+    end
+    
     content_type :json
     {
       title: @meme["title"],

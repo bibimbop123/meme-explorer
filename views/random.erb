@@ -163,26 +163,40 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.goNext = async function() {
-    if (window.isNavigating) return;
+    // Prevent rapid simultaneous requests on mobile
+    if (window.isNavigating) {
+      console.warn("Navigation already in progress");
+      return;
+    }
     
     window.isNavigating = true;
     historyStack.push(currentMeme);
     showLoadingOverlay();
     
     try {
-      const res = await fetch("/random.json");
-      if (!res.ok) throw new Error("Failed to fetch meme");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const res = await fetch("/random.json", { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch meme`);
+      
       const meme = await res.json();
+      if (!meme || !meme.url) throw new Error("Invalid meme data received");
+      
       meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
       hideLoadingOverlay();
     } catch(err) {
-      console.error(err);
+      console.error("Navigation error:", err);
       historyStack.pop();
       hideLoadingOverlay();
+      // Show error to user but allow retry
+      alert("Unable to load next meme. Please try again.");
+    } finally {
+      window.isNavigating = false;
     }
-    
-    window.isNavigating = false;
   };
   
   window.showLoadingOverlay = function() {
@@ -206,8 +220,14 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.goPrevious = function() {
+    // Prevent rapid clicks
+    if (window.isNavigating) return;
+    
     if (historyStack.length > 0) {
+      window.isNavigating = true;
       updateMeme(historyStack.pop());
+      // Reset navigation flag quickly for previous since it's instant
+      setTimeout(() => { window.isNavigating = false; }, 100);
     }
   };
 
@@ -217,6 +237,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.shiftKey) window.goPrevious(); else window.goNext();
     }
   });
+
+  // Initialize navigation flag
+  window.isNavigating = false;
+  window.loadingMessages = [
+    "Finding the best memes for you...",
+    "Searching the meme vaults...",
+    "Assembling your entertainment...",
+    "Loading the good stuff...",
+    "Gathering the laughs..."
+  ];
+  window.messageIndex = 0;
 });
 
 window.toggleSaveMeme = function() {
