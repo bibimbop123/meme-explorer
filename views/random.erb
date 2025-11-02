@@ -9,11 +9,13 @@
 
   <img
     id="meme-img"
-    src="<%= @image_src || '/images/funny1.jpeg' %>"
+    src="<%= @meme["url"] || '/images/funny1.jpeg' %>"
     alt="<%= @meme["title"] || 'Meme Image' %>"
     onerror="handleImageError(this);"
     style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 1em;"
   >
+
+
 
   <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
     <input type="hidden" name="url" value="<%= @image_src || '' %>">
@@ -25,8 +27,12 @@
     >
       <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
     </button>
+    <% if @meme['permalink'] %>
+      <a href="https://www.reddit.com<%= @meme['permalink'] %>" target="_blank" rel="noopener noreferrer" style="padding: 0.75em 1.5em; border-radius: 8px; background: #4caf50; color: white; text-decoration: none; font-weight: bold; transition: 0.2s;">
+        View on Reddit
+      </a>
+    <% end %>
   </form>
-
 </div>
 <% else %>
 <p style="text-align: center; margin-top: 50px; font-size: 18px;">Loading memes...</p>
