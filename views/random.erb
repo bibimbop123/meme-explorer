@@ -33,6 +33,7 @@
             onclick="window.goPrevious()"
             style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #2196F3; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
       ⬅️ Previous
+      <div style="font-size: 0.7rem; margin-top: 0.3em; opacity: 0.9;">Shift+Space</div>
     </button>
 
     <form class="like-form" action="/like" method="POST" style="display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
@@ -65,9 +66,26 @@
             onclick="window.goNext()"
             style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #ff9800; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
       Next ➡️
+      <div style="font-size: 0.7rem; margin-top: 0.3em; opacity: 0.9;">Space</div>
     </button>
   </div>
-</div>
+  </div>
+
+  <!-- Keyboard Shortcuts Reference -->
+  <div style="margin-top: 2em; padding: 1em; background: #f5f5f5; border-radius: 8px; text-align: center;">
+    <button id="keyboard-help-toggle" type="button" onclick="toggleKeyboardHelp()" 
+            style="background: none; border: none; color: #666; cursor: pointer; font-size: 0.9rem; text-decoration: underline; padding: 0; margin-bottom: 0.5em;">
+      ⌨️ Keyboard Shortcuts
+    </button>
+    <div id="keyboard-help" style="display: none; font-size: 0.85rem; color: #666; line-height: 1.6;">
+      <p><strong>🎮 Quick Controls:</strong></p>
+      <p>
+        <span style="background: #ddd; padding: 0.2em 0.5em; border-radius: 3px; margin-right: 0.5em;">Space</span> Next Meme
+        <br>
+        <span style="background: #ddd; padding: 0.2em 0.5em; border-radius: 3px; margin-right: 0.5em;">Shift+Space</span> Previous Meme
+      </p>
+    </div>
+  </div>
 <% else %>
 <div style="text-align: center; margin-top: 50px; font-size: 18px;">
   <p>Loading memes...</p>
@@ -239,6 +257,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.shiftKey) window.goPrevious(); else window.goNext();
     }
   });
+
+  window.toggleKeyboardHelp = function() {
+    const helpDiv = document.getElementById("keyboard-help");
+    const toggle = document.getElementById("keyboard-help-toggle");
+    if (helpDiv.style.display === "none") {
+      helpDiv.style.display = "block";
+      toggle.textContent = "⌨️ Keyboard Shortcuts ▼";
+    } else {
+      helpDiv.style.display = "none";
+      toggle.textContent = "⌨️ Keyboard Shortcuts";
+    }
+  };
 
   // Initialize navigation flag
   window.isNavigating = false;

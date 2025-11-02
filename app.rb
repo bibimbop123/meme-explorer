@@ -1539,13 +1539,99 @@ class MemeExplorer < Sinatra::Base
   
   
 
+  # Smart Hybrid Search: Cache → API (if needed) → DB/YAML Fallback
+  def search_memes(query)
+    return [] unless query
+    query_lower = query.downcase.strip
+    return [] if query_lower.empty?
+    
+    # Tier 1: Search in-memory cache (instant, fresh Reddit memes)
+    cache_results = (MEME_CACHE[:memes] || []).select do |m|
+      (m["title"]&.downcase&.include?(query_lower) ||
+       m["subreddit"]&.downcase&.include?(query_lower))
+    end
+    
+    # Tier 2: If too few results, hit API for niche queries
+    if cache_results.size < 3
+      api_results = (fetch_reddit_memes(POPULAR_SUBREDDITS, 30) rescue []).select do |m|
+        m["title"]&.downcase&.include?(query_lower) ||
+        m["subreddit"]&.downcase&.include?(query_lower)
+      end
+      cache_results = (cache_results + api_results).uniq { |m| m["url"] }
+    end
+    
+    # Tier 3: Fall back to DB + YAML if still empty
+    if cache_results.empty?
+      db_results = (DB.execute("SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE", ["%#{query_lower}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
+      yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
+      cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
+    end
+    
+    # Rank results: exact match > title match > subreddit match, then by engagement
+    ranked = cache_results.sort_by do |m|
+      title = m["title"]&.downcase || ""
+      subreddit = m["subreddit"]&.downcase || ""
+      likes = m["likes"].to_i
+      views = m["views"].to_i
+      
+      exact_match = title == query_lower ? 0 : 1
+      title_match = title.include?(query_lower) ? 0 : 1
+      subreddit_match = subreddit.include?(query_lower) ? 2 : 3
+      engagement = -(likes * 2 + views) # Negative to sort descending
+      
+      [exact_match, title_match, subreddit_match, engagement]
+    end
+    
+    ranked
+  end
+
   get "/search" do
-    query = params[:q]&.downcase
-    memes = (DB.execute("SELECT * FROM meme_stats").map { |r| r.transform_keys(&:to_s) } + flatten_memes)
-            .uniq { |m| m["url"] || m["file"] }
-            .select { |m| m["title"].to_s.downcase.include?(query.to_s) }
+    query = params[:q]
+    
+    if request.accept.include?("application/json")
+      # JSON API endpoint
+      results = search_memes(query)
+      content_type :json
+      {
+        query: query,
+        results: results.map { |m| {
+          title: m["title"],
+          url: m["url"] || m["file"],
+          file: m["file"],
+          subreddit: m["subreddit"],
+          likes: m["likes"].to_i,
+          views: m["views"].to_i,
+          source: m["file"] ? "local" : "reddit"
+        }},
+        total: results.size
+      }.to_json
+    else
+      # HTML view
+      @results = search_memes(query)
+      @query = query
+      erb :search
+    end
+  end
+  
+  get "/api/search.json" do
+    query = params[:q]
+    results = search_memes(query)
+    
     content_type :json
-    memes.to_json
+    {
+      query: query,
+      results: results.map { |m| {
+        title: m["title"],
+        url: m["url"] || m["file"],
+        file: m["file"],
+        subreddit: m["subreddit"],
+        likes: m["likes"].to_i,
+        views: m["views"].to_i,
+        source: m["file"] ? "local" : "reddit",
+        engagement_score: (m["likes"].to_i * 2 + m["views"].to_i)
+      }},
+      total: results.size
+    }.to_json
   end
 
   get "/metrics.json" do
