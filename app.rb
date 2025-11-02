@@ -68,7 +68,8 @@ class MemeExplorer < Sinatra::Base
   configure do
     set :server, :puma
     enable :sessions
-    set :session_secret, ENV.fetch("SESSION_SECRET")
+    set :session_secret, ENV.fetch("SESSION_SECRET", "fallback-secret-key-#{Time.now.to_i}")
+    set :session_store, Rack::Session::Cookie
   end
 
   # OAuth2 Reddit Configuration
@@ -857,12 +858,16 @@ class MemeExplorer < Sinatra::Base
       # Create or find user
       user_id = create_or_find_user(reddit_username, reddit_id, nil)
       
+      puts "OAuth: Setting session - user_id=#{user_id}, username=#{reddit_username}"
+      
       # Set session
       session[:user_id] = user_id
       session[:reddit_username] = reddit_username
       session[:reddit_token] = token.token
+      
+      puts "OAuth: Session after set - user_id=#{session[:user_id]}, username=#{session[:reddit_username]}"
 
-      redirect "/profile"
+      redirect "/profile", 302
     rescue => e
       puts "OAuth Error: #{e.class}: #{e.message}"
       halt 400, "OAuth authentication failed: #{e.message}"
