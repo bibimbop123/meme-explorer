@@ -789,7 +789,7 @@ class MemeExplorer < Sinatra::Base
       redirect_uri: redirect_uri,
       response_type: "code",
       state: SecureRandom.hex(16),
-      scope: "read",
+      scope: "identity read",
       duration: "permanent"
     )
   end
