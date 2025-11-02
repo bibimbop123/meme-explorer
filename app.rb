@@ -96,24 +96,72 @@ class MemeExplorer < Sinatra::Base
     end
   end
 
-  # Background cache refresh - 60 second interval (non-blocking)
+  # Background cache refresh - OAuth2 with fallback to local memes (60 second interval, non-blocking)
   Thread.new do
-    sleep 5  # Wait for app to fully start
+    sleep 10  # Wait for app to fully start
     loop do
       begin
-        reddit_token = REDIS&.get("reddit:access_token") rescue nil
+        # Always start with local memes as fallback
+        local_memes = begin
+          yaml_data = YAML.load_file("data/memes.yml")
+          if yaml_data.is_a?(Hash)
+            yaml_data.values.flatten.compact
+          else
+            yaml_data || []
+          end
+        rescue
+          []
+        end
+
+        if REDDIT_OAUTH_CLIENT_ID.to_s.strip.empty? || REDDIT_OAUTH_CLIENT_SECRET.to_s.strip.empty?
+          puts "⚠️ Missing Reddit OAuth credentials - using local memes only"
+          MEME_CACHE[:memes] = local_memes.shuffle
+          MEME_CACHE[:last_refresh] = Time.now
+          sleep 60
+          next
+        end
+
+        puts "🔄 Getting OAuth2 token for meme fetch..."
+        client = OAuth2::Client.new(
+          REDDIT_OAUTH_CLIENT_ID,
+          REDDIT_OAUTH_CLIENT_SECRET,
+          site: "https://www.reddit.com",
+          authorize_url: "/api/v1/authorize",
+          token_url: "/api/v1/access_token"
+        )
+
+        token = client.client_credentials.get_token(scope: "read")
+        puts "✅ Got OAuth2 token for authenticated API"
+
+        meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS, 30) rescue []
+        puts "✓ Fetched #{meme_pool.size} memes via OAuth2"
+
+        validated = meme_pool.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
         
-        if reddit_token
-          meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(reddit_token, POPULAR_SUBREDDITS, 25) rescue []
+        if validated.empty?
+          puts "⚠️ No valid memes from API - falling back to local memes"
+          MEME_CACHE[:memes] = local_memes.shuffle
+          MEME_CACHE[:rate_limit_reset] = Time.now + 3600
         else
-          meme_pool = MemeExplorer.fetch_reddit_memes_static(POPULAR_SUBREDDITS, 25) rescue []
+          # Combine fresh API memes with local fallback
+          all_memes = (validated + local_memes).uniq { |m| m["url"] }
+          MEME_CACHE[:memes] = all_memes.shuffle
+          MEME_CACHE[:rate_limit_reset] = nil
+          puts "✅ Cache updated with #{validated.size} API memes + #{local_memes.size} local memes"
         end
         
-        validated = meme_pool.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
-        MEME_CACHE[:memes] = validated.shuffle unless validated.empty?
+        MEME_CACHE[:last_refresh] = Time.now
+      rescue OAuth2::Error => e
+        puts "❌ OAuth2 error: #{e.message} - falling back to local memes"
+        local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
+        MEME_CACHE[:memes] = local_memes.shuffle
+        MEME_CACHE[:rate_limit_reset] = Time.now + 3600
         MEME_CACHE[:last_refresh] = Time.now
       rescue => e
-        # Silent fail - continue with cached memes
+        puts "❌ Refresh error: #{e.class}: #{e.message}"
+        local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
+        MEME_CACHE[:memes] = local_memes.shuffle
+        MEME_CACHE[:last_refresh] = Time.now
       end
       sleep 60
     end
