@@ -1,0 +1,60 @@
+<% if @meme && @meme.is_a?(Hash) && @meme["title"] %>
+<div class="meme-single" style="width: 100%; max-width: 800px; margin: 0 auto;">
+  <h2 id="meme-title" style="margin: 0.5em 0; word-wrap: break-word;">
+    <%= @meme["title"] || "Untitled Meme" %>
+  </h2>
+  <p id="meme-subreddit" class="meme-subtitle" style="margin: 0.25em 0 1em;">
+    <%= @meme["subreddit"] || "Unknown Subreddit" %>
+  </p>
+
+  <img
+    id="meme-img"
+    src="<%= @image_src || '/images/funny1.jpeg' %>"
+    alt="<%= @meme["title"] || 'Meme Image' %>"
+    style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 0.5em;"
+  >
+
+  <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
+    <input type="hidden" name="url" value="<%= @image_src || '' %>">
+    <span style="font-weight: bold; white-space: nowrap;">Likes: <span class="meme-likes"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "0" %></span></span>
+    <button
+      type="submit"
+      class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
+    >
+      <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
+    </button>
+    <button
+      type="button"
+      onclick="unsaveMeme(<%= @saved_meme_id %>)"
+      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #d9534f; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
+    >
+      🗑️ Remove from Saved
+    </button>
+  </form>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <a href="/profile" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Profile</a>
+  </div>
+</div>
+<% else %>
+<p style="text-align: center; margin-top: 50px; font-size: 18px;">Meme not found...</p>
+<% end %>
+
+<script>
+function unsaveMeme(savedId) {
+  const url = document.querySelector("input[name='url']").value;
+  
+  fetch("/api/unsave-meme", {
+    method: "POST",
+    body: new URLSearchParams({ url: url }),
+    headers: { "Accept": "application/json" }
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert("Meme removed from saved!");
+    window.location.href = "/profile";
+  })
+  .catch(err => alert("Error: " + err));
+}
+</script>

@@ -1,0 +1,35 @@
+<div style="max-width: 1000px; margin: 30px auto; padding: 20px;">
+  <h1>My Profile</h1>
+  
+  <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
+    <p><strong>Email:</strong> <%= @user["email"] %></p>
+    <p><strong>Member Since:</strong> <%= @user["created_at"] %></p>
+    <hr>
+    <p>📌 <strong><%= @stats[:saved_count] %></strong> memes saved</p>
+    <p>❤️ <strong><%= @stats[:liked_count] %></strong> memes liked this session</p>
+  </div>
+
+  <h2>My Saved Memes</h2>
+  
+  <% if @saved_memes.empty? %>
+    <p style="text-align: center; color: #999;">No saved memes yet. Start saving!</p>
+  <% else %>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;">
+      <% @saved_memes.each do |saved| %>
+        <div style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s;" onclick="window.location.href='/saved/<%= saved["id"] %>'">
+          <img src="<%= saved["meme_url"] %>" alt="<%= saved["meme_title"] %>" style="width: 100%; height: 200px; object-fit: cover;">
+          <div style="padding: 10px;">
+            <p style="margin: 0; font-size: 0.9rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><%= saved["meme_title"] %></p>
+            <p style="margin: 5px 0 0 0; font-size: 0.8rem; color: #666;">r/<%= saved["meme_subreddit"] %></p>
+            <p style="margin: 5px 0 0 0; font-size: 0.75rem; color: #999;">Saved: <%= saved["saved_at"] %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div style="margin-top: 30px;">
+    <a href="/random" style="padding: 10px 20px; background: #e52e71; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Browse Memes</a>
+    <a href="/logout" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-left: 10px;">Logout</a>
+  </div>
+</div>

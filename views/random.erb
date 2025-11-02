@@ -30,6 +30,8 @@
 
   <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
     <input type="hidden" name="url" value="<%= @image_src %>">
+    <input type="hidden" name="title" value="<%= @meme["title"] %>">
+    <input type="hidden" name="subreddit" value="<%= @meme["subreddit"] %>">
     <span style="font-weight: bold; white-space: nowrap;">
       Likes: <span class="meme-likes"><%= @likes.to_i > 0 ? @likes.to_i : "0" %></span>
     </span>
@@ -38,6 +40,18 @@
             style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
       <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
     </button>
+    <% if session[:user_id] %>
+      <button type="button"
+              id="save-btn"
+              onclick="toggleSaveMeme()"
+              style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #4caf50; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
+        📌 Save
+      </button>
+    <% else %>
+      <a href="/login" style="padding: 0.75em 1.5em; border-radius: 8px; background: #999; color: white; text-decoration: none; font-weight: bold; cursor: pointer; font-size: 0.95rem;">
+        Login to Save
+      </a>
+    <% end %>
   </form>
 </div>
 <% else %>
@@ -159,4 +173,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+window.toggleSaveMeme = function() {
+  const url = document.querySelector("input[name='url']").value;
+  const title = document.querySelector("input[name='title']").value;
+  const subreddit = document.querySelector("input[name='subreddit']").value;
+  const saveBtn = document.getElementById("save-btn");
+
+  fetch("/api/save-meme", {
+    method: "POST",
+    body: new URLSearchParams({ url: url, title: title, subreddit: subreddit }),
+    headers: { "Accept": "application/json" }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.saved) {
+      alert("Meme saved! ✅");
+      saveBtn.style.background = "#2196F3";
+      saveBtn.textContent = "✅ Saved";
+      saveBtn.disabled = true;
+    }
+  })
+  .catch(err => alert("Error: " + err));
+};
 </script>

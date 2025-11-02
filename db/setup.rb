@@ -31,6 +31,8 @@ DB.execute <<-SQL
     reddit_id TEXT UNIQUE,
     reddit_username TEXT,
     reddit_email TEXT,
+    email TEXT UNIQUE,
+    password_hash TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );

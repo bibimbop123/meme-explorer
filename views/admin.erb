@@ -1,0 +1,65 @@
+<div style="max-width: 1200px; margin: 30px auto; padding: 20px;">
+  <h1>🔒 Admin Dashboard</h1>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center;">
+      <p style="margin: 0; color: #666; font-size: 0.9rem;">Total Memes</p>
+      <h3 style="margin: 10px 0 0 0;"><%= @total_memes %></h3>
+    </div>
+    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center;">
+      <p style="margin: 0; color: #666; font-size: 0.9rem;">Total Likes</p>
+      <h3 style="margin: 10px 0 0 0;"><%= @total_likes %></h3>
+    </div>
+    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center;">
+      <p style="margin: 0; color: #666; font-size: 0.9rem;">Total Users</p>
+      <h3 style="margin: 10px 0 0 0;"><%= @total_users %></h3>
+    </div>
+    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center;">
+      <p style="margin: 0; color: #666; font-size: 0.9rem;">Saved Memes</p>
+      <h3 style="margin: 10px 0 0 0;"><%= @total_saved_memes %></h3>
+    </div>
+  </div>
+
+  <h2>Top 10 Memes by Likes</h2>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+    <thead>
+      <tr style="background: #e52e71; color: white;">
+        <th style="padding: 10px; text-align: left;">Title</th>
+        <th style="padding: 10px;">Subreddit</th>
+        <th style="padding: 10px;">Likes</th>
+        <th style="padding: 10px;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @top_memes.each do |meme| %>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px;"><%= meme["title"] %></td>
+          <td style="padding: 10px; text-align: center;">r/<%= meme["subreddit"] %></td>
+          <td style="padding: 10px; text-align: center;"><%= meme["likes"] %></td>
+          <td style="padding: 10px; text-align: center;">
+            <button onclick="deleteMeme('<%= meme["url"] %>')" style="padding: 5px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete</button>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <div>
+    <a href="/random" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Memes</a>
+    <a href="/logout" style="padding: 10px 20px; background: #666; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-left: 10px;">Logout</a>
+  </div>
+</div>
+
+<script>
+function deleteMeme(url) {
+  if (confirm("Delete this meme?")) {
+    fetch("/admin/meme/" + encodeURIComponent(url), { method: "DELETE" })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        location.reload();
+      })
+      .catch(err => alert("Error: " + err));
+  }
+}
+</script>

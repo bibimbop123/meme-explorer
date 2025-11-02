@@ -156,6 +156,16 @@
       <a href="/trending">Trending</a>
       <a href="/metrics">📈 Metrics</a>
       <a href="/random">Random 🎲</a>
+      <% if session[:user_id] %>
+        <a href="/profile">👤 Profile</a>
+        <% if session[:reddit_username] == "brianhkim13@gmail.com" %>
+          <a href="/admin" style="background: #ff6b00;">🔒 Admin</a>
+        <% end %>
+        <a href="/logout">🚪 Logout</a>
+      <% else %>
+        <a href="/login">Login</a>
+        <a href="/signup">Sign Up</a>
+      <% end %>
     </nav>
   </header>
 

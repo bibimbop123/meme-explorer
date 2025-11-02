@@ -16,6 +16,7 @@ require "thread"
 require "ostruct"
 require "oauth2"
 require "httparty"
+require "bcrypt"
 require 'dotenv/load'
 
 
@@ -324,9 +325,91 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # Helpers
+  # Auth Helpers
   # -----------------------
   helpers do
+    # Hash password with bcrypt
+    def hash_password(password)
+      BCrypt::Password.create(password)
+    end
+
+    # Verify password
+    def verify_password(password, hash)
+      BCrypt::Password.new(hash) == password
+    end
+
+    # Create or find user
+    def create_or_find_user(reddit_username, reddit_id, reddit_email)
+      existing = DB.execute("SELECT id FROM users WHERE reddit_id = ?", [reddit_id]).first
+      return existing["id"] if existing
+
+      DB.execute(
+        "INSERT INTO users (reddit_id, reddit_username, reddit_email) VALUES (?, ?, ?)",
+        [reddit_id, reddit_username, reddit_email]
+      )
+      DB.last_insert_row_id
+    end
+
+    # Create email/password user
+    def create_email_user(email, password)
+      hashed = hash_password(password)
+      DB.execute(
+        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+        [email, hashed]
+      )
+      DB.last_insert_row_id
+    rescue SQLite3::ConstraintException
+      nil
+    end
+
+    # Find user by email
+    def find_user_by_email(email)
+      DB.execute("SELECT id, password_hash FROM users WHERE email = ?", [email]).first
+    end
+
+    # Get user by ID
+    def get_user(user_id)
+      DB.execute("SELECT id, reddit_username, email, created_at FROM users WHERE id = ?", [user_id]).first
+    end
+
+    # Check if admin
+    def is_admin?
+      session[:user_id] && session[:reddit_username] == "brianhkim13@gmail.com"
+    end
+
+    # Get user saved memes
+    def get_user_saved_memes(user_id)
+      DB.execute("SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC", [user_id])
+    end
+
+    # Save meme for user
+    def save_meme(user_id, meme_url, meme_title, meme_subreddit)
+      DB.execute(
+        "INSERT OR IGNORE INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit) VALUES (?, ?, ?, ?)",
+        [user_id, meme_url, meme_title, meme_subreddit]
+      )
+    end
+
+    # Unsave meme
+    def unsave_meme(user_id, meme_url)
+      DB.execute("DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ?", [user_id, meme_url])
+    end
+
+    # Check if meme is saved by user
+    def is_meme_saved?(user_id, meme_url)
+      DB.execute("SELECT id FROM saved_memes WHERE user_id = ? AND meme_url = ?", [user_id, meme_url]).first
+    end
+
+    # Get user stats
+    def get_user_stats(user_id)
+      saved_count = DB.get_first_value("SELECT COUNT(*) FROM saved_memes WHERE user_id = ?", [user_id]).to_i
+      liked_count = session[:liked_memes]&.size || 0
+      { saved_count: saved_count, liked_count: liked_count }
+    end
+
+  # -----------------------
+  # Helpers (continued)
+  # -----------------------
     # Safely get meme image
     def meme_image_src(m)
       return "/images/funny1.jpeg" unless m.is_a?(Hash)
@@ -1042,7 +1125,137 @@ class MemeExplorer < Sinatra::Base
   
     erb :metrics
   end
-  
+
+  # -----------------------
+  # Authentication Routes
+  # -----------------------
+  get "/login" do
+    erb :login
+  end
+
+  post "/login" do
+    email = params[:email]
+    password = params[:password]
+
+    user = find_user_by_email(email)
+    halt 401, "Invalid email or password" unless user && verify_password(password, user["password_hash"])
+
+    session[:user_id] = user["id"]
+    session[:email] = email
+    redirect "/profile"
+  end
+
+  get "/signup" do
+    erb :signup
+  end
+
+  post "/signup" do
+    email = params[:email]
+    password = params[:password]
+    password_confirm = params[:password_confirm]
+
+    halt 400, "Passwords do not match" if password != password_confirm
+    halt 400, "Email and password required" if email.to_s.strip.empty? || password.to_s.strip.empty?
+
+    user_id = create_email_user(email, password)
+    halt 400, "Email already in use" unless user_id
+
+    session[:user_id] = user_id
+    session[:email] = email
+    redirect "/profile"
+  end
+
+  get "/logout" do
+    session.clear
+    redirect "/"
+  end
+
+  # -----------------------
+  # User Profile & Features
+  # -----------------------
+  get "/profile" do
+    halt 401, "Not logged in" unless session[:user_id]
+
+    @user = get_user(session[:user_id])
+    @saved_memes = get_user_saved_memes(session[:user_id])
+    @stats = get_user_stats(session[:user_id])
+
+    erb :profile
+  end
+
+  post "/api/save-meme" do
+    halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+
+    url = params[:url]
+    title = params[:title]
+    subreddit = params[:subreddit]
+
+    halt 400, { error: "URL required" }.to_json unless url
+
+    save_meme(session[:user_id], url, title, subreddit)
+
+    content_type :json
+    { saved: true, message: "Meme saved" }.to_json
+  end
+
+  post "/api/unsave-meme" do
+    halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+
+    url = params[:url]
+    halt 400, { error: "URL required" }.to_json unless url
+
+    unsave_meme(session[:user_id], url)
+
+    content_type :json
+    { unsaved: true, message: "Meme unsaved" }.to_json
+  end
+
+  get "/saved/:id" do
+    saved_id = params[:id].to_i
+    saved_meme = DB.execute("SELECT * FROM saved_memes WHERE id = ?", [saved_id]).first
+
+    halt 404, "Meme not found" unless saved_meme
+
+    @meme = {
+      "title" => saved_meme["meme_title"],
+      "url" => saved_meme["meme_url"],
+      "subreddit" => saved_meme["meme_subreddit"]
+    }
+    @image_src = saved_meme["meme_url"]
+    @likes = get_meme_likes(@image_src)
+    @saved_meme_id = saved_id
+
+    erb :saved_meme
+  end
+
+  # -----------------------
+  # Admin Routes
+  # -----------------------
+  get "/admin" do
+    halt 403, "Forbidden" unless is_admin?
+
+    @total_memes = DB.get_first_value("SELECT COUNT(*) FROM meme_stats").to_i
+    @total_likes = DB.get_first_value("SELECT SUM(likes) FROM meme_stats").to_i
+    @total_users = DB.get_first_value("SELECT COUNT(*) FROM users").to_i
+    @total_saved_memes = DB.get_first_value("SELECT COUNT(*) FROM saved_memes").to_i
+    @top_memes = DB.execute("SELECT title, url, likes, subreddit FROM meme_stats ORDER BY likes DESC LIMIT 10")
+
+    erb :admin
+  end
+
+  delete "/admin/meme/:url" do
+    halt 403, "Forbidden" unless is_admin?
+
+    url = params[:url]
+    halt 400, "URL required" unless url
+
+    DB.execute("DELETE FROM meme_stats WHERE url = ?", [url])
+    DB.execute("DELETE FROM saved_memes WHERE meme_url = ?", [url])
+
+    content_type :json
+    { deleted: true, message: "Meme deleted" }.to_json
+  end
+
   
   # -----------------------
   # Start server

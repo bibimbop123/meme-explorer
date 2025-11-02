@@ -24,6 +24,7 @@ gem "rack-attack"
 
 # Authentication
 gem "oauth2", "~> 2.0"
+gem "bcrypt", "~> 3.1" # Password hashing
 
 # Scheduling
 gem "whenever", require: false
