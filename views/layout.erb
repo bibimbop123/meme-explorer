@@ -281,14 +281,11 @@
         }
       });
 
-      prevBtn?.addEventListener("click", () => fetchMeme("prev"));
-      nextBtn?.addEventListener("click", () => fetchMeme("next"));
-
-      document.addEventListener("keydown", (e) => {
-        if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
-          e.preventDefault();
-          fetchMeme("next");
-        }
+      prevBtn?.addEventListener("click", () => {
+        if (window.goPrevious) window.goPrevious();
+      });
+      nextBtn?.addEventListener("click", () => {
+        if (window.goNext) window.goNext();
       });
     });
   </script>
