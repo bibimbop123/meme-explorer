@@ -1,30 +1,31 @@
 <% if @meme && @meme.is_a?(Hash) && @meme["title"] %>
-<div class="meme-single">
-  <h2 id="meme-title"><%= @meme["title"] || "Untitled Meme" %></h2>
-  <p id="meme-subreddit" class="meme-subtitle"><%= @meme["subreddit"] || "Unknown Subreddit" %></p>
+<div class="meme-single" style="width: 100%; max-width: 800px; margin: 0 auto;">
+  <h2 id="meme-title" style="margin: 0.5em 0; word-wrap: break-word;">
+    <%= @meme["title"] || "Untitled Meme" %>
+  </h2>
+  <p id="meme-subreddit" class="meme-subtitle" style="margin: 0.25em 0 1em;">
+    <%= @meme["subreddit"] || "Unknown Subreddit" %>
+  </p>
 
   <img
     id="meme-img"
     src="<%= @image_src || '/images/funny1.jpeg' %>"
     alt="<%= @meme["title"] || 'Meme Image' %>"
     onerror="handleImageError(this);"
+    style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 1em;"
   >
 
-  <form class="like-form" action="/like" method="POST" style="margin-top:10px; display: flex; justify-content: center; gap: 1em;">
+  <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
     <input type="hidden" name="url" value="<%= @image_src || '' %>">
-    <p style="margin: 0; font-weight: bold;">Likes: <span class="meme-likes"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "" %></span></p>
+    <span style="font-weight: bold; white-space: nowrap;">Likes: <span class="meme-likes"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "0" %></span></span>
     <button
       type="submit"
       class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
-      style="padding: 0.5em 1em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s;"
+      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
     >
       <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
     </button>
   </form>
-
-  <p style="margin-top: 20px; font-size: 12px; color: #666; text-align: center;">
-    💡 Press <strong>Space</strong> for Next or click buttons
-  </p>
 
 </div>
 <% else %>
