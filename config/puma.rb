@@ -38,11 +38,3 @@ on_worker_boot do
     Object.const_set(:DB, Sequel.connect(ENV['DATABASE_URL']))
   end
 end
-
-# On fork event - runs each time a worker forks
-on_fork do
-  # Reconnect to Redis
-  if defined?(Redis)
-    Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')).ping
-  end
-end
