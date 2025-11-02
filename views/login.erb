@@ -1,25 +1,90 @@
-<div style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-  <h2 style="text-align: center; margin-bottom: 30px;">Login</h2>
-  
-  <form method="post" action="/login">
-    <div style="margin-bottom: 15px;">
-      <label for="email" style="display: block; margin-bottom: 5px; font-weight: bold;">Email</label>
-      <input type="email" id="email" name="email" placeholder="your@email.com" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+<div style="min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; padding: 20px;">
+  <div style="width: 100%; max-width: 450px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+    
+    <!-- Header with branding -->
+    <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center; color: white;">
+      <h1 style="margin: 0 0 10px; font-size: 32px; font-weight: 700;">🎪 Meme Explorer</h1>
+      <p style="margin: 0; font-size: 14px; opacity: 0.95;">Discover the best memes from Reddit</p>
     </div>
 
-    <div style="margin-bottom: 20px;">
-      <label for="password" style="display: block; margin-bottom: 5px; font-weight: bold;">Password</label>
-      <input type="password" id="password" name="password" placeholder="Your password" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+    <!-- Content -->
+    <div style="padding: 40px 30px;">
+      
+      <!-- Value Proposition -->
+      <div style="margin-bottom: 30px; text-align: center;">
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+          💾 <strong>Save favorites</strong> • ❤️ <strong>Like memes</strong> • 📊 <strong>Track stats</strong>
+        </p>
+      </div>
+
+      <!-- Reddit OAuth Button (Primary) -->
+      <form method="get" action="/auth/reddit" style="margin-bottom: 25px;">
+        <button type="submit" style="width: 100%; padding: 14px; background: #FF4500; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);"
+                onmouseover="this.style.background='#e63d00'; this.style.boxShadow='0 6px 20px rgba(255, 69, 0, 0.4)';"
+                onmouseout="this.style.background='#FF4500'; this.style.boxShadow='0 4px 15px rgba(255, 69, 0, 0.3)';">
+          🔗 Login with Reddit
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div style="display: flex; align-items: center; margin: 30px 0; gap: 10px;">
+        <div style="flex: 1; height: 1px; background: #eee;"></div>
+        <span style="color: #999; font-size: 12px; font-weight: 600;">OR</span>
+        <div style="flex: 1; height: 1px; background: #eee;"></div>
+      </div>
+
+      <!-- Email/Password Form (Secondary) -->
+      <form method="post" action="/login">
+        <div style="margin-bottom: 18px;">
+          <label for="email" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 14px;">Email Address</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" required 
+                 style="width: 100%; padding: 12px 14px; box-sizing: border-box; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;"
+                 onfocus="this.style.borderColor='#667eea';"
+                 onblur="this.style.borderColor='#e0e0e0';">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label for="password" style="font-weight: 600; color: #333; font-size: 14px;">Password</label>
+            <a href="#" style="font-size: 12px; color: #667eea; text-decoration: none;">Forgot?</a>
+          </div>
+          <input type="password" id="password" name="password" placeholder="Your password" required 
+                 style="width: 100%; padding: 12px 14px; box-sizing: border-box; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;"
+                 onfocus="this.style.borderColor='#667eea';"
+                 onblur="this.style.borderColor='#e0e0e0';">
+        </div>
+
+        <button type="submit" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
+                onmouseover="this.style.background='#5568d3'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';"
+                onmouseout="this.style.background='#667eea'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+          Login
+        </button>
+      </form>
+
+      <!-- Sign up link -->
+      <p style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">
+        Don't have an account? 
+        <a href="/signup" style="color: #667eea; font-weight: 700; text-decoration: none;">Create one</a>
+      </p>
     </div>
-
-    <button type="submit" style="width: 100%; padding: 10px; background: #e52e71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Login</button>
-  </form>
-
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-
-  <a href="/auth/reddit" style="display: block; width: 100%; padding: 10px; background: #ff4500; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; text-align: center; cursor: pointer;">Login with Reddit</a>
-
-  <p style="text-align: center; margin-top: 15px;">
-    Don't have an account? <a href="/signup" style="color: #e52e71; text-decoration: none;">Sign up here</a>
-  </p>
+  </div>
 </div>
+
+<style>
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
+
+  @media (max-width: 600px) {
+    div[style*="max-width: 450px"] {
+      max-width: 100% !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    
+    div[style*="padding: 40px 30px"] {
+      padding: 30px 20px !important;
+    }
+  }
+</style>
