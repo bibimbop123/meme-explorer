@@ -818,13 +818,27 @@ class MemeExplorer < Sinatra::Base
       )
 
       # Get Reddit user info from /api/v1/me endpoint
-      user_response = token.get("/api/v1/me", headers: { "User-Agent" => "MemeExplorer/1.0" })
-      user_data = user_response.parsed
+      require "httparty"
+      me_response = HTTParty.get(
+        "https://oauth.reddit.com/api/v1/me",
+        headers: {
+          "Authorization" => "Bearer #{token.token}",
+          "User-Agent" => "MemeExplorer/1.0"
+        }
+      )
       
-      reddit_username = user_data["name"] rescue nil
-      reddit_id = user_data["id"] rescue nil
+      if me_response.success?
+        user_data = me_response.parsed_response
+        reddit_username = user_data["name"]
+        reddit_id = user_data["id"]
+        
+        puts "OAuth Success: username=#{reddit_username}, id=#{reddit_id}"
+      else
+        puts "OAuth API Error: #{me_response.code} - #{me_response.body}"
+        halt 400, "Failed to get Reddit user info: #{me_response.code}"
+      end
       
-      halt 400, "Failed to get Reddit user info: #{user_data.inspect}" unless reddit_username
+      halt 400, "Failed to get Reddit username" unless reddit_username
 
       # Store access token in Redis
       if REDIS
