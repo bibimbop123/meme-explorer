@@ -6,6 +6,7 @@ require 'sqlite3'
 require 'pg'
 require 'date'
 require 'json'
+require 'fileutils'
 
 class SqliteToPostgresMigrator
   def initialize(sqlite_path, pg_connection_string)
