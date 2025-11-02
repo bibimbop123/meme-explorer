@@ -71,8 +71,11 @@ class MemeExplorer < Sinatra::Base
     set :session_secret, ENV.fetch("SESSION_SECRET", "fallback-secret-key-#{Time.now.to_i}")
   end
 
-  # Use Redis for session storage if available
-  use Rack::Session::Redis, redis: REDIS, expire_after: 2592000 if REDIS
+  # Configure Redis session storage if available
+  if REDIS
+    require 'rack-session'
+    use Rack::Session::Redis, redis: REDIS, expire_after: 2592000
+  end
 
   # OAuth2 Reddit Configuration
   REDDIT_OAUTH_CLIENT_ID = ENV.fetch("REDDIT_CLIENT_ID", "")
