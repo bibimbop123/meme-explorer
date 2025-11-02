@@ -83,12 +83,16 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Update Reddit link
     if (redditLink) {
+      console.log("Updating link - permalink:", meme.permalink);
       if (meme.permalink && meme.permalink.trim() !== "") {
-        redditLink.href = "https://www.reddit.com" + meme.permalink;
+        const fullUrl = "https://www.reddit.com" + meme.permalink;
+        redditLink.href = fullUrl;
         redditLink.style.display = "inline";
+        console.log("Link shown:", fullUrl);
       } else {
         redditLink.href = "";
         redditLink.style.display = "none";
+        console.log("Link hidden - no permalink");
       }
     }
     
