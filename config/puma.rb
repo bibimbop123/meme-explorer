@@ -20,14 +20,19 @@ worker_shutdown_timeout 30
 # Application environment
 environment ENV.fetch("RACK_ENV", "development")
 
-# Logging
-stdout_redirect "log/puma.log", "log/puma-error.log", true
-
-# PID file for process management
-pidfile "tmp/pids/puma.pid"
-
-# State file
-state_path "tmp/pids/puma.state"
+# Logging - use stdout for production (Render), file logging for development
+if ENV['RACK_ENV'] == 'production' || ENV['RACK_ENV'] == 'staging'
+  # Production/Staging: Log to stdout (Render expects this)
+  # Don't specify stdout_redirect - Puma will use STDOUT by default
+else
+  # Development: Log to files
+  require 'fileutils'
+  FileUtils.mkdir_p('log') unless Dir.exist?('log')
+  FileUtils.mkdir_p('tmp/pids') unless Dir.exist?('tmp/pids')
+  stdout_redirect "log/puma.log", "log/puma-error.log", true
+  pidfile "tmp/pids/puma.pid"
+  state_path "tmp/pids/puma.state"
+end
 
 # On boot event - runs once per cluster
 on_worker_boot do
