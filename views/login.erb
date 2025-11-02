@@ -1,90 +1,401 @@
-<div style="min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; padding: 20px;">
-  <div style="width: 100%; max-width: 450px; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+<div class="auth-container">
+  <div class="auth-card">
     
     <!-- Header with branding -->
-    <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center; color: white;">
-      <h1 style="margin: 0 0 10px; font-size: 32px; font-weight: 700;">🎪 Meme Explorer</h1>
-      <p style="margin: 0; font-size: 14px; opacity: 0.95;">Discover the best memes from Reddit</p>
+    <div class="auth-header">
+      <h1 class="auth-title">🎪 Meme Explorer</h1>
+      <p class="auth-subtitle">Discover the best memes from Reddit</p>
     </div>
 
     <!-- Content -->
-    <div style="padding: 40px 30px;">
+    <div class="auth-content">
       
       <!-- Value Proposition -->
-      <div style="margin-bottom: 30px; text-align: center;">
-        <p style="color: #666; font-size: 14px; line-height: 1.6;">
-          💾 <strong>Save favorites</strong> • ❤️ <strong>Like memes</strong> • 📊 <strong>Track stats</strong>
-        </p>
+      <div class="value-proposition">
+        <div class="value-item">
+          <span class="value-icon">💾</span>
+          <span class="value-text">Save</span>
+        </div>
+        <div class="value-item">
+          <span class="value-icon">❤️</span>
+          <span class="value-text">Like</span>
+        </div>
+        <div class="value-item">
+          <span class="value-icon">📊</span>
+          <span class="value-text">Track</span>
+        </div>
       </div>
 
       <!-- Reddit OAuth Button (Primary) -->
-      <form method="get" action="/auth/reddit" style="margin-bottom: 25px;">
-        <button type="submit" style="width: 100%; padding: 14px; background: #FF4500; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);"
-                onmouseover="this.style.background='#e63d00'; this.style.boxShadow='0 6px 20px rgba(255, 69, 0, 0.4)';"
-                onmouseout="this.style.background='#FF4500'; this.style.boxShadow='0 4px 15px rgba(255, 69, 0, 0.3)';">
+      <form method="get" action="/auth/reddit" class="auth-form-primary">
+        <button type="submit" class="btn btn-reddit">
           🔗 Login with Reddit
         </button>
       </form>
 
       <!-- Divider -->
-      <div style="display: flex; align-items: center; margin: 30px 0; gap: 10px;">
-        <div style="flex: 1; height: 1px; background: #eee;"></div>
-        <span style="color: #999; font-size: 12px; font-weight: 600;">OR</span>
-        <div style="flex: 1; height: 1px; background: #eee;"></div>
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">OR</span>
+        <div class="divider-line"></div>
       </div>
 
       <!-- Email/Password Form (Secondary) -->
-      <form method="post" action="/login">
-        <div style="margin-bottom: 18px;">
-          <label for="email" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 14px;">Email Address</label>
+      <form method="post" action="/login" class="auth-form">
+        <div class="form-group">
+          <label for="email" class="form-label">Email Address</label>
           <input type="email" id="email" name="email" placeholder="you@example.com" required 
-                 style="width: 100%; padding: 12px 14px; box-sizing: border-box; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;"
-                 onfocus="this.style.borderColor='#667eea';"
-                 onblur="this.style.borderColor='#e0e0e0';">
+                 class="form-input">
         </div>
 
-        <div style="margin-bottom: 24px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label for="password" style="font-weight: 600; color: #333; font-size: 14px;">Password</label>
-            <a href="#" style="font-size: 12px; color: #667eea; text-decoration: none;">Forgot?</a>
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="password" class="form-label">Password</label>
+            <a href="#" class="form-link">Forgot?</a>
           </div>
           <input type="password" id="password" name="password" placeholder="Your password" required 
-                 style="width: 100%; padding: 12px 14px; box-sizing: border-box; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;"
-                 onfocus="this.style.borderColor='#667eea';"
-                 onblur="this.style.borderColor='#e0e0e0';">
+                 class="form-input">
         </div>
 
-        <button type="submit" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
-                onmouseover="this.style.background='#5568d3'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';"
-                onmouseout="this.style.background='#667eea'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <button type="submit" class="btn btn-primary">
           Login
         </button>
       </form>
 
       <!-- Sign up link -->
-      <p style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">
+      <p class="auth-footer">
         Don't have an account? 
-        <a href="/signup" style="color: #667eea; font-weight: 700; text-decoration: none;">Create one</a>
+        <a href="/signup" class="auth-link">Create one</a>
       </p>
     </div>
   </div>
 </div>
 
 <style>
-  body {
+  * {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    padding: 0;
+    box-sizing: border-box;
   }
 
-  @media (max-width: 600px) {
-    div[style*="max-width: 450px"] {
-      max-width: 100% !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .auth-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
     }
-    
-    div[style*="padding: 40px 30px"] {
-      padding: 30px 20px !important;
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .auth-header {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    padding: 48px 32px;
+    text-align: center;
+    color: white;
+  }
+
+  .auth-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+  }
+
+  .auth-subtitle {
+    font-size: 14px;
+    opacity: 0.95;
+    margin: 0;
+  }
+
+  .auth-content {
+    padding: 40px 32px;
+  }
+
+  .value-proposition {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-bottom: 32px;
+    gap: 16px;
+  }
+
+  .value-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .value-icon {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .value-text {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+  }
+
+  .auth-form-primary,
+  .auth-form {
+    width: 100%;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 14px 16px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: none;
+  }
+
+  .btn-reddit {
+    background: #FF4500;
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
+  }
+
+  .btn-reddit:hover {
+    background: #e63d00;
+    box-shadow: 0 6px 20px rgba(255, 69, 0, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-reddit:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: #5568d3;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    margin: 32px 0;
+    gap: 12px;
+  }
+
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: #eee;
+  }
+
+  .divider-text {
+    color: #999;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+  }
+
+  .form-link {
+    font-size: 12px;
+    color: #667eea;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .form-link:hover {
+    color: #5568d3;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: rgba(102, 126, 234, 0.02);
+  }
+
+  .auth-footer {
+    text-align: center;
+    margin-top: 24px;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .auth-link {
+    color: #667eea;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .auth-link:hover {
+    color: #5568d3;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 480px) {
+    body {
+      padding: 12px;
+    }
+
+    .auth-card {
+      border-radius: 12px;
+    }
+
+    .auth-header {
+      padding: 36px 24px;
+    }
+
+    .auth-title {
+      font-size: 28px;
+    }
+
+    .auth-content {
+      padding: 28px 20px;
+    }
+
+    .value-proposition {
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .value-icon {
+      font-size: 20px;
+    }
+
+    .value-text {
+      font-size: 11px;
+    }
+
+    .btn {
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+
+    .form-input {
+      padding: 11px 12px;
+      font-size: 14px;
+    }
+
+    .divider {
+      margin: 24px 0;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .auth-footer {
+      margin-top: 16px;
+      font-size: 13px;
+    }
+  }
+
+  /* Tablet */
+  @media (min-width: 481px) and (max-width: 1024px) {
+    .auth-card {
+      max-width: 450px;
+    }
+  }
+
+  /* Desktop */
+  @media (min-width: 1025px) {
+    body {
+      padding: 20px;
+    }
+
+    .auth-card {
+      max-width: 460px;
+      transition: transform 0.3s ease;
+    }
+
+    .auth-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+    }
+
+    .btn:active {
+      transform: translateY(-1px);
     }
   }
 </style>
