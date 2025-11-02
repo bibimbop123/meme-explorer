@@ -5,9 +5,26 @@
     <p><strong>Email:</strong> <%= @user["email"] %></p>
     <p><strong>Member Since:</strong> <%= @user["created_at"] %></p>
     <hr>
-    <p>📌 <strong><%= @stats[:saved_count] %></strong> memes saved</p>
-    <p>❤️ <strong><%= @stats[:liked_count] %></strong> memes liked this session</p>
+    <p>📌 <strong><%= @saved_count %></strong> memes saved</p>
+    <p>❤️ <strong><%= @liked_count %></strong> memes liked (all-time)</p>
   </div>
+
+  <h2>My Liked Memes</h2>
+  
+  <% if @liked_memes.empty? %>
+    <p style="text-align: center; color: #999;">No liked memes yet.</p>
+  <% else %>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+      <% @liked_memes.each do |liked| %>
+        <div style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s;" onclick="window.open('<%= liked['meme_url'] %>', '_blank')">
+          <img src="<%= liked['meme_url'] %>" alt="Liked meme" style="width: 100%; height: 200px; object-fit: cover;">
+          <div style="padding: 10px;">
+            <p style="margin: 0; font-size: 0.9rem; color: #666;">Liked: <%= liked['liked_at'] %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
 
   <h2>My Saved Memes</h2>
   

@@ -1141,7 +1141,16 @@ class MemeExplorer < Sinatra::Base
 
     @user = get_user(session[:user_id])
     @saved_memes = get_user_saved_memes(session[:user_id])
-    @stats = get_user_stats(session[:user_id])
+    
+    # Get user's liked memes from user_meme_stats
+    @liked_memes = DB.execute(
+      "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
+      [session[:user_id]]
+    ).map { |row| row.transform_keys(&:to_s) }
+    
+    # Count stats
+    @saved_count = @saved_memes.size
+    @liked_count = @liked_memes.size
 
     erb :profile
   end
