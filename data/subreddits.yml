@@ -1,17 +1,14 @@
-# data/subreddits.yml
-# Expanded list of funny and interesting subreddits
 popular:
-  # Core Funny Subreddits
+  # Core Funny & Memes
   - funny
   - memes
   - dankmemes
   - Cringetopia
   - HoldMyBeer
   - WinStupidPrizes
-  - Whatcouldgowrong
+  - WhatCouldGoWrong
   - JusticeServed
-  - Instantkarma
-  - BikiniBottomTwitter
+  - InstantKarma
   - me_irl
   - 2meirl4meirl
   - DeepFriedMemes
@@ -22,14 +19,13 @@ popular:
   - terriblefacebookmemes
   - comedycemetery
   - therewasanattempt
-  
+
   # Interesting & Fascinating
   - interestingasfuck
   - Damnthatsinteresting
   - nextfuckinglevel
   - BeAmazed
   - oddlyinteresting
-  - Beyblade
   - todayilearned
   - educationalgifs
   - gifsthatkeepongiving
@@ -39,7 +35,8 @@ popular:
   - ThatsInsane
   - Unexpected
   - youseeingthisshit
-  
+  - mindblowing
+
   # Entertaining & Satisfying
   - oddlysatisfying
   - Satisfyingas
@@ -47,18 +44,16 @@ popular:
   - videos
   - instant_regret
   - facepalm
-  - therewasanattempt
   - IdiotsInCars
   - IdiotsOnBikes
   - FailsafeGaming
   - Whatswrongwithyourdog
-  
-  # Nature & Animals (Funny Focus)
+
+  # Nature & Animals
   - AnimalsBeingBros
   - Zoomies
   - IllegallySmolCats
   - Catswithjobs
-  - IllegallySmolCats
   - Illegallysmolbirds
   - Eyebleach
   - rarepuppers
@@ -68,7 +63,7 @@ popular:
   - Catsstandingup
   - Tippytaps
   - MurderedByWords
-  
+
   # Comics & Meme Formats
   - Comics
   - webcomics
@@ -77,27 +72,7 @@ popular:
   - meme_economy
   - templates
   - antimeme
-  
-  # Misc Funny
-  - Fake_History
-  - fakehistoryporn
-  - feemagers
-  - banned_from
-  - Tinder
-  - creepypodcast
-  - NoFap
-  - FiftyFifty
-  - thathappened
-  - thatHappened
-  - thriftstorehauls
-  - holdmycosmo
-  - holdmyjuicebox
-  - holdmyfries
-  - holdmybeer
-  - holdmycatnip
-  - holdmyredbull
-  - holdmysquids
-  
+
   # Technology & Programming
   - programming
   - learnprogramming
@@ -121,7 +96,7 @@ popular:
   - rust
   - ProgrammerHumor
   - talesfromtechsupport
-  
+
   # Business & Entrepreneurship
   - business
   - entrepreneur
@@ -137,7 +112,7 @@ popular:
   - ForeverUnfulfilled
   - antiwork
   - Work
-  
+
   # Stocks & Investing
   - stocks
   - investing
@@ -152,7 +127,7 @@ popular:
   - Ethereum
   - options
   - daytrading
-  
+
   # Music
   - Music
   - LetsTalkMusic
@@ -170,8 +145,8 @@ popular:
   - makinghiphop
   - trapproduction
   - weAreTheMusicMakers
-  
-  # Sports
+
+  # Sports & Gaming
   - sports
   - basketball
   - nba
@@ -183,7 +158,6 @@ popular:
   - hockey
   - Gaming
   - pcgaming
-  - gaming
   - esports
   - leagueoflegends
   - dota2
