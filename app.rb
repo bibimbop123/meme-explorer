@@ -18,9 +18,11 @@ require "oauth2"
 require "httparty"
 require "bcrypt"
 require 'dotenv/load'
-
+require 'colorize'
 
 require_relative "./db/setup"
+require_relative "./lib/error_handler"
+require "digest"
 
 
 $VERBOSE = nil # suppress warnings
@@ -1370,6 +1372,10 @@ class MemeExplorer < Sinatra::Base
     memes = random_memes_pool
     halt 404, { error: "No memes found" }.to_json if memes.empty?
     
+    # CDN caching - 1 hour for meme data
+    headers "Cache-Control" => "public, max-age=3600"
+    headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
+    
     # Track in session history and pick from pool
     session[:meme_history] ||= []
     session[:last_subreddit] ||= nil
@@ -1846,6 +1852,31 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
+  # Monitoring Routes
+  # -----------------------
+  get "/health" do
+    content_type :json
+    {
+      status: "ok",
+      timestamp: Time.now.iso8601,
+      uptime_seconds: (Time.now - $start_time).to_i,
+      requests: METRICS[:total_requests],
+      avg_response_time_ms: METRICS[:avg_request_time_ms].round(2),
+      error_rate_5m: ErrorHandler::Logger.error_rate(300)
+    }.to_json
+  end
+
+  get "/errors" do
+    halt 403, "Forbidden" unless is_admin?
+    content_type :json
+    {
+      recent_errors: ErrorHandler::Logger.recent(50),
+      error_rate_5m: ErrorHandler::Logger.error_rate(300),
+      critical_errors_5m: ErrorHandler::Logger.critical_errors(300)
+    }.to_json
+  end
+
+  # -----------------------
   # Admin Routes
   # -----------------------
   get "/admin" do
@@ -1879,3 +1910,6 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   run! if app_file == $0
 end
+
+# Track server start time for /health endpoint
+$start_time = Time.now

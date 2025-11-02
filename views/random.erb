@@ -113,7 +113,39 @@
 </div>
 <% end %>
 
+<!-- Error Toast Notification -->
+<div id="error-toast" style="display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; max-width: 400px; background: #ff6b6b; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-size: 14px; line-height: 1.5;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+    <div style="flex: 1;">
+      <p id="error-toast-message" style="margin: 0 0 8px 0; font-weight: 600;">Error loading meme</p>
+      <p id="error-toast-hint" style="margin: 0; opacity: 0.9; font-size: 13px;">Press Space to retry</p>
+    </div>
+    <button onclick="document.getElementById('error-toast').style.display='none';" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 0; line-height: 1;">×</button>
+  </div>
+</div>
+
 <script>
+// Toast notification system
+window.showErrorToast = function(message, hint = "Press Space to retry") {
+  const toast = document.getElementById("error-toast");
+  document.getElementById("error-toast-message").textContent = message;
+  document.getElementById("error-toast-hint").textContent = hint;
+  toast.style.display = "block";
+  
+  // Auto-hide after 10 seconds if not retrying
+  if (window.toastTimeout) clearTimeout(window.toastTimeout);
+  window.toastTimeout = setTimeout(() => {
+    if (toast.style.display !== "none") {
+      toast.style.display = "none";
+    }
+  }, 10000);
+};
+
+window.hideErrorToast = function() {
+  document.getElementById("error-toast").style.display = "none";
+  if (window.toastTimeout) clearTimeout(window.toastTimeout);
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   const memeImg = document.getElementById("meme-img");
   const memeTitle = document.getElementById("meme-title");
@@ -201,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.goNext();
   };
 
-  window.goNext = async function() {
+  window.goNext = async function(retryCount = 0) {
     // Prevent rapid simultaneous requests on mobile
     if (window.isNavigating) {
       console.warn("Navigation already in progress");
@@ -221,40 +253,55 @@ document.addEventListener("DOMContentLoaded", () => {
       
       if (!res.ok) {
         if (res.status === 404) {
-          throw new Error("No memes available. Try refreshing or check back later.");
+          throw new Error("no_memes");
         } else if (res.status === 500) {
-          throw new Error("Server error. Please try again in a moment.");
+          throw new Error("server_error");
         } else {
-          throw new Error(`HTTP ${res.status}: Failed to fetch meme`);
+          throw new Error(`http_${res.status}`);
         }
       }
       
       const meme = await res.json();
-      if (!meme || !meme.url) throw new Error("Received incomplete meme data. Try again.");
+      if (!meme || !meme.url) throw new Error("incomplete_data");
       
       meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
       hideLoadingOverlay();
+      hideErrorToast(); // Clear any previous errors on success
     } catch(err) {
       console.error("Navigation error:", err);
       historyStack.pop();
       hideLoadingOverlay();
       
-      // Provide context-aware error message
-      let errorMsg = "Unable to load next meme.";
+      // Map errors to user-friendly messages
+      let errorMsg = "Unable to load meme";
+      let shouldRetry = true;
+      
       if (err.name === "AbortError") {
-        errorMsg = "Request timed out. Check your connection and try again.";
-      } else if (err.message.includes("No memes")) {
-        errorMsg = err.message;
-      } else if (err.message.includes("incomplete")) {
-        errorMsg = err.message;
-      } else if (err.message.includes("Server error")) {
-        errorMsg = err.message;
-      } else if (err.message.includes("301") || err.message.includes("Network")) {
-        errorMsg = "Connection error. Please check your internet and try again.";
+        errorMsg = "⏱️ Request timed out";
+      } else if (err.message === "no_memes") {
+        errorMsg = "📦 No memes available";
+        shouldRetry = false;
+      } else if (err.message === "server_error") {
+        errorMsg = "⚠️ Server error";
+      } else if (err.message === "incomplete_data") {
+        errorMsg = "📭 Incomplete data";
+      } else if (err.message.includes("Network")) {
+        errorMsg = "🌐 Connection error";
       }
       
-      alert(errorMsg + " Click 'Next' to retry.");
+      // Auto-retry with exponential backoff (max 3 attempts)
+      if (shouldRetry && retryCount < 3) {
+        const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+        window.nextRetryTimeout = setTimeout(() => {
+          console.log(`Auto-retrying... (attempt ${retryCount + 1})`);
+          window.goNext(retryCount + 1);
+        }, delay);
+        window.showErrorToast(errorMsg, `Retrying in ${(delay / 1000).toFixed(1)}s...`);
+      } else {
+        // Show error toast with manual retry option
+        window.showErrorToast(errorMsg, "Press Space to retry");
+      }
     } finally {
       window.isNavigating = false;
     }

@@ -26,6 +26,10 @@ gem "rack-attack"
 gem "oauth2", "~> 2.0"
 gem "bcrypt", "~> 3.1" # Password hashing
 
+# Error tracking and monitoring
+gem "sentry-ruby"
+gem "sentry-sinatra"
+
 # Scheduling
 gem "whenever", require: false
 
@@ -34,6 +38,12 @@ gem "sqlite3"
 gem "sidekiq"
 gem "thread"
 gem "ostruct"
+
+group :development, :test do
+  gem "rspec", "~> 3.12"
+  gem "rack-test", "~> 2.1"
+  gem "database_cleaner-sequel", "~> 1.8"
+end
 
 group :development do
   gem "rerun"
