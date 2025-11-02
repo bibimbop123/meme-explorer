@@ -2,9 +2,10 @@
 require 'sentry-ruby'
 
 Sentry.init do |config|
-  config.dsn = ENV['SENTRY_DSN']
+  # Use environment variable or fallback to provided DSN for testing
+  config.dsn = ENV['SENTRY_DSN'] || 'https://2025f47967d9c2172b963c34e79c0b71@o4510297986498560.ingest.us.sentry.io/4510297991348224'
   config.environment = ENV['RACK_ENV'] || 'development'
-  config.enabled_environments = %w[production staging]
+  config.enabled_environments = %w[production staging development]
   config.release = "meme-explorer@#{File.read('VERSION').strip rescue 'unknown'}"
   
   # Performance monitoring
@@ -18,6 +19,9 @@ Sentry.init do |config|
     'Sinatra::NotFound',
     'ActionController::RoutingError'
   ]
+  
+  # Collect personally identifiable information
+  config.send_default_pii = true
   
   # Filter sensitive data before sending to Sentry
   config.before_send = lambda do |event, hint|
