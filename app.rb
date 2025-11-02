@@ -817,11 +817,14 @@ class MemeExplorer < Sinatra::Base
         }
       )
 
-      # Get Reddit user info
-      reddit_username = token.params["name"] rescue nil
-      reddit_id = token.params["id"] rescue nil
+      # Get Reddit user info from /api/v1/me endpoint
+      user_response = token.get("/api/v1/me", headers: { "User-Agent" => "MemeExplorer/1.0" })
+      user_data = user_response.parsed
       
-      halt 400, "Failed to get Reddit user info" unless reddit_username
+      reddit_username = user_data["name"] rescue nil
+      reddit_id = user_data["id"] rescue nil
+      
+      halt 400, "Failed to get Reddit user info: #{user_data.inspect}" unless reddit_username
 
       # Store access token in Redis
       if REDIS
