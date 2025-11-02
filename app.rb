@@ -374,6 +374,9 @@ class MemeExplorer < Sinatra::Base
       meme_identifier = new_meme["url"] || new_meme["file"]
       new_meme["url"] = meme_identifier if !new_meme["url"]
       
+      # Ensure permalink field exists (for Reddit links)
+      new_meme["permalink"] ||= ""
+      
       session[:meme_history] << meme_identifier
       session[:meme_history] = session[:meme_history].last(30)
 
