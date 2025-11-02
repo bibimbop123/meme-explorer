@@ -15,10 +15,12 @@
     style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 0.5em;"
   >
 
-  <div style="text-align: center; margin-bottom: 1em;">
-    <a id="reddit-link" href="<% if @meme['permalink'] %>https://www.reddit.com<%= @meme['permalink'] %><% end %>" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold;">
-      View on Reddit
-    </a>
+  <div id="reddit-link-container" style="text-align: center; margin-bottom: 1em;">
+    <% if @meme['permalink'] && @meme['permalink'].to_s.strip != "" %>
+      <a id="reddit-link" href="https://www.reddit.com<%= @meme['permalink'] %>" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold;">
+        View on Reddit
+      </a>
+    <% end %>
   </div>
 
   <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
@@ -58,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
     title: memeTitle.innerText,
     subreddit: memeSub.innerText,
     likes: parseInt(likesSpan.innerText) || 0,
-    permalink: redditLink.href
+    permalink: redditLink ? redditLink.href : ""
   };
 
   // Safe session store for liked memes
@@ -82,10 +84,12 @@ document.addEventListener("DOMContentLoaded", () => {
     likesSpan.textContent = meme.likes > 0 ? meme.likes : "";
     
     // Update Reddit link
-    if (meme.permalink) {
-      redditLink.href = "https://www.reddit.com" + meme.permalink;
-    } else {
-      redditLink.href = "";
+    if (redditLink) {
+      if (meme.permalink) {
+        redditLink.href = "https://www.reddit.com" + meme.permalink;
+      } else {
+        redditLink.href = "";
+      }
     }
     
     if (window.sessionLikedMemes.includes(meme.url)) {
