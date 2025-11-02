@@ -132,12 +132,12 @@
       <p><%= @redis_no_views %></p>
     </div>
     <div class="metric">
-      <h3>Avg Request Time (ms)</h3>
-      <p><%= @avg_request_time_ms.round(2) %></p>
+      <h3>Total Users</h3>
+      <p><%= @total_users || 0 %></p>
     </div>
     <div class="metric">
-      <h3>Total Requests</h3>
-      <p><%= @total_requests %></p>
+      <h3>Total Saved Memes</h3>
+      <p><%= @total_saved_memes || 0 %></p>
     </div>
   </div>
 
