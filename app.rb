@@ -732,10 +732,8 @@ class MemeExplorer < Sinatra::Base
     @meme = navigate_meme(direction: "random")
     halt 404, "No memes found!" unless @meme
   
-    # Make sure permalink is included for the Reddit link
-    @meme['permalink'] ||= ""  # or set to actual Reddit permalink if available
-  
     @image_src = meme_image_src(@meme)
+    @likes = get_meme_likes(@image_src)
     erb :random
   end
   
