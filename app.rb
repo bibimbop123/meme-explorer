@@ -133,8 +133,10 @@ class MemeExplorer < Sinatra::Base
         token = client.client_credentials.get_token(scope: "read")
         puts "✅ Got OAuth2 token for authenticated API"
 
-        meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS, 30) rescue []
-        puts "✓ Fetched #{meme_pool.size} memes via OAuth2"
+        # Use same subreddit sampling as original random_memes_pool
+        subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
+        meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits_to_fetch, 30) rescue []
+        puts "✓ Fetched #{meme_pool.size} memes from #{subreddits_to_fetch.size} subreddits via OAuth2"
 
         validated = meme_pool.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
         
