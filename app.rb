@@ -1166,20 +1166,27 @@ class MemeExplorer < Sinatra::Base
       end
 
       # Create or find user
-      user_id = create_or_find_user(reddit_username, reddit_id, nil)
-      
-      puts "OAuth: Setting session - user_id=#{user_id}, username=#{reddit_username}"
-      
-      # Set session
-      session[:user_id] = user_id
-      session[:reddit_username] = reddit_username
-      session[:reddit_token] = token.token
-      
-      puts "OAuth: Session after set - user_id=#{session[:user_id]}, username=#{session[:reddit_username]}"
+      begin
+        user_id = create_or_find_user(reddit_username, reddit_id, nil)
+        
+        puts "OAuth: Setting session - user_id=#{user_id}, username=#{reddit_username}"
+        
+        # Set session
+        session[:user_id] = user_id
+        session[:reddit_username] = reddit_username
+        session[:reddit_token] = token.token
+        
+        puts "OAuth: Session after set - user_id=#{session[:user_id]}, username=#{session[:reddit_username]}"
 
-      redirect "/profile", 302
+        redirect "/profile", 302
+      rescue => e
+        puts "OAuth User Creation Error: #{e.class}: #{e.message}"
+        puts e.backtrace.join("\n")
+        halt 500, "Failed to create/find user: #{e.message}"
+      end
     rescue => e
       puts "OAuth Error: #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
       halt 400, "OAuth authentication failed: #{e.message}"
     end
   end
