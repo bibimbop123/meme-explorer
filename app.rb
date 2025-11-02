@@ -244,7 +244,8 @@ class MemeExplorer < Sinatra::Base
               "title" => post_data["title"],
               "url" => post_data["url"],
               "subreddit" => post_data["subreddit"],
-              "likes" => post_data["ups"] || 0
+              "likes" => post_data["ups"] || 0,
+              "permalink" => post_data["permalink"]
             }
             memes << meme
           end
