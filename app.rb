@@ -783,8 +783,15 @@ class MemeExplorer < Sinatra::Base
       token_url: "/api/v1/access_token"
     )
     
+    # Build redirect_uri - on production (https), don't include port
+    redirect_uri = if request.scheme == "https"
+                     "#{request.scheme}://#{request.host}/auth/reddit/callback"
+                   else
+                     "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback"
+                   end
+    
     redirect client.auth_code.authorize_url(
-      redirect_uri: "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback",
+      redirect_uri: redirect_uri,
       response_type: "code",
       state: SecureRandom.hex(16),
       scope: "read",
@@ -805,9 +812,16 @@ class MemeExplorer < Sinatra::Base
     )
 
     begin
+      # Build redirect_uri - on production (https), don't include port
+      redirect_uri = if request.scheme == "https"
+                       "#{request.scheme}://#{request.host}/auth/reddit/callback"
+                     else
+                       "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback"
+                     end
+
       token = client.auth_code.get_token(
         code,
-        redirect_uri: "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback",
+        redirect_uri: redirect_uri,
         headers: {
           "User-Agent" => "MemeExplorer/1.0"
         }
