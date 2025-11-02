@@ -783,12 +783,7 @@ class MemeExplorer < Sinatra::Base
       token_url: "/api/v1/access_token"
     )
     
-    # Build redirect_uri - on production (https), don't include port
-    redirect_uri = if request.scheme == "https"
-                     "#{request.scheme}://#{request.host}/auth/reddit/callback"
-                   else
-                     "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback"
-                   end
+    redirect_uri = "https://meme-explorer.onrender.com/auth/reddit/callback"
     
     redirect client.auth_code.authorize_url(
       redirect_uri: redirect_uri,
@@ -812,12 +807,7 @@ class MemeExplorer < Sinatra::Base
     )
 
     begin
-      # Build redirect_uri - on production (https), don't include port
-      redirect_uri = if request.scheme == "https"
-                       "#{request.scheme}://#{request.host}/auth/reddit/callback"
-                     else
-                       "#{request.scheme}://#{request.host}:#{request.port}/auth/reddit/callback"
-                     end
+      redirect_uri = "https://meme-explorer.onrender.com/auth/reddit/callback"
 
       token = client.auth_code.get_token(
         code,
