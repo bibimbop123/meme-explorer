@@ -105,10 +105,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       likesSpan.textContent = data.likes > 0 ? data.likes : "";
-    } catch (err) {
-      console.error(err);
-      alert("Could not update like — please try again.");
-    }
+      } catch (err) {
+        console.error("Like error:", err);
+        // Silently fail - user can try again by clicking button
+      }
   });
 
   // Handle broken images - auto-skip and report
@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateMeme(meme);
     } catch (err) {
       console.error("Error fetching next meme:", err);
-      alert("Could not load a new meme. Try again!");
+      // Silently fail - user can try pressing spacebar again
     }
   };
 
@@ -149,9 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (historyStack.length > 0) {
       const prevMeme = historyStack.pop();
       updateMeme(prevMeme);
-    } else {
-      alert("No previous memes to go back to");
     }
+    // Silently do nothing if no history - smooth UX
   };
 
   document.addEventListener("keydown", e => {
