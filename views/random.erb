@@ -9,26 +9,33 @@
 
   <img
     id="meme-img"
-    src="<%= @meme["url"] || '/images/funny1.jpeg' %>"
+    src="<%= @image_src || '/images/funny1.jpeg' %>"
     alt="<%= @meme["title"] || 'Meme Image' %>"
     onerror="handleImageError(this);"
     style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 0.5em;"
   >
 
   <div id="reddit-link-container" style="text-align: center; margin-bottom: 1em;">
-    <a id="reddit-link" href="<%= @meme['permalink'] ? 'https://www.reddit.com' + @meme['permalink'] : '' %>" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold; <%= @meme['permalink'] && !@meme['permalink'].to_s.strip.empty? ? '' : 'display: none;' %>">
-      View on Reddit
-    </a>
+    <% if @reddit_path && !@reddit_path.empty? && !@image_src.start_with?("/images") %>
+      <a id="reddit-link"
+         href="https://www.reddit.com<%= @reddit_path %>"
+         target="_blank" rel="noopener noreferrer"
+         style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold;">
+        View on Reddit
+      </a>
+    <% else %>
+      <a id="reddit-link" style="display:none;"></a>
+    <% end %>
   </div>
 
   <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
-    <input type="hidden" name="url" value="<%= @image_src || '' %>">
-    <span style="font-weight: bold; white-space: nowrap;">Likes: <span class="meme-likes"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "0" %></span></span>
-    <button
-      type="submit"
-      class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
-      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
-    >
+    <input type="hidden" name="url" value="<%= @image_src %>">
+    <span style="font-weight: bold; white-space: nowrap;">
+      Likes: <span class="meme-likes"><%= @likes.to_i > 0 ? @likes.to_i : "0" %></span>
+    </span>
+    <button type="submit"
+            class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+            style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
       <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
     </button>
   </form>
@@ -45,54 +52,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const likesSpan = document.querySelector(".meme-likes");
   const likeButton = document.querySelector("form.like-form button");
   const form = document.querySelector("form.like-form");
-
-  // Guard against null elements
-  if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form) {
-    return;
-  }
-
   const redditLink = document.getElementById("reddit-link");
+
+  if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form || !redditLink) return;
+
   let historyStack = [];
   let currentMeme = {
     url: memeImg.src,
     title: memeTitle.innerText,
     subreddit: memeSub.innerText,
     likes: parseInt(likesSpan.innerText) || 0,
-    permalink: redditLink ? redditLink.href : ""
+    reddit_path: redditLink.href !== "#" ? redditLink.href.replace("https://www.reddit.com", "") : ""
   };
 
-  // Safe session store for liked memes
   if (!window.sessionLikedMemes) window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
 
-  // Store previous button reference for manual Previous handling
-  const prevBtn = document.getElementById("prev-btn");
-  const nextBtn = document.getElementById("next-btn");
-
   const updateMeme = (meme) => {
-    if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form) {
-      console.warn("DOM elements not ready, skipping update");
-      return;
-    }
-    
     memeImg.src = meme.url || '/images/funny1.jpeg';
     memeImg.alt = meme.title || "Meme Image";
     memeTitle.innerText = meme.title || "Untitled Meme";
     memeSub.innerText = meme.subreddit || "Unknown Subreddit";
     form.querySelector("input[name='url']").value = meme.url || "";
-    likesSpan.textContent = meme.likes > 0 ? meme.likes : "";
-    
-    // Update Reddit link
-    if (redditLink) {
-      if (meme.permalink && meme.permalink.trim() !== "") {
-        const fullUrl = "https://www.reddit.com" + meme.permalink;
-        redditLink.href = fullUrl;
-        redditLink.style.display = "inline";
-      } else {
-        redditLink.href = "";
-        redditLink.style.display = "none";
-      }
+    likesSpan.textContent = meme.likes > 0 ? meme.likes : "0";
+
+    if (meme.reddit_path && meme.reddit_path.trim() !== "" && !meme.url.startsWith("/images")) {
+      redditLink.href = "https://www.reddit.com" + meme.reddit_path;
+      redditLink.style.display = "inline";
+    } else {
+      redditLink.href = "#";
+      redditLink.style.display = "none";
     }
-    
+
     if (window.sessionLikedMemes.includes(meme.url)) {
       likeButton.textContent = "💔 Unlike";
       likeButton.classList.add("liked");
@@ -107,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const memeUrl = form.querySelector("input[name='url']").value;
-
     try {
       const res = await fetch(form.action, {
         method: "POST",
@@ -119,75 +108,54 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.liked) {
         likeButton.textContent = "💔 Unlike";
         likeButton.classList.add("liked");
-        if (!window.sessionLikedMemes.includes(memeUrl))
-          window.sessionLikedMemes.push(memeUrl);
+        if (!window.sessionLikedMemes.includes(memeUrl)) window.sessionLikedMemes.push(memeUrl);
       } else {
         likeButton.textContent = "❤️ Like";
         likeButton.classList.remove("liked");
         window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== memeUrl);
       }
-
-      likesSpan.textContent = data.likes > 0 ? data.likes : "";
-      } catch (err) {
-        console.error("Like error:", err);
-        // Silently fail - user can try again by clicking button
-      }
+      likesSpan.textContent = data.likes > 0 ? data.likes : "0";
+    } catch(err) {
+      console.error("Like error:", err);
+    }
   });
 
-  // Handle broken images - auto-skip and report
   window.handleImageError = async function(img) {
     const brokenUrl = img.src;
-    console.log("Image failed to load:", brokenUrl);
-    
-    // Report broken URL to backend
     try {
       await fetch("/report-broken-image", {
         method: "POST",
         body: new URLSearchParams({ url: brokenUrl }),
         headers: { "Accept": "application/json" }
       });
-    } catch (err) {
-      console.log("Could not report broken image");
-    }
-    
-    // Auto-fetch next meme (seamless transition)
-    fetchMeme("next");
+    } catch(err) {}
+    goNext();
   };
 
-  // Global functions for button clicks
   window.goNext = async function() {
-    // Push current meme to history BEFORE fetching next
     historyStack.push(currentMeme);
-    
     try {
-      const res = await fetch(`/random.json`);
+      const res = await fetch("/random.json");
       if (!res.ok) throw new Error("Failed to fetch meme");
       const meme = await res.json();
       meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
-    } catch (err) {
-      console.error("Error fetching next meme:", err);
-      // Pop the meme from history if fetch failed
+    } catch(err) {
+      console.error(err);
       historyStack.pop();
     }
   };
 
   window.goPrevious = function() {
     if (historyStack.length > 0) {
-      const prevMeme = historyStack.pop();
-      updateMeme(prevMeme);
+      updateMeme(historyStack.pop());
     }
-    // Silently do nothing if no history - smooth UX
   };
 
   document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
       e.preventDefault();
-      if (e.shiftKey) {
-        window.goPrevious();
-      } else {
-        window.goNext();
-      }
+      if (e.shiftKey) window.goPrevious(); else window.goNext();
     }
   });
 });

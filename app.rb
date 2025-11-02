@@ -731,28 +731,60 @@ class MemeExplorer < Sinatra::Base
     erb :random
   end
 
+  # Render random meme page
   get "/random" do
     @meme = navigate_meme(direction: "random")
     halt 404, "No memes found!" unless @meme
   
     @image_src = meme_image_src(@meme)
     @likes = get_meme_likes(@image_src)
+  
+    # Determine reddit_path for this specific image
+    @reddit_path = nil
+    if @meme["reddit_post_urls"]&.is_a?(Array)
+      post_url = @meme["reddit_post_urls"].find { |u| u.include?(@image_src) }
+      @reddit_path = post_url
+    end
+  
+    # fallback to permalink
+    @reddit_path ||= @meme["permalink"] if @meme["permalink"].to_s.strip != ""
+  
+    # Strip domain if it's a full URL
+    if @reddit_path&.start_with?("http")
+      uri = URI.parse(@reddit_path)
+      @reddit_path = uri.path
+    end
+  
     erb :random
   end
   
-
   get "/random.json" do
     @meme = navigate_meme(direction: "random")
     halt 404, { error: "No memes found" }.to_json if @meme.nil?
+  
+    image_url = @meme["url"] || @meme["file"]
+  
+    reddit_path = nil
+    if @meme["reddit_post_urls"]&.is_a?(Array)
+      post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
+      reddit_path = post_url
+    end
+  
+    reddit_path ||= @meme["permalink"] if @meme["permalink"].to_s.strip != ""
+  
+    if reddit_path&.start_with?("http")
+      uri = URI.parse(reddit_path)
+      reddit_path = uri.path
+    end
   
     content_type :json
     {
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
-      url: @meme["url"],
-      permalink: @meme["permalink"] || "",
-      likes: get_meme_likes(@meme["url"] || @meme["file"])
+      url: image_url,
+      reddit_path: reddit_path,
+      likes: get_meme_likes(image_url)
     }.to_json
   end
   
