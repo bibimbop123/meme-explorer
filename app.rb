@@ -818,27 +818,35 @@ class MemeExplorer < Sinatra::Base
       )
 
       # Get Reddit user info from /api/v1/me endpoint
-      require "httparty"
-      me_response = HTTParty.get(
-        "https://oauth.reddit.com/api/v1/me",
-        headers: {
-          "Authorization" => "Bearer #{token.token}",
-          "User-Agent" => "MemeExplorer/1.0"
-        }
-      )
-      
-      if me_response.success?
-        user_data = me_response.parsed_response
-        reddit_username = user_data["name"]
-        reddit_id = user_data["id"]
+      begin
+        me_response = HTTParty.get(
+          "https://oauth.reddit.com/api/v1/me",
+          headers: {
+            "Authorization" => "Bearer #{token.token}",
+            "User-Agent" => "MemeExplorer/1.0"
+          },
+          timeout: 10
+        )
         
-        puts "OAuth Success: username=#{reddit_username}, id=#{reddit_id}"
-      else
-        puts "OAuth API Error: #{me_response.code} - #{me_response.body}"
-        halt 400, "Failed to get Reddit user info: #{me_response.code}"
+        if me_response.success?
+          user_data = me_response.parsed_response
+          reddit_username = user_data["name"]
+          reddit_id = user_data["id"]
+          
+          puts "OAuth Success: username=#{reddit_username}, id=#{reddit_id}"
+        else
+          puts "OAuth API Error: #{me_response.code} - #{me_response.body}"
+          halt 400, "Failed to get Reddit user info: HTTP #{me_response.code}"
+        end
+        
+        halt 400, "Failed to get Reddit username" unless reddit_username
+      rescue Timeout::Error
+        puts "OAuth Timeout: /api/v1/me took too long"
+        halt 504, "Reddit API timeout"
+      rescue => e
+        puts "OAuth HTTP Error: #{e.class}: #{e.message}"
+        halt 503, "Failed to contact Reddit API: #{e.message}"
       end
-      
-      halt 400, "Failed to get Reddit username" unless reddit_username
 
       # Store access token in Redis
       if REDIS
