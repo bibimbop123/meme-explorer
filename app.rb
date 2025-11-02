@@ -430,9 +430,63 @@ class MemeExplorer < Sinatra::Base
       sub.downcase
     end
 
-    # Navigate memes safely with diversity - PHASE 1
+    # Phase 2: Get pool based on time of day (trending/fresh/exploration split)
+    def get_intelligent_pool(user_id = nil, limit = 100)
+      # 70% Trending, 20% Fresh, 10% Exploration
+      trending = get_trending_pool(limit * 0.7)
+      fresh = get_fresh_pool(limit * 0.2, 48)
+      exploration = get_exploration_pool(limit * 0.1)
+      
+      pool = trending + fresh + exploration
+      pool = pool.uniq { |m| m["url"] }
+      
+      # Apply user preferences if logged in
+      if user_id
+        apply_user_preferences(pool, user_id)
+      else
+        pool.shuffle
+      end
+    end
+
+    # Phase 2: Apply user preferences - boost preferred subreddits
+    def apply_user_preferences(pool, user_id)
+      user_prefs = DB.execute(
+        "SELECT subreddit, preference_score FROM user_subreddit_preferences WHERE user_id = ? ORDER BY preference_score DESC",
+        [user_id]
+      )
+      
+      return pool.shuffle if user_prefs.empty?
+      
+      # Separate memes by preference
+      preferred = []
+      neutral = []
+      
+      pool.each do |meme|
+        sub = meme["subreddit"]&.downcase
+        pref = user_prefs.find { |p| p["subreddit"].downcase == sub }
+        if pref && pref["preference_score"] > 1.0
+          preferred << meme
+        else
+          neutral << meme
+        end
+      end
+      
+      # Return 60% preferred + 40% neutral for variety
+      ratio = (preferred.size * 0.6 / [preferred.size, 1].max).to_i
+      (preferred.sample(ratio) + neutral.sample((pool.size - ratio))).compact.shuffle
+    end
+
+    # Phase 2: Navigate memes with intelligent pool selection
     def navigate_meme(direction: "next")
-      memes = random_memes_pool
+      user_id = session[:user_id] rescue nil
+      
+      # Get intelligent pool (trending/fresh/exploration)
+      if user_id
+        memes = get_intelligent_pool(user_id, 100)
+      else
+        memes = random_memes_pool
+      end
+      
       return nil if memes.empty?
 
       session[:meme_history] ||= []
@@ -477,7 +531,26 @@ class MemeExplorer < Sinatra::Base
       session[:meme_history] = session[:meme_history].last(30)
       session[:last_subreddit] = new_meme["subreddit"]&.downcase
 
+      # Track exposure for spaced repetition (Phase 3)
+      if user_id
+        DB.execute(
+          "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+          [user_id, meme_identifier]
+        ) rescue nil
+      end
+
       new_meme
+    end
+
+    # Phase 2: Update user preference when they like a meme
+    def update_user_preference(user_id, subreddit)
+      return unless user_id && subreddit
+      
+      subreddit = subreddit.downcase
+      DB.execute(
+        "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, 1) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = preference_score + 0.2, times_liked = times_liked + 1, last_updated = CURRENT_TIMESTAMP",
+        [user_id, subreddit]
+      ) rescue nil
     end
 
     # Validate meme before display
@@ -723,6 +796,9 @@ class MemeExplorer < Sinatra::Base
             "UPDATE user_meme_stats SET liked = 1, liked_at = CURRENT_TIMESTAMP, unliked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND meme_url = ?",
             [user_id, url]
           )
+          
+          # Phase 2: Update user preference for this subreddit
+          # (We'll get subreddit from DB query - need to store it in session during navigate_meme)
         end
         session[:meme_like_counts][url] = true
       elsif !liked_now && was_liked_before
