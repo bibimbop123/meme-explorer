@@ -16,11 +16,9 @@
   >
 
   <div id="reddit-link-container" style="text-align: center; margin-bottom: 1em;">
-    <% if @meme['permalink'] && @meme['permalink'].to_s.strip != "" %>
-      <a id="reddit-link" href="https://www.reddit.com<%= @meme['permalink'] %>" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold;">
-        View on Reddit
-      </a>
-    <% end %>
+    <a id="reddit-link" href="<%= @meme['permalink'] ? 'https://www.reddit.com' + @meme['permalink'] : '' %>" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; color: #4caf50; text-decoration: none; font-weight: bold; <%= @meme['permalink'] && !@meme['permalink'].to_s.strip.empty? ? '' : 'display: none;' %>">
+      View on Reddit
+    </a>
   </div>
 
   <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
@@ -85,10 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Update Reddit link
     if (redditLink) {
-      if (meme.permalink) {
+      if (meme.permalink && meme.permalink.trim() !== "") {
         redditLink.href = "https://www.reddit.com" + meme.permalink;
+        redditLink.style.display = "inline";
       } else {
         redditLink.href = "";
+        redditLink.style.display = "none";
       }
     }
     
