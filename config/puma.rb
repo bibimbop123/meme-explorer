@@ -20,15 +20,18 @@ worker_shutdown_timeout 30
 # Application environment
 environment ENV.fetch("RACK_ENV", "development")
 
-# Logging - use stdout for production (Render), file logging for development
-if ENV['RACK_ENV'] == 'production' || ENV['RACK_ENV'] == 'staging'
-  # Production/Staging: Log to stdout (Render expects this)
-  # Don't specify stdout_redirect - Puma will use STDOUT by default
+# Logging configuration
+# Production/Staging: Use default Puma logging (stdout/stderr)
+# Development: Log to files
+if %w[production staging].include?(ENV['RACK_ENV'])
+  # Cloud environments (Render, Heroku, etc.) expect STDOUT/STDERR
+  # Don't configure stdout_redirect - let Puma use defaults
 else
-  # Development: Log to files
+  # Local development: safe to use file logging
   require 'fileutils'
   FileUtils.mkdir_p('log') unless Dir.exist?('log')
   FileUtils.mkdir_p('tmp/pids') unless Dir.exist?('tmp/pids')
+  
   stdout_redirect "log/puma.log", "log/puma-error.log", true
   pidfile "tmp/pids/puma.pid"
   state_path "tmp/pids/puma.state"
