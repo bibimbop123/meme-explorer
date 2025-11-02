@@ -1,28 +1,37 @@
 funny:
   - title: "WaterBottleSchoolBoy"
     file: "/images/funny1.jpeg"
+    subreddit: "funny"
   - title: "Birthyear"
     file: "/images/funny2.jpeg"
+    subreddit: "funny"
   - title: "First Patient"
     file: "/images/funny3.jpeg"
+    subreddit: "funny"
 
 wholesome:
   - title: "RiskyJokes"
     file: "/images/wholesome1.jpeg"
+    subreddit: "wholesome"
   - title: "Finding a job"
     file: "/images/wholesome2.jpeg"
+    subreddit: "wholesome"
 
 dank:
   - title: "Loading chunks of trees"
     file: "/images/dank1.jpeg"
+    subreddit: "dankmemes"
   - title: "AWS-East-1"
     file: "/images/dank2.jpeg"
+    subreddit: "dankmemes"
+
 selfcare:
   - title: "stop crying"
     file: "/images/selfcare1.jpeg"
+    subreddit: "selfcare"
   - title: "The only c i see in the sea"
     file: "/images/selfcare2.jpeg"
+    subreddit: "selfcare"
   - title: "I'm cooked already"
     file: "/images/selfcare3.jpeg"
-
-
+    subreddit: "selfcare"

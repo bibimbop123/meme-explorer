@@ -79,6 +79,13 @@ class MemeExplorer < Sinatra::Base
   # OAuth2 Reddit Configuration
   REDDIT_OAUTH_CLIENT_ID = ENV.fetch("REDDIT_CLIENT_ID", "")
   REDDIT_OAUTH_CLIENT_SECRET = ENV.fetch("REDDIT_CLIENT_SECRET", "")
+  REDDIT_REDIRECT_URI = ENV.fetch("REDDIT_REDIRECT_URI") do
+    if ENV['RACK_ENV'] == 'production'
+      "https://meme-explorer.onrender.com/auth/reddit/callback"
+    else
+      "http://localhost:#{ENV.fetch('PORT', 8080)}/auth/reddit/callback"
+    end
+  end
 
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
@@ -441,9 +448,14 @@ class MemeExplorer < Sinatra::Base
       m["file"].to_s.strip != "" ? m["file"] : (m["url"].to_s.strip != "" ? m["url"] : "/images/funny1.jpeg")
     end
 
-    # Fallback meme
+    # Fallback meme - shown while API is loading or content unavailable
     def fallback_meme
-      { "title" => "No memes available", "file" => "/images/funny1.jpeg", "subreddit" => "local" }
+      { 
+        "title" => "Loading memes from the cosmos...", 
+        "file" => "/images/funny1.jpeg", 
+        "subreddit" => "loading",
+        "is_placeholder" => true
+      }
     end
 
     # Ensure subreddit string
@@ -461,6 +473,35 @@ class MemeExplorer < Sinatra::Base
       
       pool = trending + fresh + exploration
       pool = pool.uniq { |m| m["url"] }
+      
+      # CRITICAL FIX: If DB is empty, fallback to local memes
+      if pool.empty?
+        local_memes = begin
+          if MEMES.is_a?(Hash)
+            MEMES.values.flatten.compact.map do |m|
+              # Convert file paths: remove leading / so File.join works correctly
+              m_copy = m.dup
+              if m_copy["file"] && m_copy["file"].start_with?("/")
+                m_copy["file"] = m_copy["file"][1..-1]  # Remove leading slash
+              end
+              m_copy
+            end
+          elsif MEMES.is_a?(Array)
+            MEMES.map do |m|
+              m_copy = m.dup
+              if m_copy["file"] && m_copy["file"].start_with?("/")
+                m_copy["file"] = m_copy["file"][1..-1]
+              end
+              m_copy
+            end
+          else
+            []
+          end
+        rescue
+          []
+        end
+        pool = local_memes
+      end
       
       # Apply user preferences if logged in
       if user_id
@@ -509,7 +550,10 @@ class MemeExplorer < Sinatra::Base
         memes = random_memes_pool
       end
       
-      return nil if memes.empty?
+      # CRITICAL FIX: If no memes or all memes fail validation, use fallback
+      use_fallback = memes.empty?
+      
+      return nil if memes.empty? && user_id.nil?
 
       # For logged-in users, use simple in-memory tracking (no session storage)
       @meme_history ||= []
@@ -533,11 +577,39 @@ class MemeExplorer < Sinatra::Base
         if candidate_id && 
            candidate_id != last_meme_url && 
            is_valid_meme?(candidate) &&
-           candidate_subreddit != session[:last_subreddit]
+           candidate_subreddit != @last_subreddit
           new_meme = candidate
           break
         end
         attempts += 1
+      end
+
+      # CRITICAL FALLBACK: If no valid meme found but user is logged in, try fallback pool
+      if new_meme.nil? && user_id
+        memes = random_memes_pool
+        attempts = 0
+        max_attempts = [memes.size, 30].min
+        
+        while attempts < max_attempts
+          candidate = memes.sample
+          candidate_id = candidate["url"] || candidate["file"]
+          candidate_subreddit = candidate["subreddit"]&.downcase
+          
+          if candidate_id && 
+             candidate_id != last_meme_url && 
+             is_valid_meme?(candidate) &&
+             candidate_subreddit != @last_subreddit
+            new_meme = candidate
+            break
+          end
+          attempts += 1
+        end
+      end
+
+      # ULTIMATE FALLBACK: If still nil, just grab any meme without strict validation
+      if new_meme.nil? && user_id
+        memes = random_memes_pool
+        new_meme = memes.first if memes.any?
       end
 
       return nil unless new_meme
@@ -939,7 +1011,7 @@ class MemeExplorer < Sinatra::Base
       result || []
     end
 
-    # Get meme pool from cache or build fresh - prioritizes API memes
+    # Get meme pool from cache or build fresh - prioritizes API memes with local fallback
     def random_memes_pool
       # Use cached pool if fresh (less than 2 minutes old)
       if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty? &&
@@ -947,29 +1019,51 @@ class MemeExplorer < Sinatra::Base
         return MEME_CACHE[:memes]
       end
 
+      # Always load local memes as guaranteed fallback
+      local_memes = begin
+        if MEMES.is_a?(Hash)
+          MEMES.values.flatten.compact
+        elsif MEMES.is_a?(Array)
+          MEMES
+        else
+          []
+        end
+      rescue
+        []
+      end
+
       # Fetch fresh API memes first (primary source)
       api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS, 50) rescue []
       
-      # Only add local memes as fallback
-      local_memes = if api_memes.empty?
-                      MEMES.is_a?(Array) ? MEMES : MEMES.values.flatten
-                    else
-                      []
-                    end
-
-      # Preferring API memes heavily
+      # Combine: prefer API memes but always include local as fallback
       pool = api_memes + local_memes
       pool = pool.uniq { |m| m["url"] || m["file"] }
 
-      # Strict validation - only include memes with working images and exclude broken
+      # Validate memes - be lenient, accept if either file exists or URL is valid
       validated = pool.select do |m| 
-        is_valid_meme?(m) && !is_image_broken?(m["url"] || m["file"])
+        next true if m["file"] && File.exist?(File.join("public", m["file"]))
+        next true if m["url"] && m["url"].match?(/^https?:\/\//)
+        false
       end
 
-      MEME_CACHE[:memes] = validated.shuffle
+      # If validation filtered everything, use local memes without strict validation as last resort
+      if validated.empty? && !local_memes.empty?
+        validated = local_memes
+      end
+
+      # Normalize file paths: remove leading / so File.join works correctly
+      normalized = validated.map do |m|
+        m_copy = m.dup
+        if m_copy["file"] && m_copy["file"].start_with?("/")
+          m_copy["file"] = m_copy["file"][1..-1]  # Remove leading slash
+        end
+        m_copy
+      end
+
+      MEME_CACHE[:memes] = normalized.shuffle
       MEME_CACHE[:last_refresh] = Time.now
 
-      validated.empty? ? [] : validated
+      normalized
     end
 
     # Get likes safely
@@ -1133,10 +1227,8 @@ class MemeExplorer < Sinatra::Base
       token_url: "/api/v1/access_token"
     )
     
-    redirect_uri = "https://meme-explorer.onrender.com/auth/reddit/callback"
-    
     redirect client.auth_code.authorize_url(
-      redirect_uri: redirect_uri,
+      redirect_uri: REDDIT_REDIRECT_URI,
       response_type: "code",
       state: SecureRandom.hex(16),
       scope: "identity read",
@@ -1157,11 +1249,9 @@ class MemeExplorer < Sinatra::Base
     )
 
     begin
-      redirect_uri = "https://meme-explorer.onrender.com/auth/reddit/callback"
-
       token = client.auth_code.get_token(
         code,
-        redirect_uri: redirect_uri,
+        redirect_uri: REDDIT_REDIRECT_URI,
         headers: {
           "User-Agent" => "MemeExplorer/1.0"
         }

@@ -2,32 +2,46 @@
    BASE / MOBILE-FIRST
    ========================= */
 body {
+  font-family: 'Comic Neue', cursive, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  text-align: center;
-  background: #fafafa;
+  background: #fefefe;
   color: #333;
   font-size: clamp(14px, 4vw, 16px);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  text-align: center;
 }
 
 /* ---------- HEADER ---------- */
 header {
+  background: linear-gradient(90deg, #ff8a00, #e52e71);
+  color: #fff;
+  padding: 1em 1.5em;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5em;
-  padding: 1em;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+}
+
+header h1 a {
+  color: white;
+  text-decoration: none;
+  font-size: 1.8rem;
 }
 
 header a.logo {
   font-weight: bold;
   text-decoration: none;
+  color: white;
 }
 
+/* ---------- NAVIGATION ---------- */
 nav {
   display: flex;
   flex-wrap: wrap;
@@ -35,11 +49,26 @@ nav {
   gap: 0.5em;
 }
 
+nav a {
+  padding: 0.5em 1em;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+nav a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
 /* ---------- SEARCH FORM ---------- */
 form.search-form {
-  margin: 1em auto;
   display: flex;
   justify-content: center;
+  margin: 1em 0;
+  flex-wrap: wrap;
   gap: 0.5em;
 }
 
@@ -47,7 +76,7 @@ form.search-form input[type="text"] {
   padding: 0.75em 1em;
   border-radius: 12px 0 0 12px;
   border: 1px solid #ccc;
-  flex: 1;
+  flex: 1 1 180px;
   min-width: 180px;
 }
 
@@ -56,22 +85,47 @@ form.search-form button {
   border-radius: 0 12px 12px 0;
   border: none;
   cursor: pointer;
+  background: #e52e71;
+  color: #fff;
+  font-weight: 600;
 }
 
 /* ---------- MAIN CONTENT ---------- */
 main {
-  margin: 1.5em 1em;
+  flex: 1;
   max-width: 100%;
+  margin: 0.3em 0.5em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
 }
 
-/* Single Meme Image */
+/* Single Meme Display */
 .meme-single img {
   max-width: 95%;
   height: auto;
   border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   display: block;
   margin: 1em auto;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.meme-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-top: 0.5em;
+}
+
+.meme-subtitle {
+  color: #888;
+  font-size: 0.95rem;
+  margin-top: 0.25em;
+}
+
+.meme-likes {
+  margin-top: 0.5em;
+  font-weight: bold;
 }
 
 /* Navigation Buttons */
@@ -79,16 +133,44 @@ main {
   display: flex;
   justify-content: center;
   gap: 1em;
+  flex-wrap: wrap;
   margin-top: 1.5em;
 }
 
 .nav-buttons button {
   min-width: 100px;
-  padding: 0.5em 1em;
+  padding: 0.75em 1.25em;
   border-radius: 10px;
   border: none;
   font-weight: bold;
   cursor: pointer;
+  transition: 0.2s;
+}
+
+#prev-btn {
+  background: #f44336;
+  color: #fff;
+}
+
+#next-btn {
+  background: #4caf50;
+  color: #fff;
+}
+
+.nav-buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+button.liked {
+  background: #ff4f81 !important;
+  color: #fff;
+  transform: scale(1.05);
+  transition: 0.2s;
+}
+
+button.liked:hover {
+  background: #ff769f !important;
 }
 
 /* Meme Grid for multiple memes */
@@ -96,25 +178,28 @@ main {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5em;
+  width: 100%;
   margin-top: 1.5em;
 }
 
 /* ---------- FOOTER ---------- */
 footer {
+  text-align: center;
+  padding: 1.5em;
+  background: #333;
+  color: #fff;
+  font-size: 0.85rem;
   margin-top: 2em;
-  padding: 1em;
-  font-size: 0.85em;
-  color: #666;
 }
 
 /* =========================
    TABLET / MEDIUM SCREENS
    ========================= */
-@media(min-width: 768px) {
+@media (min-width: 768px) {
   header {
     flex-direction: row;
     justify-content: space-between;
-    padding: 1em 3em;
+    padding: 1em 2.5em;
   }
 
   main {
@@ -132,14 +217,14 @@ footer {
   }
 
   footer {
-    font-size: 0.9em;
+    font-size: 0.9rem;
   }
 }
 
 /* =========================
    DESKTOP / LARGE SCREENS
    ========================= */
-@media(min-width: 1200px) {
+@media (min-width: 1200px) {
   main {
     max-width: 1100px;
     margin: 3em auto;
@@ -152,7 +237,7 @@ footer {
 
   header nav a {
     margin: 0 15px;
-    font-size: 1.1em;
+    font-size: 1.05rem;
   }
 
   .meme-grid {
@@ -162,6 +247,6 @@ footer {
 
   footer {
     padding: 2em;
-    font-size: 1em;
+    font-size: 1rem;
   }
 }

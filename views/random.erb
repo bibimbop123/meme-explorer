@@ -28,34 +28,50 @@
     <% end %>
   </div>
 
-  <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
-    <input type="hidden" name="url" value="<%= @image_src %>">
-    <input type="hidden" name="title" value="<%= @meme["title"] %>">
-    <input type="hidden" name="subreddit" value="<%= @meme["subreddit"] %>">
-    <span style="font-weight: bold; white-space: nowrap;">
-      Likes: <span class="meme-likes"><%= @likes.to_i > 0 ? @likes.to_i : "0" %></span>
-    </span>
-    <button type="submit"
-            class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
-            style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
-      <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
+  <div style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
+    <button type="button"
+            onclick="window.goPrevious()"
+            style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #2196F3; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
+      ⬅️ Previous
     </button>
-    <% if session[:user_id] %>
-      <button type="button"
-              id="save-btn"
-              onclick="toggleSaveMeme()"
-              style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #4caf50; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
-        📌 Save
+
+    <form class="like-form" action="/like" method="POST" style="display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
+      <input type="hidden" name="url" value="<%= @image_src %>">
+      <input type="hidden" name="title" value="<%= @meme["title"] %>">
+      <input type="hidden" name="subreddit" value="<%= @meme["subreddit"] %>">
+      <span style="font-weight: bold; white-space: nowrap;">
+        Likes: <span class="meme-likes"><%= @likes.to_i > 0 ? @likes.to_i : "0" %></span>
+      </span>
+      <button type="submit"
+              class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+              style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
+        <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
       </button>
-    <% else %>
-      <a href="/login" style="padding: 0.75em 1.5em; border-radius: 8px; background: #999; color: white; text-decoration: none; font-weight: bold; cursor: pointer; font-size: 0.95rem;">
-        Login to Save
-      </a>
-    <% end %>
-  </form>
+      <% if session[:user_id] %>
+        <button type="button"
+                id="save-btn"
+                onclick="toggleSaveMeme()"
+                style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #4caf50; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
+          📌 Save
+        </button>
+      <% else %>
+        <a href="/login" style="padding: 0.75em 1.5em; border-radius: 8px; background: #999; color: white; text-decoration: none; font-weight: bold; cursor: pointer; font-size: 0.95rem;">
+          Login to Save
+        </a>
+      <% end %>
+    </form>
+
+    <button type="button"
+            onclick="window.goNext()"
+            style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #ff9800; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;">
+      Next ➡️
+    </button>
+  </div>
 </div>
 <% else %>
-<p style="text-align: center; margin-top: 50px; font-size: 18px;">Loading memes...</p>
+<div style="text-align: center; margin-top: 50px; font-size: 18px;">
+  <p>Loading memes...</p>
+</div>
 <% end %>
 
 <script>
@@ -147,17 +163,46 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.goNext = async function() {
+    if (window.isNavigating) return;
+    
+    window.isNavigating = true;
     historyStack.push(currentMeme);
+    showLoadingOverlay();
+    
     try {
       const res = await fetch("/random.json");
       if (!res.ok) throw new Error("Failed to fetch meme");
       const meme = await res.json();
       meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
+      hideLoadingOverlay();
     } catch(err) {
       console.error(err);
       historyStack.pop();
+      hideLoadingOverlay();
     }
+    
+    window.isNavigating = false;
+  };
+  
+  window.showLoadingOverlay = function() {
+    let overlay = document.getElementById("loading-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "loading-overlay";
+      overlay.className = "loading-overlay";
+      overlay.innerHTML = '<div class="loading-container"><div class="meme-collector"><div class="frame frame-1">📸</div><div class="frame frame-2">📷</div><div class="frame frame-3">🖼️</div><div class="collector-center">✨</div></div><p class="loading-message">Finding the best memes for you...</p><div class="particles"><span class="particle">😂</span><span class="particle">🤣</span><span class="particle">😎</span><span class="particle">🔥</span><span class="particle">💯</span></div></div>';
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.remove("hidden");
+    window.messageIndex = (window.messageIndex + 1) % window.loadingMessages.length;
+    const messageEl = overlay.querySelector(".loading-message");
+    if (messageEl) messageEl.textContent = window.loadingMessages[window.messageIndex];
+  };
+  
+  window.hideLoadingOverlay = function() {
+    const overlay = document.getElementById("loading-overlay");
+    if (overlay) overlay.classList.add("hidden");
   };
 
   window.goPrevious = function() {
