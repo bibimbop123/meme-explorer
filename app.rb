@@ -555,10 +555,10 @@ class MemeExplorer < Sinatra::Base
       
       return nil if memes.empty? && user_id.nil?
 
-      # For logged-in users, use simple in-memory tracking (no session storage)
-      @meme_history ||= []
-      @last_subreddit ||= nil
-      last_meme_url = @meme_history.last
+      # Initialize session tracking for subreddit diversity (OAuth-safe: ||= ensures it exists after OAuth)
+      session[:meme_history] ||= []
+      session[:last_subreddit] ||= nil
+      last_meme_url = session[:meme_history].last
 
       # Get a random meme that's different from the last one shown AND from different subreddit
       new_meme = nil
@@ -577,7 +577,7 @@ class MemeExplorer < Sinatra::Base
         if candidate_id && 
            candidate_id != last_meme_url && 
            is_valid_meme?(candidate) &&
-           candidate_subreddit != @last_subreddit
+           candidate_subreddit != session[:last_subreddit]
           new_meme = candidate
           break
         end
@@ -598,7 +598,7 @@ class MemeExplorer < Sinatra::Base
           if candidate_id && 
              candidate_id != last_meme_url && 
              is_valid_meme?(candidate) &&
-             candidate_subreddit != @last_subreddit
+             candidate_subreddit != session[:last_subreddit]
             new_meme = candidate
             break
           end
@@ -629,10 +629,10 @@ class MemeExplorer < Sinatra::Base
         [meme_identifier, meme_title, meme_subreddit]
       ) rescue nil
       
-      # Track history in instance variable only (not in session to keep cookie size small)
-      @meme_history << meme_identifier
-      @meme_history = @meme_history.last(30)
-      @last_subreddit = new_meme["subreddit"]&.downcase
+      # Track history in session (properly initialized above with ||=, so safe for OAuth)
+      session[:meme_history] << meme_identifier
+      session[:meme_history] = session[:meme_history].last(30)
+      session[:last_subreddit] = new_meme["subreddit"]&.downcase
 
       # Track exposure for spaced repetition (Phase 3)
       if user_id
