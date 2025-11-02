@@ -526,6 +526,14 @@ class MemeExplorer < Sinatra::Base
       # Ensure permalink field exists (for Reddit links)
       new_meme["permalink"] ||= ""
       
+      # Track view in meme_stats - CRITICAL for accurate metrics
+      meme_title = new_meme["title"] || "Unknown"
+      meme_subreddit = new_meme["subreddit"] || "local"
+      DB.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+        [meme_identifier, meme_title, meme_subreddit]
+      ) rescue nil
+      
       # Track history and subreddit diversity
       session[:meme_history] << meme_identifier
       session[:meme_history] = session[:meme_history].last(30)
