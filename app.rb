@@ -1285,7 +1285,6 @@ class MemeExplorer < Sinatra::Base
   
   get "/trending" do
     db_memes = DB.execute("SELECT url, title, subreddit, views, likes, (likes * 2 + views) AS score FROM meme_stats")
-                 .map { |r| r.transform_keys(&:to_s) }
 
     local_memes = flatten_memes.map do |m|
       {
@@ -1300,7 +1299,7 @@ class MemeExplorer < Sinatra::Base
     end
 
     combined = (db_memes + local_memes).uniq { |m| m["url"] || m["file"] }
-    @memes = combined.sort_by { |m| -m["score"] }.first(20)
+    @memes = combined.sort_by { |m| -(m["score"].to_i) }.first(20)
     erb :trending
   end
   before "/category/*" do
@@ -1413,13 +1412,13 @@ class MemeExplorer < Sinatra::Base
         @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
         @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
 
-        # Top memes
+        # Top memes (DB already returns hashes with results_as_hash = true)
         @top_memes = DB.execute("
           SELECT title, subreddit, url, likes, views
           FROM meme_stats
           ORDER BY (likes * 2 + views) DESC
           LIMIT 10
-        ").map { |row| row.transform_keys(&:to_s) }
+        ")
 
         # Top subreddits
         @top_subreddits = DB.execute("
@@ -1428,7 +1427,7 @@ class MemeExplorer < Sinatra::Base
           GROUP BY subreddit
           ORDER BY total_likes DESC
           LIMIT 10
-        ").map { |row| row.transform_keys(&:to_s) }
+        ")
       end
     rescue => e
       puts "Metrics error: #{e.class}: #{e.message}"
