@@ -746,15 +746,16 @@ class MemeExplorer < Sinatra::Base
       @reddit_path = post_url
     end
   
-    # fallback to permalink
-    @reddit_path ||= @meme["permalink"] if @meme["permalink"].to_s.strip != ""
-  
-    # Strip domain if it's a full URL
-    if @reddit_path&.start_with?("http")
-      uri = URI.parse(@reddit_path)
-      @reddit_path = uri.path
+    # Fallback to permalink from API meme
+    if !@reddit_path && @meme["permalink"]
+      permalink_str = @meme["permalink"].to_s.strip
+      if permalink_str != ""
+        @reddit_path = permalink_str
+        # Strip domain if full URL
+        @reddit_path = URI.parse(@reddit_path).path if @reddit_path.start_with?("http")
+      end
     end
-  
+
     erb :random
   end
   
