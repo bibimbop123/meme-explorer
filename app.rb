@@ -543,8 +543,15 @@ class MemeExplorer < Sinatra::Base
     def navigate_meme(direction: "next")
       user_id = session[:user_id] rescue nil
       
-      # Get intelligent pool (trending/fresh/exploration)
+      # STAGED ONBOARDING: New users (< 10 views) get fresh cache, established users get personalization
+      is_new_user = false
       if user_id
+        exposure_count = DB.execute("SELECT COUNT(*) FROM user_meme_exposure WHERE user_id = ?", [user_id]).first[0].to_i
+        is_new_user = exposure_count < 10
+      end
+      
+      # Route: new users get cache (fresh API memes), established users get personalized DB pool
+      if user_id && !is_new_user
         memes = get_intelligent_pool(user_id, 100)
       else
         memes = random_memes_pool
