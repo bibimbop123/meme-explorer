@@ -430,25 +430,33 @@ class MemeExplorer < Sinatra::Base
       sub.downcase
     end
 
-    # Navigate memes safely - FIXED: ensure URL is set
+    # Navigate memes safely with diversity - PHASE 1
     def navigate_meme(direction: "next")
       memes = random_memes_pool
       return nil if memes.empty?
 
       session[:meme_history] ||= []
+      session[:last_subreddit] ||= nil
       last_meme_url = session[:meme_history].last
 
-      # Get a random meme that's different from the last one shown
+      # Get a random meme that's different from the last one shown AND from different subreddit
       new_meme = nil
       attempts = 0
-      max_attempts = [memes.size, 20].min
+      max_attempts = [memes.size, 30].min
       
       while attempts < max_attempts
         candidate = memes.sample
         candidate_id = candidate["url"] || candidate["file"]
+        candidate_subreddit = candidate["subreddit"]&.downcase
         
-        # Ensure candidate has a valid URL/file and hasn't been shown
-        if candidate_id && candidate_id != last_meme_url && is_valid_meme?(candidate)
+        # Ensure:
+        # 1. Different URL than last shown
+        # 2. Valid meme
+        # 3. Different subreddit than last (subreddit diversity)
+        if candidate_id && 
+           candidate_id != last_meme_url && 
+           is_valid_meme?(candidate) &&
+           candidate_subreddit != session[:last_subreddit]
           new_meme = candidate
           break
         end
@@ -464,8 +472,10 @@ class MemeExplorer < Sinatra::Base
       # Ensure permalink field exists (for Reddit links)
       new_meme["permalink"] ||= ""
       
+      # Track history and subreddit diversity
       session[:meme_history] << meme_identifier
       session[:meme_history] = session[:meme_history].last(30)
+      session[:last_subreddit] = new_meme["subreddit"]&.downcase
 
       new_meme
     end
@@ -597,6 +607,52 @@ class MemeExplorer < Sinatra::Base
       nil
     end
 
+    # Phase 1: Weighted random selection by score
+    def weighted_random_select(memes)
+      return nil if memes.empty?
+      
+      # Calculate weights: score = sqrt(likes * 2 + views)
+      weights = memes.map do |m|
+        score = Math.sqrt((m["likes"].to_i * 2 + m["views"].to_i).to_f)
+        [score, 0.1].max  # Minimum weight of 0.1 for unknown memes
+      end
+      
+      total_weight = weights.sum
+      return memes.sample if total_weight == 0
+      
+      # Normalize weights and select
+      r = rand * total_weight
+      cumulative = 0
+      memes.each_with_index do |meme, idx|
+        cumulative += weights[idx]
+        return meme if cumulative >= r
+      end
+      
+      memes.last
+    end
+
+    # Phase 1: Get trending/fresh/exploration pools
+    def get_trending_pool(limit = 50)
+      DB.execute(
+        "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY (likes * 2 + views) DESC LIMIT ?",
+        [limit]
+      ).map { |r| r.transform_keys(&:to_s) }
+    end
+
+    def get_fresh_pool(limit = 30, hours_ago = 24)
+      DB.execute(
+        "SELECT * FROM meme_stats WHERE updated_at > datetime('now', '-#{hours_ago} hours') AND (failure_count IS NULL OR failure_count < 2) ORDER BY updated_at DESC LIMIT ?",
+        [limit]
+      ).map { |r| r.transform_keys(&:to_s) }
+    end
+
+    def get_exploration_pool(limit = 20)
+      DB.execute(
+        "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY RANDOM() LIMIT ?",
+        [limit]
+      ).map { |r| r.transform_keys(&:to_s) }
+    end
+
     # Get meme pool from cache or build fresh - prioritizes API memes
     def random_memes_pool
       # Use cached pool if fresh (less than 2 minutes old)
@@ -619,8 +675,10 @@ class MemeExplorer < Sinatra::Base
       pool = api_memes + local_memes
       pool = pool.uniq { |m| m["url"] || m["file"] }
 
-      # Strict validation - only include memes with working images
-      validated = pool.select { |m| is_valid_meme?(m) }
+      # Strict validation - only include memes with working images and exclude broken
+      validated = pool.select do |m| 
+        is_valid_meme?(m) && !is_image_broken?(m["url"] || m["file"])
+      end
 
       MEME_CACHE[:memes] = validated.shuffle
       MEME_CACHE[:last_refresh] = Time.now

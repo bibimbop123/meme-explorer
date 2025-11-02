@@ -66,5 +66,49 @@ DB.execute <<-SQL
   );
 SQL
 
+DB.execute <<-SQL
+  CREATE TABLE IF NOT EXISTS user_subreddit_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    subreddit TEXT NOT NULL,
+    preference_score REAL DEFAULT 1.0,
+    times_liked INTEGER DEFAULT 0,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, subreddit)
+  );
+SQL
+
+DB.execute <<-SQL
+  CREATE TABLE IF NOT EXISTS user_meme_exposure (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    meme_url TEXT NOT NULL,
+    shown_count INTEGER DEFAULT 1,
+    last_shown DATETIME DEFAULT CURRENT_TIMESTAMP,
+    liked INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, meme_url)
+  );
+SQL
+
+DB.execute <<-SQL
+  CREATE TABLE IF NOT EXISTS user_category_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    preference_score REAL DEFAULT 1.0,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, category)
+  );
+SQL
+
+# Create indexes for performance
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_exposure ON user_meme_exposure(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_score ON meme_stats(likes, views)")
+
 # Redis
 REDIS = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
