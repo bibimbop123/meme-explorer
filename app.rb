@@ -78,6 +78,22 @@ class MemeExplorer < Sinatra::Base
   REDDIT_OAUTH_CLIENT_ID = ENV.fetch("REDDIT_CLIENT_ID", "")
   REDDIT_OAUTH_CLIENT_SECRET = ENV.fetch("REDDIT_CLIENT_SECRET", "")
 
+  # Load tier configuration
+  TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
+  TIER_WEIGHTS = {
+    tier_1: 50,   # 50% - Best Content
+    tier_2: 25,   # 25% - Excellent Content
+    tier_3: 15,   # 15% - Very Good
+    tier_4: 10,   # 10% - Good
+    tier_5: 8,    # 8%  - Decent
+    tier_6: 6,    # 6%  - Niche (Tech)
+    tier_7: 4,    # 4%  - Niche (Business)
+    tier_8: 2,    # 2%  - Niche (Stocks)
+    tier_9: 2,    # 2%  - Niche (Music)
+    tier_10: 1    # 1%  - Niche (Sports)
+  }
+  TOTAL_TIER_WEIGHT = TIER_WEIGHTS.values.sum
+
   # Pre-warm cache immediately on startup with LOCAL MEMES ONLY (non-blocking)
   Thread.new do
     begin

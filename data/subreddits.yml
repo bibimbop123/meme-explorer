@@ -1,5 +1,5 @@
-popular:
-  # Core Funny & Memes
+# Tier 1: BEST CONTENT - Funny & Memes (50% priority)
+tier_1:
   - funny
   - memes
   - dankmemes
@@ -20,7 +20,8 @@ popular:
   - comedycemetery
   - therewasanattempt
 
-  # Interesting & Fascinating
+# Tier 2: EXCELLENT CONTENT - Interesting & Fascinating (25% priority)
+tier_2:
   - interestingasfuck
   - Damnthatsinteresting
   - nextfuckinglevel
@@ -37,7 +38,8 @@ popular:
   - youseeingthisshit
   - mindblowing
 
-  # Entertaining & Satisfying
+# Tier 3: VERY GOOD CONTENT - Entertaining & Satisfying (15% priority)
+tier_3:
   - oddlysatisfying
   - Satisfyingas
   - gifs
@@ -49,7 +51,8 @@ popular:
   - FailsafeGaming
   - Whatswrongwithyourdog
 
-  # Nature & Animals
+# Tier 4: GOOD CONTENT - Nature & Animals (10% priority)
+tier_4:
   - AnimalsBeingBros
   - Zoomies
   - IllegallySmolCats
@@ -64,7 +67,8 @@ popular:
   - Tippytaps
   - MurderedByWords
 
-  # Comics & Meme Formats
+# Tier 5: DECENT CONTENT - Comics & Meme Formats (8% priority)
+tier_5:
   - Comics
   - webcomics
   - Animemes
@@ -73,7 +77,8 @@ popular:
   - templates
   - antimeme
 
-  # Technology & Programming
+# Tier 6: NICHE CONTENT - Technology & Programming (6% priority)
+tier_6:
   - programming
   - learnprogramming
   - coding
@@ -97,7 +102,8 @@ popular:
   - ProgrammerHumor
   - talesfromtechsupport
 
-  # Business & Entrepreneurship
+# Tier 7: NICHE CONTENT - Business & Entrepreneurship (4% priority)
+tier_7:
   - business
   - entrepreneur
   - startups
@@ -113,7 +119,8 @@ popular:
   - antiwork
   - Work
 
-  # Stocks & Investing
+# Tier 8: NICHE CONTENT - Stocks & Investing (2% priority)
+tier_8:
   - stocks
   - investing
   - wallstreetbets
@@ -128,7 +135,8 @@ popular:
   - options
   - daytrading
 
-  # Music
+# Tier 9: NICHE CONTENT - Music (2% priority)
+tier_9:
   - Music
   - LetsTalkMusic
   - hiphopheads
@@ -146,7 +154,157 @@ popular:
   - trapproduction
   - weAreTheMusicMakers
 
-  # Sports & Gaming
+# Tier 10: NICHE CONTENT - Sports & Gaming (1% priority)
+tier_10:
+  - sports
+  - basketball
+  - nba
+  - nfl
+  - football
+  - soccer
+  - tennis
+  - baseball
+  - hockey
+  - Gaming
+  - pcgaming
+  - esports
+  - leagueoflegends
+  - dota2
+  - valorant
+  - counterstrike
+  - fortnite
+
+# Legacy popular list (includes all tiers)
+popular:
+  - funny
+  - memes
+  - dankmemes
+  - Cringetopia
+  - HoldMyBeer
+  - WinStupidPrizes
+  - WhatCouldGoWrong
+  - JusticeServed
+  - InstantKarma
+  - me_irl
+  - 2meirl4meirl
+  - DeepFriedMemes
+  - ComedyHeaven
+  - CursedImages
+  - Cursed_Memes
+  - Blursed_Images
+  - terriblefacebookmemes
+  - comedycemetery
+  - therewasanattempt
+  - interestingasfuck
+  - Damnthatsinteresting
+  - nextfuckinglevel
+  - BeAmazed
+  - oddlyinteresting
+  - todayilearned
+  - educationalgifs
+  - gifsthatkeepongiving
+  - blackmagicfuckery
+  - toptalent
+  - Whatisthis
+  - ThatsInsane
+  - Unexpected
+  - youseeingthisshit
+  - mindblowing
+  - oddlysatisfying
+  - Satisfyingas
+  - gifs
+  - videos
+  - instant_regret
+  - facepalm
+  - IdiotsInCars
+  - IdiotsOnBikes
+  - FailsafeGaming
+  - Whatswrongwithyourdog
+  - AnimalsBeingBros
+  - Zoomies
+  - IllegallySmolCats
+  - Catswithjobs
+  - Illegallysmolbirds
+  - Eyebleach
+  - rarepuppers
+  - IllegallySmolDogs
+  - Aww
+  - Ducks
+  - Catsstandingup
+  - Tippytaps
+  - MurderedByWords
+  - Comics
+  - webcomics
+  - Animemes
+  - wholesomememes
+  - meme_economy
+  - templates
+  - antimeme
+  - programming
+  - learnprogramming
+  - coding
+  - webdev
+  - frontend
+  - backend
+  - devops
+  - cybersecurity
+  - technology
+  - gadgets
+  - Futurology
+  - artificial
+  - machinelearning
+  - datascience
+  - linux
+  - java
+  - python
+  - javascript
+  - golang
+  - rust
+  - ProgrammerHumor
+  - talesfromtechsupport
+  - business
+  - entrepreneur
+  - startups
+  - startup_jobs
+  - sales
+  - marketing
+  - economics
+  - investing
+  - personalfinance
+  - financialcareers
+  - biztok
+  - ForeverUnfulfilled
+  - antiwork
+  - Work
+  - stocks
+  - investing
+  - wallstreetbets
+  - investing_for_beginners
+  - bogleheads
+  - securityanalysis
+  - dividends
+  - pennystocks
+  - cryptocurrency
+  - Bitcoin
+  - Ethereum
+  - options
+  - daytrading
+  - Music
+  - LetsTalkMusic
+  - hiphopheads
+  - electronicmusic
+  - guitars
+  - Guitar
+  - drums
+  - Drums
+  - piano
+  - audiophile
+  - vinyl
+  - recordcollecting
+  - musicproduction
+  - makinghiphop
+  - trapproduction
+  - weAreTheMusicMakers
   - sports
   - basketball
   - nba
