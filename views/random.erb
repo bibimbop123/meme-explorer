@@ -159,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Accept": "application/json" }
       });
     } catch(err) {}
-    goNext();
+    window.goNext();
   };
 
   window.goNext = async function() {
@@ -220,15 +220,17 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.goPrevious = function() {
-    // Prevent rapid clicks
-    if (window.isNavigating) return;
+    // Prevent rapid clicks - only allow if not already navigating AND history exists
+    if (window.isNavigating || historyStack.length === 0) return;
     
-    if (historyStack.length > 0) {
-      window.isNavigating = true;
-      updateMeme(historyStack.pop());
-      // Reset navigation flag quickly for previous since it's instant
-      setTimeout(() => { window.isNavigating = false; }, 100);
+    // Set flag before updating (instant operation but prevents rapid clicks)
+    window.isNavigating = true;
+    const prevMeme = historyStack.pop();
+    if (prevMeme) {
+      updateMeme(prevMeme);
     }
+    // Reset flag almost immediately since this is instant (no API call)
+    setTimeout(() => { window.isNavigating = false; }, 50);
   };
 
   document.addEventListener("keydown", e => {
