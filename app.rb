@@ -553,6 +553,172 @@ class MemeExplorer < Sinatra::Base
       ) rescue nil
     end
 
+    # Phase 3: Spaced repetition - allow re-showing memes after decay
+    def should_exclude_from_exposure(user_id, meme_url)
+      return false unless user_id
+      
+      exposure = DB.execute(
+        "SELECT last_shown, shown_count FROM user_meme_exposure WHERE user_id = ? AND meme_url = ?",
+        [user_id, meme_url]
+      ).first
+      
+      return false unless exposure
+      
+      last_shown = DateTime.parse(exposure["last_shown"]) rescue nil
+      return false unless last_shown
+      
+      shown_count = exposure["shown_count"].to_i
+      
+      # Exponential decay: base interval grows with each view
+      # 1st view: exclude for 1 hour
+      # 2nd view: exclude for 4 hours
+      # 3rd view: exclude for 16 hours
+      # 4th view: exclude for 64 hours (never shown again effectively)
+      hours_to_wait = 4 ** (shown_count - 1)
+      
+      time_since_shown = (Time.now - last_shown) / 3600  # Convert to hours
+      time_since_shown < hours_to_wait
+    end
+
+    # Phase 3: Get time-based pool distribution
+    def get_time_based_pools(user_id = nil, limit = 100)
+      hour = Time.now.hour
+      
+      # Peak hours: 9-11am, 6-9pm (80% trending, 15% fresh, 5% exploration)
+      # Off-hours: 12am-6am (60% trending, 30% fresh, 10% exploration)
+      # Normal hours: (70% trending, 20% fresh, 10% exploration)
+      
+      if (9..11).include?(hour) || (18..21).include?(hour)
+        # Peak hours
+        trending_ratio = 0.8
+        fresh_ratio = 0.15
+        exploration_ratio = 0.05
+      elsif (0..6).include?(hour)
+        # Off-hours
+        trending_ratio = 0.6
+        fresh_ratio = 0.3
+        exploration_ratio = 0.1
+      else
+        # Normal hours
+        trending_ratio = 0.7
+        fresh_ratio = 0.2
+        exploration_ratio = 0.1
+      end
+      
+      trending = get_trending_pool((limit * trending_ratio).to_i)
+      fresh = get_fresh_pool((limit * fresh_ratio).to_i, 48)
+      exploration = get_exploration_pool((limit * exploration_ratio).to_i)
+      
+      pool = trending + fresh + exploration
+      pool = pool.uniq { |m| m["url"] }
+      
+      # Apply user preferences if logged in
+      if user_id
+        apply_user_preferences(pool, user_id)
+      else
+        pool.shuffle
+      end
+    end
+
+    # Phase 3: Personalized scoring for logged-in users
+    def calculate_personalized_score(meme, user_id)
+      return 0 unless meme || user_id
+      
+      base_score = Math.sqrt((meme["likes"].to_i * 2 + meme["views"].to_i).to_f)
+      
+      # Get user preferences
+      user_pref = DB.execute(
+        "SELECT preference_score FROM user_subreddit_preferences WHERE user_id = ? AND subreddit = ?",
+        [user_id, meme["subreddit"]&.downcase]
+      ).first
+      
+      preference_boost = user_pref ? (user_pref["preference_score"] - 1.0) * 0.5 : 0
+      
+      # Get exposure history for spaced repetition weighting
+      exposure = DB.execute(
+        "SELECT shown_count, liked FROM user_meme_exposure WHERE user_id = ? AND meme_url = ?",
+        [user_id, meme["url"] || meme["file"]]
+      ).first
+      
+      # Boost memes user liked, slightly penalize heavily shown memes
+      exposure_penalty = exposure ? -((exposure["shown_count"].to_i - 1) * 0.1) : 0
+      liked_boost = exposure && exposure["liked"] == 1 ? 0.5 : 0
+      
+      base_score + preference_boost + exposure_penalty + liked_boost
+    end
+
+    # Phase 3: Navigate with spaced repetition
+    def navigate_meme_v3(direction: "next")
+      user_id = session[:user_id] rescue nil
+      
+      # Get time-based intelligent pool
+      if user_id
+        memes = get_time_based_pools(user_id, 100)
+      else
+        memes = random_memes_pool
+      end
+      
+      return nil if memes.empty?
+
+      session[:meme_history] ||= []
+      session[:last_subreddit] ||= nil
+      last_meme_url = session[:meme_history].last
+
+      # Get a random meme with spaced repetition filtering
+      new_meme = nil
+      attempts = 0
+      max_attempts = [memes.size, 30].min
+      
+      while attempts < max_attempts
+        candidate = memes.sample
+        candidate_id = candidate["url"] || candidate["file"]
+        candidate_subreddit = candidate["subreddit"]&.downcase
+        
+        # Phase 3: Check spaced repetition - exclude recently shown
+        if should_exclude_from_exposure(user_id, candidate_id)
+          attempts += 1
+          next
+        end
+        
+        # Ensure:
+        # 1. Different URL than last shown
+        # 2. Valid meme
+        # 3. Different subreddit than last (subreddit diversity)
+        if candidate_id && 
+           candidate_id != last_meme_url && 
+           is_valid_meme?(candidate) &&
+           candidate_subreddit != session[:last_subreddit]
+          new_meme = candidate
+          break
+        end
+        attempts += 1
+      end
+
+      return nil unless new_meme
+
+      # Ensure meme has proper URL property set for frontend
+      meme_identifier = new_meme["url"] || new_meme["file"]
+      new_meme["url"] = meme_identifier if !new_meme["url"]
+      
+      # Ensure permalink field exists
+      new_meme["permalink"] ||= ""
+      
+      # Track history and subreddit diversity
+      session[:meme_history] << meme_identifier
+      session[:meme_history] = session[:meme_history].last(100)  # Increased from 30 for spaced repetition
+      session[:last_subreddit] = new_meme["subreddit"]&.downcase
+
+      # Track exposure for spaced repetition (Phase 3)
+      if user_id
+        DB.execute(
+          "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+          [user_id, meme_identifier]
+        ) rescue nil
+      end
+
+      new_meme
+    end
+
     # Validate meme before display
     def is_valid_meme?(meme)
       return false unless meme.is_a?(Hash)
