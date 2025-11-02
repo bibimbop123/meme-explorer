@@ -185,101 +185,11 @@
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
   </script>
 
-  <!-- ================= INTERACTIVE JS ================= -->
+  <!-- ================= NAVIGATION JS ================= -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const form = document.querySelector("form.like-form");
-      if (!form) return;
-
-      const memeImg = document.getElementById("meme-img");
-      const memeTitle = document.getElementById("meme-title");
-      const memeSub = document.getElementById("meme-subreddit");
-      const likesSpan = form.querySelector(".meme-likes");
-      const likeButton = form.querySelector("button");
       const prevBtn = document.getElementById("prev-btn");
       const nextBtn = document.getElementById("next-btn");
-
-      let historyStack = [];
-      let currentMeme = {
-        url: memeImg.src,
-        title: memeTitle.innerText,
-        subreddit: memeSub.innerText,
-        likes: parseInt(likesSpan.textContent) || 0
-      };
-
-      const updateLikeButton = (liked) => {
-        likeButton.textContent = liked ? "💔 Unlike" : "❤️ Like";
-        likeButton.classList.toggle("liked", liked);
-      };
-
-      const updateLikesDisplay = (likes) => {
-        likesSpan.textContent = likes > 0 ? likes : "";
-      };
-
-      const updateMeme = (meme) => {
-        memeImg.src = meme.url;
-        memeImg.alt = meme.title;
-        memeTitle.innerText = meme.title;
-        memeSub.innerText = meme.subreddit;
-        form.querySelector("input[name='url']").value = meme.url;
-        updateLikesDisplay(meme.likes || 0);
-        updateLikeButton(window.sessionLikedMemes?.includes(meme.url));
-        currentMeme = meme;
-      };
-
-      const fetchMeme = async (direction) => {
-        nextBtn.disabled = true;
-        prevBtn.disabled = true;
-
-        if (direction === "prev" && historyStack.length > 0) {
-          const prev = historyStack.pop();
-          updateMeme(prev);
-          nextBtn.disabled = false;
-          prevBtn.disabled = false;
-          return;
-        }
-
-        historyStack.push(currentMeme);
-
-        try {
-          const currentUrl = form.querySelector("input[name='url']").value;
-          const res = await fetch(`/random.json?direction=${direction}&current_url=${encodeURIComponent(currentUrl)}`);
-          const meme = await res.json();
-          updateMeme(meme);
-        } catch (err) {
-          console.error("Failed to fetch meme:", err);
-        } finally {
-          nextBtn.disabled = false;
-          prevBtn.disabled = false;
-        }
-      };
-
-      likeButton.addEventListener("click", async (e) => {
-        e.preventDefault();
-        const memeUrl = form.querySelector("input[name='url']").value;
-
-        try {
-          const res = await fetch("/like", {
-            method: "POST",
-            body: new URLSearchParams({ url: memeUrl }),
-            headers: { "Accept": "application/json" }
-          });
-          const data = await res.json();
-
-          if (!window.sessionLikedMemes) window.sessionLikedMemes = [];
-          if (data.liked) {
-            if (!window.sessionLikedMemes.includes(memeUrl)) window.sessionLikedMemes.push(memeUrl);
-          } else {
-            window.sessionLikedMemes = window.sessionLikedMemes.filter(u => u !== memeUrl);
-          }
-
-          updateLikesDisplay(data.likes);
-          updateLikeButton(data.liked);
-        } catch (err) {
-          alert("Could not update like — please try again.");
-          console.error(err);
-        }
-      });
 
       prevBtn?.addEventListener("click", () => {
         window.location.href = "/random";
