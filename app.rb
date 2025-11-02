@@ -341,7 +341,7 @@ class MemeExplorer < Sinatra::Base
       sub.downcase
     end
 
-    # Navigate memes safely
+    # Navigate memes safely - FIXED: ensure URL is set
     def navigate_meme(direction: "next")
       memes = random_memes_pool
       return nil if memes.empty?
@@ -358,7 +358,8 @@ class MemeExplorer < Sinatra::Base
         candidate = memes.sample
         candidate_id = candidate["url"] || candidate["file"]
         
-        if candidate_id != last_meme_url && is_valid_meme?(candidate)
+        # Ensure candidate has a valid URL/file and hasn't been shown
+        if candidate_id && candidate_id != last_meme_url && is_valid_meme?(candidate)
           new_meme = candidate
           break
         end
@@ -367,7 +368,10 @@ class MemeExplorer < Sinatra::Base
 
       return nil unless new_meme
 
+      # Ensure meme has proper URL property set for frontend
       meme_identifier = new_meme["url"] || new_meme["file"]
+      new_meme["url"] = meme_identifier if !new_meme["url"]
+      
       session[:meme_history] << meme_identifier
       session[:meme_history] = session[:meme_history].last(30)
 
