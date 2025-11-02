@@ -883,21 +883,21 @@ class MemeExplorer < Sinatra::Base
       DB.execute(
         "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY (likes * 2 + views) DESC LIMIT ?",
         [limit]
-      ).map { |r| r.transform_keys(&:to_s) }
+      )
     end
 
     def get_fresh_pool(limit = 30, hours_ago = 24)
       DB.execute(
         "SELECT * FROM meme_stats WHERE updated_at > datetime('now', '-#{hours_ago} hours') AND (failure_count IS NULL OR failure_count < 2) ORDER BY updated_at DESC LIMIT ?",
         [limit]
-      ).map { |r| r.transform_keys(&:to_s) }
+      )
     end
 
     def get_exploration_pool(limit = 20)
       DB.execute(
         "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY RANDOM() LIMIT ?",
         [limit]
-      ).map { |r| r.transform_keys(&:to_s) }
+      )
     end
 
     # Get meme pool from cache or build fresh - prioritizes API memes
