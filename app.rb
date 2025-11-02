@@ -771,12 +771,18 @@ class MemeExplorer < Sinatra::Base
       reddit_path = post_url
     end
   
-    reddit_path ||= @meme["permalink"] if @meme["permalink"].to_s.strip != ""
+    # Try to get permalink from meme
+    if !reddit_path && @meme["permalink"].to_s.strip != ""
+      reddit_path = @meme["permalink"]
+    end
   
+    # Strip domain if full URL
     if reddit_path&.start_with?("http")
       uri = URI.parse(reddit_path)
       reddit_path = uri.path
     end
+  
+    puts "DEBUG /random.json - meme: #{@meme["title"]}, permalink: #{@meme["permalink"].inspect}, reddit_path: #{reddit_path.inspect}"
   
     content_type :json
     {
