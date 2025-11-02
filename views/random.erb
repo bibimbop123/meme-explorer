@@ -57,6 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Safe session store for liked memes
   if (!window.sessionLikedMemes) window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
 
+  // Store previous button reference for manual Previous handling
+  const prevBtn = document.getElementById("prev-btn");
+  const nextBtn = document.getElementById("next-btn");
+
   const updateMeme = (meme) => {
     if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form) {
       console.warn("DOM elements not ready, skipping update");
@@ -133,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Global functions for button clicks
   window.goNext = async function() {
+    // Push current meme to history BEFORE fetching next
+    historyStack.push(currentMeme);
+    
     try {
       const res = await fetch(`/random.json`);
       if (!res.ok) throw new Error("Failed to fetch meme");
@@ -141,7 +148,8 @@ document.addEventListener("DOMContentLoaded", () => {
       updateMeme(meme);
     } catch (err) {
       console.error("Error fetching next meme:", err);
-      // Silently fail - user can try pressing spacebar again
+      // Pop the meme from history if fetch failed
+      historyStack.pop();
     }
   };
 
