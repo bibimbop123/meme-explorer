@@ -87,8 +87,29 @@
     </div>
   </div>
 <% else %>
-<div style="text-align: center; margin-top: 50px; font-size: 18px;">
-  <p>Loading memes...</p>
+<div id="error-state" style="text-align: center; margin-top: 50px; padding: 40px 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+  <div style="font-size: 48px; margin-bottom: 20px;">🤔</div>
+  <h2 style="color: #333; margin-bottom: 10px;">No Memes Available</h2>
+  <p style="color: #666; margin-bottom: 24px; line-height: 1.6;">
+    We're having trouble loading memes right now. This could be because:
+  </p>
+  <ul style="color: #666; text-align: left; display: inline-block; margin-bottom: 24px; line-height: 2;">
+    <li>🌐 Connection issue with Reddit</li>
+    <li>⏱️ Request timed out</li>
+    <li>📦 No memes in the cache</li>
+  </ul>
+  <p style="color: #666; margin-bottom: 24px;">Try these options:</p>
+  <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+    <button onclick="location.reload();" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+      🔄 Refresh Page
+    </button>
+    <a href="/" style="padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block;">
+      🏠 Home
+    </a>
+    <a href="/trending" style="padding: 12px 24px; background: #ff9800; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block;">
+      📈 Trending
+    </a>
+  </div>
 </div>
 <% end %>
 
@@ -198,10 +219,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/random.json", { signal: controller.signal });
       clearTimeout(timeoutId);
       
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch meme`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error("No memes available. Try refreshing or check back later.");
+        } else if (res.status === 500) {
+          throw new Error("Server error. Please try again in a moment.");
+        } else {
+          throw new Error(`HTTP ${res.status}: Failed to fetch meme`);
+        }
+      }
       
       const meme = await res.json();
-      if (!meme || !meme.url) throw new Error("Invalid meme data received");
+      if (!meme || !meme.url) throw new Error("Received incomplete meme data. Try again.");
       
       meme.likes = parseInt(meme.likes) || 0;
       updateMeme(meme);
@@ -210,8 +239,22 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Navigation error:", err);
       historyStack.pop();
       hideLoadingOverlay();
-      // Show error to user but allow retry
-      alert("Unable to load next meme. Please try again.");
+      
+      // Provide context-aware error message
+      let errorMsg = "Unable to load next meme.";
+      if (err.name === "AbortError") {
+        errorMsg = "Request timed out. Check your connection and try again.";
+      } else if (err.message.includes("No memes")) {
+        errorMsg = err.message;
+      } else if (err.message.includes("incomplete")) {
+        errorMsg = err.message;
+      } else if (err.message.includes("Server error")) {
+        errorMsg = err.message;
+      } else if (err.message.includes("301") || err.message.includes("Network")) {
+        errorMsg = "Connection error. Please check your internet and try again.";
+      }
+      
+      alert(errorMsg + " Click 'Next' to retry.");
     } finally {
       window.isNavigating = false;
     }
