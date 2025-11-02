@@ -16,6 +16,8 @@ require "thread"
 require "ostruct"
 require "oauth2"
 require "httparty"
+require 'dotenv/load'
+
 
 require_relative "./db/setup"
 
@@ -65,7 +67,7 @@ class MemeExplorer < Sinatra::Base
   configure do
     set :server, :puma
     enable :sessions
-    set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
+    set :session_secret, ENV.fetch("SESSION_SECRET")
   end
 
   # OAuth2 Reddit Configuration
@@ -458,7 +460,8 @@ class MemeExplorer < Sinatra::Base
                     "title" => post_data["title"],
                     "url" => image_url,
                     "subreddit" => post_data["subreddit"],
-                    "likes" => post_data["ups"] || 0
+                    "likes" => post_data["ups"] || 0,
+                    "permalink" => post_data["permalink"]
                   }
                   memes << meme
                 end
@@ -727,23 +730,31 @@ class MemeExplorer < Sinatra::Base
 
   get "/random" do
     @meme = navigate_meme(direction: "random")
+    halt 404, "No memes found!" unless @meme
+  
+    # Make sure permalink is included for the Reddit link
+    @meme['permalink'] ||= ""  # or set to actual Reddit permalink if available
+  
     @image_src = meme_image_src(@meme)
     erb :random
   end
+  
 
   get "/random.json" do
     @meme = navigate_meme(direction: "random")
     halt 404, { error: "No memes found" }.to_json if @meme.nil?
-
+  
     content_type :json
     {
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
       url: @meme["url"],
+      permalink: @meme["permalink"],  # <-- include Reddit link
       likes: get_meme_likes(@meme["url"] || @meme["file"])
     }.to_json
   end
+  
   
   post "/like" do
     url = params[:url]
