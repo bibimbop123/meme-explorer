@@ -16,6 +16,7 @@ gem "json"
 gem "net-http"
 gem "httparty"
 gem "colorize"  # 👈 for readable logs
+gem "dotenv"
 
 # Caching and persistence
 gem "redis"
