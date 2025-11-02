@@ -51,5 +51,20 @@ DB.execute <<-SQL
   );
 SQL
 
+DB.execute <<-SQL
+  CREATE TABLE IF NOT EXISTS user_meme_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    meme_url TEXT NOT NULL,
+    liked INTEGER DEFAULT 0,
+    liked_at DATETIME,
+    unliked_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, meme_url)
+  );
+SQL
+
 # Redis
 REDIS = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
