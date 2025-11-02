@@ -69,6 +69,12 @@ class MemeExplorer < Sinatra::Base
     set :server, :puma
     enable :sessions
     set :session_secret, ENV.fetch("SESSION_SECRET", "fallback-secret-key-#{Time.now.to_i}")
+    set :cookie_options, {
+      secure: true,
+      httponly: true,
+      same_site: :lax,
+      expires: Time.now + (60 * 60 * 24 * 30)
+    }
   end
 
   # Configure for session support - use Sinatra's built-in sessions
