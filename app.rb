@@ -213,9 +213,13 @@ class MemeExplorer < Sinatra::Base
   before do
     @start_time = Time.now
     @seen_memes = request.cookies["seen_memes"] ? JSON.parse(request.cookies["seen_memes"]) : []
-    session[:liked_memes] ||= []
-    session[:meme_history] ||= []
-    session[:meme_index] ||= -1
+    
+    # Store large session data in Redis to avoid 4KB cookie limit
+    if REDIS && session[:user_id]
+      user_id = session[:user_id]
+      @redis_meme_history_key = "user:#{user_id}:meme_history"
+      @redis_meme_likes_key = "user:#{user_id}:meme_like_counts"
+    end
   end
 
   after do
@@ -507,9 +511,10 @@ class MemeExplorer < Sinatra::Base
       
       return nil if memes.empty?
 
-      session[:meme_history] ||= []
-      session[:last_subreddit] ||= nil
-      last_meme_url = session[:meme_history].last
+      # For logged-in users, use simple in-memory tracking (no session storage)
+      @meme_history ||= []
+      @last_subreddit ||= nil
+      last_meme_url = @meme_history.last
 
       # Get a random meme that's different from the last one shown AND from different subreddit
       new_meme = nil
@@ -552,10 +557,10 @@ class MemeExplorer < Sinatra::Base
         [meme_identifier, meme_title, meme_subreddit]
       ) rescue nil
       
-      # Track history and subreddit diversity
-      session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(30)
-      session[:last_subreddit] = new_meme["subreddit"]&.downcase
+      # Track history in instance variable only (not in session to keep cookie size small)
+      @meme_history << meme_identifier
+      @meme_history = @meme_history.last(30)
+      @last_subreddit = new_meme["subreddit"]&.downcase
 
       # Track exposure for spaced repetition (Phase 3)
       if user_id
