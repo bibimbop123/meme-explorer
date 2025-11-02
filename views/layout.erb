@@ -282,10 +282,17 @@
       });
 
       prevBtn?.addEventListener("click", () => {
-        if (window.goPrevious) window.goPrevious();
+        window.location.href = "/random";
       });
       nextBtn?.addEventListener("click", () => {
-        if (window.goNext) window.goNext();
+        window.location.href = "/random";
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
+          e.preventDefault();
+          window.location.href = "/random";
+        }
       });
     });
   </script>
