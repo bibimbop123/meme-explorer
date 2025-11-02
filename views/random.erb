@@ -58,6 +58,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!window.sessionLikedMemes) window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
 
   const updateMeme = (meme) => {
+    if (!memeImg || !memeTitle || !memeSub || !likesSpan || !likeButton || !form) {
+      console.warn("DOM elements not ready, skipping update");
+      return;
+    }
+    
     memeImg.src = meme.url || '/images/funny1.jpeg';
     memeImg.alt = meme.title || "Meme Image";
     memeTitle.innerText = meme.title || "Untitled Meme";
