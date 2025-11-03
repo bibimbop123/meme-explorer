@@ -13,14 +13,10 @@ module MemeExplorer
           memes = app.class::MEME_CACHE[:memes] || []
           halt 404, "No memes found!" if memes.empty?
 
-          @meme = find_new_meme(memes, session[:last_meme_url])
-          halt 404, "No memes found!" unless @meme
-
+          @meme = memes.sample
           @image_src = app.helpers.meme_image_src(@meme)
           @likes = MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
-
-          track_meme_view(@meme, session)
 
           erb :random
         end
