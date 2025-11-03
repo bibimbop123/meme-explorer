@@ -143,6 +143,8 @@ class MemeExplorer < Sinatra::Base
     sleep 10  # Wait for app to fully start
     loop do
       begin
+        puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
+        
         # Always start with local memes as fallback
         local_memes = begin
           yaml_data = YAML.load_file("data/memes.yml")
@@ -151,39 +153,52 @@ class MemeExplorer < Sinatra::Base
           else
             yaml_data || []
           end
-        rescue
+        rescue => e
+          puts "❌ [CACHE REFRESH] Failed to load local memes: #{e.message}"
           []
         end
+        
+        puts "✅ [CACHE REFRESH] Loaded #{local_memes.size} local memes"
 
-        if REDDIT_OAUTH_CLIENT_ID.to_s.strip.empty? || REDDIT_OAUTH_CLIENT_SECRET.to_s.strip.empty?
-          puts "⚠️ Missing Reddit OAuth credentials - using local memes only"
+        # Check credentials
+        client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+        client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+        
+        if client_id.empty? || client_secret.empty?
+          puts "⚠️ [CACHE REFRESH] Missing Reddit OAuth credentials (ID: #{client_id.empty? ? 'EMPTY' : 'SET'}, SECRET: #{client_secret.empty? ? 'EMPTY' : 'SET'})"
           MEME_CACHE[:memes] = local_memes.shuffle
           MEME_CACHE[:last_refresh] = Time.now
+          puts "📌 [CACHE REFRESH] Cache now has #{MEME_CACHE[:memes].size} memes (local only)"
           sleep 60
           next
         end
 
-        puts "🔄 Getting OAuth2 token for meme fetch..."
+        puts "🔄 [CACHE REFRESH] Credentials found (ID length: #{client_id.length}, SECRET length: #{client_secret.length})"
+        puts "🔄 [CACHE REFRESH] Getting OAuth2 token..."
+        
         client = OAuth2::Client.new(
-          REDDIT_OAUTH_CLIENT_ID,
-          REDDIT_OAUTH_CLIENT_SECRET,
+          client_id,
+          client_secret,
           site: "https://www.reddit.com",
           authorize_url: "/api/v1/authorize",
           token_url: "/api/v1/access_token"
         )
 
         token = client.client_credentials.get_token(scope: "read")
-        puts "✅ Got OAuth2 token for authenticated API"
+        puts "✅ [CACHE REFRESH] Got OAuth2 token: #{token.token[0..20]}..."
 
         # Use same subreddit sampling as original random_memes_pool
         subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
+        puts "🔄 [CACHE REFRESH] Fetching from #{subreddits_to_fetch.inspect}"
+        
         meme_pool = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits_to_fetch, 30) rescue []
-        puts "✓ Fetched #{meme_pool.size} memes from #{subreddits_to_fetch.size} subreddits via OAuth2"
+        puts "✓ [CACHE REFRESH] Fetched #{meme_pool.size} memes from Reddit"
 
         validated = meme_pool.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
+        puts "✓ [CACHE REFRESH] Validated #{validated.size} memes"
         
         if validated.empty?
-          puts "⚠️ No valid memes from API - falling back to local memes"
+          puts "⚠️ [CACHE REFRESH] No valid API memes - using local only"
           MEME_CACHE[:memes] = local_memes.shuffle
           MEME_CACHE[:rate_limit_reset] = Time.now + 3600
         else
@@ -191,22 +206,26 @@ class MemeExplorer < Sinatra::Base
           all_memes = (validated + local_memes).uniq { |m| m["url"] }
           MEME_CACHE[:memes] = all_memes.shuffle
           MEME_CACHE[:rate_limit_reset] = nil
-          puts "✅ Cache updated with #{validated.size} API memes + #{local_memes.size} local memes"
+          puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
         end
         
         MEME_CACHE[:last_refresh] = Time.now
       rescue OAuth2::Error => e
-        puts "❌ OAuth2 error: #{e.message} - falling back to local memes"
+        puts "❌ [CACHE REFRESH] OAuth2 error: #{e.class} - #{e.message}"
+        puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(3).join(', ')}"
         local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
         MEME_CACHE[:memes] = local_memes.shuffle
         MEME_CACHE[:rate_limit_reset] = Time.now + 3600
         MEME_CACHE[:last_refresh] = Time.now
       rescue => e
-        puts "❌ Refresh error: #{e.class}: #{e.message}"
+        puts "❌ [CACHE REFRESH] Error: #{e.class} - #{e.message}"
+        puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(3).join(', ')}"
         local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
         MEME_CACHE[:memes] = local_memes.shuffle
         MEME_CACHE[:last_refresh] = Time.now
       end
+      
+      puts "⏸️  [CACHE REFRESH] Sleeping 60 seconds until next refresh"
       sleep 60
     end
   end
@@ -1828,7 +1847,16 @@ class MemeExplorer < Sinatra::Base
       uptime_seconds: (Time.now - $start_time).to_i,
       requests: METRICS[:total_requests],
       avg_response_time_ms: METRICS[:avg_request_time_ms].round(2),
-      error_rate_5m: ErrorHandler::Logger.error_rate(300)
+      error_rate_5m: ErrorHandler::Logger.error_rate(300),
+      cache_status: {
+        total_memes: MEME_CACHE[:memes]&.size || 0,
+        last_refresh: MEME_CACHE[:last_refresh]&.iso8601,
+        refresh_age_seconds: MEME_CACHE[:last_refresh] ? (Time.now - MEME_CACHE[:last_refresh]).to_i : nil,
+        reddit_credentials: {
+          client_id_set: !ENV.fetch("REDDIT_CLIENT_ID", "").to_s.strip.empty?,
+          client_secret_set: !ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s.strip.empty?
+        }
+      }
     }.to_json
   end
 
