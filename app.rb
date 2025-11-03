@@ -1382,9 +1382,14 @@ class MemeExplorer < Sinatra::Base
   end
   
   get "/random.json" do
+    puts "🔄 [/random.json] Request received"
+    
     # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
     # This fixes the OAuth issue where new users only saw local memes
+    puts "🔄 [/random.json] Calling random_memes_pool..."
     memes = random_memes_pool
+    puts "✅ [/random.json] Got #{memes.size} memes from pool"
+    
     halt 404, { error: "No memes found" }.to_json if memes.empty?
     
     # CDN caching - 1 hour for meme data
@@ -1413,6 +1418,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
+    puts "✅ [/random.json] Found valid meme: #{@meme['title']}"
     
     # Track in session history
     meme_identifier = @meme["url"] || @meme["file"]
@@ -1449,15 +1455,18 @@ class MemeExplorer < Sinatra::Base
       ) rescue nil
     end
     
-    content_type :json
-    {
+    response_data = {
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
       url: image_url,
       reddit_path: reddit_path,
       likes: get_meme_likes(image_url)
-    }.to_json
+    }
+    
+    content_type :json
+    puts "✅ [/random.json] Returning response: #{response_data.to_json[0..100]}..."
+    response_data.to_json
   end
   
   

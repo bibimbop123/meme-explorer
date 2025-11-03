@@ -47,9 +47,9 @@
 
 <script>
   let currentMeme = {
-    url: '<%= @image_src %>',
-    subreddit: '<%= @meme&.dig("subreddit") || "reddit" %>',
-    title: '<%= @meme&.dig("title") || "Unknown" %>'
+    url: <%= @image_src.to_json %>,
+    subreddit: <%= (@meme&.dig("subreddit") || "reddit").to_json %>,
+    title: <%= (@meme&.dig("title") || "Unknown").to_json %>
   };
   
   const likeBtn = document.getElementById('like-btn');
@@ -78,41 +78,66 @@
   // AJAX: Load next meme without full page reload
   async function loadNextMeme() {
     try {
+      console.log('🔄 [LOAD MEME] Starting fetch to /random.json...');
       const response = await fetch('/random.json');
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update current meme object
-        currentMeme = {
-          url: data.url,
-          subreddit: data.subreddit || 'REDDIT',
-          title: data.title || 'Unknown'
-        };
-        
-        // Update DOM
-        memeImg.src = data.url;
-        memeImg.alt = data.title;
-        memeTitle.textContent = data.title || 'Loading...';
-        memeSub.textContent = (data.subreddit || 'REDDIT').toUpperCase();
-        likeCount.textContent = data.likes || 0;
-        
-        // Reset like state for new meme
-        isLiked = false;
-        updateLikeUI();
-        
-        // Update Reddit link if available
-        const redditLink = document.querySelector('.reddit-link');
-        if (redditLink && data.reddit_path) {
-          redditLink.href = `https://reddit.com${data.reddit_path}`;
-        }
-        
-        // Haptic feedback
-        if (navigator.vibrate) navigator.vibrate(30);
+      
+      console.log('🔄 [LOAD MEME] Response received:', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type')
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
+      
+      const data = await response.json();
+      console.log('✅ [LOAD MEME] JSON parsed successfully:', {
+        url: data.url,
+        title: data.title,
+        subreddit: data.subreddit
+      });
+      
+      // Update current meme object
+      currentMeme = {
+        url: data.url,
+        subreddit: data.subreddit || 'REDDIT',
+        title: data.title || 'Unknown'
+      };
+      
+      // Update DOM
+      memeImg.src = data.url;
+      memeImg.alt = data.title;
+      memeTitle.textContent = data.title || 'Loading...';
+      memeSub.textContent = (data.subreddit || 'REDDIT').toUpperCase();
+      likeCount.textContent = data.likes || 0;
+      
+      // Reset like state for new meme
+      isLiked = false;
+      updateLikeUI();
+      
+      // Update Reddit link if available
+      const redditLink = document.querySelector('.reddit-link');
+      if (redditLink && data.reddit_path) {
+        redditLink.href = `https://reddit.com${data.reddit_path}`;
+      }
+      
+      // Haptic feedback
+      if (navigator.vibrate) navigator.vibrate(30);
+      console.log('✅ [LOAD MEME] DOM updated successfully');
     } catch (e) {
-      console.error('Failed to load next meme:', e);
+      console.error('❌ [LOAD MEME] Error:', {
+        message: e.message,
+        stack: e.stack,
+        type: e.constructor.name
+      });
+      console.warn('⚠️ [LOAD MEME] Falling back to full page reload...');
       // Fallback to full page reload on error
-      window.location.href = '/random';
+      setTimeout(() => {
+        window.location.href = '/random';
+      }, 100);
     }
   }
   
