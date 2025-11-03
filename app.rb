@@ -208,8 +208,8 @@ class MemeExplorer < Sinatra::Base
           end
         end
 
-        # Validate memes
-        validated = api_memes.select { |m| m["url"] && m["url"].match?(/^https?:\/\//) }
+        # Validate memes - LENIENT: accept any non-empty URL to ensure API memes make it through
+        validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
         puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
         
         # Combine with local memes
