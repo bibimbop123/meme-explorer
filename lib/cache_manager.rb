@@ -1,7 +1,6 @@
 # Meme Explorer Cache Manager - LRU cache with memory limits
-module MemeExplorer
-  class CacheManager
-    def initialize(max_size_bytes, ttl_seconds)
+class MemeExplorerCacheManager
+  def initialize(max_size_bytes, ttl_seconds)
       @max_size = max_size_bytes
       @ttl = ttl_seconds
       @cache = {}
@@ -96,6 +95,5 @@ module MemeExplorer
       @cache.each_key do |key|
         delete(key) if now - @timestamps[key] > @ttl
       end
-    end
   end
 end
