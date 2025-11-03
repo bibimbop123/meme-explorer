@@ -114,11 +114,12 @@ class MemeExplorer < Sinatra::Base
   }
   TOTAL_TIER_WEIGHT = TIER_WEIGHTS.values.sum
 
-  # Pre-warm cache immediately on startup with LOCAL MEMES ONLY (non-blocking)
+  # Pre-warm cache IMMEDIATELY on startup (non-blocking)
   Thread.new do
     begin
-      puts "🔥 Pre-warming cache with local memes..."
+      puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
       
+      # Load local memes
       local_memes = begin
         yaml_data = YAML.load_file("data/memes.yml")
         if yaml_data.is_a?(Hash)
@@ -132,9 +133,25 @@ class MemeExplorer < Sinatra::Base
       
       MEME_CACHE[:memes] = local_memes.shuffle
       MEME_CACHE[:last_refresh] = Time.now
-      puts "✅ Cache pre-warmed with #{local_memes.size} local memes (Reddit memes loading in background)"
+      puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
+      
+      # Fetch API memes immediately (no delay)
+      puts "🔄 [STARTUP PRELOAD] Fetching API memes immediately..."
+      subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
+      begin
+        api_memes = fetch_reddit_memes(subreddits_to_fetch, 30) rescue []
+        if api_memes.any?
+          validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
+          all_memes = (validated + local_memes).uniq { |m| m["url"] }
+          MEME_CACHE[:memes] = all_memes.shuffle
+          MEME_CACHE[:last_refresh] = Time.now
+          puts "✅ [STARTUP PRELOAD] Cache prewarmed with #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
+        end
+      rescue => e
+        puts "⚠️ [STARTUP PRELOAD] Initial API fetch failed: #{e.class}, using local memes"
+      end
     rescue => e
-      puts "⚠️ Cache init error: #{e.class}"
+      puts "⚠️ [STARTUP PRELOAD] Error: #{e.class}"
     end
   end
 
@@ -1880,6 +1897,19 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   get "/health" do
     content_type :json
+    
+    # Calculate cache freshness indicator
+    cache_age = MEME_CACHE[:last_refresh] ? (Time.now - MEME_CACHE[:last_refresh]).to_i : nil
+    cache_freshness = if cache_age.nil?
+                        "NO_DATA"
+                      elsif cache_age < 60
+                        "FRESH"
+                      elsif cache_age < 300
+                        "STALE"
+                      else
+                        "OFFLINE"
+                      end
+    
     {
       status: "ok",
       timestamp: Time.now.iso8601,
@@ -1890,11 +1920,17 @@ class MemeExplorer < Sinatra::Base
       cache_status: {
         total_memes: MEME_CACHE[:memes]&.size || 0,
         last_refresh: MEME_CACHE[:last_refresh]&.iso8601,
-        refresh_age_seconds: MEME_CACHE[:last_refresh] ? (Time.now - MEME_CACHE[:last_refresh]).to_i : nil,
+        cache_age_seconds: cache_age,
+        cache_freshness: cache_freshness,
+        refresh_interval_seconds: 30,
         reddit_credentials: {
           client_id_set: !ENV.fetch("REDDIT_CLIENT_ID", "").to_s.strip.empty?,
           client_secret_set: !ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s.strip.empty?
         }
+      },
+      thread_pool: {
+        configured_threads: Integer(ENV.fetch("RAILS_MAX_THREADS", 32)),
+        workers: Integer(ENV.fetch("WEB_CONCURRENCY", 0))
       }
     }.to_json
   end

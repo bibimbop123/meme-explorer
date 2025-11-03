@@ -4,11 +4,13 @@
 # Binding
 bind "tcp://0.0.0.0:3000"
 
-# Use cluster mode with multiple workers
-workers Integer(ENV.fetch("WEB_CONCURRENCY", 3))
+# Disable cluster mode - use single process to consolidate in-memory cache
+# Background thread loads 150+ API memes into shared MEME_CACHE
+# All requests use same cache, no inter-process sync needed
+workers Integer(ENV.fetch("WEB_CONCURRENCY", 0))
 
-# Each worker has its own thread pool
-threads_count = Integer(ENV.fetch("RAILS_MAX_THREADS", 5))
+# Each worker has its own thread pool - increase for concurrent requests
+threads_count = Integer(ENV.fetch("RAILS_MAX_THREADS", 32))
 threads threads_count, threads_count
 
 # Cluster mode settings
