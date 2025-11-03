@@ -86,11 +86,8 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml")["popular"]
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
-  MEME_CACHE = MemeExplorerCacheManager.new(
-    MemeExplorerConfig::MEME_CACHE_MAX_SIZE,
-    MemeExplorerConfig::MEME_CACHE_TTL
-  )
-  MEMES = YAML.load_file("data/memes.yml") rescue []
+    MEME_CACHE = CacheManager
+    MEMES = YAML.load_file("data/memes.yml") rescue []
   METRICS = Hash.new(0).merge(avg_request_time_ms: 0.0)
 
   # -----------------------
