@@ -1,48 +1,212 @@
-<h1 style="text-align:center; margin-bottom:1.5rem;">🔥 Trending Memes</h1>
-
-<% if @memes.nil? || @memes.empty? %>
-  <p style="text-align:center; margin-top:2rem;">No trending memes yet 😢</p>
-<% else %>
-  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:1rem;">
-    <% @memes.each do |meme| %>
-      <div class="meme-card">
-        <img src="<%= meme_image_src(meme) %>" alt="<%= meme["title"] || "Untitled Meme" %>" style="width:100%;">
-        <p style="margin:0.5rem 0; font-weight:500; padding:0 0.5rem; word-wrap:break-word;">
-          <%= meme["title"] || "Untitled Meme" %>
-        </p>
-        <small style="color:#777; display:block; margin-bottom:0.75rem; font-size:0.85rem;">
-          /r/<%= meme["subreddit"] || "local" %> | ❤️ <%= meme["likes"] || 0 %> | 👁️ <%= meme["views"] || 0 %>
-        </small>
-      </div>
-    <% end %>
+<!-- Phase 1: Trending Page with Real Image Display -->
+<div class="trending-header">
+  <h1>🔥 Trending Memes</h1>
+  
+  <!-- Time Window Tabs -->
+  <div class="time-window-tabs">
+    <button class="tab-button active" data-time-window="24h">24 Hours</button>
+    <button class="tab-button" data-time-window="1h">1 Hour</button>
+    <button class="tab-button" data-time-window="7d">7 Days</button>
+    <button class="tab-button" data-time-window="all-time">All Time</button>
   </div>
-<% end %>
+
+  <!-- Sort Dropdown -->
+  <div class="sort-controls">
+    <label for="sortDropdown">Sort By:</label>
+    <select id="sortDropdown">
+      <option value="trending">Trending</option>
+      <option value="latest">Latest</option>
+      <option value="most_liked">Most Liked</option>
+      <option value="rising">Rising</option>
+    </select>
+  </div>
+</div>
+
+<!-- Meme Cards Container -->
+<div id="trendingContainer" class="trending-container">
+  <div class="loading-state">
+    <p>Loading trending memes...</p>
+  </div>
+</div>
+
+<!-- Infinite Scroll Observer -->
+<div id="scrollObserver" class="scroll-observer"></div>
+
+<!-- Include Phase 1 Implementation -->
+<script src="/js/trending.js"></script>
+
+<!-- Initialize Trending Page -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize trending page
+    const trendingPage = new TrendingPage();
+    trendingPage.initialize();
+  });
+</script>
 
 <style>
+  .trending-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+  }
+
+  .trending-header h1 {
+    font-size: 2rem;
+    margin: 0;
+    text-align: center;
+  }
+
+  .time-window-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .tab-button {
+    padding: 0.5rem 1rem;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+  }
+
+  .tab-button:hover {
+    border-color: #4169e1;
+    color: #4169e1;
+  }
+
+  .tab-button.active {
+    background: #4169e1;
+    color: white;
+    border-color: #4169e1;
+  }
+
+  .sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .sort-controls label {
+    font-weight: 500;
+  }
+
+  .sort-controls select {
+    padding: 0.5rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .trending-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+
   .meme-card {
     background: #fff;
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    max-width: 250px;
-    width: 100%;
+    width: 280px;
     text-align: center;
     transition: transform 0.2s;
+    cursor: pointer;
   }
 
   .meme-card:hover {
     transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  }
+
+  .meme-image {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    background: #f0f0f0;
+  }
+
+  .meme-info {
+    padding: 0.75rem;
+  }
+
+  .meme-title {
+    margin: 0;
+    font-weight: 500;
+    font-size: 0.95rem;
+    word-wrap: break-word;
+    max-height: 2.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .meme-meta {
+    color: #777;
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .loading-state {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+  }
+
+  .scroll-observer {
+    height: 1px;
+    margin-top: 2rem;
   }
 
   @media (max-width: 768px) {
     .meme-card {
-      max-width: 45%;
+      width: 45%;
+      min-width: 150px;
+    }
+
+    .trending-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .time-window-tabs {
+      gap: 0.25rem;
+    }
+
+    .tab-button {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
     }
   }
 
   @media (max-width: 480px) {
     .meme-card {
-      max-width: 100%;
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .trending-header {
+      gap: 1rem;
+    }
+
+    .time-window-tabs {
+      width: 100%;
+    }
+
+    .tab-button {
+      flex: 1;
+      min-width: 80px;
     }
   }
 </style>
