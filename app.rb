@@ -866,38 +866,55 @@ class MemeExplorer < Sinatra::Base
 
     # Extract direct image URL from Reddit post data (including GIFs and animated content)
     def extract_image_url(post_data)
+      url = post_data["url"]
+      return nil unless url && url.is_a?(String)
+
       # Direct i.redd.it links (native Reddit images - including GIFs and video)
-      if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
-        return post_data["url"]
+      if url.match?(/^https:\/\/i\.redd\.it\/[a-z0-9]+\.(jpg|jpeg|png|gif|gifv|mp4)/)
+        return url
       end
 
-      # imgur direct links (all formats including GIFs and gifv)
-      if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
-        return post_data["url"]
+      # imgur direct links with file extensions (jpg, png, gif, gifv)
+      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.(jpg|jpeg|png|gif|gifv|mp4)/i)
+        return url
       end
 
-      # Other image and GIF hosts (jpg, jpeg, png, gif, webp, gifv, mp4)
-      if post_data["url"]&.match?(/^https:\/\/(media\.|external-)?[a-z0-9\-]+\.(jpg|jpeg|png|gif|webp|gifv|mp4)/i)
-        return post_data["url"]
+      # imgur gifv links
+      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.gifv/i)
+        return url
       end
 
-      # Handle imgur plain URLs - convert to gifv for animated GIFs
-      if post_data["url"]&.match?(/imgur\.com\/[a-zA-Z0-9]+$/i)
-        imgur_id = post_data["url"].match(/imgur\.com\/([a-zA-Z0-9]+)/i)[1]
-        return "https://i.imgur.com/#{imgur_id}.gifv"
+      # imgur v links (video format)
+      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.mp4/i)
+        return url
       end
 
-      # Check media metadata for preview image - handle reddit's internal preview
-      if post_data["preview"]&.dig("images", 0, "source", "url")
-        url = post_data["preview"]["images"][0]["source"]["url"]
-        return url.gsub("&amp;", "&") if url
+      # Handle imgur page URLs - convert to direct imgur image
+      if url.match?(/^https:\/\/imgur\.com\/([a-zA-Z0-9]+)$/i)
+        imgur_id = url.match(/imgur\.com\/([a-zA-Z0-9]+)/i)[1]
+        return "https://i.imgur.com/#{imgur_id}.jpg"
       end
 
-      # Try gallery image first
+      # Other direct image URLs with proper extensions
+      if url.match?(/\.(jpg|jpeg|png|gif|webp|gifv|mp4)(\?|$)/i)
+        return url
+      end
+
+      # Media metadata gallery
       if post_data["gallery_data"]&.dig("items")&.first
         gallery_id = post_data["gallery_data"]["items"].first["media_id"]
         if post_data["media_metadata"]&.dig(gallery_id, "s", "x")
-          return post_data["media_metadata"][gallery_id]["s"]["x"]
+          gallery_url = post_data["media_metadata"][gallery_id]["s"]["x"]
+          # Only return if it ends with an image extension
+          return gallery_url if gallery_url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+        end
+      end
+
+      # Preview image - be strict about format
+      if post_data["preview"]&.dig("images", 0, "source", "url")
+        preview_url = post_data["preview"]["images"][0]["source"]["url"]
+        if preview_url&.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+          return preview_url.gsub("&amp;", "&")
         end
       end
 
