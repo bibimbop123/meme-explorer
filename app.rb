@@ -19,6 +19,7 @@ require "httparty"
 require "bcrypt"
 require 'dotenv/load'
 require 'colorize'
+require 'timeout'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
@@ -1229,49 +1230,102 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   get "/" do
     begin
-      @meme = navigate_meme_unified(direction: "next")
+      # FAST: Serve from pre-warmed cache (instant)
+      @meme = MEME_CACHE[:memes].sample rescue nil
       @meme ||= fallback_meme
-      @image_src = meme_image_src(@meme)
-      @likes = get_meme_likes(@image_src)
     rescue => e
       puts "Error in root route: #{e.class}: #{e.message}"
-      puts e.backtrace.join("\n")
       @meme = fallback_meme
-      @image_src = meme_image_src(@meme)
-      @likes = 0
     end
+    
+    @image_src = meme_image_src(@meme)
+    @likes = 0  # Will be loaded by JS
+    
+    # ASYNC: Track analytics in background (non-blocking)
+    Thread.new do
+      begin
+        user_id = session[:user_id] rescue nil
+        meme_identifier = @meme["url"] || @meme["file"]
+        return unless meme_identifier
+        
+        # Track view
+        DB.execute(
+          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+          [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
+        ) rescue nil
+        
+        # Track exposure for spaced repetition
+        if user_id
+          DB.execute(
+            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+            [user_id, meme_identifier]
+          ) rescue nil
+        end
+      rescue => e
+        puts "⚠️ Background analytics error: #{e.message}"
+      end
+    end
+    
     erb :random
   end
 
   # Render random meme page
   get "/random" do
     begin
-      @meme = navigate_meme_unified(direction: "random")
+      # FAST: Serve from pre-warmed cache (instant)
+      @meme = MEME_CACHE[:memes].sample rescue nil
       @meme ||= fallback_meme
-      @image_src = meme_image_src(@meme)
-      @likes = get_meme_likes(@image_src)
     rescue => e
       puts "Error in /random route: #{e.class}: #{e.message}"
-      puts e.backtrace.join("\n")
       @meme = fallback_meme
-      @image_src = meme_image_src(@meme)
-      @likes = 0
     end
+    
+    @image_src = meme_image_src(@meme)
+    @likes = 0  # Will be loaded by JS
   
     # Determine reddit_path for this specific image
     @reddit_path = nil
-    if @meme["reddit_post_urls"]&.is_a?(Array)
-      post_url = @meme["reddit_post_urls"].find { |u| u.include?(@image_src) }
-      @reddit_path = post_url
+    begin
+      if @meme["reddit_post_urls"]&.is_a?(Array)
+        post_url = @meme["reddit_post_urls"].find { |u| u.include?(@image_src) }
+        @reddit_path = post_url
+      end
+    
+      # Fallback to permalink from API meme
+      if !@reddit_path && @meme["permalink"]
+        permalink_str = @meme["permalink"].to_s.strip
+        if permalink_str != ""
+          @reddit_path = permalink_str
+          # Strip domain if full URL
+          @reddit_path = URI.parse(@reddit_path).path if @reddit_path.start_with?("http")
+        end
+      end
+    rescue => e
+      puts "⚠️ Reddit path error: #{e.message}"
     end
-  
-    # Fallback to permalink from API meme
-    if !@reddit_path && @meme["permalink"]
-      permalink_str = @meme["permalink"].to_s.strip
-      if permalink_str != ""
-        @reddit_path = permalink_str
-        # Strip domain if full URL
-        @reddit_path = URI.parse(@reddit_path).path if @reddit_path.start_with?("http")
+    
+    # ASYNC: Track analytics in background (non-blocking)
+    Thread.new do
+      begin
+        user_id = session[:user_id] rescue nil
+        meme_identifier = @meme["url"] || @meme["file"]
+        return unless meme_identifier
+        
+        # Track view
+        DB.execute(
+          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+          [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
+        ) rescue nil
+        
+        # Track exposure for spaced repetition
+        if user_id
+          DB.execute(
+            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+            [user_id, meme_identifier]
+          ) rescue nil
+        end
+      rescue => e
+        puts "⚠️ Background analytics error: #{e.message}"
       end
     end
 
