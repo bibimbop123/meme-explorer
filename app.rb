@@ -111,15 +111,6 @@ class MemeExplorer < Sinatra::Base
     end
   end
 
-  # CSRF Error Handler
-  error Rack::Csrf::InvalidToken do
-    halt 403, {
-      success: false,
-      error: "CSRF token validation failed",
-      code: "CSRF_TOKEN_INVALID",
-      message: "Your request was rejected due to invalid CSRF token. Please try again."
-    }.to_json
-  end
 
   # OAuth2 Reddit Configuration
   REDDIT_OAUTH_CLIENT_ID = ENV.fetch("REDDIT_CLIENT_ID", "")
