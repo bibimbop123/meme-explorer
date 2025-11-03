@@ -1,13 +1,16 @@
 <div class="meme-container">
   <div id="meme-wrapper" class="fade-in">
-    <h2 id="meme-title"><%= @meme["title"] %></h2>
-    <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme["title"] %>">
+    <div class="meme-title-section" id="meme-title-section">
+      <button class="title-toggle-btn" id="title-toggle-btn" aria-label="Toggle title visibility" title="Toggle info (T)">👁️</button>
+      <h2 id="meme-title"><%= @meme["title"] %></h2>
 
-    <div class="meme-meta">
-      <p>Category: <span id="meme-category"><%= @category_name %></span></p>
-      <p>Subreddit: <span id="meme-subreddit"><%= @meme["subreddit"] || 'Local Meme' %></span></p>
-      <p>Views: <span id="meme-views"><%= @views %></span></p>
+      <div class="meme-meta">
+        <p>Category: <span id="meme-category"><%= @category_name %></span></p>
+        <p>Subreddit: <span id="meme-subreddit"><%= @meme["subreddit"] || 'Local Meme' %></span></p>
+        <p>Views: <span id="meme-views"><%= @views %></span></p>
+      </div>
     </div>
+    <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme["title"] %>">
 
   <% result = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [@image_src]).first %>
   <% @likes = result ? result["likes"] : 0 %>
@@ -33,6 +36,22 @@
 
 <style>
 .meme-container { max-width:700px; margin:20px auto; text-align:center; padding:10px; }
+
+/* Title section with toggle */
+.meme-title-section { background: var(--bg-secondary, #f5f5f5); border: 2px solid var(--accent, #ff4458); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; position: relative; transition: all 0.3s ease; }
+
+.meme-title-section.title-hidden { opacity: 0.2; max-height: 35px; overflow: hidden; padding: 6px; }
+
+.meme-title-section.title-visible { opacity: 1; max-height: none; }
+
+.title-toggle-btn { background: none; border: none; color: var(--accent, #ff4458); font-size: 16px; cursor: pointer; padding: 4px; margin-right: 8px; display: inline-block; transition: all 0.2s ease; }
+
+.title-toggle-btn:hover { transform: scale(1.2); filter: drop-shadow(0 0 4px var(--accent, #ff4458)); }
+
+.title-toggle-btn:active { transform: scale(0.95); }
+
+#meme-title { font-size: 18px; margin: 8px 0; color: var(--text-primary, #1a1a1a); }
+
 img#meme-image { width:100%; height:auto; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2); transition: transform 0.3s ease, opacity 0.3s ease; }
 img#meme-image:hover { transform: scale(1.05) rotate(-1deg); }
 .meme-meta p { font-size:14px; color:#555; margin:4px 0; }
@@ -43,7 +62,7 @@ button.liked { background:#ff4d4d; color:white; }
 #prev-meme-button { background:#2196f3; color:white; }
 .fade-in { opacity:1; transition: opacity 0.3s ease; }
 .fade-out { opacity:0; transition: opacity 0.3s ease; }
-@media (max-width:500px){ .meme-container{padding:5px;} button{width:45%; margin:5px 2%;} }
+@media (max-width:500px){ .meme-container{padding:5px;} button{width:45%; margin:5px 2%;} .meme-title-section { max-height: 32px; } }
 </style>
 
 <script>
@@ -116,4 +135,56 @@ likeForm.addEventListener('submit', async e => {
 nextButton.addEventListener('click', fetchNextMeme);
 prevButton.addEventListener('click', showPrevMeme);
 document.addEventListener('keydown', e=>{ if(e.key==='ArrowRight') fetchNextMeme(); if(e.key==='ArrowLeft') showPrevMeme(); });
+
+// Title visibility toggle for meme view
+const titleSection = document.getElementById('meme-title-section');
+const titleToggleBtn = document.getElementById('title-toggle-btn');
+const isMobileView = window.innerWidth <= 768;
+const savedTitleState = sessionStorage.getItem('memeViewTitleVisible');
+let isTitleSectionVisible = savedTitleState !== null ? savedTitleState === 'true' : !isMobileView;
+
+function initTitleVisibility() {
+  if (!isTitleSectionVisible) {
+    titleSection.classList.remove('title-visible');
+    titleSection.classList.add('title-hidden');
+    titleToggleBtn.classList.add('toggle-hidden');
+    titleToggleBtn.classList.remove('toggle-visible');
+  } else {
+    titleSection.classList.remove('title-hidden');
+    titleSection.classList.add('title-visible');
+    titleToggleBtn.classList.add('toggle-visible');
+    titleToggleBtn.classList.remove('toggle-hidden');
+  }
+}
+
+function toggleTitleSection() {
+  isTitleSectionVisible = !isTitleSectionVisible;
+  sessionStorage.setItem('memeViewTitleVisible', isTitleSectionVisible);
+  
+  if (isTitleSectionVisible) {
+    titleSection.classList.remove('title-hidden');
+    titleSection.classList.add('title-visible');
+    titleToggleBtn.classList.remove('toggle-hidden');
+    titleToggleBtn.classList.add('toggle-visible');
+  } else {
+    titleSection.classList.remove('title-visible');
+    titleSection.classList.add('title-hidden');
+    titleToggleBtn.classList.remove('toggle-visible');
+    titleToggleBtn.classList.add('toggle-hidden');
+  }
+  
+  // Haptic feedback - mobile devices
+  if (navigator.vibrate) navigator.vibrate(20);
+}
+
+initTitleVisibility();
+titleToggleBtn.setAttribute('aria-label', 'Toggle title and metadata visibility');
+titleToggleBtn.addEventListener('click', toggleTitleSection);
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 't' || e.key === 'T') && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    toggleTitleSection();
+  }
+});
 </script>

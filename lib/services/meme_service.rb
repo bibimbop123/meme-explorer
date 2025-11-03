@@ -127,4 +127,36 @@ class MemeService
     return [] unless @memes.is_a?(Hash)
     @memes.values.flatten.compact
   end
+
+  def self.toggle_like(url, liked_now, session, db = nil)
+    db ||= defined?(DB) ? ::DB : nil
+    return 0 unless db && url
+    
+    begin
+      db.execute("CREATE TABLE IF NOT EXISTS meme_stats (url TEXT PRIMARY KEY, likes INTEGER DEFAULT 0, views INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+      
+      if liked_now
+        db.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [url])
+      else
+        db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END WHERE url = ?", [url])
+      end
+      
+      get_likes(url, db)
+    rescue => e
+      0
+    end
+  end
+
+  def self.get_likes(url, db = nil)
+    db ||= defined?(DB) ? ::DB : nil
+    return 0 unless db && url
+    
+    begin
+      db.execute("CREATE TABLE IF NOT EXISTS meme_stats (url TEXT PRIMARY KEY, likes INTEGER DEFAULT 0, views INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+      result = db.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
+      result ? result["likes"].to_i : 0
+    rescue => e
+      0
+    end
+  end
 end

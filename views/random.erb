@@ -7,7 +7,8 @@
     <% end %>
   </div>
   
-  <div class="meme-info">
+  <div class="meme-info" id="meme-info">
+    <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">👁️</button>
     <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
     <div class="meme-meta">
       <span class="meme-subreddit"><%= @meme&.dig('subreddit')&.upcase || 'MEME' %></span>
@@ -42,7 +43,10 @@
     </button>
   </div>
 
-  <div class="nav-hint">Swipe or press Space ↑</div>
+  <div class="nav-hints-container">
+    <div class="nav-hint">Swipe or press Space ↑</div>
+    <div class="nav-hint">Press T for title</div>
+  </div>
 </div>
 
 <script>
@@ -59,8 +63,58 @@
   const memeImg = document.querySelector('.meme-display img');
   const memeTitle = document.querySelector('.meme-title');
   const memeSub = document.querySelector('.meme-subreddit');
+  const memeInfo = document.getElementById('meme-info');
+  const titleToggle = document.getElementById('title-toggle');
   
   let isLiked = window.sessionLikedMemes ? window.sessionLikedMemes.includes(currentMeme.url) : false;
+  
+  // Title visibility state management
+  let isMobile = window.innerWidth <= 768;
+  const savedVisibility = sessionStorage.getItem('titleVisible');
+  let isTitleVisible = savedVisibility !== null ? savedVisibility === 'true' : true;
+  
+  // Initialize title visibility on page load
+  function initializeTitleVisibility() {
+    if (!isTitleVisible) {
+      memeInfo.classList.add('title-hidden');
+      memeInfo.classList.remove('title-visible');
+    } else {
+      memeInfo.classList.add('title-visible');
+      memeInfo.classList.remove('title-hidden');
+    }
+  }
+  
+  initializeTitleVisibility();
+  
+  // Toggle title visibility
+  function toggleTitleVisibility() {
+    isTitleVisible = !isTitleVisible;
+    sessionStorage.setItem('titleVisible', isTitleVisible);
+    
+    if (isTitleVisible) {
+      memeInfo.classList.remove('title-hidden');
+      memeInfo.classList.add('title-visible');
+      titleToggle.classList.remove('toggle-hidden');
+      titleToggle.classList.add('toggle-visible');
+    } else {
+      memeInfo.classList.remove('title-visible');
+      memeInfo.classList.add('title-hidden');
+      titleToggle.classList.remove('toggle-visible');
+      titleToggle.classList.add('toggle-hidden');
+    }
+    
+    // Haptic feedback - mobile devices
+    if (navigator.vibrate) navigator.vibrate(20);
+  }
+  
+  titleToggle.addEventListener('click', toggleTitleVisibility);
+  
+  // Keyboard shortcut: T key to toggle
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 't' || e.key === 'T') && document.activeElement.tagName !== 'INPUT') {
+      toggleTitleVisibility();
+    }
+  });
   
   // Update like button UI
   function updateLikeUI() {
@@ -211,6 +265,15 @@
   // Keyboard & Swipe navigation - AJAX instead of full page reload
   let touchStartX = 0;
   let touchEndX = 0;
+  
+  // Handle window resize for responsive title visibility
+  window.addEventListener('resize', () => {
+    const newIsMobile = window.innerWidth <= 768;
+    if (newIsMobile !== isMobile) {
+      // Orientation or breakpoint changed
+      isMobile = newIsMobile;
+    }
+  });
   
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {

@@ -188,18 +188,131 @@ main {
 /* ============ MEME INFO PANEL ============ */
 .meme-info {
   position: fixed;
-  top: 80px;
-  left: 20px;
-  right: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--bg-secondary);
   border: 2px solid var(--accent);
   backdrop-filter: blur(10px);
   padding: 16px;
   border-radius: 12px;
   max-width: 220px;
-  z-index: 500;
+  z-index: 9000;
   transition: all 0.3s ease;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+.meme-info.title-visible {
+  opacity: 1;
+  visibility: visible;
+  animation: fadeIn 0.3s ease;
+}
+
+.meme-info.title-hidden {
+  opacity: 0.15;
+  visibility: visible;
+  animation: fadeOut 0.3s ease;
+  padding: 8px;
+  max-width: 40px;
+  height: 40px;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0.15; }
+}
+
+.title-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 0px transparent);
+}
+
+.title-toggle-btn:hover {
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.title-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Visual feedback for toggle states */
+.title-toggle-btn.toggle-visible {
+  animation: glowPulse 0.4s ease-out;
+}
+
+.title-toggle-btn.toggle-hidden {
+  opacity: 0.6;
+  animation: fadePulse 0.4s ease-out;
+}
+
+@keyframes glowPulse {
+  0% {
+    filter: drop-shadow(0 0 0px var(--accent));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+  100% {
+    filter: drop-shadow(0 0 0px transparent);
+  }
+}
+
+@keyframes fadePulse {
+  0% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px var(--accent));
+  }
+  100% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 0px transparent);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
 }
 
 .meme-title {
@@ -220,18 +333,23 @@ main {
 .meme-meta {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
 }
 
 .meme-subreddit {
-  display: inline-block;
+  display: block;
   background: var(--accent);
   color: white;
   padding: 6px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+  max-width: 160px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .reddit-link {
@@ -304,14 +422,35 @@ main {
 }
 
 /* ============ NAVIGATION HINT ============ */
-.nav-hint {
+.nav-hints-container {
   position: fixed;
   bottom: 100px;
   right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 998;
+  animation: hintsFadeIn 0.6s ease-out;
+}
+
+@keyframes hintsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-hint {
   font-size: 12px;
   color: var(--text-secondary);
   text-align: right;
   transition: color 0.3s ease;
+  line-height: 1.6;
+  white-space: nowrap;
 }
 
 /* ============ LOADING STATE ============ */
@@ -496,7 +635,19 @@ footer p {
 }
 
 /* ============ RESPONSIVE ============ */
+@media (max-width: 1024px) {
+  /* Tablet: Keep title visible but slightly smaller */
+  .meme-info {
+    max-width: 180px;
+  }
+  
+  .meme-info.title-hidden {
+    max-width: 40px;
+  }
+}
+
 @media (max-width: 768px) {
+  /* Tablet/Mobile: Center title info on viewport */
   .meme-display {
     width: 100%;
     height: calc(100vh - 120px);
@@ -504,11 +655,45 @@ footer p {
   }
   
   .meme-info {
-    top: 80px;
-    left: 20px;
-    right: auto;
-    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     max-width: 160px;
+    height: auto;
+    padding: 16px;
+    opacity: 1;
+  }
+  
+  .meme-info.title-hidden {
+    max-width: 40px;
+    height: 40px;
+    padding: 8px;
+    opacity: 0.15;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Mobile: Always show toggle button but with state indication */
+  .meme-info.title-hidden .title-toggle-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    opacity: 0.8;
+    font-size: 18px;
+    z-index: 10;
+    animation: pulse-hint 1.5s ease-in-out infinite;
+  }
+  
+  /* Mobile: Expanded state - button fully visible and stable */
+  .meme-info.title-visible .title-toggle-btn {
+    position: static;
+    opacity: 1;
+    animation: none;
+  }
+  
+  @keyframes pulse-hint {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
   }
   
   .meme-title {
@@ -517,7 +702,7 @@ footer p {
     -webkit-line-clamp: 4;
   }
   
-  .nav-hint {
+  .nav-hints-container {
     display: none;
   }
   
@@ -563,6 +748,27 @@ footer p {
   nav a, nav button {
     padding: 4px 8px;
     font-size: 11px;
+  }
+  
+  /* Small mobile: Keep centered positioning */
+  .meme-info {
+    max-width: 36px;
+    height: 36px;
+    padding: 6px;
+  }
+  
+  .meme-info.title-visible {
+    max-width: 140px;
+    height: auto;
+    padding: 12px;
+  }
+  
+  .title-toggle-btn {
+    font-size: 14px;
+  }
+  
+  .meme-title {
+    font-size: 13px;
   }
 }
 

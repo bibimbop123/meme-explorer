@@ -54,7 +54,7 @@ module MemeExplorer
                         true
                       end
 
-          likes = MemeService.toggle_like(url, liked_now, session)
+          likes = MemeService.toggle_like(url, liked_now, session, DB)
 
           content_type :json
           { liked: liked_now, likes: likes }.to_json
