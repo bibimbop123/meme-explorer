@@ -138,9 +138,9 @@ class MemeExplorer < Sinatra::Base
     end
   end
 
-  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (60 second interval, non-blocking)
+  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (FAST: 5 second initial delay, 30 second refresh interval)
   Thread.new do
-    sleep 10  # Wait for app to fully start
+    sleep 2  # Quick start - only wait for basic setup
     loop do
       begin
         puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
@@ -237,8 +237,8 @@ class MemeExplorer < Sinatra::Base
         end
       end
       
-      puts "⏸️  [CACHE REFRESH] Sleeping 60 seconds until next refresh..."
-      sleep 60
+      puts "⏸️  [CACHE REFRESH] Sleeping 30 seconds until next refresh..."
+      sleep 30
     end
   end
 
@@ -954,12 +954,16 @@ class MemeExplorer < Sinatra::Base
 
     # Get meme pool from cache or build fresh - prioritizes API memes with local fallback
     def random_memes_pool
-      # Use cached pool if fresh (less than 2 minutes old)
-      if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty? &&
-         MEME_CACHE[:last_refresh] && (Time.now - MEME_CACHE[:last_refresh]) < 120
+      # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
+      # This ensures 159 API memes are served from cache, not rebuilt
+      if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty?
+        puts "✅ [MEME POOL] Returning #{MEME_CACHE[:memes].size} memes from cache"
         return MEME_CACHE[:memes]
       end
 
+      # PRIORITY 2: Cache is empty, attempt to fetch fresh
+      puts "⚠️ [MEME POOL] Cache empty, fetching fresh memes..."
+      
       # Always load local memes as guaranteed fallback
       local_memes = begin
         if MEMES.is_a?(Hash)
@@ -990,6 +994,7 @@ class MemeExplorer < Sinatra::Base
 
       # If validation filtered everything, use local memes without strict validation as last resort
       if validated.empty? && !local_memes.empty?
+        puts "⚠️ [MEME POOL] API fetch failed, falling back to local memes only"
         validated = local_memes
       end
 
@@ -1002,6 +1007,7 @@ class MemeExplorer < Sinatra::Base
         m_copy
       end
 
+      puts "✅ [MEME POOL] Cache updated with #{normalized.size} memes"
       MEME_CACHE[:memes] = normalized.shuffle
       MEME_CACHE[:last_refresh] = Time.now
 
