@@ -865,27 +865,14 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Extract direct image URL from Reddit post data (including GIFs and animated content)
+    # LENIENT approach: accept any HTTPS image URL, prioritizing established image hosts
     def extract_image_url(post_data)
       url = post_data["url"]
       return nil unless url && url.is_a?(String)
 
-      # Direct i.redd.it links (native Reddit images - including GIFs and video)
-      if url.match?(/^https:\/\/i\.redd\.it\/[a-z0-9]+\.(jpg|jpeg|png|gif|gifv|mp4)/)
-        return url
-      end
-
-      # imgur direct links with file extensions (jpg, png, gif, gifv)
-      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.(jpg|jpeg|png|gif|gifv|mp4)/i)
-        return url
-      end
-
-      # imgur gifv links
-      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.gifv/i)
-        return url
-      end
-
-      # imgur v links (video format)
-      if url.match?(/^https:\/\/i\.imgur\.com\/[a-z0-9]+\.mp4/i)
+      # Always prefer i.redd.it, imgur, and other known image CDNs
+      # Most permissive: Accept any HTTPS URL that looks like an image
+      if url.match?(/^https:\/\/.*?\.(jpg|jpeg|png|gif|webp|gifv|mp4)(\?.*)?$/i)
         return url
       end
 
@@ -893,11 +880,6 @@ class MemeExplorer < Sinatra::Base
       if url.match?(/^https:\/\/imgur\.com\/([a-zA-Z0-9]+)$/i)
         imgur_id = url.match(/imgur\.com\/([a-zA-Z0-9]+)/i)[1]
         return "https://i.imgur.com/#{imgur_id}.jpg"
-      end
-
-      # Other direct image URLs with proper extensions
-      if url.match?(/\.(jpg|jpeg|png|gif|webp|gifv|mp4)(\?|$)/i)
-        return url
       end
 
       # Media metadata gallery
@@ -910,7 +892,7 @@ class MemeExplorer < Sinatra::Base
         end
       end
 
-      # Preview image - be strict about format
+      # Preview image - fallback
       if post_data["preview"]&.dig("images", 0, "source", "url")
         preview_url = post_data["preview"]["images"][0]["source"]["url"]
         if preview_url&.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
