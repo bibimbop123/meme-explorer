@@ -23,6 +23,9 @@ require 'timeout'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
+require_relative "./config/application"
+require_relative "./lib/app_logger"
+require_relative "./lib/cache_manager"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -57,10 +60,7 @@ class MemeExplorer < Sinatra::Base
   end
   DB = ::DB
   
-  # -----------------------
-  # Thread Safety
-  # -----------------------
-  MEME_CACHE_LOCK = Mutex.new
+  # Thread safety handled by CacheManager
 
   # -----------------------
   # Rack::Attack
@@ -80,7 +80,10 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml")["popular"]
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
-  MEME_CACHE = { memes: [], last_refresh: nil, rate_limit_reset: nil }
+  MEME_CACHE = MemeExplorer::CacheManager.new(
+    MemeExplorer::Configuration::MEME_CACHE_MAX_SIZE,
+    MemeExplorer::Configuration::MEME_CACHE_TTL
+  )
   MEMES = YAML.load_file("data/memes.yml") rescue []
   METRICS = Hash.new(0).merge(avg_request_time_ms: 0.0)
 
@@ -91,13 +94,16 @@ class MemeExplorer < Sinatra::Base
     set :server, :puma
     enable :sessions
     set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
-    set :session_expire_after, 2592000  # 30 days
-    set :cookie_options, {
-      secure: true,
-      httponly: true,
-      same_site: :lax,
-      expires: Time.now + 2592000
-    }
+    set :session_expire_after, MemeExplorer::Configuration::SESSION_EXPIRE_AFTER
+    set :cookie_options, MemeExplorer::Configuration::COOKIE_OPTIONS
+    
+    begin
+      MemeExplorer::Configuration.validate!
+      MemeExplorer.logger.info("Configuration validated at startup")
+    rescue MemeExplorer::ConfigurationError => e
+      MemeExplorer.logger.fatal("Configuration error: #{e.message}")
+      exit 1
+    end
   end
 
   # OAuth2 Reddit Configuration
@@ -113,24 +119,8 @@ class MemeExplorer < Sinatra::Base
 
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
-  TIER_WEIGHTS = {
-    tier_1: 35,   # 35% - Best Content
-    tier_2: 18,   # 18% - Excellent Content
-    tier_3: 15,   # 15% - Very Good
-    tier_4: 10,   # 10% - Good
-    tier_5: 8,    # 8%  - Decent
-    tier_6: 5,    # 5%  - Niche (Tech)
-    tier_7: 3,    # 3%  - Niche (Business)
-    tier_8: 2,    # 2%  - Niche (Stocks)
-    tier_9: 2,    # 2%  - Niche (Music)
-    tier_10: 2    # 2%  - Niche (Sports)
-  }
-  TOTAL_TIER_WEIGHT = TIER_WEIGHTS.values.sum
-  
-  # Validate tier weights sum to 100
-  unless TOTAL_TIER_WEIGHT == 100
-    puts "⚠️  WARNING: TIER_WEIGHTS sum to #{TOTAL_TIER_WEIGHT} instead of 100. Probability weighting may be inaccurate."
-  end
+  TIER_WEIGHTS = MemeExplorer::Configuration::TIER_WEIGHTS
+  TOTAL_TIER_WEIGHT = MemeExplorer::Configuration::TOTAL_TIER_WEIGHT
 
   # Pre-warm cache IMMEDIATELY on startup (non-blocking)
   @startup_thread = Thread.new do
