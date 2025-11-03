@@ -1,4 +1,6 @@
-# Search Service - Handles meme searching and ranking with security validation
+# Search Service - Secured with Input Validation
+# Handles meme searching and ranking with security hardening
+
 require_relative '../validators'
 
 class SearchService
@@ -9,7 +11,7 @@ class SearchService
     rescue Validators::ValidationError => e
       return { success: false, error: e.message, results: [] }
     end
-
+    
     query_lower = query.downcase.strip
     return { success: true, results: [], query: query } if query_lower.empty?
     
@@ -46,6 +48,7 @@ class SearchService
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end
     
+    # Rank results
     ranked = rank_results(cache_results, query_lower)
     
     { success: true, results: ranked, query: query, total: ranked.size }
