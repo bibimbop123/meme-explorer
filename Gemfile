@@ -38,7 +38,7 @@ gem "sqlite3"
 gem "sidekiq"
 gem "thread"
 gem "ostruct"
-
+gem "rack-csrf"
 group :development, :test do
   gem "rspec", "~> 3.12"
   gem "rack-test", "~> 2.1"
