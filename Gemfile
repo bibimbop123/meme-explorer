@@ -33,6 +33,11 @@ gem "sentry-ruby", "~> 5.0"
 # Scheduling
 gem "whenever", require: false
 
+# Image Processing & Optimization (Phase 2)
+gem "image_processing", "~> 1.12"
+gem "ruby-vips", "~> 2.1"  # Fast image processor
+gem "aws-sdk-s3", "~> 1.120"  # AWS S3 storage
+
 # Optional (for Tier 2)
 gem "sqlite3"
 gem "sidekiq"
