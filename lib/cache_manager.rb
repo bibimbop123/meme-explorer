@@ -7,6 +7,39 @@ class CacheManager
   @@cache_hit_count = {}
   MAX_CACHE_SIZE = 100 * 1024 * 1024
 
+  # Instance methods - delegate to class methods
+  def [](key)
+    self.class.get(key)
+  end
+
+  def []=(key, value)
+    self.class.set(key, value)
+  end
+
+  def get(key)
+    self.class.get(key)
+  end
+
+  def set(key, value, ttl = 3600)
+    self.class.set(key, value, ttl)
+  end
+
+  def delete(key)
+    self.class.delete(key)
+  end
+
+  def clear
+    self.class.clear
+  end
+
+  def size
+    self.class.size
+  end
+
+  def stats
+    self.class.stats
+  end
+
   class << self
     def get(key)
       @@cache_lock.synchronize do
