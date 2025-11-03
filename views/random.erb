@@ -46,16 +46,21 @@
 </div>
 
 <script>
-  const memeUrl = '<%= @image_src %>';
-  const memeSub = '<%= @meme&.dig("subreddit") || "reddit" %>';
-  const memeTitle = '<%= @meme&.dig("title") || "Unknown" %>';
+  let currentMeme = {
+    url: '<%= @image_src %>',
+    subreddit: '<%= @meme&.dig("subreddit") || "reddit" %>',
+    title: '<%= @meme&.dig("title") || "Unknown" %>'
+  };
   
   const likeBtn = document.getElementById('like-btn');
   const likeCount = document.getElementById('like-count');
   const saveBtn = document.getElementById('save-btn');
   const nextBtn = document.getElementById('next-btn');
+  const memeImg = document.querySelector('.meme-display img');
+  const memeTitle = document.querySelector('.meme-title');
+  const memeSub = document.querySelector('.meme-subreddit');
   
-  let isLiked = window.sessionLikedMemes ? window.sessionLikedMemes.includes(memeUrl) : false;
+  let isLiked = window.sessionLikedMemes ? window.sessionLikedMemes.includes(currentMeme.url) : false;
   
   // Update like button UI
   function updateLikeUI() {
@@ -70,13 +75,54 @@
   
   updateLikeUI();
   
+  // AJAX: Load next meme without full page reload
+  async function loadNextMeme() {
+    try {
+      const response = await fetch('/random.json');
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update current meme object
+        currentMeme = {
+          url: data.url,
+          subreddit: data.subreddit || 'REDDIT',
+          title: data.title || 'Unknown'
+        };
+        
+        // Update DOM
+        memeImg.src = data.url;
+        memeImg.alt = data.title;
+        memeTitle.textContent = data.title || 'Loading...';
+        memeSub.textContent = (data.subreddit || 'REDDIT').toUpperCase();
+        likeCount.textContent = data.likes || 0;
+        
+        // Reset like state for new meme
+        isLiked = false;
+        updateLikeUI();
+        
+        // Update Reddit link if available
+        const redditLink = document.querySelector('.reddit-link');
+        if (redditLink && data.reddit_path) {
+          redditLink.href = `https://reddit.com${data.reddit_path}`;
+        }
+        
+        // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
+    } catch (e) {
+      console.error('Failed to load next meme:', e);
+      // Fallback to full page reload on error
+      window.location.href = '/random';
+    }
+  }
+  
   // Like functionality
   likeBtn.addEventListener('click', async () => {
     try {
       const response = await fetch('/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `url=${encodeURIComponent(memeUrl)}`
+        body: `url=${encodeURIComponent(currentMeme.url)}`
       });
       
       if (response.ok) {
@@ -104,7 +150,7 @@
       const response = await fetch('/api/save-meme', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `url=${encodeURIComponent(memeUrl)}&title=${encodeURIComponent(memeTitle)}&subreddit=${encodeURIComponent(memeSub)}`
+        body: `url=${encodeURIComponent(currentMeme.url)}&title=${encodeURIComponent(currentMeme.title)}&subreddit=${encodeURIComponent(currentMeme.subreddit)}`
       });
       
       if (response.ok) {
@@ -122,7 +168,7 @@
     if (navigator.share) {
       try {
         await navigator.share({
-          title: memeTitle,
+          title: currentMeme.title,
           text: 'Check out this meme!',
           url: window.location.href
         });
@@ -137,14 +183,14 @@
     }
   });
   
-  // Keyboard & Swipe navigation
+  // Keyboard & Swipe navigation - AJAX instead of full page reload
   let touchStartX = 0;
   let touchEndX = 0;
   
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      window.location.href = '/random';
+      loadNextMeme();
     }
   });
   
@@ -156,8 +202,13 @@
     touchEndX = e.changedTouches[0].screenX;
     if (touchStartX - touchEndX > 50) {
       // Swiped left
-      window.location.href = '/random';
+      loadNextMeme();
     }
+  });
+  
+  // Next button click
+  nextBtn.addEventListener('click', () => {
+    loadNextMeme();
   });
 </script>
 
