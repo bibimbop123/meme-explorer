@@ -80,9 +80,9 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml")["popular"]
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
-  MEME_CACHE = MemeExplorer::CacheManager.new(
-    MemeExplorer::Configuration::MEME_CACHE_MAX_SIZE,
-    MemeExplorer::Configuration::MEME_CACHE_TTL
+  MEME_CACHE = MemeExplorerCacheManager.new(
+    MemeExplorerConfig::MEME_CACHE_MAX_SIZE,
+    MemeExplorerConfig::MEME_CACHE_TTL
   )
   MEMES = YAML.load_file("data/memes.yml") rescue []
   METRICS = Hash.new(0).merge(avg_request_time_ms: 0.0)
@@ -94,14 +94,13 @@ class MemeExplorer < Sinatra::Base
     set :server, :puma
     enable :sessions
     set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
-    set :session_expire_after, MemeExplorer::Configuration::SESSION_EXPIRE_AFTER
-    set :cookie_options, MemeExplorer::Configuration::COOKIE_OPTIONS
+    set :session_expire_after, MemeExplorerConfig::SESSION_EXPIRE_AFTER
+    set :cookie_options, MemeExplorerConfig::COOKIE_OPTIONS
     
     begin
-      MemeExplorer::Configuration.validate!
-      MemeExplorer.logger.info("Configuration validated at startup")
-    rescue MemeExplorer::ConfigurationError => e
-      MemeExplorer.logger.fatal("Configuration error: #{e.message}")
+      MemeExplorerConfig.validate!
+    rescue ConfigurationError => e
+      puts "Fatal: Configuration error: #{e.message}"
       exit 1
     end
   end
@@ -119,8 +118,8 @@ class MemeExplorer < Sinatra::Base
 
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
-  TIER_WEIGHTS = MemeExplorer::Configuration::TIER_WEIGHTS
-  TOTAL_TIER_WEIGHT = MemeExplorer::Configuration::TOTAL_TIER_WEIGHT
+  TIER_WEIGHTS = MemeExplorerConfig::TIER_WEIGHTS
+  TOTAL_TIER_WEIGHT = MemeExplorerConfig::TOTAL_TIER_WEIGHT
 
   # Pre-warm cache IMMEDIATELY on startup (non-blocking)
   @startup_thread = Thread.new do
@@ -140,29 +139,10 @@ class MemeExplorer < Sinatra::Base
         []
       end
       
-      MEME_CACHE_LOCK.synchronize do
-        MEME_CACHE[:memes] = local_memes.shuffle
-        MEME_CACHE[:last_refresh] = Time.now
-      end
+      MEME_CACHE.set(:memes, local_memes.shuffle)
       puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
       
-      # Fetch API memes immediately (no delay)
-      puts "🔄 [STARTUP PRELOAD] Fetching API memes immediately..."
-      subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
-      begin
-        api_memes = fetch_reddit_memes(subreddits_to_fetch, 30) rescue []
-        if api_memes.any?
-          validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
-          all_memes = (validated + local_memes).uniq { |m| m["url"] }
-          MEME_CACHE_LOCK.synchronize do
-            MEME_CACHE[:memes] = all_memes.shuffle
-            MEME_CACHE[:last_refresh] = Time.now
-          end
-          puts "✅ [STARTUP PRELOAD] Cache prewarmed with #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
-        end
-      rescue => e
-        puts "⚠️ [STARTUP PRELOAD] Initial API fetch failed: #{e.class}: #{e.message}"
-      end
+      # Note: Cache refresh thread will handle API meme fetching
     rescue => e
       puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
     end
@@ -242,30 +222,21 @@ class MemeExplorer < Sinatra::Base
         validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
         puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
         
-        # Combine with local memes (thread-safe)
-        MEME_CACHE_LOCK.synchronize do
-          if validated.empty?
-            puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
-            MEME_CACHE[:memes] = local_memes.shuffle
-            MEME_CACHE[:rate_limit_reset] = Time.now + 3600
-          else
-            all_memes = (validated + local_memes).uniq { |m| m["url"] }
-            MEME_CACHE[:memes] = all_memes.shuffle
-            MEME_CACHE[:rate_limit_reset] = nil
-            puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
-          end
-          
-          MEME_CACHE[:last_refresh] = Time.now
+        # Combine with local memes (thread-safe via CacheManager)
+        if validated.empty?
+          puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
+          MEME_CACHE.set(:memes, local_memes.shuffle)
+        else
+          all_memes = (validated + local_memes).uniq { |m| m["url"] }
+          MEME_CACHE.set(:memes, all_memes.shuffle)
+          puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local memes"
         end
       rescue => e
         puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
         puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
         begin
           local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
-          MEME_CACHE_LOCK.synchronize do
-            MEME_CACHE[:memes] = local_memes.shuffle
-            MEME_CACHE[:last_refresh] = Time.now
-          end
+          MEME_CACHE.set(:memes, local_memes.shuffle)
         rescue => fallback_error
           puts "⚠️ [CACHE REFRESH] Fallback also failed: #{fallback_error.class}"
         end
@@ -814,22 +785,21 @@ class MemeExplorer < Sinatra::Base
 
     # Get memes from cache or MEMES (thread-safe)
     def get_cached_memes
-      MEME_CACHE_LOCK.synchronize do
-        cached = REDIS&.get("memes:latest")
-        memes = cached ? JSON.parse(cached) : MEME_CACHE[:memes] ||= MEMES
+      cached = REDIS&.get("memes:latest")
+      memes = cached ? JSON.parse(cached) : MEME_CACHE.get(:memes) || MEMES
 
-        memes.reject! do |m|
-          file_missing = m["file"] && !File.exist?(File.join(settings.public_folder, m["file"]))
-          url_invalid  = m["url"] && !m["url"].match?(/^https?:\/\//)
-          file_missing || url_invalid
-        end
-
-        REDIS&.setex("memes:latest", 300, memes.to_json) rescue nil
-        MEME_CACHE[:memes] = memes
+      memes.reject! do |m|
+        file_missing = m["file"] && !File.exist?(File.join(settings.public_folder, m["file"]))
+        url_invalid  = m["url"] && !m["url"].match?(/^https?:\/\//)
+        file_missing || url_invalid
       end
+
+      REDIS&.setex("memes:latest", 300, memes.to_json) rescue nil
+      MEME_CACHE.set(:memes, memes)
+      memes
     rescue => e
       puts "❌ get_cached_memes error: #{e.class} - #{e.message}"
-      MEME_CACHE_LOCK.synchronize { MEME_CACHE[:memes] ||= MEMES }
+      MEME_CACHE.get(:memes) || MEMES
     end
 
     # Fetch memes from popular subreddits with working image links
@@ -999,15 +969,13 @@ class MemeExplorer < Sinatra::Base
     # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
     def random_memes_pool
       # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
-      # This ensures API memes are served from cache, not rebuilt
-      cache_memes = MEME_CACHE_LOCK.synchronize { MEME_CACHE[:memes]&.dup }
+      cache_memes = MEME_CACHE.get(:memes)
       if cache_memes.is_a?(Array) && !cache_memes.empty?
         puts "✅ [MEME POOL] Returning #{cache_memes.size} memes from cache"
         return cache_memes
       end
 
-      # PRIORITY 2: Cache is empty, attempt to fetch fresh
-      puts "⚠️ [MEME POOL] Cache empty, fetching fresh memes..."
+      puts "⚠️ [MEME POOL] Cache empty, using local memes fallback"
       
       # Always load local memes as guaranteed fallback
       local_memes = begin
@@ -1022,41 +990,8 @@ class MemeExplorer < Sinatra::Base
         []
       end
 
-      # Fetch fresh API memes first (primary source)
-      api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS, 50) rescue []
-      
-      # Combine: prefer API memes but always include local as fallback
-      pool = api_memes + local_memes
-      pool = pool.uniq { |m| m["url"] || m["file"] }
-
-      # Validate memes - LENIENT approach: accept anything with a URL or existing file
-      # This ensures API memes with any URL format make it through
-      validated = pool.select do |m| 
-        has_valid_file = m["file"] && File.exist?(File.join("public", m["file"]))
-        has_valid_url = m["url"] && m["url"].to_s.strip.length > 0
-        has_valid_file || has_valid_url
-      end
-
-      # If validation filtered everything, use local memes without strict validation as last resort
-      if validated.empty? && !local_memes.empty?
-        puts "⚠️ [MEME POOL] API fetch failed, falling back to local memes only"
-        validated = local_memes
-      end
-
-      # Normalize file paths: remove leading / so File.join works correctly
-      normalized = validated.map do |m|
-        m_copy = m.dup
-        if m_copy["file"] && m_copy["file"].start_with?("/")
-          m_copy["file"] = m_copy["file"][1..-1]  # Remove leading slash
-        end
-        m_copy
-      end
-
-      puts "✅ [MEME POOL] Cache updated with #{normalized.size} memes"
-      MEME_CACHE[:memes] = normalized.shuffle
-      MEME_CACHE[:last_refresh] = Time.now
-
-      normalized
+      MEME_CACHE.set(:memes, local_memes.shuffle)
+      local_memes
     end
 
     # Get likes safely
