@@ -1228,18 +1228,35 @@ class MemeExplorer < Sinatra::Base
   # Routes
   # -----------------------
   get "/" do
-    @meme = navigate_meme_unified(direction: "next")
-    @image_src = meme_image_src(@meme)
+    begin
+      @meme = navigate_meme_unified(direction: "next")
+      @meme ||= fallback_meme
+      @image_src = meme_image_src(@meme)
+      @likes = get_meme_likes(@image_src)
+    rescue => e
+      puts "Error in root route: #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
+      @meme = fallback_meme
+      @image_src = meme_image_src(@meme)
+      @likes = 0
+    end
     erb :random
   end
 
   # Render random meme page
   get "/random" do
-    @meme = navigate_meme_unified(direction: "random")
-    halt 404, "No memes found!" unless @meme
-  
-    @image_src = meme_image_src(@meme)
-    @likes = get_meme_likes(@image_src)
+    begin
+      @meme = navigate_meme_unified(direction: "random")
+      @meme ||= fallback_meme
+      @image_src = meme_image_src(@meme)
+      @likes = get_meme_likes(@image_src)
+    rescue => e
+      puts "Error in /random route: #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
+      @meme = fallback_meme
+      @image_src = meme_image_src(@meme)
+      @likes = 0
+    end
   
     # Determine reddit_path for this specific image
     @reddit_path = nil
