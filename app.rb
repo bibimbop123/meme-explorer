@@ -981,11 +981,12 @@ class MemeExplorer < Sinatra::Base
       pool = api_memes + local_memes
       pool = pool.uniq { |m| m["url"] || m["file"] }
 
-      # Validate memes - be lenient, accept if either file exists or URL is valid
+      # Validate memes - LENIENT approach: accept anything with a URL or existing file
+      # This ensures API memes with any URL format make it through
       validated = pool.select do |m| 
-        next true if m["file"] && File.exist?(File.join("public", m["file"]))
-        next true if m["url"] && m["url"].match?(/^https?:\/\//)
-        false
+        has_valid_file = m["file"] && File.exist?(File.join("public", m["file"]))
+        has_valid_url = m["url"] && m["url"].to_s.strip.length > 0
+        has_valid_file || has_valid_url
       end
 
       # If validation filtered everything, use local memes without strict validation as last resort
