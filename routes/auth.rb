@@ -1,4 +1,6 @@
 # Authentication Routes
+require_relative '../lib/validators'
+
 module MemeExplorer
   module Routes
     class Auth
@@ -51,20 +53,36 @@ module MemeExplorer
         end
 
         app.post "/login" do
-          email = params[:email]
-          password = params[:password]
-
-          user_id = AuthService.authenticate_email(email, password)
-          if user_id
-            session[:user_id] = user_id
-            redirect "/profile"
-          else
-            ErrorHandler::Logger.log(
-              StandardError.new("Failed login attempt"),
-              { email: email },
-              :warning
+          begin
+            # Whitelist and validate parameters
+            safe_params = Validators.whitelist_params(params,
+              allowed_keys: [:email, :password],
+              optional_keys: []
             )
-            halt 401, "Invalid email or password"
+
+            # Validate email format (sanitize but don't be too strict on password field itself)
+            email = Validators.validate_email(safe_params[:email])
+            password = safe_params[:password]
+            
+            halt 422, { success: false, error: "Password required" }.to_json if password.to_s.strip.empty?
+
+            # Authenticate using service
+            user_id = AuthService.authenticate_email(email, password)
+            
+            if user_id
+              session[:user_id] = user_id
+              redirect "/profile"
+            else
+              ErrorHandler::Logger.log(
+                StandardError.new("Failed login attempt"),
+                { email: email },
+                :warning
+              )
+              halt 401, { success: false, error: "Invalid email or password" }.to_json
+            end
+
+          rescue Validators::ValidationError => e
+            halt 422, { success: false, error: e.message }.to_json
           end
         end
 
@@ -73,19 +91,33 @@ module MemeExplorer
         end
 
         app.post "/signup" do
-          email = params[:email]
-          password = params[:password]
-          password_confirm = params[:password_confirm]
+          begin
+            # Whitelist and validate parameters
+            safe_params = Validators.whitelist_params(params,
+              allowed_keys: [:email, :username, :password, :password_confirm],
+              optional_keys: []
+            )
 
-          halt 400, "Passwords do not match" if password != password_confirm
-          halt 400, "Email and password required" if email.to_s.strip.empty? || password.to_s.strip.empty?
+            # Validate each field
+            email = Validators.validate_email(safe_params[:email])
+            username = Validators.validate_username(safe_params[:username])
+            password = Validators.validate_password(safe_params[:password])
+            password_confirm = safe_params[:password_confirm]
 
-          user_id = UserService.create_email_user(email, password)
-          halt 400, "Email already in use" unless user_id
+            # Verify passwords match
+            halt 422, { success: false, error: "Passwords do not match" }.to_json if password != password_confirm
 
-          session[:user_id] = user_id
-          session[:email] = email
-          redirect "/profile"
+            # Create user with validated data
+            user_id = UserService.create_email_user(email, password)
+            halt 409, { success: false, error: "Email already in use" }.to_json unless user_id
+
+            session[:user_id] = user_id
+            session[:email] = email
+            redirect "/profile"
+
+          rescue Validators::ValidationError => e
+            halt 422, { success: false, error: e.message }.to_json
+          end
         end
 
         app.get "/logout" do

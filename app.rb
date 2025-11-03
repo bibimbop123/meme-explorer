@@ -20,6 +20,7 @@ require "bcrypt"
 require 'dotenv/load'
 require 'colorize'
 require 'timeout'
+require 'rack/csrf'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
@@ -76,6 +77,11 @@ class MemeExplorer < Sinatra::Base
   use Rack::Attack
 
   # -----------------------
+  # CSRF Protection
+  # -----------------------
+  use Rack::Csrf, raise: true, on: [:post, :put, :delete, :patch]
+
+  # -----------------------
   # Constants
   # -----------------------
   POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml")["popular"]
@@ -103,6 +109,16 @@ class MemeExplorer < Sinatra::Base
       puts "Fatal: Configuration error: #{e.message}"
       exit 1
     end
+  end
+
+  # CSRF Error Handler
+  error Rack::Csrf::InvalidToken do
+    halt 403, {
+      success: false,
+      error: "CSRF token validation failed",
+      code: "CSRF_TOKEN_INVALID",
+      message: "Your request was rejected due to invalid CSRF token. Please try again."
+    }.to_json
   end
 
   # OAuth2 Reddit Configuration
