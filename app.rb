@@ -864,21 +864,27 @@ class MemeExplorer < Sinatra::Base
       memes
     end
 
-    # Extract direct image URL from Reddit post data
+    # Extract direct image URL from Reddit post data (including GIFs and animated content)
     def extract_image_url(post_data)
-      # Direct i.redd.it links (native Reddit images)
+      # Direct i.redd.it links (native Reddit images - including GIFs and video)
       if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
         return post_data["url"]
       end
 
-      # imgur direct links (all formats)
+      # imgur direct links (all formats including GIFs and gifv)
       if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
         return post_data["url"]
       end
 
-      # Other image hosts
-      if post_data["url"]&.match?(/^https:\/\/(media\.|external-)?[a-z0-9\-]+\.(jpg|jpeg|png|gif|webp)/i)
+      # Other image and GIF hosts (jpg, jpeg, png, gif, webp, gifv, mp4)
+      if post_data["url"]&.match?(/^https:\/\/(media\.|external-)?[a-z0-9\-]+\.(jpg|jpeg|png|gif|webp|gifv|mp4)/i)
         return post_data["url"]
+      end
+
+      # Handle imgur plain URLs - convert to gifv for animated GIFs
+      if post_data["url"]&.match?(/imgur\.com\/[a-zA-Z0-9]+$/i)
+        imgur_id = post_data["url"].match(/imgur\.com\/([a-zA-Z0-9]+)/i)[1]
+        return "https://i.imgur.com/#{imgur_id}.gifv"
       end
 
       # Check media metadata for preview image - handle reddit's internal preview
