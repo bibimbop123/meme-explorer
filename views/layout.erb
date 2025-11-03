@@ -10,7 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/meme_explorer.css">
   <script>
-    if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    // Initialize theme on page load
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark-mode');
+    } else if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark-mode');
+    } else if (prefersDark) {
       document.documentElement.classList.add('dark-mode');
     }
   </script>
@@ -55,16 +63,23 @@
   <script>
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
     
+    // Dark mode toggle for entire UI
     const darkModeToggle = document.getElementById('darkModeToggle');
     if (darkModeToggle) {
-      darkModeToggle.addEventListener('click', () => {
-        const html = document.documentElement;
-        html.classList.toggle('dark-mode');
-        localStorage.setItem('theme', html.classList.contains('dark-mode') ? 'dark' : 'light');
-        darkModeToggle.textContent = html.classList.contains('dark-mode') ? '☀️' : '🌙';
-      });
+      // Set initial button state
       const isDarkMode = document.documentElement.classList.contains('dark-mode');
       darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+      
+      // Toggle on click
+      darkModeToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const html = document.documentElement;
+        const newIsDark = !html.classList.contains('dark-mode');
+        
+        html.classList.toggle('dark-mode');
+        localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+        darkModeToggle.textContent = newIsDark ? '☀️' : '🌙';
+      });
     }
   </script>
 
