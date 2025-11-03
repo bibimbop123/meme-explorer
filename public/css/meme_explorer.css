@@ -1,0 +1,457 @@
+/* Meme Explorer - Human-Centric Design System */
+/* Inspired by TikTok, Instagram Reels, Reddit */
+
+:root {
+  /* Light Mode */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f0f0;
+  --text-primary: #000;
+  --text-secondary: #666;
+  --accent: #ff4458;
+  --accent-light: #ffebee;
+  
+  /* Dark Mode (DEFAULT) */
+  --dark-bg-primary: #0a0a0a;
+  --dark-bg-secondary: #1a1a1a;
+  --dark-text-primary: #fff;
+  --dark-text-secondary: #aaa;
+  --dark-accent: #ff4458;
+}
+
+html.light-mode {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f0f0;
+  --text-primary: #000;
+  --text-secondary: #666;
+  --accent: #ff4458;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--dark-bg-primary);
+  color: var(--dark-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  overflow-x: hidden;
+}
+
+/* ============ HEADER ============ */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.3s ease;
+}
+
+header.hidden {
+  transform: translateY(-100%);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent);
+  text-decoration: none;
+  letter-spacing: -1px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 0 8px;
+}
+
+nav a, nav button {
+  padding: 8px 16px;
+  background: rgba(255, 68, 88, 0.1);
+  color: var(--dark-text-primary);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+nav a:hover, nav button:hover {
+  background: var(--accent);
+  color: white;
+  transform: scale(1.05);
+}
+
+.dark-mode-toggle {
+  font-size: 20px !important;
+  background: none !important;
+  padding: 8px !important;
+}
+
+/* ============ MAIN CONTENT ============ */
+main {
+  padding-top: 60px;
+  position: relative;
+}
+
+/* ============ MEME VIEWER (The Hero) ============ */
+.meme-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  z-index: 1;
+}
+
+.meme-display {
+  width: 90%;
+  height: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(255, 68, 88, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meme-display img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--dark-bg-secondary);
+}
+
+/* ============ MEME CONTROLS (Bottom Bar) ============ */
+.meme-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  padding: 40px 20px 20px;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  z-index: 999;
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 24px;
+  transition: all 0.2s;
+  padding: 12px;
+}
+
+.control-btn:active {
+  transform: scale(0.9);
+}
+
+.control-btn:hover {
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+
+.control-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dark-text-secondary);
+  min-width: 30px;
+  text-align: center;
+}
+
+/* ============ INFO PANEL (Top-Right) ============ */
+.meme-info {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 16px;
+  border-radius: 12px;
+  max-width: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 500;
+}
+
+.meme-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.meme-subreddit {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ============ NAVIGATION HINTS ============ */
+.nav-hint {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  font-size: 12px;
+  color: var(--dark-text-secondary);
+  text-align: right;
+}
+
+/* ============ LOADING STATE ============ */
+.meme-loading {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--dark-bg-secondary) 25%, #2a2a2a 50%, var(--dark-bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============ MODAL/POPUP ============ */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--dark-bg-secondary);
+  padding: 24px;
+  border-radius: 16px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.modal-btn {
+  padding: 12px 24px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.modal-btn:hover {
+  background: #ff2f42;
+  transform: scale(1.02);
+}
+
+/* ============ SEARCH PAGE ============ */
+.search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 80px 16px 20px;
+}
+
+.search-result-card {
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  aspect-ratio: 1;
+}
+
+.search-result-card:hover {
+  transform: scale(1.05);
+}
+
+.search-result-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ============ PROFILE PAGE ============ */
+.profile-section {
+  padding: 80px 20px 60px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.profile-username {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--dark-bg-secondary);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--dark-text-secondary);
+  margin-top: 8px;
+}
+
+/* ============ ANIMATIONS ============ */
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.bounce {
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 768px) {
+  .meme-display {
+    width: 100%;
+    height: calc(100vh - 120px);
+    border-radius: 0;
+  }
+  
+  .meme-info {
+    top: auto;
+    right: auto;
+    left: 20px;
+    bottom: 120px;
+    max-width: 160px;
+  }
+  
+  .nav-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  header {
+    padding: 12px 16px;
+  }
+  
+  .logo {
+    font-size: 18px;
+  }
+  
+  nav a, nav button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .meme-controls {
+    padding: 30px 16px 16px;
+  }
+  
+  .control-btn {
+    font-size: 20px;
+  }
+}
+
+/* ============ UTILITIES ============ */
+.hidden {
+  display: none !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.gap-16 {
+  gap: 16px;
+}

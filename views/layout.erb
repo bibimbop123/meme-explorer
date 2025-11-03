@@ -8,8 +8,7 @@
   <link rel="apple-touch-icon" href="/images/favicon.png">
   <link rel="manifest" href="/manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/modern.css">
+  <link rel="stylesheet" href="/css/meme_explorer.css">
   <script>
     if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark-mode');
@@ -41,12 +40,6 @@
       <% end %>
     </nav>
   </header>
-
-  <!-- ================= SEARCH FORM ================= -->
-  <form class="search-form" action="/search" method="get">
-    <input type="text" name="q" placeholder="Search memes..." value="<%= params[:q] %>">
-    <button type="submit">Search</button>
-  </form>
 
   <!-- ================= MAIN CONTENT ================= -->
   <main>
