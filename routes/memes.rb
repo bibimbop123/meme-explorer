@@ -146,8 +146,11 @@ module MemeExplorer
       end
 
       def self.find_new_meme(memes, last_meme_url)
+        return memes.sample if memes.size <= 1
+        
+        # Aggressively try to find a different meme
         attempts = 0
-        max_attempts = [memes.size, 30].min
+        max_attempts = [memes.size * 3, 50].max
 
         while attempts < max_attempts
           candidate = memes.sample
@@ -156,7 +159,8 @@ module MemeExplorer
           attempts += 1
         end
 
-        nil
+        # Fallback: return any random meme if we can't find a different one
+        memes.sample
       end
 
       def self.track_meme_view(meme, session)

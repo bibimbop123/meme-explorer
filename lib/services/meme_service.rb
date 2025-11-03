@@ -31,7 +31,7 @@ class MemeService
     end
 
     # Fetch fresh API memes first (primary source)
-    api_memes = fetch_method.call(popular_subreddits, 50) rescue []
+    api_memes = fetch_method.call(popular_subreddits, 200) rescue []
     
     # Combine: prefer API memes but always include local as fallback
     pool = api_memes + local_memes
