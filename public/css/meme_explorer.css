@@ -189,7 +189,8 @@ main {
 .meme-info {
   position: fixed;
   top: 80px;
-  right: 20px;
+  left: 20px;
+  right: auto;
   background: var(--bg-secondary);
   border: 2px solid var(--accent);
   backdrop-filter: blur(10px);
@@ -503,15 +504,17 @@ footer p {
   }
   
   .meme-info {
-    top: auto;
-    right: auto;
+    top: 80px;
     left: 20px;
-    bottom: 120px;
-    max-width: 180px;
+    right: auto;
+    bottom: auto;
+    max-width: 160px;
   }
   
   .meme-title {
     font-size: 14px;
+    max-height: 80px;
+    -webkit-line-clamp: 4;
   }
   
   .nav-hint {
