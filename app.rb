@@ -499,10 +499,10 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Helpers (continued)
   # -----------------------
-    # Safely get meme image
+    # Safely get meme image - prioritize API URLs over local files
     def meme_image_src(m)
       return "/images/funny1.jpeg" unless m.is_a?(Hash)
-      m["file"].to_s.strip != "" ? m["file"] : (m["url"].to_s.strip != "" ? m["url"] : "/images/funny1.jpeg")
+      m["url"].to_s.strip != "" ? m["url"] : (m["file"].to_s.strip != "" ? m["file"] : "/images/funny1.jpeg")
     end
 
     # Fallback meme - shown while API is loading or content unavailable
