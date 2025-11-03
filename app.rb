@@ -43,13 +43,24 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Redis & DB
   # -----------------------
-  REDIS_URL = ENV.fetch("REDIS_URL", "rediss://red-d42v6u24d50c73a5goqg:UD3EpN1aQXznpIRseNj0ULS0qRNo8SvS@oregon-keyvalue.render.com:6379")
+  REDIS_URL = ENV.fetch("REDIS_URL", nil)
   REDIS = begin
-    Redis.new(url: REDIS_URL)
-  rescue
+    if REDIS_URL
+      Redis.new(url: REDIS_URL)
+    else
+      puts "⚠️  WARNING: REDIS_URL not configured. Redis cache disabled."
+      nil
+    end
+  rescue => e
+    puts "❌ Redis connection failed: #{e.class} - #{e.message}"
     nil
   end
   DB = ::DB
+  
+  # -----------------------
+  # Thread Safety
+  # -----------------------
+  MEME_CACHE_LOCK = Mutex.new
 
   # -----------------------
   # Rack::Attack
@@ -79,11 +90,13 @@ class MemeExplorer < Sinatra::Base
   configure do
     set :server, :puma
     enable :sessions
-    set :session_secret, ENV.fetch("SESSION_SECRET", "fallback-secret-key-default")
+    set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
+    set :session_expire_after, 2592000  # 30 days
     set :cookie_options, {
       secure: true,
       httponly: true,
-      same_site: :lax
+      same_site: :lax,
+      expires: Time.now + 2592000
     }
   end
 
@@ -101,21 +114,26 @@ class MemeExplorer < Sinatra::Base
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
   TIER_WEIGHTS = {
-    tier_1: 50,   # 50% - Best Content
-    tier_2: 25,   # 25% - Excellent Content
+    tier_1: 35,   # 35% - Best Content
+    tier_2: 18,   # 18% - Excellent Content
     tier_3: 15,   # 15% - Very Good
     tier_4: 10,   # 10% - Good
     tier_5: 8,    # 8%  - Decent
-    tier_6: 6,    # 6%  - Niche (Tech)
-    tier_7: 4,    # 4%  - Niche (Business)
+    tier_6: 5,    # 5%  - Niche (Tech)
+    tier_7: 3,    # 3%  - Niche (Business)
     tier_8: 2,    # 2%  - Niche (Stocks)
     tier_9: 2,    # 2%  - Niche (Music)
-    tier_10: 1    # 1%  - Niche (Sports)
+    tier_10: 2    # 2%  - Niche (Sports)
   }
   TOTAL_TIER_WEIGHT = TIER_WEIGHTS.values.sum
+  
+  # Validate tier weights sum to 100
+  unless TOTAL_TIER_WEIGHT == 100
+    puts "⚠️  WARNING: TIER_WEIGHTS sum to #{TOTAL_TIER_WEIGHT} instead of 100. Probability weighting may be inaccurate."
+  end
 
   # Pre-warm cache IMMEDIATELY on startup (non-blocking)
-  Thread.new do
+  @startup_thread = Thread.new do
     begin
       puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
       
@@ -127,12 +145,15 @@ class MemeExplorer < Sinatra::Base
         else
           yaml_data || []
         end
-      rescue
+      rescue => e
+        puts "❌ [STARTUP PRELOAD] Failed to load local memes: #{e.class}"
         []
       end
       
-      MEME_CACHE[:memes] = local_memes.shuffle
-      MEME_CACHE[:last_refresh] = Time.now
+      MEME_CACHE_LOCK.synchronize do
+        MEME_CACHE[:memes] = local_memes.shuffle
+        MEME_CACHE[:last_refresh] = Time.now
+      end
       puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
       
       # Fetch API memes immediately (no delay)
@@ -143,20 +164,22 @@ class MemeExplorer < Sinatra::Base
         if api_memes.any?
           validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
           all_memes = (validated + local_memes).uniq { |m| m["url"] }
-          MEME_CACHE[:memes] = all_memes.shuffle
-          MEME_CACHE[:last_refresh] = Time.now
+          MEME_CACHE_LOCK.synchronize do
+            MEME_CACHE[:memes] = all_memes.shuffle
+            MEME_CACHE[:last_refresh] = Time.now
+          end
           puts "✅ [STARTUP PRELOAD] Cache prewarmed with #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
         end
       rescue => e
-        puts "⚠️ [STARTUP PRELOAD] Initial API fetch failed: #{e.class}, using local memes"
+        puts "⚠️ [STARTUP PRELOAD] Initial API fetch failed: #{e.class}: #{e.message}"
       end
     rescue => e
-      puts "⚠️ [STARTUP PRELOAD] Error: #{e.class}"
+      puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
     end
   end
 
   # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (FAST: 5 second initial delay, 30 second refresh interval)
-  Thread.new do
+  @cache_refresh_thread = Thread.new do
     sleep 2  # Quick start - only wait for basic setup
     loop do
       begin
@@ -229,28 +252,32 @@ class MemeExplorer < Sinatra::Base
         validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
         puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
         
-        # Combine with local memes
-        if validated.empty?
-          puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
-          MEME_CACHE[:memes] = local_memes.shuffle
-          MEME_CACHE[:rate_limit_reset] = Time.now + 3600
-        else
-          all_memes = (validated + local_memes).uniq { |m| m["url"] }
-          MEME_CACHE[:memes] = all_memes.shuffle
-          MEME_CACHE[:rate_limit_reset] = nil
-          puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
+        # Combine with local memes (thread-safe)
+        MEME_CACHE_LOCK.synchronize do
+          if validated.empty?
+            puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
+            MEME_CACHE[:memes] = local_memes.shuffle
+            MEME_CACHE[:rate_limit_reset] = Time.now + 3600
+          else
+            all_memes = (validated + local_memes).uniq { |m| m["url"] }
+            MEME_CACHE[:memes] = all_memes.shuffle
+            MEME_CACHE[:rate_limit_reset] = nil
+            puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local = #{MEME_CACHE[:memes].size} total"
+          end
+          
+          MEME_CACHE[:last_refresh] = Time.now
         end
-        
-        MEME_CACHE[:last_refresh] = Time.now
       rescue => e
         puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
         puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
         begin
           local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
-          MEME_CACHE[:memes] = local_memes.shuffle
-          MEME_CACHE[:last_refresh] = Time.now
-        rescue
-          # Silent fallback
+          MEME_CACHE_LOCK.synchronize do
+            MEME_CACHE[:memes] = local_memes.shuffle
+            MEME_CACHE[:last_refresh] = Time.now
+          end
+        rescue => fallback_error
+          puts "⚠️ [CACHE REFRESH] Fallback also failed: #{fallback_error.class}"
         end
       end
       
@@ -260,14 +287,15 @@ class MemeExplorer < Sinatra::Base
   end
 
   # Hourly database cleanup (non-blocking)
-  Thread.new do
+  @db_cleanup_thread = Thread.new do
     sleep 3600  # Wait 1 hour before first cleanup
     loop do
       begin
         DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND datetime(first_failed_at) < datetime('now', '-1 day')")
         DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND datetime(updated_at) < datetime('now', '-7 days')")
+        puts "✅ [DB CLEANUP] Old records removed"
       rescue => e
-        # Silent fail
+        puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
       end
       sleep 3600
     end
@@ -278,7 +306,13 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   before do
     @start_time = Time.now
-    @seen_memes = request.cookies["seen_memes"] ? JSON.parse(request.cookies["seen_memes"]) : []
+    @seen_memes = begin
+      cookie_data = request.cookies["seen_memes"]
+      JSON.parse(cookie_data) if cookie_data
+    rescue => e
+      puts "⚠️ Cookie parsing error: #{e.class}"
+      []
+    end || []
     
     # Store large session data in Redis to avoid 4KB cookie limit
     if REDIS && session[:user_id]
@@ -788,21 +822,24 @@ class MemeExplorer < Sinatra::Base
       end
     end
 
-    # Get memes from cache or MEMES
+    # Get memes from cache or MEMES (thread-safe)
     def get_cached_memes
-      cached = REDIS&.get("memes:latest")
-      memes = cached ? JSON.parse(cached) : MEME_CACHE[:memes] ||= MEMES
+      MEME_CACHE_LOCK.synchronize do
+        cached = REDIS&.get("memes:latest")
+        memes = cached ? JSON.parse(cached) : MEME_CACHE[:memes] ||= MEMES
 
-      memes.reject! do |m|
-        file_missing = m["file"] && !File.exist?(File.join(settings.public_folder, m["file"]))
-        url_invalid  = m["url"] && !m["url"].match?(/^https?:\/\//)
-        file_missing || url_invalid
+        memes.reject! do |m|
+          file_missing = m["file"] && !File.exist?(File.join(settings.public_folder, m["file"]))
+          url_invalid  = m["url"] && !m["url"].match?(/^https?:\/\//)
+          file_missing || url_invalid
+        end
+
+        REDIS&.setex("memes:latest", 300, memes.to_json) rescue nil
+        MEME_CACHE[:memes] = memes
       end
-
-      REDIS&.setex("memes:latest", 300, memes.to_json) rescue nil
-      MEME_CACHE[:memes] = memes
-    rescue
-      MEME_CACHE[:memes] ||= MEMES
+    rescue => e
+      puts "❌ get_cached_memes error: #{e.class} - #{e.message}"
+      MEME_CACHE_LOCK.synchronize { MEME_CACHE[:memes] ||= MEMES }
     end
 
     # Fetch memes from popular subreddits with working image links
@@ -969,13 +1006,14 @@ class MemeExplorer < Sinatra::Base
       result || []
     end
 
-    # Get meme pool from cache or build fresh - prioritizes API memes with local fallback
+    # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
     def random_memes_pool
       # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
-      # This ensures 159 API memes are served from cache, not rebuilt
-      if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty?
-        puts "✅ [MEME POOL] Returning #{MEME_CACHE[:memes].size} memes from cache"
-        return MEME_CACHE[:memes]
+      # This ensures API memes are served from cache, not rebuilt
+      cache_memes = MEME_CACHE_LOCK.synchronize { MEME_CACHE[:memes]&.dup }
+      if cache_memes.is_a?(Array) && !cache_memes.empty?
+        puts "✅ [MEME POOL] Returning #{cache_memes.size} memes from cache"
+        return cache_memes
       end
 
       # PRIORITY 2: Cache is empty, attempt to fetch fresh
