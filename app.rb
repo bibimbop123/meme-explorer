@@ -1311,7 +1311,13 @@ class MemeExplorer < Sinatra::Base
   get "/random" do
     begin
       # FAST: Serve from pre-warmed cache (instant)
-      @meme = MEME_CACHE[:memes].sample rescue nil
+      # If cache is empty or only has local memes, fallback to fresh pool
+      if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty?
+        @meme = MEME_CACHE[:memes].sample
+      else
+        # Cache empty or invalid - rebuild from scratch
+        @meme = random_memes_pool.sample
+      end
       @meme ||= fallback_meme
     rescue => e
       puts "Error in /random route: #{e.class}: #{e.message}"
