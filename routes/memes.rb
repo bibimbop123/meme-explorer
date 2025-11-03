@@ -21,11 +21,10 @@ module MemeExplorer
         end
 
         app.get "/random.json" do
-          memes = MemeService.random_memes_pool
+          memes = app.class::MEME_CACHE[:memes] || []
           halt 404, { error: "No memes found" }.to_json if memes.empty?
 
-          headers "Cache-Control" => "public, max-age=3600"
-          headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
+          headers "Cache-Control" => "public, max-age=60"
 
           session[:meme_history] ||= []
           session[:last_subreddit] ||= nil
