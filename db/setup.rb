@@ -1,9 +1,24 @@
 require "sqlite3"
 require "redis"
 
-# SQLite
-DB = SQLite3::Database.new("db/memes.db")
-DB.results_as_hash = true
+# SQLite - Create db directory if it doesn't exist
+FileUtils.mkdir_p("db") unless Dir.exist?("db")
+
+# Initialize DB with safe connection handling
+DB = begin
+  db = SQLite3::Database.new("db/memes.db")
+  db.results_as_hash = true
+  db.busy_timeout = 5000  # Wait up to 5 seconds for database locks
+  db
+rescue => e
+  puts "❌ Database initialization error: #{e.message}"
+  puts "Creating fallback SQLite database..."
+  
+  # Fallback: use in-memory database
+  db = SQLite3::Database.new ":memory:"
+  db.results_as_hash = true
+  db
+end
 
 DB.execute <<-SQL
   CREATE TABLE IF NOT EXISTS meme_stats (
@@ -106,17 +121,26 @@ DB.execute <<-SQL
 SQL
 
 # Create indexes for performance - CRITICAL for query optimization
-DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_url ON meme_stats(url)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_subreddit ON meme_stats(subreddit)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_user_id ON user_meme_stats(user_id)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_meme_url ON user_meme_stats(meme_url)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_saved_memes_user_id ON saved_memes(user_id)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_pref ON user_subreddit_preferences(user_id, subreddit)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_broken_images_url ON broken_images(url)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_exposure_composite ON user_meme_exposure(user_id, meme_url)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_score ON meme_stats(likes, views)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
+begin
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_url ON meme_stats(url)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_subreddit ON meme_stats(subreddit)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_user_id ON user_meme_stats(user_id)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_meme_url ON user_meme_stats(meme_url)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_saved_memes_user_id ON saved_memes(user_id)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_pref ON user_subreddit_preferences(user_id, subreddit)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_broken_images_url ON broken_images(url)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_exposure_composite ON user_meme_exposure(user_id, meme_url)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_score ON meme_stats(likes, views)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
+rescue => e
+  puts "⚠️ Index creation warning: #{e.message}"
+end
 
 # Redis
-REDIS = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
+REDIS = begin
+  Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
+rescue => e
+  puts "⚠️ Redis connection warning: #{e.message}"
+  nil
+end
