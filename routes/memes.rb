@@ -175,13 +175,28 @@ module MemeExplorer
         end
       end
 
+      def self.detect_media_type(file_path)
+        return "image" unless file_path
+        extension = File.extname(file_path).downcase
+        case extension
+        when ".mp4", ".webm", ".mov", ".avi", ".mkv"
+          "video"
+        when ".gif"
+          "gif"
+        else
+          "image"
+        end
+      end
+
       def self.format_meme_response(meme)
         image_url = meme["url"] || meme["file"]
+        media_type = detect_media_type(image_url)
         {
           title: meme["title"],
           subreddit: meme["subreddit"],
           file: meme["file"],
           url: image_url,
+          media_type: media_type,
           reddit_path: extract_reddit_path(meme, image_url),
           likes: MemeService.get_likes(image_url)
         }.to_json

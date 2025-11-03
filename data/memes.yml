@@ -8,6 +8,12 @@ funny:
   - title: "First Patient"
     file: "/images/funny3.jpeg"
     subreddit: "funny"
+  - title: "Epic Fail Compilation"
+    file: "/videos/funny_clip.mp4"
+    subreddit: "funny"
+  - title: "Laughing GIF"
+    file: "/videos/funny_laugh.gif"
+    subreddit: "funny"
 
 wholesome:
   - title: "RiskyJokes"
@@ -16,6 +22,12 @@ wholesome:
   - title: "Finding a job"
     file: "/images/wholesome2.jpeg"
     subreddit: "wholesome"
+  - title: "Feel Good Moment"
+    file: "/videos/wholesome_moment.webm"
+    subreddit: "wholesome"
+  - title: "Happy Dance GIF"
+    file: "/videos/wholesome_dance.gif"
+    subreddit: "wholesome"
 
 dank:
   - title: "Loading chunks of trees"
@@ -23,6 +35,12 @@ dank:
     subreddit: "dankmemes"
   - title: "AWS-East-1"
     file: "/images/dank2.jpeg"
+    subreddit: "dankmemes"
+  - title: "Dank Reaction"
+    file: "/videos/dank_reaction.mp4"
+    subreddit: "dankmemes"
+  - title: "Confused GIF"
+    file: "/videos/dank_confused.gif"
     subreddit: "dankmemes"
 
 selfcare:
@@ -34,4 +52,10 @@ selfcare:
     subreddit: "selfcare"
   - title: "I'm cooked already"
     file: "/images/selfcare3.jpeg"
+    subreddit: "selfcare"
+  - title: "Chill Vibe"
+    file: "/videos/chill_vibe.webm"
+    subreddit: "selfcare"
+  - title: "Zen Moment GIF"
+    file: "/videos/selfcare_zen.gif"
     subreddit: "selfcare"

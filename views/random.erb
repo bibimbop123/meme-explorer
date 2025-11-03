@@ -1,7 +1,14 @@
 <div class="meme-container">
   <div class="meme-display">
     <% if @meme %>
-      <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="this.src='/images/funny1.jpeg'">
+      <% media_type = @media_type || (File.extname(@image_src).downcase == '.mp4' || File.extname(@image_src).downcase == '.webm' ? 'video' : 'image') %>
+      <% if media_type == 'video' %>
+        <video src="<%= @image_src %>" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          Your browser does not support the video tag.
+        </video>
+      <% else %>
+        <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="this.src='/images/funny1.jpeg'">
+      <% end %>
     <% else %>
       <div class="meme-loading"></div>
     <% end %>
@@ -161,9 +168,30 @@
         title: data.title || 'Unknown'
       };
       
-      // Update DOM
-      memeImg.src = data.url;
-      memeImg.alt = data.title;
+      // Update DOM - handle both images and videos
+      const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
+      const memeDisplay = document.querySelector('.meme-display');
+      
+      if (mediaType === 'video') {
+        // Replace image with video
+        const existingVid = memeDisplay.querySelector('video');
+        if (existingVid) {
+          existingVid.src = data.url;
+          existingVid.play();
+        } else {
+          memeDisplay.innerHTML = `<video src="${data.url}" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">Your browser does not support the video tag.</video>`;
+        }
+      } else {
+        // Replace video with image
+        const existingVid = memeDisplay.querySelector('video');
+        if (existingVid) {
+          memeDisplay.innerHTML = `<img src="${data.url}" alt="${data.title}" onerror="this.src='/images/funny1.jpeg'">`;
+        } else {
+          memeImg.src = data.url;
+          memeImg.alt = data.title;
+        }
+      }
+      
       memeTitle.textContent = data.title || 'Loading...';
       memeSub.textContent = (data.subreddit || 'REDDIT').toUpperCase();
       likeCount.textContent = data.likes || 0;
