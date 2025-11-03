@@ -9,12 +9,19 @@
   <link rel="manifest" href="/manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/modern.css">
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark-mode');
+    }
+  </script>
 </head>
 <body>
   <!-- ================= HEADER ================= -->
   <header>
     <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
     <nav>
+      <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">🌙</button>
       <a href="/category/funny">Funny</a>
       <a href="/category/wholesome">Wholesome</a>
       <a href="/category/dank">Dank</a>
@@ -54,6 +61,18 @@
   <!-- ================= SESSION DATA ================= -->
   <script>
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
+    
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+      darkModeToggle.addEventListener('click', () => {
+        const html = document.documentElement;
+        html.classList.toggle('dark-mode');
+        localStorage.setItem('theme', html.classList.contains('dark-mode') ? 'dark' : 'light');
+        darkModeToggle.textContent = html.classList.contains('dark-mode') ? '☀️' : '🌙';
+      });
+      const isDarkMode = document.documentElement.classList.contains('dark-mode');
+      darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+    }
   </script>
 
   <!-- ================= NAVIGATION JS ================= -->
