@@ -9,7 +9,15 @@
   
   <div class="meme-info">
     <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
-    <span class="meme-subreddit"><%= @meme&.dig('subreddit')&.upcase || 'MEME' %></span>
+    <div class="meme-meta">
+      <span class="meme-subreddit"><%= @meme&.dig('subreddit')&.upcase || 'MEME' %></span>
+      <% if @reddit_path || @meme&.dig('permalink') %>
+        <a href="https://reddit.com<%= @reddit_path || @meme&.dig('permalink') %>" 
+           target="_blank" rel="noopener" class="reddit-link" title="View original post on Reddit">
+          🔗 Reddit
+        </a>
+      <% end %>
+    </div>
   </div>
 
   <div class="meme-controls">

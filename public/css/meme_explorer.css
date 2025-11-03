@@ -191,31 +191,68 @@ main {
   top: 80px;
   right: 20px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  border: 2px solid var(--accent);
   backdrop-filter: blur(10px);
   padding: 16px;
   border-radius: 12px;
-  max-width: 200px;
+  max-width: 220px;
   z-index: 500;
   transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .meme-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 8px;
-  line-height: 1.4;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.meme-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .meme-subreddit {
   display: inline-block;
   background: var(--accent);
   color: white;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.reddit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.reddit-link:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: scale(1.05);
 }
 
 /* ============ MEME CONTROLS ============ */
@@ -469,7 +506,11 @@ footer p {
     right: auto;
     left: 20px;
     bottom: 120px;
-    max-width: 160px;
+    max-width: 180px;
+  }
+  
+  .meme-title {
+    font-size: 14px;
   }
   
   .nav-hint {
