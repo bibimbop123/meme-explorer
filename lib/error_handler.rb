@@ -144,5 +144,53 @@ module ErrorHandler
         :error
       )
     end
+
+    def self.session_error(error, user_id = nil)
+      Logger.log(
+        error,
+        { user_id: user_id, session_error: true },
+        :warning
+      )
+    end
+
+    def self.route_error(route, error, params = {})
+      Logger.log(
+        error,
+        { route: route, params: params.to_json.slice(0, 200) },
+        :error
+      )
+    end
+  end
+
+  # Error patterns for analytics
+  class ErrorPatterns
+    @@patterns = {}
+    @@patterns_lock = Thread::Mutex.new
+
+    def self.track(error_type, context = {})
+      @@patterns_lock.synchronize do
+        @@patterns[error_type] ||= { count: 0, last_seen: nil, examples: [] }
+        @@patterns[error_type][:count] += 1
+        @@patterns[error_type][:last_seen] = Time.now
+        @@patterns[error_type][:examples] << context if @@patterns[error_type][:examples].size < 5
+      end
+    end
+
+    def self.summary
+      @@patterns_lock.synchronize do
+        @@patterns.map do |type, data|
+          {
+            error_type: type,
+            count: data[:count],
+            last_seen: data[:last_seen],
+            examples: data[:examples]
+          }
+        end.sort_by { |p| -p[:count] }
+      end
+    end
+
+    def self.top_errors(limit = 10)
+      summary.first(limit)
+    end
   end
 end

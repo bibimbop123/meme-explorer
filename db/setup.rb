@@ -33,6 +33,7 @@ DB.execute <<-SQL
     reddit_email TEXT,
     email TEXT UNIQUE,
     password_hash TEXT,
+    role TEXT DEFAULT 'user',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -104,11 +105,18 @@ DB.execute <<-SQL
   );
 SQL
 
-# Create indexes for performance
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_exposure ON user_meme_exposure(user_id)")
-DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
+# Create indexes for performance - CRITICAL for query optimization
+DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_url ON meme_stats(url)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_subreddit ON meme_stats(subreddit)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_user_id ON user_meme_stats(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_stats_meme_url ON user_meme_stats(meme_url)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_saved_memes_user_id ON saved_memes(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_pref ON user_subreddit_preferences(user_id, subreddit)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_broken_images_url ON broken_images(url)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_meme_exposure_composite ON user_meme_exposure(user_id, meme_url)")
 DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_score ON meme_stats(likes, views)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
+DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
 
 # Redis
 REDIS = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))

@@ -5,6 +5,7 @@ require "yaml"
 require "json"
 require "redis"
 require "rack/attack"
+require "rack/csrf"
 require "securerandom"
 require "uri"
 require "time"
@@ -414,14 +415,29 @@ class MemeExplorer < Sinatra::Base
       DB.execute("SELECT id, reddit_username, email, created_at FROM users WHERE id = ?", [user_id]).first
     end
 
-    # Check if admin
+    # Check if admin using role-based system
     def is_admin?
-      session[:user_id] && session[:reddit_username] == "brianhkim13@gmail.com"
+      return false unless session[:user_id]
+      begin
+        user = DB.execute("SELECT role FROM users WHERE id = ?", [session[:user_id]]).first
+        user && user["role"] == "admin"
+      rescue
+        false
+      end
     end
 
-    # Get user saved memes
-    def get_user_saved_memes(user_id)
-      DB.execute("SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC", [user_id])
+    # Get user saved memes with pagination
+    def get_user_saved_memes(user_id, page = 1, limit = 10)
+      offset = (page - 1) * limit
+      DB.execute(
+        "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC LIMIT ? OFFSET ?",
+        [user_id, limit, offset]
+      )
+    end
+
+    # Get total count of user saved memes
+    def get_user_saved_memes_count(user_id)
+      DB.get_first_value("SELECT COUNT(*) FROM saved_memes WHERE user_id = ?", [user_id]) || 0
     end
 
     # Save meme for user
@@ -549,35 +565,34 @@ class MemeExplorer < Sinatra::Base
       (preferred.sample(ratio) + neutral.sample((pool.size - ratio))).compact.shuffle
     end
 
-    # Phase 2: Navigate memes with intelligent pool selection
-    def navigate_meme(direction: "next")
+    # Unified Navigation with Intelligent Pool + Spaced Repetition
+    # Consolidates navigate_meme and navigate_meme_v3 into single optimized method
+    def navigate_meme_unified(direction: "next")
       user_id = session[:user_id] rescue nil
       
-      # STAGED ONBOARDING: New users (< 10 views) get fresh cache, established users get personalization
-      is_new_user = false
-      if user_id
+      # Choose pool strategy based on user state
+      memes = if user_id
+        # New users (< 10 views) get fresh cache, established users get personalized pool
         exposure_count = DB.execute("SELECT COUNT(*) FROM user_meme_exposure WHERE user_id = ?", [user_id]).first[0].to_i
         is_new_user = exposure_count < 10
-      end
-      
-      # Route: new users get cache (fresh API memes), established users get personalized DB pool
-      if user_id && !is_new_user
-        memes = get_intelligent_pool(user_id, 100)
+        
+        if is_new_user
+          random_memes_pool  # Fresh API memes for onboarding
+        else
+          get_time_based_pools(user_id, 100)  # Intelligent pool with spaced repetition
+        end
       else
-        memes = random_memes_pool
+        random_memes_pool  # Anonymous users get standard pool
       end
       
-      # CRITICAL FIX: If no memes or all memes fail validation, use fallback
-      use_fallback = memes.empty?
-      
-      return nil if memes.empty? && user_id.nil?
+      return nil if memes.empty?
 
-      # Initialize session tracking for subreddit diversity (OAuth-safe: ||= ensures it exists after OAuth)
+      # Initialize session tracking
       session[:meme_history] ||= []
       session[:last_subreddit] ||= nil
       last_meme_url = session[:meme_history].last
 
-      # Get a random meme that's different from the last one shown AND from different subreddit
+      # Find valid meme with smart filtering
       new_meme = nil
       attempts = 0
       max_attempts = [memes.size, 30].min
@@ -587,10 +602,13 @@ class MemeExplorer < Sinatra::Base
         candidate_id = candidate["url"] || candidate["file"]
         candidate_subreddit = candidate["subreddit"]&.downcase
         
-        # Ensure:
-        # 1. Different URL than last shown
-        # 2. Valid meme
-        # 3. Different subreddit than last (subreddit diversity)
+        # Check spaced repetition for logged-in users
+        if user_id && should_exclude_from_exposure(user_id, candidate_id)
+          attempts += 1
+          next
+        end
+        
+        # Validation checks
         if candidate_id && 
            candidate_id != last_meme_url && 
            is_valid_meme?(candidate) &&
@@ -601,7 +619,7 @@ class MemeExplorer < Sinatra::Base
         attempts += 1
       end
 
-      # CRITICAL FALLBACK: If no valid meme found but user is logged in, try fallback pool
+      # Fallback: try random pool if nothing found in primary pool
       if new_meme.nil? && user_id
         memes = random_memes_pool
         attempts = 0
@@ -623,22 +641,14 @@ class MemeExplorer < Sinatra::Base
         end
       end
 
-      # ULTIMATE FALLBACK: If still nil, just grab any meme without strict validation
-      if new_meme.nil? && user_id
-        memes = random_memes_pool
-        new_meme = memes.first if memes.any?
-      end
-
       return nil unless new_meme
 
-      # Ensure meme has proper URL property set for frontend
+      # Normalize meme data
       meme_identifier = new_meme["url"] || new_meme["file"]
       new_meme["url"] = meme_identifier if !new_meme["url"]
-      
-      # Ensure permalink field exists (for Reddit links)
       new_meme["permalink"] ||= ""
       
-      # Track view in meme_stats - CRITICAL for accurate metrics
+      # Track view in meme_stats
       meme_title = new_meme["title"] || "Unknown"
       meme_subreddit = new_meme["subreddit"] || "local"
       DB.execute(
@@ -646,12 +656,12 @@ class MemeExplorer < Sinatra::Base
         [meme_identifier, meme_title, meme_subreddit]
       ) rescue nil
       
-      # Track history in session (properly initialized above with ||=, so safe for OAuth)
+      # Update session history
       session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(30)
-      session[:last_subreddit] = new_meme["subreddit"]&.downcase
+      session[:meme_history] = session[:meme_history].last(100)
+      session[:last_subreddit] = meme_subreddit&.downcase
 
-      # Track exposure for spaced repetition (Phase 3)
+      # Track exposure for analytics and spaced repetition
       if user_id
         DB.execute(
           "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
@@ -662,7 +672,7 @@ class MemeExplorer < Sinatra::Base
       new_meme
     end
 
-    # Phase 2: Update user preference when they like a meme
+    # Update user preference when they like a meme
     def update_user_preference(user_id, subreddit)
       return unless user_id && subreddit
       
@@ -673,7 +683,7 @@ class MemeExplorer < Sinatra::Base
       ) rescue nil
     end
 
-    # Phase 3: Spaced repetition - allow re-showing memes after decay
+    # Spaced repetition - allow re-showing memes after decay
     def should_exclude_from_exposure(user_id, meme_url)
       return false unless user_id
       
@@ -688,155 +698,33 @@ class MemeExplorer < Sinatra::Base
       return false unless last_shown
       
       shown_count = exposure["shown_count"].to_i
-      
-      # Exponential decay: base interval grows with each view
-      # 1st view: exclude for 1 hour
-      # 2nd view: exclude for 4 hours
-      # 3rd view: exclude for 16 hours
-      # 4th view: exclude for 64 hours (never shown again effectively)
       hours_to_wait = 4 ** (shown_count - 1)
-      
-      time_since_shown = (Time.now - last_shown) / 3600  # Convert to hours
+      time_since_shown = (Time.now - last_shown) / 3600
       time_since_shown < hours_to_wait
     end
 
-    # Phase 3: Get time-based pool distribution
+    # Get time-based pool distribution for personalization
     def get_time_based_pools(user_id = nil, limit = 100)
       hour = Time.now.hour
       
-      # Peak hours: 9-11am, 6-9pm (80% trending, 15% fresh, 5% exploration)
-      # Off-hours: 12am-6am (60% trending, 30% fresh, 10% exploration)
-      # Normal hours: (70% trending, 20% fresh, 10% exploration)
-      
       if (9..11).include?(hour) || (18..21).include?(hour)
-        # Peak hours
-        trending_ratio = 0.8
-        fresh_ratio = 0.15
-        exploration_ratio = 0.05
+        # Peak hours: 80% trending, 15% fresh, 5% exploration
+        ratios = { trending: 0.8, fresh: 0.15, exploration: 0.05 }
       elsif (0..6).include?(hour)
-        # Off-hours
-        trending_ratio = 0.6
-        fresh_ratio = 0.3
-        exploration_ratio = 0.1
+        # Off-hours: 60% trending, 30% fresh, 10% exploration
+        ratios = { trending: 0.6, fresh: 0.3, exploration: 0.1 }
       else
-        # Normal hours
-        trending_ratio = 0.7
-        fresh_ratio = 0.2
-        exploration_ratio = 0.1
+        # Normal hours: 70% trending, 20% fresh, 10% exploration
+        ratios = { trending: 0.7, fresh: 0.2, exploration: 0.1 }
       end
       
-      trending = get_trending_pool((limit * trending_ratio).to_i)
-      fresh = get_fresh_pool((limit * fresh_ratio).to_i, 48)
-      exploration = get_exploration_pool((limit * exploration_ratio).to_i)
+      trending = get_trending_pool((limit * ratios[:trending]).to_i)
+      fresh = get_fresh_pool((limit * ratios[:fresh]).to_i, 48)
+      exploration = get_exploration_pool((limit * ratios[:exploration]).to_i)
       
-      pool = trending + fresh + exploration
-      pool = pool.uniq { |m| m["url"] }
+      pool = (trending + fresh + exploration).uniq { |m| m["url"] }
       
-      # Apply user preferences if logged in
-      if user_id
-        apply_user_preferences(pool, user_id)
-      else
-        pool.shuffle
-      end
-    end
-
-    # Phase 3: Personalized scoring for logged-in users
-    def calculate_personalized_score(meme, user_id)
-      return 0 unless meme || user_id
-      
-      base_score = Math.sqrt((meme["likes"].to_i * 2 + meme["views"].to_i).to_f)
-      
-      # Get user preferences
-      user_pref = DB.execute(
-        "SELECT preference_score FROM user_subreddit_preferences WHERE user_id = ? AND subreddit = ?",
-        [user_id, meme["subreddit"]&.downcase]
-      ).first
-      
-      preference_boost = user_pref ? (user_pref["preference_score"] - 1.0) * 0.5 : 0
-      
-      # Get exposure history for spaced repetition weighting
-      exposure = DB.execute(
-        "SELECT shown_count, liked FROM user_meme_exposure WHERE user_id = ? AND meme_url = ?",
-        [user_id, meme["url"] || meme["file"]]
-      ).first
-      
-      # Boost memes user liked, slightly penalize heavily shown memes
-      exposure_penalty = exposure ? -((exposure["shown_count"].to_i - 1) * 0.1) : 0
-      liked_boost = exposure && exposure["liked"] == 1 ? 0.5 : 0
-      
-      base_score + preference_boost + exposure_penalty + liked_boost
-    end
-
-    # Phase 3: Navigate with spaced repetition
-    def navigate_meme_v3(direction: "next")
-      user_id = session[:user_id] rescue nil
-      
-      # Get time-based intelligent pool
-      if user_id
-        memes = get_time_based_pools(user_id, 100)
-      else
-        memes = random_memes_pool
-      end
-      
-      return nil if memes.empty?
-
-      session[:meme_history] ||= []
-      session[:last_subreddit] ||= nil
-      last_meme_url = session[:meme_history].last
-
-      # Get a random meme with spaced repetition filtering
-      new_meme = nil
-      attempts = 0
-      max_attempts = [memes.size, 30].min
-      
-      while attempts < max_attempts
-        candidate = memes.sample
-        candidate_id = candidate["url"] || candidate["file"]
-        candidate_subreddit = candidate["subreddit"]&.downcase
-        
-        # Phase 3: Check spaced repetition - exclude recently shown
-        if should_exclude_from_exposure(user_id, candidate_id)
-          attempts += 1
-          next
-        end
-        
-        # Ensure:
-        # 1. Different URL than last shown
-        # 2. Valid meme
-        # 3. Different subreddit than last (subreddit diversity)
-        if candidate_id && 
-           candidate_id != last_meme_url && 
-           is_valid_meme?(candidate) &&
-           candidate_subreddit != session[:last_subreddit]
-          new_meme = candidate
-          break
-        end
-        attempts += 1
-      end
-
-      return nil unless new_meme
-
-      # Ensure meme has proper URL property set for frontend
-      meme_identifier = new_meme["url"] || new_meme["file"]
-      new_meme["url"] = meme_identifier if !new_meme["url"]
-      
-      # Ensure permalink field exists
-      new_meme["permalink"] ||= ""
-      
-      # Track history and subreddit diversity
-      session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(100)  # Increased from 30 for spaced repetition
-      session[:last_subreddit] = new_meme["subreddit"]&.downcase
-
-      # Track exposure for spaced repetition (Phase 3)
-      if user_id
-        DB.execute(
-          "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-          [user_id, meme_identifier]
-        ) rescue nil
-      end
-
-      new_meme
+      user_id ? apply_user_preferences(pool, user_id) : pool.shuffle
     end
 
     # Validate meme before display
@@ -1341,14 +1229,14 @@ class MemeExplorer < Sinatra::Base
   # Routes
   # -----------------------
   get "/" do
-    @meme = navigate_meme_v3(direction: "next")
+    @meme = navigate_meme_unified(direction: "next")
     @image_src = meme_image_src(@meme)
     erb :random
   end
 
   # Render random meme page
   get "/random" do
-    @meme = navigate_meme_v3(direction: "random")
+    @meme = navigate_meme_unified(direction: "random")
     halt 404, "No memes found!" unless @meme
   
     @image_src = meme_image_src(@meme)
@@ -1880,7 +1768,22 @@ class MemeExplorer < Sinatra::Base
     {
       recent_errors: ErrorHandler::Logger.recent(50),
       error_rate_5m: ErrorHandler::Logger.error_rate(300),
-      critical_errors_5m: ErrorHandler::Logger.critical_errors(300)
+      critical_errors_5m: ErrorHandler::Logger.critical_errors(300),
+      error_patterns: ErrorHandler::ErrorPatterns.top_errors(10)
+    }.to_json
+  end
+
+  get "/api/notifications" do
+    halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+    user_id = session[:user_id]
+    
+    # Get user notifications (saved count changes, likes, etc.)
+    content_type :json
+    {
+      user_id: user_id,
+      saved_count: get_user_saved_memes_count(user_id),
+      timestamp: Time.now.iso8601,
+      message: "Your profile is up to date"
     }.to_json
   end
 
