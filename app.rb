@@ -79,7 +79,7 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # CSRF Protection
   # -----------------------
-  use Rack::Csrf, raise: true, on: [:post, :put, :delete, :patch]
+  use Rack::CSRF, raise: true, on: [:post, :put, :delete, :patch]
 
   # -----------------------
   # Constants
