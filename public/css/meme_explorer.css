@@ -196,14 +196,15 @@ main {
   backdrop-filter: blur(10px);
   padding: 16px;
   border-radius: 12px;
-  max-width: 220px;
+  max-width: 90vw;
+  width: auto;
   z-index: 9000;
   transition: all 0.3s ease;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  overflow: visible;
   word-wrap: break-word;
 }
 
@@ -317,17 +318,18 @@ main {
 
 .meme-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 12px;
-  line-height: 1.5;
-  max-height: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  min-height: 20px;
+  max-height: 200px;
+  overflow-y: auto;
   word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+  padding: 4px;
+  border-radius: 4px;
+  white-space: normal;
 }
 
 .meme-meta {
@@ -638,9 +640,9 @@ footer p {
 @media (max-width: 1024px) {
   /* Tablet: Keep title visible but slightly smaller */
   .meme-info {
-    max-width: 180px;
+    max-width: 85vw;
   }
-  
+
   .meme-info.title-hidden {
     max-width: 40px;
   }
@@ -653,17 +655,17 @@ footer p {
     height: calc(100vh - 120px);
     border-radius: 0;
   }
-  
+
   .meme-info {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 160px;
+    max-width: 80vw;
     height: auto;
     padding: 16px;
     opacity: 1;
   }
-  
+
   .meme-info.title-hidden {
     max-width: 40px;
     height: 40px;
@@ -756,9 +758,9 @@ footer p {
     height: 36px;
     padding: 6px;
   }
-  
+
   .meme-info.title-visible {
-    max-width: 140px;
+    max-width: 90vw;
     height: auto;
     padding: 12px;
   }
