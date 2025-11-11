@@ -250,6 +250,8 @@ module MemeExplorer
       def self.format_meme_response(meme)
         image_url = meme["url"] || meme["file"]
         media_type = detect_media_type(image_url)
+        image_count = meme["image_count"].to_i rescue 1
+        is_gallery = image_count > 1
         {
           title: meme["title"],
           subreddit: meme["subreddit"],
@@ -257,7 +259,10 @@ module MemeExplorer
           url: image_url,
           media_type: media_type,
           reddit_path: extract_reddit_path(meme, image_url),
-          likes: MemeService.get_likes(image_url)
+          likes: MemeService.get_likes(image_url),
+          is_gallery: is_gallery,
+          image_count: image_count,
+          primary_image_url: meme["primary_image_url"] || image_url
         }.to_json
       end
 

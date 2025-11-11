@@ -65,7 +65,7 @@ module MemeExplorer
 
         app.get "/metrics.json" do
           total_memes = DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
-          total_likes = DB.get_first_value("SELECT SUM(likes) FROM meme_stats") || 0
+          total_likes = DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0
           total_views = DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
 
           avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
@@ -84,7 +84,7 @@ module MemeExplorer
         app.get "/metrics" do
           @total_memes         = (DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0).to_i
           @total_likes         = (DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0).to_i
-          @total_views         = (DB.get_first_value("SELECT SUM(views) FROM meme_stats") || 0).to_i
+          @total_views         = (DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0).to_i
           @total_users         = (DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
           @total_saved_memes   = (DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
           @memes_with_no_likes = (DB.get_first_value("SELECT COUNT(*) FROM meme_stats WHERE likes = 0") || 0).to_i

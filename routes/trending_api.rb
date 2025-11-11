@@ -1,4 +1,4 @@
-get '/api/v1/trending' do
+gets '/api/v1/trending' do
   content_type :json
   
   time_window = params['time_window'] || '24h'
@@ -27,7 +27,7 @@ get '/api/v1/trending' do
   end
 end
 
-get '/api/v1/trending/badges' do
+gets '/api/v1/trending/badges' do
   content_type :json
   { success: true, badges: [{ id: 'trending_now', label: 'Trending', emoji: '🔥', color: '#FF6B6B' }, { id: 'hot', label: 'Hot', emoji: '📈', color: '#FFD700' }] }.to_json
 end
