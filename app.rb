@@ -1385,7 +1385,7 @@ class MemeExplorer < Sinatra::Base
     session[:last_subreddit] ||= nil
     last_meme_url = session[:meme_history].last
     
-    # Find a new meme that's different from last shown
+    # Find a new meme that's different from last shown AND different subreddit (diversity)
     @meme = nil
     attempts = 0
     max_attempts = [memes.size, 30].min
@@ -1393,8 +1393,12 @@ class MemeExplorer < Sinatra::Base
     while attempts < max_attempts
       candidate = memes.sample
       candidate_id = candidate["url"] || candidate["file"]
+      candidate_subreddit = candidate["subreddit"]&.downcase
       
-      if candidate_id && candidate_id != last_meme_url
+      # Check both URL diversity AND subreddit diversity
+      if candidate_id && 
+         candidate_id != last_meme_url && 
+         candidate_subreddit != session[:last_subreddit]
         @meme = candidate
         break
       end
