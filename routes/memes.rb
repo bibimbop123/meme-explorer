@@ -25,13 +25,9 @@ module MemeExplorer
           memes = app.class::MEME_CACHE[:memes] || []
           halt 404, { error: "No memes found" }.to_json if memes.empty?
 
-          headers "Cache-Control" => "public, max-age=60"
+          headers "Cache-Control" => "public, max-age=10"
 
-          session[:meme_history] ||= []
-          session[:last_subreddit] ||= nil
-          last_meme_url = session[:meme_history].last
-
-          @meme = find_new_meme(memes, last_meme_url)
+          @meme = get_random_unique_meme(memes, session)
           halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
 
           track_meme_view(@meme, session)
@@ -204,22 +200,32 @@ module MemeExplorer
         end
       end
 
-      def self.find_new_meme(memes, last_meme_url)
+      def self.find_new_meme(memes, excluded_ids = Set.new)
         return memes.sample if memes.size <= 1
         
-        # Aggressively try to find a different meme
-        attempts = 0
-        max_attempts = [memes.size * 3, 50].max
+        # O(1) efficient meme selection using exclusion set
+        available_memes = memes.reject { |m| excluded_ids.include?(m["url"] || m["file"]) }
+        return memes.sample if available_memes.empty?
+        
+        available_memes.sample
+      end
 
-        while attempts < max_attempts
-          candidate = memes.sample
-          candidate_id = candidate["url"] || candidate["file"]
-          return candidate if candidate_id && candidate_id != last_meme_url
-          attempts += 1
+      def self.get_random_unique_meme(memes, session)
+        # Initialize excluded IDs set in session (bounded to last 20)
+        session[:excluded_meme_ids] ||= Set.new
+        
+        # Clean up old entries if set gets too large
+        if session[:excluded_meme_ids].size > 20
+          session[:excluded_meme_ids] = session[:excluded_meme_ids].to_a.last(15).to_set
         end
-
-        # Fallback: return any random meme if we can't find a different one
-        memes.sample
+        
+        meme = find_new_meme(memes, session[:excluded_meme_ids])
+        
+        # Track this meme to avoid repeats
+        meme_id = meme["url"] || meme["file"]
+        session[:excluded_meme_ids] << meme_id if meme_id
+        
+        meme
       end
 
       def self.track_meme_view(meme, session)
