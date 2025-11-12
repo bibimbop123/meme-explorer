@@ -25,15 +25,20 @@ module MemeExplorer
           memes = app.class::MEME_CACHE[:memes] || []
           halt 404, { error: "No memes found" }.to_json if memes.empty?
 
+          # Genre filtering enhancement
+          genre = params[:genre] || 'all'
+          filtered_memes = filter_memes_by_genre(memes, genre)
+          halt 404, { error: "No memes found for genre: #{genre}" }.to_json if filtered_memes.empty?
+
           headers "Cache-Control" => "public, max-age=10"
 
-          @meme = get_random_unique_meme(memes, session)
+          @meme = get_random_unique_meme(filtered_memes, session)
           halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
 
           track_meme_view(@meme, session)
 
           content_type :json
-          format_meme_response(@meme)
+          format_meme_response(@meme).merge({ category: genre }).to_json
         end
 
         app.post "/like" do
@@ -191,6 +196,25 @@ module MemeExplorer
       end
 
       private
+
+      def self.filter_memes_by_genre(memes, genre)
+        return memes if genre == 'all'
+
+        genre_map = {
+          'funny' => ['funny', 'memes', 'humor'],
+          'dank' => ['dank', 'dankmemes',  'edgy'],
+          'wholesome' => ['wholesome', 'aww', 'eyebleach', 'motivation'],
+          'selfcare' => ['selfcare', 'wellness', 'meditation', 'health']
+        }
+
+        target_genres = genre_map[genre] || []
+        return memes if target_genres.empty?
+
+        memes.select do |meme|
+          subreddit = (meme['subreddit'] || '').downcase
+          target_genres.any? { |g| subreddit.include?(g) }
+        end
+      end
 
       def self.extract_reddit_path(meme, image_src)
         if meme["reddit_post_urls"]&.is_a?(Array)
