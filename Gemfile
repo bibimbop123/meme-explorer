@@ -7,7 +7,7 @@ gem "sinatra"
 gem "sinatra-contrib" # includes sinatra/reloader
 gem "puma"
 gem "rackup"
-gem "activesupport", "~> 7.1"
+gem "activesupport", "~> 8.1"
 
 
 # Data and HTTP
