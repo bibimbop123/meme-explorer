@@ -28,7 +28,7 @@ gem "oauth2", "~> 2.0"
 gem "bcrypt", "~> 3.1" # Password hashing
 
 # Error tracking and monitoring
-gem "sentry-ruby", "~> 5.0"
+gem "sentry-ruby", "~> 6.1"
 
 # Scheduling
 gem "whenever", require: false
