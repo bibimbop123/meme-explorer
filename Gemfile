@@ -42,7 +42,7 @@ gem "ostruct"
 group :development, :test do
   gem "rspec", "~> 3.12"
   gem "rack-test", "~> 2.1"
-  gem "database_cleaner-sequel", "~> 1.8"
+  gem "database_cleaner-sequel", "~> 2.0"
 end
 
 group :development do
