@@ -39,8 +39,8 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize trending page
-    const trendingPage = new TrendingPage();
-    trendingPage.initialize();
+    window.trendingPage = new TrendingPage();
+    window.trendingPage.initialize();
   });
 </script>
 
@@ -75,6 +75,7 @@
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.9rem;
+    position: relative;
   }
 
   .tab-button:hover {
@@ -86,6 +87,10 @@
     background: #4169e1;
     color: white;
     border-color: #4169e1;
+  }
+
+  .tab-button.active::after {
+    content: ' ✓';
   }
 
   .sort-controls {
@@ -121,6 +126,7 @@
     text-align: center;
     transition: transform 0.2s;
     cursor: pointer;
+    position: relative;
   }
 
   .meme-card:hover {
@@ -128,11 +134,31 @@
     box-shadow: 0 8px 16px rgba(0,0,0,0.15);
   }
 
-  .meme-image {
+  .meme-image-wrapper {
+    position: relative;
     width: 100%;
     height: 280px;
-    object-fit: cover;
+    overflow: hidden;
     background: #f0f0f0;
+  }
+
+  .meme-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .trend-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 107, 107, 0.9);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    backdrop-filter: blur(4px);
   }
 
   .meme-info {
@@ -163,6 +189,121 @@
     text-align: center;
     padding: 2rem;
     color: #666;
+  }
+
+  /* Skeleton Loader States */
+  .meme-card.skeleton {
+    cursor: default;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .meme-card.skeleton:hover {
+    transform: none;
+  }
+
+  .skeleton-image {
+    width: 100%;
+    height: 280px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+
+  .skeleton-info {
+    padding: 0.75rem;
+  }
+
+  .skeleton-title {
+    height: 16px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .skeleton-meta {
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Error State */
+  .error-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    width: 100%;
+    background: #fdf8f7;
+    border-radius: 12px;
+    border-left: 4px solid #ff6b6b;
+  }
+
+  .error-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: #d32f2f;
+  }
+
+  .error-state p {
+    margin: 0 0 1rem 0;
+    color: #666;
+  }
+
+  .retry-button {
+    background: #4169e1;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+  }
+
+  .retry-button:hover {
+    background: #314bb3;
+  }
+
+  /* End of List */
+  .end-of-list {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+    width: 100%;
+  }
+
+  .end-of-list p {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+  }
+
+  .end-of-list small {
+    color: #bbb;
+  }
+
+  /* No Memes State */
+  .no-memes {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #999;
+    width: 100%;
   }
 
   .scroll-observer {
@@ -207,6 +348,10 @@
     .tab-button {
       flex: 1;
       min-width: 80px;
+    }
+
+    .error-state {
+      margin: 0 1rem;
     }
   }
 </style>
