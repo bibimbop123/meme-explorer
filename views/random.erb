@@ -1,4 +1,23 @@
 <div class="meme-container">
+  <!-- Genre Filter Bar -->
+  <div class="genre-filter-bar">
+    <button class="genre-btn active" data-genre="all" title="All memes">🎲 All</button>
+    <button class="genre-btn" data-genre="funny" title="Funny memes">😂 Funny</button>
+    <button class="genre-btn" data-genre="dank" title="Dank memes">🔥 Dank</button>
+    <button class="genre-btn" data-genre="wholesome" title="Wholesome memes">💚 Wholesome</button>
+    <button class="genre-btn" data-genre="selfcare" title="Self-care memes">🧘 Self-Care</button>
+  </div>
+
+  <!-- Stats Display -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-value" id="streak-counter">🔥 0</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="daily-likes">❤️ 0</span>
+    </div>
+  </div>
+
   <div class="meme-display">
     <% if @meme %>
       <% media_type = @media_type || (File.extname(@image_src).downcase == '.mp4' || File.extname(@image_src).downcase == '.webm' ? 'video' : 'image') %>
@@ -12,6 +31,8 @@
     <% else %>
       <div class="meme-loading"></div>
     <% end %>
+    <!-- Skeleton Loader -->
+    <div class="skeleton-loader" id="skeleton-loader" style="display: none;"></div>
   </div>
   
   <div class="meme-info" id="meme-info">
@@ -29,6 +50,11 @@
   </div>
 
   <div class="meme-controls">
+    <button class="control-btn" id="back-btn" title="Go back (Backspace)" style="display: none;">
+      ⬅️
+      <span class="control-count">Back</span>
+    </button>
+
     <button class="control-btn" id="like-btn" title="Like this meme">
       ❤️
       <span class="control-count" id="like-count"><%= @likes || 0 %></span>
@@ -58,11 +84,125 @@
 </div>
 
 <script>
+  // Enhanced Random Feature with UX Improvements
+  
   let currentMeme = {
     url: <%= @image_src.to_json %>,
     subreddit: <%= (@meme&.dig("subreddit") || "reddit").to_json %>,
     title: <%= (@meme&.dig("title") || "Unknown").to_json %>
   };
+  
+  // Session History Manager
+  class MemeHistory {
+    constructor(maxSize = 15) {
+      this.stack = JSON.parse(sessionStorage.getItem('memeHistory') || '[]');
+      this.maxSize = maxSize;
+    }
+    
+    push(meme) {
+      this.stack.push(JSON.parse(JSON.stringify(meme)));
+      if (this.stack.length > this.maxSize) {
+        this.stack.shift();
+      }
+      this.save();
+    }
+    
+    pop() {
+      if (this.stack.length === 0) return null;
+      const meme = this.stack.pop();
+      this.save();
+      return meme;
+    }
+    
+    canGoBack() {
+      return this.stack.length > 0;
+    }
+    
+    save() {
+      sessionStorage.setItem('memeHistory', JSON.stringify(this.stack));
+    }
+  }
+  
+  // Daily Streak Tracker
+  class StreakTracker {
+    constructor() {
+      this.data = JSON.parse(localStorage.getItem('streakData') || '{"streak":0,"lastActive":"","todayLikes":0}');
+      this.initializeDaily();
+    }
+    
+    initializeDaily() {
+      const today = new Date().toISOString().split('T')[0];
+      if (this.data.lastActive !== today) {
+        const lastDate = new Date(this.data.lastActive);
+        const todayDate = new Date(today);
+        const daysDiff = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 1) {
+          this.data.streak = (this.data.streak || 0) + 1;
+        } else if (daysDiff > 1) {
+          this.data.streak = 1;
+        }
+        this.data.lastActive = today;
+        this.data.todayLikes = 0;
+        this.save();
+      }
+    }
+    
+    recordLike() {
+      this.data.todayLikes = (this.data.todayLikes || 0) + 1;
+      this.save();
+    }
+    
+    getStreak() {
+      return this.data.streak || 0;
+    }
+    
+    getTodayLikes() {
+      return this.data.todayLikes || 0;
+    }
+    
+    save() {
+      localStorage.setItem('streakData', JSON.stringify(this.data));
+    }
+  }
+  
+  // Genre Filter Manager
+  class GenreFilterManager {
+    constructor() {
+      this.activeGenre = localStorage.getItem('activeGenre') || 'all';
+      this.setupButtons();
+    }
+    
+    setupButtons() {
+      document.querySelectorAll('.genre-btn').forEach(btn => {
+        if (btn.dataset.genre === this.activeGenre) {
+          btn.classList.add('active');
+        }
+        btn.addEventListener('click', () => this.selectGenre(btn.dataset.genre));
+      });
+    }
+    
+    selectGenre(genre) {
+      this.activeGenre = genre;
+      localStorage.setItem('activeGenre', genre);
+      document.querySelectorAll('.genre-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.genre === genre);
+      });
+      loadNextMeme();
+    }
+    
+    getActiveGenre() {
+      return this.activeGenre;
+    }
+  }
+  
+  // Initialize managers
+  const history = new MemeHistory();
+  const streakTracker = new StreakTracker();
+  const genreFilter = new GenreFilterManager();
+  
+  // Push initial meme to history
+  history.push(currentMeme);
   
   const likeBtn = document.getElementById('like-btn');
   const likeCount = document.getElementById('like-count');
@@ -137,11 +277,38 @@
   
   updateLikeUI();
   
+  // Update UI displays
+  function updateStatsDisplay() {
+    const streak = streakTracker.getStreak();
+    const todayLikes = streakTracker.getTodayLikes();
+    document.getElementById('streak-counter').textContent = `🔥 ${streak}`;
+    document.getElementById('daily-likes').textContent = `❤️ ${todayLikes}`;
+  }
+  
+  // Show/hide back button
+  function updateBackButton() {
+    const backBtn = document.getElementById('back-btn');
+    backBtn.style.display = history.canGoBack() ? 'inline-block' : 'none';
+  }
+  
+  // Show/hide skeleton loader
+  function showSkeleton() {
+    document.getElementById('skeleton-loader').style.display = 'block';
+  }
+  
+  function hideSkeleton() {
+    document.getElementById('skeleton-loader').style.display = 'none';
+  }
+  
   // AJAX: Load next meme without full page reload
   async function loadNextMeme() {
     try {
-      console.log('🔄 [LOAD MEME] Starting fetch to /random.json...');
-      const response = await fetch('/random.json');
+      showSkeleton();
+      const genre = genreFilter.getActiveGenre();
+      const endpoint = genre === 'all' ? '/random.json' : `/random.json?genre=${genre}`;
+      
+      console.log('🔄 [LOAD MEME] Fetching with genre:', genre);
+      const response = await fetch(endpoint);
       
       console.log('🔄 [LOAD MEME] Response received:', {
         status: response.status,
@@ -159,15 +326,21 @@
       console.log('✅ [LOAD MEME] JSON parsed successfully:', {
         url: data.url,
         title: data.title,
-        subreddit: data.subreddit
+        subreddit: data.subreddit,
+        category: data.category
       });
       
       // Update current meme object
       currentMeme = {
         url: data.url,
         subreddit: data.subreddit || 'REDDIT',
-        title: data.title || 'Unknown'
+        title: data.title || 'Unknown',
+        category: data.category || 'all'
       };
+      
+      // Add to history
+      history.push(currentMeme);
+      updateBackButton();
       
       // Update DOM - handle both images and videos
       const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
@@ -209,6 +382,7 @@
       
       // Haptic feedback
       if (navigator.vibrate) navigator.vibrate(30);
+      hideSkeleton();
       console.log('✅ [LOAD MEME] DOM updated successfully');
     } catch (e) {
       console.error('❌ [LOAD MEME] Error:', {
@@ -217,14 +391,43 @@
         type: e.constructor.name
       });
       console.warn('⚠️ [LOAD MEME] Falling back to full page reload...');
-      // Fallback to full page reload on error
+      hideSkeleton();
       setTimeout(() => {
         window.location.href = '/random';
       }, 100);
     }
   }
   
-  // Like functionality
+  // Back button functionality
+  document.getElementById('back-btn').addEventListener('click', async () => {
+    const previousMeme = history.pop();
+    if (previousMeme) {
+      history.pop(); // Remove current that was just pushed
+      
+      showSkeleton();
+      currentMeme = previousMeme;
+      
+      const memeDisplay = document.querySelector('.meme-display');
+      const memeImg = memeDisplay.querySelector('img');
+      if (memeImg) {
+        memeImg.src = previousMeme.url;
+        memeImg.alt = previousMeme.title;
+      }
+      
+      memeTitle.textContent = previousMeme.title || 'Loading...';
+      memeSub.textContent = (previousMeme.subreddit || 'REDDIT').toUpperCase();
+      
+      isLiked = false;
+      updateLikeUI();
+      
+      hideSkeleton();
+      updateBackButton();
+      
+      if (navigator.vibrate) navigator.vibrate([20, 10, 20]);
+    }
+  });
+  
+  // Like functionality with streak tracking
   likeBtn.addEventListener('click', async () => {
     try {
       const response = await fetch('/like', {
@@ -238,6 +441,12 @@
         isLiked = data.liked;
         likeCount.textContent = data.likes;
         updateLikeUI();
+        
+        // Track like for daily stats
+        if (isLiked) {
+          streakTracker.recordLike();
+          updateStatsDisplay();
+        }
         
         // Haptic feedback
         if (navigator.vibrate) navigator.vibrate(50);
@@ -305,9 +514,14 @@
   });
   
   document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+    if ((e.code === 'Space' || e.code === 'ArrowRight') && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
       loadNextMeme();
+    }
+    // Backspace to go back
+    if (e.code === 'Backspace' && document.activeElement.tagName !== 'INPUT' && history.canGoBack()) {
+      e.preventDefault();
+      document.getElementById('back-btn').click();
     }
   });
   
@@ -327,10 +541,96 @@
   nextBtn.addEventListener('click', () => {
     loadNextMeme();
   });
+  
+  // Initialize displays
+  updateStatsDisplay();
+  updateBackButton();
 </script>
 
 <style>
   footer {
     display: none;
+  }
+  
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  .genre-filter-bar {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .genre-btn {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+  
+  .genre-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+  }
+  
+  .genre-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #764ba2;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+  
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    padding: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+  }
+  
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+  
+  .stat-value {
+    font-weight: bold;
+    color: #ffd700;
+  }
+  
+  .skeleton-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 8px;
+  }
+  
+  .meme-display {
+    position: relative;
   }
 </style>

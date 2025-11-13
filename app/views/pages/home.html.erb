@@ -1,0 +1,149 @@
+<div class="meme-explorer-container">
+  <header class="meme-header">
+    <h1>🎭 Meme Explorer</h1>
+    <p>Discover hilarious, wholesome, and dank memes</p>
+  </header>
+
+  <nav class="meme-nav">
+    <%= link_to "Search", search_memes_path, class: "nav-link" %>
+    <%= link_to "Trending", trending_memes_path, class: "nav-link" %>
+    <%= link_to "Random", random_memes_path, class: "nav-link" %>
+  </nav>
+
+  <% if @memes.any? %>
+    <div class="memes-grid">
+      <% @memes.each do |meme| %>
+        <div class="meme-card">
+          <div class="meme-image-wrapper">
+            <img src="<%= meme.image_url %>" alt="<%= meme.title %>" class="meme-image">
+          </div>
+          <div class="meme-info">
+            <h3><%= meme.title %></h3>
+            <span class="meme-category"><%= meme.category %></span>
+            <p class="meme-views">👁️ <%= meme.view_count || 0 %> views</p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="empty-state">
+      <p>No memes yet. Add some to get started! 🚀</p>
+    </div>
+  <% end %>
+</div>
+
+<style>
+  .meme-explorer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  }
+
+  .meme-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+  }
+
+  .meme-header h1 {
+    font-size: 48px;
+    margin: 0;
+  }
+
+  .meme-header p {
+    font-size: 18px;
+    margin: 10px 0 0 0;
+  }
+
+  .meme-nav {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 40px;
+    justify-content: center;
+  }
+
+  .nav-link {
+    padding: 10px 20px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .nav-link:hover {
+    background: #667eea;
+    color: white;
+  }
+
+  .memes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .meme-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+  }
+
+  .meme-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  }
+
+  .meme-image-wrapper {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f0f0f0;
+  }
+
+  .meme-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .meme-info {
+    padding: 15px;
+  }
+
+  .meme-info h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #333;
+  }
+
+  .meme-category {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #f0f0f0;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #666;
+    text-transform: capitalize;
+  }
+
+  .meme-views {
+    margin: 10px 0 0 0;
+    font-size: 13px;
+    color: #999;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 18px;
+  }
+</style>
