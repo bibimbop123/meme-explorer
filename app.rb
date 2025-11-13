@@ -40,6 +40,9 @@ end
 
 $VERBOSE = nil # suppress warnings
 
+# Track server start time for /health endpoint
+$start_time = Time.now
+
 # -----------------------
 # Main App
 # -----------------------
@@ -235,6 +238,9 @@ class MemeExplorer < Sinatra::Base
           MEME_CACHE.set(:memes, all_memes.shuffle)
           puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local memes"
         end
+        
+        # Track when cache was last refreshed
+        MEME_CACHE.set(:last_refresh, Time.now)
       rescue => e
         puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
         puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
@@ -288,19 +294,38 @@ class MemeExplorer < Sinatra::Base
   end
 
   after do
-    duration = ((Time.now - @start_time) * 1000).round(2)
-    METRICS[:total_requests] += 1
-    total = METRICS[:total_requests]
-    avg = METRICS[:avg_request_time_ms]
-    METRICS[:avg_request_time_ms] = ((avg * (total - 1)) + duration) / total.to_f
+    # Defensively calculate duration - handle nil @start_time
+    begin
+      if @start_time.is_a?(Time) && Time.now.is_a?(Time)
+        duration = ((Time.now.to_i - @start_time.to_i) * 1000).round(2)
+      else
+        duration = 0
+      end
+    rescue => e
+      puts "After hook duration calc error: #{e.class}"
+      duration = 0
+    end
+    
+    begin
+      METRICS[:total_requests] += 1
+      total = METRICS[:total_requests]
+      avg = METRICS[:avg_request_time_ms]
+      METRICS[:avg_request_time_ms] = ((avg * (total - 1)) + duration) / total.to_f
+    rescue => e
+      puts "After hook metrics error: #{e.class}"
+    end
 
-    response.set_cookie(
-      "seen_memes",
-      value: @seen_memes.to_json,
-      path: "/",
-      expires: Time.now + 60 * 60 * 24 * 30,
-      httponly: true
-    )
+    begin
+      response.set_cookie(
+        "seen_memes",
+        value: @seen_memes.to_json,
+        path: "/",
+        expires: Time.now + 60 * 60 * 24 * 30,
+        httponly: true
+      )
+    rescue => e
+      puts "After hook cookie error: #{e.class}"
+    end
   end
 
   # -----------------------
@@ -734,20 +759,38 @@ class MemeExplorer < Sinatra::Base
     def should_exclude_from_exposure(user_id, meme_url)
       return false unless user_id
       
-      exposure = DB.execute(
-        "SELECT last_shown, shown_count FROM user_meme_exposure WHERE user_id = ? AND meme_url = ?",
-        [user_id, meme_url]
-      ).first
-      
-      return false unless exposure
-      
-      last_shown = DateTime.parse(exposure["last_shown"]) rescue nil
-      return false unless last_shown
-      
-      shown_count = exposure["shown_count"].to_i
-      hours_to_wait = 4 ** (shown_count - 1)
-      time_since_shown = (Time.now - last_shown) / 3600
-      time_since_shown < hours_to_wait
+      begin
+        exposure = DB.execute(
+          "SELECT last_shown, shown_count FROM user_meme_exposure WHERE user_id = ? AND meme_url = ?",
+          [user_id, meme_url]
+        ).first
+        
+        return false unless exposure
+        return false if exposure.nil?
+        
+        last_shown_str = exposure["last_shown"].to_s.strip
+        return false if last_shown_str.empty?
+        
+        last_shown = Time.parse(last_shown_str) rescue nil
+        return false unless last_shown.is_a?(Time)
+        
+        shown_count_val = exposure["shown_count"]
+        return false if shown_count_val.nil?
+        
+        shown_count = shown_count_val.to_i
+        hours_to_wait = 4 ** (shown_count - 1)
+        
+        current_time = Time.now
+        return false unless current_time.is_a?(Time)
+        
+        time_diff_seconds = (current_time.to_i - last_shown.to_i).to_f
+        time_since_shown = time_diff_seconds / 3600.0
+        
+        time_since_shown < hours_to_wait
+      rescue => e
+        puts "Error in should_exclude_from_exposure: #{e.class}: #{e.message}"
+        false
+      end
     end
 
     # Get time-based pool distribution for personalization
@@ -1865,41 +1908,107 @@ class MemeExplorer < Sinatra::Base
   get "/health" do
     content_type :json
     
-    # Calculate cache freshness indicator
-    cache_age = MEME_CACHE[:last_refresh] ? (Time.now - MEME_CACHE[:last_refresh]).to_i : nil
-    cache_freshness = if cache_age.nil?
-                        "NO_DATA"
-                      elsif cache_age < 60
-                        "FRESH"
-                      elsif cache_age < 300
-                        "STALE"
-                      else
-                        "OFFLINE"
-                      end
-    
-    {
-      status: "ok",
-      timestamp: Time.now.iso8601,
-      uptime_seconds: (Time.now - $start_time).to_i,
-      requests: METRICS[:total_requests],
-      avg_response_time_ms: METRICS[:avg_request_time_ms].round(2),
-      error_rate_5m: ErrorHandler::Logger.error_rate(300),
-      cache_status: {
-        total_memes: MEME_CACHE[:memes]&.size || 0,
-        last_refresh: MEME_CACHE[:last_refresh]&.iso8601,
-        cache_age_seconds: cache_age,
-        cache_freshness: cache_freshness,
-        refresh_interval_seconds: 30,
-        reddit_credentials: {
-          client_id_set: !ENV.fetch("REDDIT_CLIENT_ID", "").to_s.strip.empty?,
-          client_secret_set: !ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s.strip.empty?
+    begin
+      cache_age = nil
+      cache_freshness = "NO_DATA"
+      last_refresh_str = nil
+      uptime_seconds = 0
+      total_memes = 0
+      
+      # Safely get cache refresh time and calculate age - ABSOLUTE PROTECTION
+      begin
+        refresh_time = MEME_CACHE.get(:last_refresh) rescue nil
+        
+        if refresh_time.is_a?(Time) && !refresh_time.nil?
+          current_time = Time.now
+          if current_time.is_a?(Time) && !current_time.nil?
+            begin
+              ct_int = current_time.to_i
+              rt_int = refresh_time.to_i
+              
+              if ct_int.is_a?(Integer) && rt_int.is_a?(Integer)
+                seconds_ago = ct_int - rt_int
+                cache_age = [seconds_ago, 0].max
+                cache_freshness = if cache_age < 60
+                                    "FRESH"
+                                  elsif cache_age < 300
+                                    "STALE"
+                                  else
+                                    "OFFLINE"
+                                  end
+                last_refresh_str = refresh_time.iso8601
+              end
+            rescue => e
+              puts "Health: cache age calc: #{e.class}"
+              cache_freshness = "ERROR"
+            end
+          end
+        end
+      rescue => e
+        puts "Health: refresh time check: #{e.class}"
+      end
+      
+      # Safely calculate uptime - USE INTEGERS ONLY
+      begin
+        if $start_time.is_a?(Time) && !$start_time.nil?
+          current_time = Time.now
+          if current_time.is_a?(Time) && !current_time.nil?
+            begin
+              ct_int = current_time.to_i
+              st_int = $start_time.to_i
+              
+              if ct_int.is_a?(Integer) && st_int.is_a?(Integer)
+                uptime_seconds = [ct_int - st_int, 0].max
+              end
+            rescue => e
+              puts "Health: uptime calc: #{e.class}"
+            end
+          end
+        end
+      rescue => e
+        puts "Health: uptime check: #{e.class}"
+      end
+      
+      # Safely get total memes
+      begin
+        meme_list = MEME_CACHE.get(:memes)
+        total_memes = meme_list.size if meme_list.is_a?(Array)
+      rescue => e
+        puts "Health: memes count: #{e.class}"
+        nil
+      end
+      
+      {
+        status: "ok",
+        timestamp: Time.now.iso8601,
+        uptime_seconds: uptime_seconds,
+        requests: METRICS[:total_requests],
+        avg_response_time_ms: METRICS[:avg_request_time_ms].round(2),
+        error_rate_5m: begin
+          ErrorHandler::Logger.error_rate(300)
+        rescue
+          0
+        end,
+        cache_status: {
+          total_memes: total_memes,
+          last_refresh: last_refresh_str,
+          cache_age_seconds: cache_age,
+          cache_freshness: cache_freshness,
+          refresh_interval_seconds: 30,
+          reddit_credentials: {
+            client_id_set: !ENV.fetch("REDDIT_CLIENT_ID", "").to_s.strip.empty?,
+            client_secret_set: !ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s.strip.empty?
+          }
+        },
+        thread_pool: {
+          configured_threads: Integer(ENV.fetch("RAILS_MAX_THREADS", 32)),
+          workers: Integer(ENV.fetch("WEB_CONCURRENCY", 0))
         }
-      },
-      thread_pool: {
-        configured_threads: Integer(ENV.fetch("RAILS_MAX_THREADS", 32)),
-        workers: Integer(ENV.fetch("WEB_CONCURRENCY", 0))
-      }
-    }.to_json
+      }.to_json
+    rescue => e
+      puts "Health endpoint error: #{e.class}: #{e.message}"
+      { status: "error", message: e.message, timestamp: Time.now.iso8601 }.to_json
+    end
   end
 
   get "/errors" do
@@ -1961,6 +2070,3 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   run! if app_file == $0
 end
-
-# Track server start time for /health endpoint
-$start_time = Time.now
