@@ -3,8 +3,16 @@ ENV["RACK_ENV"] = "test"
 
 require "rspec"
 require "rack/test"
+
 require_relative "../app"
 require_relative "../db/setup"
+
+# Require all services and validators
+require_relative "../lib/services/user_service"
+require_relative "../lib/services/auth_service"
+require_relative "../lib/services/search_service"
+require_relative "../lib/validators"
+require_relative "../lib/models/user"
 
 # Clean database before each test
 RSpec.configure do |config|

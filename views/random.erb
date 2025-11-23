@@ -229,6 +229,10 @@
         redditLink.href = `https://reddit.com${data.reddit_path}`;
       }
       
+      // Re-initialize carousel with new meme's images
+      console.log('🎠 [LOAD MEME] Re-initializing carousel with new data...');
+      initializeCarousel(data);
+      
       // Haptic feedback
       if (navigator.vibrate) navigator.vibrate(30);
       console.log('✅ [LOAD MEME] DOM updated successfully');

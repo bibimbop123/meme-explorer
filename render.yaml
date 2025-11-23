@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: meme-explorer
+    runtime: ruby
+    region: oregon
+    plan: free
+    buildCommand: bundle install
+    startCommand: bundle exec rackup config.ru -p $PORT
+    envVars:
+      - key: RACK_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: BUNDLE_WITHOUT
+        value: development:test
+
+  - type: pserv
+    name: meme-explorer-postgres
+    runtime: postgresql15
+    region: oregon
+    plan: starter
+    ipAllowList: []
