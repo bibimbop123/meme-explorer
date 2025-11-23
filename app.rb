@@ -422,21 +422,46 @@ class MemeExplorer < Sinatra::Base
     memes
   end
 
-  def self.extract_image_url_static(post_data)
+  def self.extract_image_urls_static(post_data)
+    urls = []
+    
+    # Handle gallery posts (multiple images)
+    if post_data["gallery_data"]&.dig("items")
+      post_data["gallery_data"]["items"].each do |item|
+        media_id = item["media_id"]
+        if post_data["media_metadata"] && post_data["media_metadata"][media_id]
+          source = post_data["media_metadata"][media_id].dig("s", "x")
+          urls << source if source
+        end
+      end
+      return urls if urls.any?
+    end
+
+    # Handle reddit hosted images
     if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
-      return post_data["url"]
+      return [post_data["url"]]
     end
 
+    # Handle imgur links
     if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
-      return post_data["url"]
+      return [post_data["url"]]
     end
 
-    if post_data["preview"]&.dig("images", 0, "source", "url")
-      url = post_data["preview"]["images"][0]["source"]["url"]
-      return url.gsub("&amp;", "&") if url
+    # Handle preview images (fallback)
+    if post_data["preview"]&.dig("images")
+      post_data["preview"]["images"].each do |image|
+        url = image.dig("source", "url")
+        urls << url.gsub("&amp;", "&") if url
+      end
+      return urls if urls.any?
     end
 
-    nil
+    []
+  end
+
+  def self.extract_image_url_static(post_data)
+    urls = extract_image_urls_static(post_data)
+    urls.first
   end
 
   # -----------------------
