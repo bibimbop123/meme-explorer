@@ -1039,12 +1039,24 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
+    # ENHANCED: Filters out broken link images to ensure reliable loading
     def random_memes_pool
       # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
       cache_memes = MEME_CACHE.get(:memes)
       if cache_memes.is_a?(Array) && !cache_memes.empty?
-        puts "✅ [MEME POOL] Returning #{cache_memes.size} memes from cache"
-        return cache_memes
+        puts "✅ [MEME POOL] Retrieved #{cache_memes.size} memes from cache"
+        
+        # FILTER STEP: Non-blocking validation of external links
+        # Separate into local files (always valid) and external links (checked asynchronously)
+        valid_memes = cache_memes.select do |m|
+          url = m["url"] || m["file"]
+          next true if url.to_s.start_with?("/")  # Local files are always valid
+          next true if is_image_broken?(url) == false  # Not known to be broken
+          false  # Skip known broken links
+        end
+        
+        # If we filtered out too many, return all (user experience > perfection)
+        return valid_memes.empty? ? cache_memes : valid_memes
       end
 
       puts "⚠️ [MEME POOL] Cache empty, using local memes fallback"
@@ -1142,19 +1154,36 @@ class MemeExplorer < Sinatra::Base
       nil
     end
 
-    # Pre-validate image URL (HEAD request to check if accessible)
+    # Pre-validate image URL (HEAD request to check if accessible) - ENHANCED FOR LINK IMAGE LOADING
     def is_image_accessible?(url)
+      return true if url&.start_with?("/")  # Local files always considered accessible
       return false unless url&.match?(/^https?:\/\//)
       
       begin
         uri = URI(url)
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 5, open_timeout: 5) do |http|
-          http.head(uri.request_uri)
+        # Use cached result if available (avoid repeated checks)
+        cache_key = "image:accessible:#{url}"
+        cached = REDIS&.get(cache_key)
+        return cached == "true" if cached
+        
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 3, open_timeout: 3) do |http|
+          request = Net::HTTP::Head.new(uri.request_uri)
+          request["User-Agent"] = "MemeExplorer/1.0"
+          http.request(request)
         end
         
-        # Check if response indicates accessible image
-        response.code == "200" && response["Content-Type"]&.include?("image")
-      rescue
+        # Check if response indicates accessible image (200-299 range)
+        is_accessible = response.code.to_i >= 200 && response.code.to_i < 300
+        
+        # Cache result for 1 hour
+        REDIS&.setex(cache_key, 3600, is_accessible ? "true" : "false") rescue nil
+        is_accessible
+      rescue Timeout::Error => e
+        # Timeout = likely dead link
+        REDIS&.setex("image:accessible:#{url}", 300, "false") rescue nil
+        false
+      rescue => e
+        # Network error = assume dead
         false
       end
     end

@@ -7,7 +7,7 @@
           Your browser does not support the video tag.
         </video>
       <% else %>
-        <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="this.src='/images/funny1.jpeg'">
+        <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="handleImageError(this, '<%= @image_src %>')" style="max-width: 100%; max-height: 100%; object-fit: contain;">
       <% end %>
     <% else %>
       <div class="meme-loading"></div>
@@ -58,6 +58,23 @@
 </div>
 
 <script>
+  // Enhanced error handling for link image loading
+  function handleImageError(img, url) {
+    console.warn(`⚠️ [IMAGE ERROR] Failed to load: ${url}`);
+    
+    // Report broken image to backend for tracking
+    fetch('/report-broken-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `url=${encodeURIComponent(url)}`
+    }).catch(e => console.log('Report error (non-critical):', e));
+    
+    // Fallback to local image
+    img.src = '/images/funny1.jpeg';
+    img.style.opacity = '0.7';
+    img.title = 'Image unavailable - showing fallback';
+  }
+  
   let currentMeme = {
     url: <%= @image_src.to_json %>,
     subreddit: <%= (@meme&.dig("subreddit") || "reddit").to_json %>,
