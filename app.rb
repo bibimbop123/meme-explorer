@@ -111,7 +111,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Initialize background threads only in non-test environments
-    self.initialize_background_threads unless ENV["RACK_ENV"] == "test"
+    # self.initialize_background_threads unless ENV["RACK_ENV"] == "test"
   end
 
 
