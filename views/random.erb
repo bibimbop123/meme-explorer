@@ -1,17 +1,22 @@
 <div class="meme-container">
-  <div class="meme-display">
-    <% if @meme %>
-      <% media_type = @media_type || (File.extname(@image_src).downcase == '.mp4' || File.extname(@image_src).downcase == '.webm' ? 'video' : 'image') %>
-      <% if media_type == 'video' %>
-        <video src="<%= @image_src %>" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">
-          Your browser does not support the video tag.
-        </video>
+  <div class="meme-display" id="meme-display">
+    <button class="carousel-arrow carousel-arrow-left" id="carousel-prev" aria-label="Previous image" style="display: none;">‹</button>
+    <div class="meme-display-content">
+      <% if @meme %>
+        <% media_type = @media_type || (File.extname(@image_src).downcase == '.mp4' || File.extname(@image_src).downcase == '.webm' ? 'video' : 'image') %>
+        <% if media_type == 'video' %>
+          <video src="<%= @image_src %>" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            Your browser does not support the video tag.
+          </video>
+        <% else %>
+          <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="handleImageError(this, '<%= @image_src %>')" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+        <% end %>
       <% else %>
-        <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="handleImageError(this, '<%= @image_src %>')" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+        <div class="meme-loading"></div>
       <% end %>
-    <% else %>
-      <div class="meme-loading"></div>
-    <% end %>
+    </div>
+    <button class="carousel-arrow carousel-arrow-right" id="carousel-next" aria-label="Next image" style="display: none;">›</button>
+    <div class="carousel-counter" id="carousel-counter" style="display: none;">1/1</div>
   </div>
   
   <div class="meme-info" id="meme-info">
@@ -340,6 +345,107 @@
     }
   });
   
+  // ============================================
+  // CAROUSEL FUNCTIONALITY
+  // ============================================
+  
+  let carouselState = {
+    images: [],
+    currentIndex: 0,
+    totalImages: 0
+  };
+  
+  const carouselPrevBtn = document.getElementById('carousel-prev');
+  const carouselNextBtn = document.getElementById('carousel-next');
+  const carouselCounter = document.getElementById('carousel-counter');
+  const memeDisplayContent = document.querySelector('.meme-display-content');
+  
+  // Initialize carousel from JSON data
+  function initializeCarousel(data) {
+    carouselState.images = data.images || [];
+    carouselState.currentIndex = data.current_index || 0;
+    carouselState.totalImages = data.total_images || 1;
+    
+    console.log(`🎠 [CAROUSEL] Initialized with ${carouselState.totalImages} image(s)`);
+    
+    // Show/hide carousel controls based on image count
+    const showArrows = carouselState.totalImages > 1;
+    carouselPrevBtn.style.display = showArrows ? 'block' : 'none';
+    carouselNextBtn.style.display = showArrows ? 'block' : 'none';
+    carouselCounter.style.display = showArrows ? 'block' : 'none';
+    
+    updateCarouselDisplay();
+  }
+  
+  // Update carousel display
+  function updateCarouselDisplay() {
+    if (carouselState.totalImages <= 1) return;
+    
+    // Update counter
+    carouselCounter.textContent = `${carouselState.currentIndex + 1}/${carouselState.totalImages}`;
+    
+    // Update arrow button states (disable at boundaries)
+    carouselPrevBtn.disabled = carouselState.currentIndex === 0;
+    carouselNextBtn.disabled = carouselState.currentIndex === carouselState.totalImages - 1;
+    
+    // Visual feedback for disabled buttons
+    carouselPrevBtn.style.opacity = carouselPrevBtn.disabled ? '0.3' : '1';
+    carouselNextBtn.style.opacity = carouselNextBtn.disabled ? '0.3' : '1';
+  }
+  
+  // Navigate carousel
+  function navigateCarousel(direction) {
+    if (carouselState.totalImages <= 1) return;
+    
+    const newIndex = carouselState.currentIndex + direction;
+    
+    // Boundary check
+    if (newIndex < 0 || newIndex >= carouselState.totalImages) return;
+    
+    carouselState.currentIndex = newIndex;
+    
+    // Update image
+    const newImageUrl = carouselState.images[carouselState.currentIndex];
+    if (newImageUrl) {
+      const img = memeDisplayContent.querySelector('img');
+      if (img) {
+        img.src = newImageUrl;
+        console.log(`🎠 [CAROUSEL] Navigated to image ${carouselState.currentIndex + 1}`);
+      }
+    }
+    
+    updateCarouselDisplay();
+    
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(20);
+  }
+  
+  // Arrow button click handlers
+  carouselPrevBtn.addEventListener('click', () => navigateCarousel(-1));
+  carouselNextBtn.addEventListener('click', () => navigateCarousel(1));
+  
+  // Keyboard arrow navigation (separate from Space/next meme)
+  document.addEventListener('keydown', (e) => {
+    if (document.activeElement.tagName === 'INPUT') return;
+    
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      navigateCarousel(-1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      navigateCarousel(1);
+    }
+  });
+  
+  // Hook into loadNextMeme to reset carousel state
+  const originalLoadNextMeme = loadNextMeme;
+  loadNextMeme = async function() {
+    const response = await originalLoadNextMeme.call(this);
+    
+    // After loading new meme, carousel will be re-initialized from JSON response
+    return response;
+  };
+  
   // Next button click
   nextBtn.addEventListener('click', () => {
     loadNextMeme();
@@ -349,5 +455,88 @@
 <style>
   footer {
     display: none;
+  }
+  
+  /* Carousel Arrow Styling */
+  .carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    font-size: 28px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    z-index: 10;
+    font-weight: bold;
+    line-height: 1;
+  }
+  
+  .carousel-arrow:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%) scale(1.1);
+  }
+  
+  .carousel-arrow:active:not(:disabled) {
+    transform: translateY(-50%) scale(0.95);
+  }
+  
+  .carousel-arrow:disabled {
+    cursor: not-allowed;
+  }
+  
+  .carousel-arrow-left {
+    left: 12px;
+  }
+  
+  .carousel-arrow-right {
+    right: 12px;
+  }
+  
+  /* Carousel Counter Styling */
+  .carousel-counter {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Mobile Responsiveness */
+  @media (max-width: 480px) {
+    .carousel-arrow {
+      padding: 10px 14px;
+      font-size: 24px;
+    }
+    
+    .carousel-arrow-left {
+      left: 8px;
+    }
+    
+    .carousel-arrow-right {
+      right: 8px;
+    }
+    
+    .carousel-counter {
+      bottom: 10px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+  }
+  
+  /* Ensure proper positioning context */
+  #meme-display {
+    position: relative;
   }
 </style>

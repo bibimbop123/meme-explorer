@@ -989,6 +989,51 @@ class MemeExplorer < Sinatra::Base
       nil
     end
 
+    # Extract all image URLs from Reddit gallery posts (for carousel)
+    def extract_image_urls(post_data)
+      return [] unless post_data.is_a?(Hash)
+
+      urls = []
+
+      # Priority 1: Handle Reddit gallery posts (multiple images)
+      if post_data["gallery_data"]&.dig("items").is_a?(Array)
+        post_data["gallery_data"]["items"].each do |item|
+          media_id = item["media_id"]
+          if post_data["media_metadata"].is_a?(Hash) && post_data["media_metadata"][media_id]
+            source = post_data["media_metadata"][media_id].dig("s", "x")
+            urls << source if source && source.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+          end
+        end
+        return urls if urls.any?
+      end
+
+      # Priority 2: Single reddit-hosted image
+      if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
+        return [post_data["url"]]
+      end
+
+      # Priority 3: Imgur links
+      if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
+        return [post_data["url"]]
+      end
+
+      # Priority 4: Preview images (fallback for compatibility)
+      if post_data["preview"]&.dig("images").is_a?(Array)
+        post_data["preview"]["images"].each do |image|
+          url = image.dig("source", "url")
+          urls << url.gsub("&amp;", "&") if url && url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+        end
+        return urls if urls.any?
+      end
+
+      # Priority 5: Generic single image
+      if post_data["url"] && post_data["url"].match?(/^https?:\/\//)
+        return [post_data["url"]]
+      end
+
+      []
+    end
+
     # Phase 1: Weighted random selection by score
     def weighted_random_select(memes)
       return nil if memes.empty?
@@ -1507,11 +1552,16 @@ class MemeExplorer < Sinatra::Base
     session[:meme_history] = session[:meme_history].last(100)
     session[:last_subreddit] = @meme["subreddit"]&.downcase
     
-    image_url = @meme["url"] || @meme["file"]
+    # Extract all image URLs for gallery posts
+    image_urls = extract_image_urls(@meme)
+    image_urls = [(@meme["url"] || @meme["file"])] if image_urls.empty?
+    
+    # Primary image is the first one
+    primary_image_url = image_urls.first
     
     reddit_path = nil
     if @meme["reddit_post_urls"]&.is_a?(Array)
-      post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
+      post_url = @meme["reddit_post_urls"].find { |u| u.include?(primary_image_url) }
       reddit_path = post_url
     end
     
@@ -1527,12 +1577,12 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Track view in meme_stats if it's an API meme (not local file)
-    if !image_url.start_with?("/")
+    if !primary_image_url.start_with?("/")
       meme_title = @meme["title"] || "Unknown"
       meme_subreddit = @meme["subreddit"] || "reddit"
       DB.execute(
         "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-        [image_url, meme_title, meme_subreddit]
+        [primary_image_url, meme_title, meme_subreddit]
       ) rescue nil
     end
     
@@ -1540,13 +1590,16 @@ class MemeExplorer < Sinatra::Base
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
-      url: image_url,
+      url: primary_image_url,
+      images: image_urls,
+      current_index: 0,
+      total_images: image_urls.size,
       reddit_path: reddit_path,
-      likes: get_meme_likes(image_url)
+      likes: get_meme_likes(primary_image_url)
     }
     
     content_type :json
-    puts "✅ [/random.json] Returning response: #{response_data.to_json[0..100]}..."
+    puts "✅ [/random.json] Returning response with #{image_urls.size} image(s): #{response_data.to_json[0..100]}..."
     response_data.to_json
   end
   
