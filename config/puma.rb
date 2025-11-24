@@ -14,7 +14,7 @@ threads_count = Integer(ENV.fetch("RAILS_MAX_THREADS", 32))
 threads threads_count, threads_count
 
 # Cluster mode settings
-preload_app!
+# Note: preload_app! and worker_shutdown_timeout only apply when WEB_CONCURRENCY > 0
 
 # Timeouts
 worker_shutdown_timeout 30
@@ -39,12 +39,14 @@ else
   state_path "tmp/pids/puma.state"
 end
 
-# On boot event - runs once per cluster
-on_worker_boot do
-  # Reconnect to database on worker boot
-  if ENV['DATABASE_URL']
-    require 'sequel'
-    DB.disconnect
-    Object.const_set(:DB, Sequel.connect(ENV['DATABASE_URL']))
+# On boot event - runs once per cluster (only in cluster mode: WEB_CONCURRENCY > 0)
+if Integer(ENV.fetch("WEB_CONCURRENCY", 0)) > 0
+  on_worker_boot do
+    # Reconnect to database on worker boot
+    if ENV['DATABASE_URL']
+      require 'sequel'
+      DB.disconnect
+      Object.const_set(:DB, Sequel.connect(ENV['DATABASE_URL']))
+    end
   end
 end
