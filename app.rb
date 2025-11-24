@@ -109,9 +109,6 @@ class MemeExplorer < Sinatra::Base
       puts "Fatal: Configuration error: #{e.message}"
       exit 1
     end
-    
-    # Initialize background threads only in non-test environments
-    self.initialize_background_threads unless ENV["RACK_ENV"] == "test"
   end
 
 
@@ -2186,3 +2183,6 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   run! if app_file == $0
 end
+
+# Initialize background threads after class is fully defined
+MemeExplorer.initialize_background_threads unless ENV["RACK_ENV"] == "test"
