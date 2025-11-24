@@ -111,9 +111,9 @@ class MemeExplorer < Sinatra::Base
     end
 
     # === CACHE INITIALIZATION ===
+    # Silent on success, error-only logging for production cleanliness
     if ENV["RACK_ENV"] != "test"
       begin
-        puts "[STARTUP] Initializing cache with local memes..."
         local_memes = begin
           if MemeExplorer::MEMES.is_a?(Hash)
             MemeExplorer::MEMES.values.flatten.compact
@@ -123,16 +123,15 @@ class MemeExplorer < Sinatra::Base
             []
           end
         rescue => e
-          puts "[STARTUP] Error loading MEMES: #{e.class}"
+          puts "[STARTUP ERROR] Failed to load MEMES: #{e.class} - #{e.message}"
           []
         end
 
         if local_memes.size > 0
           MemeExplorer::MEME_CACHE.set(:memes, local_memes.shuffle)
-          puts "[STARTUP] ✅ Cache initialized with #{local_memes.size} local memes"
         end
       rescue => e
-        puts "[STARTUP] Error: #{e.class}"
+        puts "[STARTUP ERROR] Cache initialization failed: #{e.class} - #{e.message}"
       end
     end
   end
