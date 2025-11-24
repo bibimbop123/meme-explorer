@@ -21,25 +21,6 @@ module MemeExplorer
           erb :random
         end
 
-        app.get "/random.json" do
-          memes = app.class::MEME_CACHE[:memes] || []
-          halt 404, { error: "No memes found" }.to_json if memes.empty?
-
-          headers "Cache-Control" => "public, max-age=60"
-
-          session[:meme_history] ||= []
-          session[:last_subreddit] ||= nil
-          last_meme_url = session[:meme_history].last
-
-          @meme = find_new_meme(memes, last_meme_url)
-          halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
-
-          track_meme_view(@meme, session)
-
-          content_type :json
-          format_meme_response(@meme)
-        end
-
         app.post "/like" do
           url = params[:url]
           halt 400, { error: "No URL provided" }.to_json unless url
