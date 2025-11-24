@@ -131,32 +131,33 @@ class MemeExplorer < Sinatra::Base
   # Initialize background threads only in non-test environments
   def self.initialize_background_threads
     return if ENV["RACK_ENV"] == "test"
+
+    # SYNCHRONOUS STARTUP: Populate cache BEFORE server accepts requests
+    puts "\n🔥 [STARTUP FETCH] Synchronous cache population - blocking until complete...\n"
     
-    # CRITICAL: Synchronous startup preload (BLOCKING) - runs before server accepts requests
-    puts "\n🔥 [STARTUP PRELOAD] SYNCHRONOUS startup preload - loading cache NOW..."
-    begin
-      # Load local memes first - always available
-      local_memes = begin
-        yaml_data = YAML.load_file("data/memes.yml")
-        if yaml_data.is_a?(Hash)
-          yaml_data.values.flatten.compact
-        else
-          yaml_data || []
-        end
-      rescue => e
-        puts "❌ [STARTUP PRELOAD] Failed to load local memes: #{e.class}"
-        []
+    # Load local memes
+    local_memes = begin
+      yaml_data = YAML.load_file("data/memes.yml")
+      if yaml_data.is_a?(Hash)
+        yaml_data.values.flatten.compact
+      else
+        yaml_data || []
       end
-      
-      MEME_CACHE.set(:memes, local_memes.shuffle)
-      puts "✅ [STARTUP PRELOAD] Local cache ready: #{local_memes.size} memes"
-      
-      # Attempt OAuth2 API preload with extended timeout (5 seconds)
-      client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-      client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
-      
-      if !client_id.empty? && !client_secret.empty?
-        puts "🔄 [STARTUP PRELOAD] Attempting OAuth2 API preload (5 second timeout)..."
+    rescue => e
+      puts "❌ [STARTUP FETCH] Failed to load local memes: #{e.class}"
+      []
+    end
+    
+    MEME_CACHE.set(:memes, local_memes.shuffle)
+    puts "✅ [STARTUP FETCH] Local cache ready: #{local_memes.size} memes"
+    
+    # Try OAuth2 API fetch (synchronous, blocking)
+    client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+    client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+    
+    if !client_id.empty? && !client_secret.empty?
+      begin
+        puts "🔄 [STARTUP FETCH] Attempting OAuth2 API fetch..."
         begin
           Timeout.timeout(5) do
             client = OAuth2::Client.new(
@@ -167,62 +168,84 @@ class MemeExplorer < Sinatra::Base
               token_url: "/api/v1/access_token"
             )
             token = client.client_credentials.get_token(scope: "read")
-            puts "✅ [STARTUP PRELOAD] OAuth2 token acquired"
+            puts "✅ [STARTUP FETCH] OAuth2 token acquired"
             
+            # Call static method - works during class definition
             api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
             
             if api_memes && api_memes.size > 0
-              puts "✓ [STARTUP PRELOAD] Got #{api_memes.size} memes from OAuth2"
               combined = (api_memes + local_memes).uniq { |m| m["url"] }
               MEME_CACHE.set(:memes, combined.shuffle)
-              puts "✅ [STARTUP PRELOAD] Cache populated: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total"
-            else
-              puts "⚠️ [STARTUP PRELOAD] OAuth2 returned no memes, keeping local cache"
+              puts "✅ [STARTUP FETCH] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total\n\n"
             end
           end
         rescue Timeout::Error
-          puts "⏱️ [STARTUP PRELOAD] OAuth2 timed out after 5 seconds - trying unauthenticated fallback..."
-          begin
-            Timeout.timeout(5) do
-              api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS.sample(8), 30) rescue []
-              if api_memes && api_memes.size > 0
-                puts "✓ [STARTUP PRELOAD] Got #{api_memes.size} memes from unauthenticated API"
-                combined = (api_memes + local_memes).uniq { |m| m["url"] }
-                MEME_CACHE.set(:memes, combined.shuffle)
-                puts "✅ [STARTUP PRELOAD] Cache populated (unauthenticated): #{combined.size} total memes"
-              end
-            end
-          rescue => e
-            puts "⚠️ [STARTUP PRELOAD] Unauthenticated fallback failed: #{e.class} - proceeding with #{local_memes.size} local memes only"
+          puts "⏱️ [STARTUP FETCH] OAuth2 timed out (5s)\n\n"
+        rescue => e
+          puts "⚠️ [STARTUP FETCH] OAuth2 failed: #{e.class}\n\n"
+        end
+      rescue => e
+        puts "❌ [STARTUP FETCH] Unexpected error: #{e.class}\n\n"
+      end
+    end
+    
+    MEME_CACHE.set(:last_refresh, Time.now)
+
+    # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
+    @cache_refresh_thread = Thread.new do
+      # Wait 30 seconds before first background refresh (startup fetch already ran)
+      sleep 30
+      
+      puts "\n🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}..."
+      
+      # Load local memes first
+      local_memes = begin
+        yaml_data = YAML.load_file("data/memes.yml")
+        if yaml_data.is_a?(Hash)
+          yaml_data.values.flatten.compact
+        else
+          yaml_data || []
+        end
+      rescue => e
+        puts "❌ [STARTUP FETCH] Failed to load local memes: #{e.class}"
+        []
+      end
+      
+      MEME_CACHE.set(:memes, local_memes.shuffle)
+      puts "✅ [STARTUP FETCH] Local cache ready: #{local_memes.size} memes"
+      
+      # Try OAuth2
+      client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+      client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+      
+      if !client_id.empty? && !client_secret.empty?
+        begin
+          puts "🔄 [STARTUP FETCH] Attempting OAuth2 API fetch..."
+          client = OAuth2::Client.new(
+            client_id,
+            client_secret,
+            site: "https://www.reddit.com",
+            authorize_url: "/api/v1/authorize",
+            token_url: "/api/v1/access_token"
+          )
+          token = client.client_credentials.get_token(scope: "read")
+          puts "✅ [STARTUP FETCH] OAuth2 token acquired"
+          
+          api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
+          
+          if api_memes && api_memes.size > 0
+            combined = (api_memes + local_memes).uniq { |m| m["url"] }
+            MEME_CACHE.set(:memes, combined.shuffle)
+            puts "✅ [STARTUP FETCH] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total memes\n\n"
           end
         rescue => e
-          puts "⚠️ [STARTUP PRELOAD] OAuth2 failed (#{e.class}) - attempting fallback..."
-          begin
-            Timeout.timeout(5) do
-              api_memes = fetch_reddit_memes(POPULAR_SUBREDDITS.sample(8), 30) rescue []
-              if api_memes && api_memes.size > 0
-                combined = (api_memes + local_memes).uniq { |m| m["url"] }
-                MEME_CACHE.set(:memes, combined.shuffle)
-                puts "✅ [STARTUP PRELOAD] Cache populated (fallback): #{combined.size} total memes"
-              end
-            end
-          rescue => fallback_error
-            puts "⚠️ [STARTUP PRELOAD] All API attempts failed, using local cache only"
-          end
+          puts "⚠️ [STARTUP FETCH] OAuth2 failed: #{e.class}"
         end
-      else
-        puts "ℹ️  [STARTUP PRELOAD] No Reddit OAuth credentials configured - using local cache only"
       end
       
       MEME_CACHE.set(:last_refresh, Time.now)
-      puts "✅ [STARTUP PRELOAD] Synchronous preload complete - cache ready for requests\n\n"
-    rescue => e
-      puts "❌ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
-    end
-
-    # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (FAST: 5 second initial delay, 30 second refresh interval)
-    @cache_refresh_thread = Thread.new do
-      sleep 0.1  # Minimal delay - populate cache immediately before first request
+      
+      # Continue with regular 30-second refresh loop
       loop do
         begin
           puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
