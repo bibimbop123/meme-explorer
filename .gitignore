@@ -1,1 +1,58 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+.env.production
+.env.backup
+
+# Ruby
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/tmp
+/**/*.war
+/tmp/
+/vendor/bundle/
+
+# node
+/node_modules
+npm-debug.log
+yarn-error.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite3
+meme_explorer.db
+*.sqlite
+
+# Logs
+log/
+*.log
+
+# Cache
+.cache/
+
+# Compiled files
+.rbc
+.pyc
+__pycache__/
+
+# Private data
+/data/private
+secrets.yml
