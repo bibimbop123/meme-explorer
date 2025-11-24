@@ -276,8 +276,8 @@ class MemeExplorer < Sinatra::Base
 
     # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
     @cache_refresh_thread = Thread.new do
-      # Wait 30 seconds before first background refresh (startup fetch already ran)
-      sleep 30
+      # Wait 2 seconds before first background refresh (startup fetch already ran)
+      sleep 2
       
       puts "\n🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}..."
       
