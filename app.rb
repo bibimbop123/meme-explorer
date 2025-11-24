@@ -109,6 +109,32 @@ class MemeExplorer < Sinatra::Base
       puts "Fatal: Configuration error: #{e.message}"
       exit 1
     end
+
+    # === CACHE INITIALIZATION ===
+    if ENV["RACK_ENV"] != "test"
+      begin
+        puts "[STARTUP] Initializing cache with local memes..."
+        local_memes = begin
+          if MemeExplorer::MEMES.is_a?(Hash)
+            MemeExplorer::MEMES.values.flatten.compact
+          elsif MemeExplorer::MEMES.is_a?(Array)
+            MemeExplorer::MEMES
+          else
+            []
+          end
+        rescue => e
+          puts "[STARTUP] Error loading MEMES: #{e.class}"
+          []
+        end
+
+        if local_memes.size > 0
+          MemeExplorer::MEME_CACHE.set(:memes, local_memes.shuffle)
+          puts "[STARTUP] ✅ Cache initialized with #{local_memes.size} local memes"
+        end
+      rescue => e
+        puts "[STARTUP] Error: #{e.class}"
+      end
+    end
   end
 
 
