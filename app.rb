@@ -132,74 +132,121 @@ class MemeExplorer < Sinatra::Base
   def self.initialize_background_threads
     return if ENV["RACK_ENV"] == "test"
 
-    # SYNCHRONOUS STARTUP: Populate cache BEFORE server accepts requests
-    puts "\n🔥 [STARTUP FETCH] Synchronous cache population - blocking until complete...\n"
+    puts "\n" * 3
+    puts "=" * 80
+    puts "🔥 [STARTUP FETCH] INITIALIZING CACHE - BLOCKING UNTIL COMPLETE"
+    puts "=" * 80
     $stdout.flush
+    $stderr.flush
     
-    # Load local memes
-    local_memes = begin
-      yaml_data = YAML.load_file("data/memes.yml")
-      if yaml_data.is_a?(Hash)
-        yaml_data.values.flatten.compact
-      else
-        yaml_data || []
-      end
-    rescue => e
-      puts "❌ [STARTUP FETCH] Failed to load local memes: #{e.class} - #{e.message}"
+    begin
+      # Load local memes
+      puts "📂 [STARTUP] Loading local memes from data/memes.yml..."
       $stdout.flush
-      []
-    end
+      
+      local_memes = begin
+        yaml_data = YAML.load_file("data/memes.yml")
+        if yaml_data.is_a?(Hash)
+          yaml_data.values.flatten.compact
+        else
+          yaml_data || []
+        end
+      rescue => e
+        puts "❌ [STARTUP] Failed to load local memes: #{e.class} - #{e.message}"
+        $stdout.flush
+        []
+      end
+      
+      puts "✅ [STARTUP] Loaded #{local_memes.size} local memes"
+      $stdout.flush
     
-    MEME_CACHE.set(:memes, local_memes.shuffle)
-    puts "✅ [STARTUP FETCH] Local cache ready: #{local_memes.size} memes"
-    $stdout.flush
-    
-    # Try OAuth2 API fetch (synchronous, blocking)
-    client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-    client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
-    
-    if !client_id.empty? && !client_secret.empty?
-      begin
-        puts "🔄 [STARTUP FETCH] Attempting OAuth2 API fetch..."
+      MEME_CACHE.set(:memes, local_memes.shuffle)
+      puts "✅ [STARTUP] Cache initialized with #{local_memes.size} local memes as fallback"
+      $stdout.flush
+      
+      # Try OAuth2 API fetch (synchronous, blocking)
+      puts "🔄 [STARTUP] Checking for Reddit OAuth credentials..."
+      $stdout.flush
+      
+      client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+      client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+      
+      if !client_id.empty? && !client_secret.empty?
+        puts "✅ [STARTUP] Reddit OAuth credentials found - attempting API fetch..."
         $stdout.flush
         
-        Timeout.timeout(5) do
-          client = OAuth2::Client.new(
-            client_id,
-            client_secret,
-            site: "https://www.reddit.com",
-            authorize_url: "/api/v1/authorize",
-            token_url: "/api/v1/access_token"
-          )
-          token = client.client_credentials.get_token(scope: "read")
-          puts "✅ [STARTUP FETCH] OAuth2 token acquired"
-          $stdout.flush
-          
-          # Call static method
-          api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
-          
-          if api_memes && api_memes.size > 0
-            combined = (api_memes + local_memes).uniq { |m| m["url"] }
-            MEME_CACHE.set(:memes, combined.shuffle)
-            puts "✅ [STARTUP FETCH] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total"
+        begin
+          Timeout.timeout(5) do
+            puts "🔐 [STARTUP] Acquiring OAuth2 token..."
             $stdout.flush
+            
+            client = OAuth2::Client.new(
+              client_id,
+              client_secret,
+              site: "https://www.reddit.com",
+              authorize_url: "/api/v1/authorize",
+              token_url: "/api/v1/access_token"
+            )
+            token = client.client_credentials.get_token(scope: "read")
+            puts "✅ [STARTUP] OAuth2 token acquired - fetching memes..."
+            $stdout.flush
+            
+            # Call static method
+            api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
+            puts "✅ [STARTUP] Fetched #{api_memes.size} memes from Reddit API"
+            $stdout.flush
+            
+            if api_memes && api_memes.size > 0
+              combined = (api_memes + local_memes).uniq { |m| m["url"] }
+              MEME_CACHE.set(:memes, combined.shuffle)
+              puts "🎉 [STARTUP] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total memes in cache"
+              $stdout.flush
+            else
+              puts "⚠️ [STARTUP] API returned 0 memes - using local fallback"
+              $stdout.flush
+            end
           end
+        rescue Timeout::Error
+          puts "⏱️ [STARTUP] OAuth2 timed out after 5 seconds - using local fallback"
+          $stdout.flush
+        rescue => oauth_error
+          puts "⚠️ [STARTUP] OAuth2 failed: #{oauth_error.class} - #{oauth_error.message}"
+          puts "📍 [STARTUP] Stack: #{oauth_error.backtrace.first(3).join(' | ')}"
+          $stdout.flush
         end
-      rescue Timeout::Error
-        puts "⏱️ [STARTUP FETCH] OAuth2 timed out after 5 seconds"
-        $stdout.flush
-      rescue => e
-        puts "⚠️ [STARTUP FETCH] OAuth2 failed: #{e.class} - #{e.message}"
+      else
+        puts "ℹ️ [STARTUP] No Reddit OAuth credentials configured - local memes only"
         $stdout.flush
       end
-    else
-      puts "ℹ️ [STARTUP FETCH] No Reddit OAuth credentials - using local cache only"
+      
+      # Final cache validation
+      cached = MEME_CACHE.get(:memes)
+      cache_size = cached.is_a?(Array) ? cached.size : 0
+      puts "=" * 80
+      puts "🟢 [STARTUP] CACHE INITIALIZATION COMPLETE - #{cache_size} MEMES READY"
+      puts "=" * 80
       $stdout.flush
+      
+      MEME_CACHE.set(:last_refresh, Time.now)
+    rescue => fatal_error
+      puts "=" * 80
+      puts "🔴 [STARTUP] FATAL ERROR DURING INITIALIZATION"
+      puts "Error: #{fatal_error.class} - #{fatal_error.message}"
+      puts "Backtrace: #{fatal_error.backtrace.first(5).join("\n")}"
+      puts "=" * 80
+      $stdout.flush
+      
+      # Emergency fallback
+      begin
+        local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
+        MEME_CACHE.set(:memes, local_memes.shuffle)
+        puts "✅ [STARTUP] Emergency fallback activated - #{local_memes.size} local memes loaded"
+        $stdout.flush
+      rescue
+        puts "❌ [STARTUP] Even emergency fallback failed!"
+        $stdout.flush
+      end
     end
-    
-    MEME_CACHE.set(:last_refresh, Time.now)
-    puts "✅ [STARTUP FETCH] Complete - cache ready for requests\n\n"
-    $stdout.flush
 
     # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
     @cache_refresh_thread = Thread.new do
@@ -283,7 +330,7 @@ class MemeExplorer < Sinatra::Base
           
           if !client_id.empty? && !client_secret.empty?
             begin
-              puts "🔄 [CACHE REFRESH] Attempting OAuth2 authentication..."
+              puts "� [CACHE REFRESH] Attempting OAuth2 authentication..."
               
               client = OAuth2::Client.new(
                 client_id,
