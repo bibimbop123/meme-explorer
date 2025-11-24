@@ -153,7 +153,27 @@ class MemeExplorer < Sinatra::Base
         MEME_CACHE.set(:memes, local_memes.shuffle)
         puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
         
-        # Note: Cache refresh thread will handle API meme fetching
+        # Attempt quick API preload during startup
+        begin
+          client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+          client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+          if !client_id.empty? && !client_secret.empty?
+            Timeout.timeout(3) do
+              client = OAuth2::Client.new(client_id, client_secret, site: "https://www.reddit.com", authorize_url: "/api/v1/authorize", token_url: "/api/v1/access_token")
+              token = client.client_credentials.get_token(scope: "read")
+              api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(5), 20) rescue []
+              if api_memes.size > 0
+                combined = (api_memes + local_memes).uniq { |m| m["url"] }
+                MEME_CACHE.set(:memes, combined.shuffle)
+                puts "✅ [STARTUP PRELOAD] API preload: #{api_memes.size} API memes added"
+              end
+            end
+          end
+        rescue Timeout::Error
+          puts "⏱️ [STARTUP PRELOAD] API preload timed out"
+        rescue => e
+          # Silently continue with local memes
+        end
       rescue => e
         puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
       end
