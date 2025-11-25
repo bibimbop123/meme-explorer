@@ -528,11 +528,14 @@
   // ============================================
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
-      console.log('📦 [PREFETCH] Loading next meme during idle time...');
-      cachedFetch('/random.json').catch(() => {
-        // Silent fail - prefetch is bonus, not critical
-      });
-    }, { timeout: 2000 });
+      // Wait for page to be fully interactive before prefetching
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        console.log('📦 [PREFETCH] Loading next meme during idle time...');
+        cachedFetch('/random.json').catch((err) => {
+          console.log('ℹ️ [PREFETCH] Non-critical prefetch failed:', err.message);
+        });
+      }
+    }, { timeout: 3000 });
   }
 </script>
 
