@@ -27,6 +27,7 @@ require_relative "./lib/error_handler"
 require_relative "./config/application"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
+require_relative "./lib/services/api_cache_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -273,66 +274,11 @@ class MemeExplorer < Sinatra::Base
       end
     end
 
-    # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
     @cache_refresh_thread = Thread.new do
-      # Wait 2 seconds before first background refresh (startup fetch already ran)
       sleep 2
-      
-      puts "\n🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}..."
-      
-      # Load local memes first
-      local_memes = begin
-        yaml_data = YAML.load_file("data/memes.yml")
-        if yaml_data.is_a?(Hash)
-          yaml_data.values.flatten.compact
-        else
-          yaml_data || []
-        end
-      rescue => e
-        puts "❌ [STARTUP FETCH] Failed to load local memes: #{e.class}"
-        []
-      end
-      
-      MEME_CACHE.set(:memes, local_memes.shuffle)
-      puts "✅ [STARTUP FETCH] Local cache ready: #{local_memes.size} memes"
-      
-      # Try OAuth2
-      client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-      client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
-      
-      if !client_id.empty? && !client_secret.empty?
-        begin
-          puts "🔄 [STARTUP FETCH] Attempting OAuth2 API fetch..."
-          client = OAuth2::Client.new(
-            client_id,
-            client_secret,
-            site: "https://www.reddit.com",
-            authorize_url: "/api/v1/authorize",
-            token_url: "/api/v1/access_token"
-          )
-          token = client.client_credentials.get_token(scope: "read")
-          puts "✅ [STARTUP FETCH] OAuth2 token acquired"
-          
-          api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
-          
-          if api_memes && api_memes.size > 0
-            combined = (api_memes + local_memes).uniq { |m| m["url"] }
-            MEME_CACHE.set(:memes, combined.shuffle)
-            puts "✅ [STARTUP FETCH] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total memes\n\n"
-          end
-        rescue => e
-          puts "⚠️ [STARTUP FETCH] OAuth2 failed: #{e.class}"
-        end
-      end
-      
-      MEME_CACHE.set(:last_refresh, Time.now)
-      
-      # Continue with regular 30-second refresh loop
       loop do
         begin
-          puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
-          
-          # Always start with local memes as fallback
+          api_memes = ApiCacheService.fetch_and_cache_memes(POPULAR_SUBREDDITS)
           local_memes = begin
             yaml_data = YAML.load_file("data/memes.yml")
             if yaml_data.is_a?(Hash)
@@ -340,89 +286,27 @@ class MemeExplorer < Sinatra::Base
             else
               yaml_data || []
             end
-          rescue => e
-            puts "❌ [CACHE REFRESH] Failed to load local memes: #{e.message}"
+          rescue
             []
           end
           
-          puts "✅ [CACHE REFRESH] Loaded #{local_memes.size} local memes"
-
-          api_memes = []
-          
-          # STRATEGY 1: Try OAuth2 if credentials are configured
-          client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-          client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
-          
-          if !client_id.empty? && !client_secret.empty?
-            begin
-              puts "� [CACHE REFRESH] Attempting OAuth2 authentication..."
-              
-              client = OAuth2::Client.new(
-                client_id,
-                client_secret,
-                site: "https://www.reddit.com",
-                authorize_url: "/api/v1/authorize",
-                token_url: "/api/v1/access_token"
-              )
-
-              token = client.client_credentials.get_token(scope: "read")
-              puts "✅ [CACHE REFRESH] OAuth2 token acquired"
-
-              subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
-              puts "🔄 [CACHE REFRESH] Fetching #{subreddits_to_fetch.size} subreddits via OAuth2..."
-              
-              api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits_to_fetch, 30) rescue []
-              puts "✓ [CACHE REFRESH] OAuth2: Fetched #{api_memes.size} memes"
-            rescue => e
-              puts "⚠️ [CACHE REFRESH] OAuth2 failed: #{e.class} - #{e.message}"
-              puts "🔄 [CACHE REFRESH] Falling back to unauthenticated Reddit API..."
-              api_memes = []
-            end
+          if api_memes && !api_memes.empty?
+            combined = (api_memes + local_memes).uniq { |m| m["url"] }
+            MEME_CACHE.set(:memes, combined.shuffle)
+            puts "✅ [CACHE] #{api_memes.size} API + #{local_memes.size} local"
           else
-            puts "ℹ️  [CACHE REFRESH] OAuth2 credentials not configured, skipping OAuth2"
-          end
-          
-          # STRATEGY 2: Fall back to unauthenticated REST API if OAuth didn't work
-          if api_memes.empty?
-            begin
-              puts "🔄 [CACHE REFRESH] Attempting unauthenticated Reddit API fetch..."
-              subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
-              api_memes = fetch_reddit_memes(subreddits_to_fetch, 30) rescue []
-              puts "✓ [CACHE REFRESH] Unauthenticated: Fetched #{api_memes.size} memes"
-            rescue => e
-              puts "⚠️ [CACHE REFRESH] Unauthenticated API failed: #{e.class} - #{e.message}"
-              api_memes = []
-            end
-          end
-
-          # Validate memes - LENIENT: accept any non-empty URL to ensure API memes make it through
-          validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
-          puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
-          
-          # Combine with local memes (thread-safe via CacheManager)
-          if validated.empty?
-            puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
             MEME_CACHE.set(:memes, local_memes.shuffle)
-          else
-            all_memes = (validated + local_memes).uniq { |m| m["url"] }
-            MEME_CACHE.set(:memes, all_memes.shuffle)
-            puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local memes"
+            puts "⚠️ [CACHE] Local fallback: #{local_memes.size}"
           end
-          
-          # Track when cache was last refreshed
           MEME_CACHE.set(:last_refresh, Time.now)
         rescue => e
-          puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
-          puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
+          puts "❌ [CACHE] #{e.class}"
           begin
-            local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
-            MEME_CACHE.set(:memes, local_memes.shuffle)
-          rescue => fallback_error
-            puts "⚠️ [CACHE REFRESH] Fallback also failed: #{fallback_error.class}"
+            MEME_CACHE.set(:memes, (YAML.load_file("data/memes.yml").values.flatten.compact rescue []).shuffle)
+          rescue
+            nil
           end
         end
-        
-        puts "⏸️  [CACHE REFRESH] Sleeping 30 seconds until next refresh..."
         sleep 30
       end
     end
