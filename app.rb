@@ -169,8 +169,14 @@ class MemeExplorer < Sinatra::Base
       puts "🔄 [STARTUP] Checking for Reddit OAuth credentials..."
       $stdout.flush
       
-      client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-      client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+      client_id_raw = ENV.fetch("REDDIT_CLIENT_ID", "").to_s
+      client_secret_raw = ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s
+      client_id = client_id_raw.strip
+      client_secret = client_secret_raw.strip
+      
+      puts "🔍 [STARTUP] CLIENT_ID env: #{client_id.empty? ? 'EMPTY' : 'SET'}"
+      puts "🔍 [STARTUP] CLIENT_SECRET env: #{client_secret.empty? ? 'EMPTY' : 'SET'}"
+      $stdout.flush
       
       if !client_id.empty? && !client_secret.empty?
         puts "✅ [STARTUP] Reddit OAuth credentials found - attempting API fetch..."
@@ -216,7 +222,9 @@ class MemeExplorer < Sinatra::Base
           $stdout.flush
         end
       else
-        puts "ℹ️ [STARTUP] No Reddit OAuth credentials configured - local memes only"
+        puts "❌ [STARTUP] NO Reddit OAuth credentials found in environment!"
+        puts "   To enable API memes: Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in Render Dashboard"
+        puts "   Using local memes only"
         $stdout.flush
       end
       
