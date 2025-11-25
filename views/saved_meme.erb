@@ -1,44 +1,72 @@
 <% if @meme && @meme.is_a?(Hash) && @meme["title"] %>
-<div class="meme-single" style="width: 100%; max-width: 800px; margin: 0 auto;">
-  <h2 id="meme-title" style="margin: 0.5em 0; word-wrap: break-word;">
-    <%= @meme["title"] || "Untitled Meme" %>
-  </h2>
-  <p id="meme-subreddit" class="meme-subtitle" style="margin: 0.25em 0 1em;">
-    <%= @meme["subreddit"] || "Unknown Subreddit" %>
-  </p>
+<div class="saved-meme-container">
+  <div class="meme-display-section">
+    <div class="meme-display-card">
+      <img
+        id="meme-img"
+        src="<%= @image_src || '/images/funny1.jpeg' %>"
+        alt="<%= @meme["title"] || 'Meme Image' %>"
+        class="meme-display-image"
+        onerror="this.src='/images/funny1.jpeg'"
+      >
+    </div>
+  </div>
 
-  <img
-    id="meme-img"
-    src="<%= @image_src || '/images/funny1.jpeg' %>"
-    alt="<%= @meme["title"] || 'Meme Image' %>"
-    style="width: 100%; height: auto; border-radius: 12px; display: block; margin-bottom: 0.5em;"
-  >
+  <div class="meme-info-section">
+    <div class="meme-info-card">
+      <h1 id="meme-title" class="meme-display-title">
+        <%= @meme["title"] || "Untitled Meme" %>
+      </h1>
+      
+      <div class="meme-meta-info">
+        <span class="meme-subreddit-badge">r/<%= @meme["subreddit"] || "Unknown" %></span>
+      </div>
 
-  <form class="like-form" action="/like" method="POST" style="margin: 1em 0; display: flex; justify-content: center; align-items: center; gap: 1em; flex-wrap: wrap;">
-    <input type="hidden" name="url" value="<%= @image_src || '' %>">
-    <span style="font-weight: bold; white-space: nowrap;">Likes: <span class="meme-likes"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "0" %></span></span>
-    <button
-      type="submit"
-      class="<%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
-      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #e52e71; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
-    >
-      <%= session[:liked_memes]&.include?(@image_src) ? "💔 Unlike" : "❤️ Like" %>
-    </button>
+      <div class="meme-stats">
+        <div class="stat">
+          <span class="stat-label">Likes</span>
+          <span class="stat-value"><%= (@likes.to_i rescue 0) > 0 ? (@likes.to_i rescue 0) : "0" %></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meme-actions-section">
+    <form class="action-form" action="/like" method="POST">
+      <input type="hidden" name="url" value="<%= @image_src || '' %>">
+      
+      <button
+        type="submit"
+        class="action-button action-button-primary <%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+      >
+        <span class="button-icon"><%= session[:liked_memes]&.include?(@image_src) ? "💔" : "❤️" %></span>
+        <span class="button-text"><%= session[:liked_memes]&.include?(@image_src) ? "Unlike" : "Like" %></span>
+      </button>
+    </form>
+
     <button
       type="button"
       onclick="unsaveMeme(<%= @saved_meme_id %>)"
-      style="padding: 0.75em 1.5em; border-radius: 8px; border: none; cursor: pointer; background: #d9534f; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95rem;"
+      class="action-button action-button-danger"
     >
-      🗑️ Remove from Saved
+      <span class="button-icon">🗑️</span>
+      <span class="button-text">Remove</span>
     </button>
-  </form>
 
-  <div style="text-align: center; margin-top: 20px;">
-    <a href="/profile" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Profile</a>
+    <a href="/profile" class="action-button action-button-secondary">
+      <span class="button-icon">⬅️</span>
+      <span class="button-text">Back</span>
+    </a>
   </div>
 </div>
 <% else %>
-<p style="text-align: center; margin-top: 50px; font-size: 18px;">Meme not found...</p>
+<div class="saved-meme-container">
+  <div class="not-found-state">
+    <p class="not-found-icon">😞</p>
+    <p class="not-found-text">Meme not found...</p>
+    <a href="/profile" class="back-link">Return to Profile</a>
+  </div>
+</div>
 <% end %>
 
 <script>
@@ -52,9 +80,388 @@ function unsaveMeme(savedId) {
   })
   .then(res => res.json())
   .then(data => {
-    alert("Meme removed from saved!");
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     window.location.href = "/profile";
   })
-  .catch(err => alert("Error: " + err));
+  .catch(err => {
+    alert("Error: " + err);
+    if (navigator.vibrate) navigator.vibrate(200);
+  });
 }
 </script>
+
+<style>
+  .saved-meme-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .meme-display-section {
+    animation: slideInDown 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+  }
+
+  @keyframes slideInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .meme-display-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+    overflow: hidden;
+  }
+
+  .meme-display-image {
+    width: 100%;
+    height: auto;
+    max-height: 600px;
+    object-fit: contain;
+    border-radius: 12px;
+    display: block;
+    animation: imageLoad 0.5s ease-out;
+  }
+
+  @keyframes imageLoad {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .meme-info-section {
+    animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .meme-info-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .meme-display-title {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.3;
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  .meme-meta-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .meme-subreddit-badge {
+    background: linear-gradient(135deg, #ff8a00, #e52e71);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+  }
+
+  .meme-stats {
+    display: flex;
+    gap: 2rem;
+    padding: 1.5rem 0;
+    border-top: 2px solid #f0f0f0;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #667eea;
+  }
+
+  .meme-actions-section {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  }
+
+  .action-form {
+    display: contents;
+  }
+
+  .action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 48px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .action-button-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    flex: 1 1 auto;
+    max-width: 180px;
+  }
+
+  .action-button-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+  }
+
+  .action-button-primary:active {
+    transform: translateY(0);
+  }
+
+  .action-button-primary.liked {
+    background: linear-gradient(135deg, #ff4458 0%, #ff1744 100%);
+    box-shadow: 0 4px 12px rgba(255, 68, 88, 0.3);
+  }
+
+  .action-button-primary.liked:hover {
+    box-shadow: 0 8px 20px rgba(255, 68, 88, 0.5);
+  }
+
+  .action-button-danger {
+    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    flex: 1 1 auto;
+    max-width: 140px;
+  }
+
+  .action-button-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(244, 67, 54, 0.5);
+  }
+
+  .action-button-danger:active {
+    transform: translateY(0);
+  }
+
+  .action-button-secondary {
+    background: #f5f5f5;
+    color: #1a1a1a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    flex: 1 1 auto;
+    max-width: 140px;
+  }
+
+  .action-button-secondary:hover {
+    background: #efefef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  .action-button-secondary:active {
+    transform: translateY(0);
+  }
+
+  .button-icon {
+    font-size: 1.3rem;
+  }
+
+  .button-text {
+    display: none;
+  }
+
+  .not-found-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 4rem 2rem;
+    text-align: center;
+  }
+
+  .not-found-icon {
+    font-size: 4rem;
+    margin: 0;
+    animation: bounce 1s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .not-found-text {
+    font-size: 1.5rem;
+    color: #666;
+    margin: 0;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-top: 1rem;
+  }
+
+  .back-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+  }
+
+  @media (min-width: 600px) {
+    .button-text {
+      display: inline;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .saved-meme-container {
+      padding: 1.5rem 1rem;
+      gap: 1.5rem;
+    }
+
+    .meme-info-card {
+      padding: 1.5rem;
+    }
+
+    .meme-display-title {
+      font-size: clamp(1.3rem, 3vw, 1.8rem);
+    }
+
+    .meme-stats {
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+
+    .meme-actions-section {
+      gap: 0.75rem;
+    }
+
+    .action-button {
+      padding: 0.875rem 1rem;
+      font-size: 0.95rem;
+      max-width: none;
+      flex: 1 1 auto;
+    }
+
+    .button-text {
+      display: none;
+    }
+
+    .button-icon {
+      font-size: 1.1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .saved-meme-container {
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .meme-display-card {
+      padding: 0.75rem;
+    }
+
+    .meme-info-card {
+      padding: 1rem;
+      gap: 1.25rem;
+    }
+
+    .meme-display-title {
+      font-size: 1.3rem;
+    }
+
+    .meme-stats {
+      padding: 0.75rem 0;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+    }
+
+    .action-button {
+      padding: 0.75rem 0.875rem;
+      font-size: 0.85rem;
+    }
+
+    .button-icon {
+      font-size: 1rem;
+    }
+  }
+</style>
