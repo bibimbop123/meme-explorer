@@ -63,8 +63,51 @@
 </div>
 
 <script>
+  // ============================================
+  // REQUEST DEDUPLICATION & CACHING
+  // ============================================
+  const requestCache = new Map();
+  const pendingRequests = new Map();
+  
+  async function cachedFetch(url, options = {}) {
+    const cacheKey = `${url}:${JSON.stringify(options)}`;
+    
+    // Return cached result if available and fresh (< 5s)
+    if (requestCache.has(cacheKey)) {
+      const { data, timestamp } = requestCache.get(cacheKey);
+      if (Date.now() - timestamp < 5000) {
+        console.log(`✅ [CACHE HIT] ${url}`);
+        return data;
+      }
+    }
+    
+    // Return pending request if already in flight (deduplicate)
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`⏳ [DEDUP] Waiting for in-flight request: ${url}`);
+      return pendingRequests.get(cacheKey);
+    }
+    
+    // New request - add to pending
+    const promise = fetch(url, options)
+      .then(r => r.json())
+      .then(data => {
+        requestCache.set(cacheKey, { data, timestamp: Date.now() });
+        pendingRequests.delete(cacheKey);
+        return data;
+      })
+      .catch(err => {
+        pendingRequests.delete(cacheKey);
+        throw err;
+      });
+    
+    pendingRequests.set(cacheKey, promise);
+    return promise;
+  }
+  
   // Enhanced error handling for link image loading
   function handleImageError(img, url) {
+    if (!img || !img.parentElement) return; // Prevent orphaned error handlers
+    
     console.warn(`⚠️ [IMAGE ERROR] Failed to load: ${url}`);
     
     // Report broken image to backend for tracking
@@ -159,31 +202,27 @@
   
   updateLikeUI();
   
-  // AJAX: Load next meme without full page reload
+  // AJAX: Load next meme without full page reload (deduplicated & cached)
+  let loadingMeme = false;
+  
   async function loadNextMeme() {
+    // Prevent concurrent loads
+    if (loadingMeme) {
+      console.log('⏳ [LOAD MEME] Already loading, skipping duplicate request');
+      return;
+    }
+    
+    loadingMeme = true;
+    
     try {
       console.log('🔄 [LOAD MEME] Starting fetch to /random.json...');
-      const response = await fetch('/random.json');
+      const data = await cachedFetch('/random.json');
       
-      console.log('🔄 [LOAD MEME] Response received:', {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText,
-        contentType: response.headers.get('content-type')
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ [LOAD MEME] JSON parsed successfully:', {
+      console.log('✅ [LOAD MEME] JSON received:', {
         url: data.url,
         title: data.title,
         subreddit: data.subreddit
       });
-      
       // Update current meme object
       currentMeme = {
         url: data.url,
@@ -191,30 +230,10 @@
         title: data.title || 'Unknown'
       };
       
-      // Update DOM - handle both images and videos
-      const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
-      const memeDisplay = document.querySelector('.meme-display');
+      // Update DOM - SINGLE SOURCE OF TRUTH for media updates
+      updateMemeDisplay(data);
       
-      if (mediaType === 'video') {
-        // Replace image with video
-        const existingVid = memeDisplay.querySelector('video');
-        if (existingVid) {
-          existingVid.src = data.url;
-          existingVid.play();
-        } else {
-          memeDisplay.innerHTML = `<video src="${data.url}" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">Your browser does not support the video tag.</video>`;
-        }
-      } else {
-        // Replace video with image
-        const existingVid = memeDisplay.querySelector('video');
-        if (existingVid) {
-          memeDisplay.innerHTML = `<img src="${data.url}" alt="${data.title}" onerror="this.src='/images/funny1.jpeg'">`;
-        } else {
-          memeImg.src = data.url;
-          memeImg.alt = data.title;
-        }
-      }
-      
+      // Update metadata
       memeTitle.textContent = data.title || 'Loading...';
       memeSub.textContent = (data.subreddit || 'REDDIT').toUpperCase();
       likeCount.textContent = data.likes || 0;
@@ -247,11 +266,47 @@
       setTimeout(() => {
         window.location.href = '/random';
       }, 100);
+    } finally {
+      loadingMeme = false;
     }
   }
   
-  // Like functionality
+  // SINGLE UPDATE FUNCTION - prevents duplicate DOM mutations
+  function updateMemeDisplay(data) {
+    const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
+    const memeDisplay = document.querySelector('.meme-display');
+    
+    if (mediaType === 'video') {
+      const existingVid = memeDisplay.querySelector('video');
+      if (existingVid) {
+        existingVid.src = data.url;
+        existingVid.play();
+      } else {
+        memeDisplay.innerHTML = `<video src="${data.url}" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">Your browser does not support the video tag.</video>`;
+      }
+    } else {
+      const video = memeDisplay.querySelector('video');
+      if (video) {
+        video.remove();
+      }
+      let img = memeDisplay.querySelector('img');
+      if (!img) {
+        img = document.createElement('img');
+        img.onerror = function() { handleImageError(this, data.url); };
+        memeDisplay.querySelector('.meme-display-content').appendChild(img);
+      }
+      img.src = data.url;
+      img.alt = data.title;
+    }
+  }
+  
+  // Like functionality (debounced - max 1 like per 500ms)
+  let lastLikeTime = 0;
   likeBtn.addEventListener('click', async () => {
+    const now = Date.now();
+    if (now - lastLikeTime < 500) return; // Debounce
+    lastLikeTime = now;
+    
     try {
       const response = await fetch('/like', {
         method: 'POST',
@@ -273,8 +328,13 @@
     }
   });
   
-  // Save functionality
+  // Save functionality (debounced)
+  let lastSaveTime = 0;
   saveBtn.addEventListener('click', async () => {
+    const now = Date.now();
+    if (now - lastSaveTime < 500) return; // Debounce
+    lastSaveTime = now;
+    
     if (!<%= session[:user_id] ? 'true' : 'false' %>) {
       window.location.href = '/login';
       return;
@@ -317,9 +377,17 @@
     }
   });
   
-  // Keyboard & Swipe navigation - AJAX instead of full page reload
+  // Keyboard & Swipe navigation - AJAX instead of full page reload (debounced)
   let touchStartX = 0;
   let touchEndX = 0;
+  let lastNavTime = 0;
+  
+  function debounceNav() {
+    const now = Date.now();
+    if (now - lastNavTime < 300) return false; // Debounce nav to 300ms
+    lastNavTime = now;
+    return true;
+  }
   
   // Handle window resize for responsive title visibility
   window.addEventListener('resize', () => {
@@ -333,7 +401,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      loadNextMeme();
+      if (debounceNav()) loadNextMeme();
     }
   });
   
@@ -343,7 +411,7 @@
   
   document.addEventListener('touchend', (e) => {
     touchEndX = e.changedTouches[0].screenX;
-    if (touchStartX - touchEndX > 50) {
+    if (touchStartX - touchEndX > 50 && debounceNav()) {
       // Swiped left
       loadNextMeme();
     }
@@ -452,8 +520,20 @@
   
   // Next button click
   nextBtn.addEventListener('click', () => {
-    loadNextMeme();
+    if (debounceNav()) loadNextMeme();
   });
+  
+  // ============================================
+  // PERFORMANCE: Prefetch next meme when idle
+  // ============================================
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+      console.log('📦 [PREFETCH] Loading next meme during idle time...');
+      cachedFetch('/random.json').catch(() => {
+        // Silent fail - prefetch is bonus, not critical
+      });
+    }, { timeout: 2000 });
+  }
 </script>
 
 <style>
