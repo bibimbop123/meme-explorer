@@ -13,10 +13,7 @@ services:
         value: 3000
       - key: BUNDLE_WITHOUT
         value: development:test
-
-  - type: pserv
-    name: meme-explorer-postgres
-    runtime: postgresql15
-    region: oregon
-    plan: starter
-    ipAllowList: []
+      - key: REDDIT_CLIENT_ID
+        value: ${REDDIT_CLIENT_ID}
+      - key: REDDIT_CLIENT_SECRET
+        value: ${REDDIT_CLIENT_SECRET}
