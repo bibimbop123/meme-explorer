@@ -1165,13 +1165,21 @@ class MemeExplorer < Sinatra::Base
     # Get likes safely
     def get_meme_likes(url)
       return 0 unless url
-      likes = REDIS&.get("meme:likes:#{url}")&.to_i
-      return likes if likes
+      begin
+        likes = REDIS&.get("meme:likes:#{url}")&.to_i
+        return likes if likes
+      rescue
+        # Redis unavailable, continue
+      end
 
-      row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
-      likes = row ? row["likes"].to_i : 0
-      REDIS&.set("meme:likes:#{url}", likes)
-      likes
+      begin
+        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
+        likes = row ? row["likes"].to_i : 0
+        REDIS&.set("meme:likes:#{url}", likes)
+        likes
+      rescue
+        0
+      end
     end
 
     # Toggle like for meme (only count once per session)
