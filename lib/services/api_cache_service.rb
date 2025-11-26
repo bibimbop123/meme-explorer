@@ -163,16 +163,47 @@ class ApiCacheService
           if response.code == '200'
             (JSON.parse(response.body).dig('data', 'children') || []).each do |post|
               post_data = post['data']
-              next if post_data['is_video'] || post_data['is_self'] || !post_data['url']
-              memes << { 'title' => post_data['title'], 'url' => post_data['url'], 'subreddit' => post_data['subreddit'], 'likes' => post_data['ups'] || 0 }
+              next if post_data['is_video']
+              
+              # Extract image URL from various sources
+              image_url = extract_image_url(post_data)
+              next unless image_url
+              
+              memes << { 'title' => post_data['title'], 'url' => image_url, 'subreddit' => post_data['subreddit'], 'likes' => post_data['ups'] || 0 }
             end
           end
           sleep 0.5
-        rescue
+        rescue => e
+          puts "[CACHE ERROR] Failed to fetch from r/#{subreddit}: #{e.message}"
           nil
         end
       end
       memes
+    end
+
+    def extract_image_url(post_data)
+      # Direct URL (link posts with images)
+      if post_data['url'] && post_data['url'].match?(/\.(jpg|jpeg|png|gif|webp)$/i)
+        return post_data['url']
+      end
+      
+      # Preview image from preview data
+      preview = post_data.dig('preview', 'images', 0, 'source', 'url')
+      if preview
+        # Decode Reddit's URL encoding
+        return preview.gsub('&amp;', '&')
+      end
+      
+      # Reddit media (hosted images)
+      media_url = post_data.dig('media_metadata')
+      if media_url&.is_a?(Hash)
+        media_metadata = media_url.values.first
+        if media_metadata&.dig('type') == 'giphy.gif'
+          return media_metadata.dig('s', 'gif')
+        end
+      end
+      
+      nil
     end
 
     def validate_memes(memes)
