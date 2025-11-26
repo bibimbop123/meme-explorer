@@ -10,8 +10,16 @@ module MemeExplorer
         end
 
         app.get "/random" do
-          memes = app.class::MEME_CACHE[:memes] || []
-          halt 404, "No memes found!" if memes.empty?
+          # Try to get fresh memes from API cache first
+          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          
+          # Fallback to MEME_CACHE if API returns empty
+          memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+          
+          # Final fallback to local memes
+          memes = app.class::MEMES.values.flatten if memes.empty?
+          
+          halt 404, "No memes available" if memes.empty?
 
           @meme = memes.sample
           @image_src = app.helpers.meme_image_src(@meme)
@@ -39,6 +47,27 @@ module MemeExplorer
 
           content_type :json
           { liked: liked_now, likes: likes }.to_json
+        end
+
+        app.get "/random.json" do
+          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+          memes = app.class::MEMES.values.flatten if memes.empty?
+          halt 404, { error: "No memes available" }.to_json if memes.empty?
+
+          meme = memes.sample
+          image_src = app.helpers.meme_image_src(meme)
+          reddit_path = extract_reddit_path(meme, image_src)
+          likes = MemeService.get_likes(image_src)
+
+          content_type :json
+          {
+            url: image_src,
+            title: meme['title'] || 'Unknown',
+            subreddit: meme['subreddit'] || 'reddit',
+            reddit_path: reddit_path,
+            likes: likes
+          }.to_json
         end
 
         app.post "/report-broken-image" do

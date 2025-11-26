@@ -3,7 +3,9 @@ require 'json'
 require 'oauth2'
 require 'httparty'
 require 'timeout'
-
+require 'net/http'
+require 'uri'
+require 'net/http'
 class ApiCacheService
   CACHE_TTL = 1800
   LOCK_TTL = 30
