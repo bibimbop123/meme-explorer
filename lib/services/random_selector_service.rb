@@ -3,7 +3,6 @@ module MemeExplorer
   class RandomSelectorService
     # Excluded categories that should be filtered out
     EXCLUDED_CATEGORIES = [
-      'sexual_content',
       'explicit_adult_content',
       'graphic_violence',
       'hate_speech',
