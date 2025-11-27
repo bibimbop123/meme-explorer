@@ -2,7 +2,21 @@
 module MemeExplorer
   class RandomSelectorService
     # Excluded categories that should be filtered out
-    EXCLUDED_CATEGORIES = ['lgbtq', 'trans', 'political_extreme'].freeze
+    EXCLUDED_CATEGORIES = [
+      'sexual_content',
+      'explicit_adult_content',
+      'graphic_violence',
+      'hate_speech',
+      'harassment',
+      'political_extremism',
+      'violent_extremism',
+      'self_harm',
+      'illegal_activity',
+      'lgbtq',
+      'trans', 
+      'political_extreme', 
+      'incest'
+    ].freeze
 
     # Humor type weights for diversity
     HUMOR_WEIGHTS = {
