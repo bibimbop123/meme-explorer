@@ -21,7 +21,13 @@ module MemeExplorer
           
           halt 404, "No memes available" if memes.empty?
 
-          @meme = memes.sample
+          # Use weighted random selector with content filtering and session tracking
+          session_id = session.object_id.to_s
+          user_prefs = { excluded_categories: ['lgbtq', 'trans'] }
+          @meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+          
+          halt 404, "No suitable memes available" unless @meme
+          
           @image_src = app.helpers.meme_image_src(@meme)
           @likes = MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
@@ -55,7 +61,13 @@ module MemeExplorer
           memes = app.class::MEMES.values.flatten if memes.empty?
           halt 404, { error: "No memes available" }.to_json if memes.empty?
 
-          meme = memes.sample
+          # Use weighted random selector with content filtering
+          session_id = session.object_id.to_s
+          user_prefs = { excluded_categories: ['lgbtq', 'trans'] }
+          meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+          
+          halt 404, { error: "No suitable memes available" }.to_json unless meme
+          
           image_src = app.helpers.meme_image_src(meme)
           reddit_path = extract_reddit_path(meme, image_src)
           likes = MemeService.get_likes(image_src)
