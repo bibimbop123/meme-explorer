@@ -9,6 +9,25 @@
   <link rel="manifest" href="/manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/meme_explorer.css">
+  <style>
+    /* Mobile navbar optimization - hide non-essential items on mobile */
+    @media (max-width: 768px) {
+      nav a[href*="/category/"],
+      nav a[href="/profile"],
+      nav a[href="/admin"] {
+        display: none;
+      }
+      
+      nav {
+        gap: 0.5rem;
+      }
+      
+      nav a {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
   <script>
     // Initialize theme on page load
     const savedTheme = localStorage.getItem('theme');

@@ -135,6 +135,9 @@ class MemeService
     begin
       db.execute("CREATE TABLE IF NOT EXISTS meme_stats (url TEXT PRIMARY KEY, likes INTEGER DEFAULT 0, views INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
       
+      # Ensure the record exists before updating
+      db.execute("INSERT OR IGNORE INTO meme_stats (url, likes, views) VALUES (?, 0, 0)", [url])
+      
       if liked_now
         db.execute("UPDATE meme_stats SET likes = likes + 1 WHERE url = ?", [url])
       else
