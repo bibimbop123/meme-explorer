@@ -27,7 +27,6 @@ require_relative "./lib/error_handler"
 require_relative "./config/application"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
-require_relative "./lib/services/api_cache_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -129,22 +128,12 @@ class MemeExplorer < Sinatra::Base
   TIER_WEIGHTS = MemeExplorerConfig::TIER_WEIGHTS
   TOTAL_TIER_WEIGHT = MemeExplorerConfig::TOTAL_TIER_WEIGHT
 
-  # Initialize background threads only in non-test environments
-  def self.initialize_background_threads
-    return if ENV["RACK_ENV"] == "test"
-
-    puts "\n" * 3
-    puts "=" * 80
-    puts "🔥 [STARTUP FETCH] INITIALIZING CACHE - BLOCKING UNTIL COMPLETE"
-    puts "=" * 80
-    $stdout.flush
-    $stderr.flush
-    
+  # Pre-warm cache IMMEDIATELY on startup (non-blocking)
+  @startup_thread = Thread.new do
     begin
-      # Load local memes
-      puts "📂 [STARTUP] Loading local memes from data/memes.yml..."
-      $stdout.flush
+      puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
       
+      # Load local memes
       local_memes = begin
         yaml_data = YAML.load_file("data/memes.yml")
         if yaml_data.is_a?(Hash)
@@ -153,39 +142,50 @@ class MemeExplorer < Sinatra::Base
           yaml_data || []
         end
       rescue => e
-        puts "❌ [STARTUP] Failed to load local memes: #{e.class} - #{e.message}"
-        $stdout.flush
+        puts "❌ [STARTUP PRELOAD] Failed to load local memes: #{e.class}"
         []
       end
       
-      puts "✅ [STARTUP] Loaded #{local_memes.size} local memes"
-      $stdout.flush
-    
       MEME_CACHE.set(:memes, local_memes.shuffle)
-      puts "✅ [STARTUP] Cache initialized with #{local_memes.size} local memes as fallback"
-      $stdout.flush
+      puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
       
-      # Try OAuth2 API fetch (synchronous, blocking)
-      puts "🔄 [STARTUP] Checking for Reddit OAuth credentials..."
-      $stdout.flush
-      
-      client_id_raw = ENV.fetch("REDDIT_CLIENT_ID", "").to_s
-      client_secret_raw = ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s
-      client_id = client_id_raw.strip
-      client_secret = client_secret_raw.strip
-      
-      puts "🔍 [STARTUP] CLIENT_ID env: #{client_id.empty? ? 'EMPTY' : 'SET'}"
-      puts "🔍 [STARTUP] CLIENT_SECRET env: #{client_secret.empty? ? 'EMPTY' : 'SET'}"
-      $stdout.flush
-      
-      if !client_id.empty? && !client_secret.empty?
-        puts "✅ [STARTUP] Reddit OAuth credentials found - attempting API fetch..."
-        $stdout.flush
+      # Note: Cache refresh thread will handle API meme fetching
+    rescue => e
+      puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
+    end
+  end
+
+  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (FAST: 5 second initial delay, 30 second refresh interval)
+  @cache_refresh_thread = Thread.new do
+    sleep 2  # Quick start - only wait for basic setup
+    loop do
+      begin
+        puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
         
-        begin
-          Timeout.timeout(5) do
-            puts "🔐 [STARTUP] Acquiring OAuth2 token..."
-            $stdout.flush
+        # Always start with local memes as fallback
+        local_memes = begin
+          yaml_data = YAML.load_file("data/memes.yml")
+          if yaml_data.is_a?(Hash)
+            yaml_data.values.flatten.compact
+          else
+            yaml_data || []
+          end
+        rescue => e
+          puts "❌ [CACHE REFRESH] Failed to load local memes: #{e.message}"
+          []
+        end
+        
+        puts "✅ [CACHE REFRESH] Loaded #{local_memes.size} local memes"
+
+        api_memes = []
+        
+        # STRATEGY 1: Try OAuth2 if credentials are configured
+        client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
+        client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
+        
+        if !client_id.empty? && !client_secret.empty?
+          begin
+            puts "🔄 [CACHE REFRESH] Attempting OAuth2 authentication..."
             
             client = OAuth2::Client.new(
               client_id,
@@ -194,122 +194,83 @@ class MemeExplorer < Sinatra::Base
               authorize_url: "/api/v1/authorize",
               token_url: "/api/v1/access_token"
             )
+
             token = client.client_credentials.get_token(scope: "read")
-            puts "✅ [STARTUP] OAuth2 token acquired - fetching memes..."
-            $stdout.flush
-            
-            # Call static method
-            api_memes = fetch_reddit_memes_authenticated(token.token, POPULAR_SUBREDDITS.sample(8), 30) rescue []
-            puts "✅ [STARTUP] Fetched #{api_memes.size} memes from Reddit API"
-            $stdout.flush
-            
-            if api_memes && api_memes.size > 0
-              combined = (api_memes + local_memes).uniq { |m| m["url"] }
-              MEME_CACHE.set(:memes, combined.shuffle)
-              puts "🎉 [STARTUP] SUCCESS: #{api_memes.size} API + #{local_memes.size} local = #{combined.size} total memes in cache"
-              $stdout.flush
-            else
-              puts "⚠️ [STARTUP] API returned 0 memes - using local fallback"
-              $stdout.flush
-            end
-          end
-        rescue Timeout::Error
-          puts "⏱️ [STARTUP] OAuth2 timed out after 5 seconds - using local fallback"
-          $stdout.flush
-        rescue => oauth_error
-          puts "⚠️ [STARTUP] OAuth2 failed: #{oauth_error.class} - #{oauth_error.message}"
-          puts "📍 [STARTUP] Stack: #{oauth_error.backtrace.first(3).join(' | ')}"
-          $stdout.flush
-        end
-      else
-        puts "❌ [STARTUP] NO Reddit OAuth credentials found in environment!"
-        puts "   To enable API memes: Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in Render Dashboard"
-        puts "   Using local memes only"
-        $stdout.flush
-      end
-      
-      # Final cache validation
-      cached = MEME_CACHE.get(:memes)
-      cache_size = cached.is_a?(Array) ? cached.size : 0
-      puts "=" * 80
-      puts "🟢 [STARTUP] CACHE INITIALIZATION COMPLETE - #{cache_size} MEMES READY"
-      puts "=" * 80
-      $stdout.flush
-      
-      MEME_CACHE.set(:last_refresh, Time.now)
-    rescue => fatal_error
-      puts "=" * 80
-      puts "🔴 [STARTUP] FATAL ERROR DURING INITIALIZATION"
-      puts "Error: #{fatal_error.class} - #{fatal_error.message}"
-      puts "Backtrace: #{fatal_error.backtrace.first(5).join("\n")}"
-      puts "=" * 80
-      $stdout.flush
-      
-      # Emergency fallback
-      begin
-        local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
-        MEME_CACHE.set(:memes, local_memes.shuffle)
-        puts "✅ [STARTUP] Emergency fallback activated - #{local_memes.size} local memes loaded"
-        $stdout.flush
-      rescue
-        puts "❌ [STARTUP] Even emergency fallback failed!"
-        $stdout.flush
-      end
-    end
+            puts "✅ [CACHE REFRESH] OAuth2 token acquired"
 
-    @cache_refresh_thread = Thread.new do
-      sleep 2
-      loop do
-        begin
-          api_memes = ApiCacheService.fetch_and_cache_memes(POPULAR_SUBREDDITS)
-          local_memes = begin
-            yaml_data = YAML.load_file("data/memes.yml")
-            if yaml_data.is_a?(Hash)
-              yaml_data.values.flatten.compact
-            else
-              yaml_data || []
-            end
-          rescue
-            []
+            subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
+            puts "🔄 [CACHE REFRESH] Fetching #{subreddits_to_fetch.size} subreddits via OAuth2..."
+            
+            api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits_to_fetch, 30) rescue []
+            puts "✓ [CACHE REFRESH] OAuth2: Fetched #{api_memes.size} memes"
+          rescue => e
+            puts "⚠️ [CACHE REFRESH] OAuth2 failed: #{e.class} - #{e.message}"
+            puts "🔄 [CACHE REFRESH] Falling back to unauthenticated Reddit API..."
+            api_memes = []
           end
-          
-          if api_memes && !api_memes.empty?
-            combined = (api_memes + local_memes).uniq { |m| m["url"] }
-            MEME_CACHE.set(:memes, combined.shuffle)
-            puts "✅ [CACHE] #{api_memes.size} API + #{local_memes.size} local"
-          else
-            MEME_CACHE.set(:memes, local_memes.shuffle)
-            puts "⚠️ [CACHE] Local fallback: #{local_memes.size}"
-          end
-          MEME_CACHE.set(:last_refresh, Time.now)
-        rescue => e
-          puts "❌ [CACHE] #{e.class}"
+        else
+          puts "ℹ️  [CACHE REFRESH] OAuth2 credentials not configured, skipping OAuth2"
+        end
+        
+        # STRATEGY 2: Fall back to unauthenticated REST API if OAuth didn't work
+        if api_memes.empty?
           begin
-            MEME_CACHE.set(:memes, (YAML.load_file("data/memes.yml").values.flatten.compact rescue []).shuffle)
-          rescue
-            nil
+            puts "🔄 [CACHE REFRESH] Attempting unauthenticated Reddit API fetch..."
+            subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
+            api_memes = fetch_reddit_memes(subreddits_to_fetch, 30) rescue []
+            puts "✓ [CACHE REFRESH] Unauthenticated: Fetched #{api_memes.size} memes"
+          rescue => e
+            puts "⚠️ [CACHE REFRESH] Unauthenticated API failed: #{e.class} - #{e.message}"
+            api_memes = []
           end
         end
-        sleep 30
-      end
-    end
 
-    # Hourly database cleanup (non-blocking)
-    @db_cleanup_thread = Thread.new do
-      sleep 3600  # Wait 1 hour before first cleanup
-      loop do
-        begin
-          DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND datetime(first_failed_at) < datetime('now', '-1 day')")
-          DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND datetime(updated_at) < datetime('now', '-7 days')")
-          puts "✅ [DB CLEANUP] Old records removed"
-        rescue => e
-          puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
+        # Validate memes - LENIENT: accept any non-empty URL to ensure API memes make it through
+        validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
+        puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
+        
+        # Combine with local memes (thread-safe via CacheManager)
+        if validated.empty?
+          puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
+          MEME_CACHE.set(:memes, local_memes.shuffle)
+        else
+          all_memes = (validated + local_memes).uniq { |m| m["url"] }
+          MEME_CACHE.set(:memes, all_memes.shuffle)
+          puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local memes"
         end
-        sleep 3600
+        
+        # Track when cache was last refreshed
+        MEME_CACHE.set(:last_refresh, Time.now)
+      rescue => e
+        puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
+        puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
+        begin
+          local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
+          MEME_CACHE.set(:memes, local_memes.shuffle)
+        rescue => fallback_error
+          puts "⚠️ [CACHE REFRESH] Fallback also failed: #{fallback_error.class}"
+        end
       end
+      
+      puts "⏸️  [CACHE REFRESH] Sleeping 30 seconds until next refresh..."
+      sleep 30
     end
   end
-  
+
+  # Hourly database cleanup (non-blocking)
+  @db_cleanup_thread = Thread.new do
+    sleep 3600  # Wait 1 hour before first cleanup
+    loop do
+      begin
+        DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND datetime(first_failed_at) < datetime('now', '-1 day')")
+        DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND datetime(updated_at) < datetime('now', '-7 days')")
+        puts "✅ [DB CLEANUP] Old records removed"
+      rescue => e
+        puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
+      end
+      sleep 3600
+    end
+  end
 
   # -----------------------
   # Request Lifecycle
@@ -461,46 +422,21 @@ class MemeExplorer < Sinatra::Base
     memes
   end
 
-  def self.extract_image_urls_static(post_data)
-    urls = []
-    
-    # Handle gallery posts (multiple images)
-    if post_data["gallery_data"]&.dig("items")
-      post_data["gallery_data"]["items"].each do |item|
-        media_id = item["media_id"]
-        if post_data["media_metadata"] && post_data["media_metadata"][media_id]
-          source = post_data["media_metadata"][media_id].dig("s", "x")
-          urls << source if source
-        end
-      end
-      return urls if urls.any?
-    end
-
-    # Handle reddit hosted images
-    if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
-      return [post_data["url"]]
-    end
-
-    # Handle imgur links
-    if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
-      return [post_data["url"]]
-    end
-
-    # Handle preview images (fallback)
-    if post_data["preview"]&.dig("images")
-      post_data["preview"]["images"].each do |image|
-        url = image.dig("source", "url")
-        urls << url.gsub("&amp;", "&") if url
-      end
-      return urls if urls.any?
-    end
-
-    []
-  end
-
   def self.extract_image_url_static(post_data)
-    urls = extract_image_urls_static(post_data)
-    urls.first
+    if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
+      return post_data["url"]
+    end
+
+    if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
+      return post_data["url"]
+    end
+
+    if post_data["preview"]&.dig("images", 0, "source", "url")
+      url = post_data["preview"]["images"][0]["source"]["url"]
+      return url.gsub("&amp;", "&") if url
+    end
+
+    nil
   end
 
   # -----------------------
@@ -1028,51 +964,6 @@ class MemeExplorer < Sinatra::Base
       nil
     end
 
-    # Extract all image URLs from Reddit gallery posts (for carousel)
-    def extract_image_urls(post_data)
-      return [] unless post_data.is_a?(Hash)
-
-      urls = []
-
-      # Priority 1: Handle Reddit gallery posts (multiple images)
-      if post_data["gallery_data"]&.dig("items").is_a?(Array)
-        post_data["gallery_data"]["items"].each do |item|
-          media_id = item["media_id"]
-          if post_data["media_metadata"].is_a?(Hash) && post_data["media_metadata"][media_id]
-            source = post_data["media_metadata"][media_id].dig("s", "x")
-            urls << source if source && source.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
-          end
-        end
-        return urls if urls.any?
-      end
-
-      # Priority 2: Single reddit-hosted image
-      if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
-        return [post_data["url"]]
-      end
-
-      # Priority 3: Imgur links
-      if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
-        return [post_data["url"]]
-      end
-
-      # Priority 4: Preview images (fallback for compatibility)
-      if post_data["preview"]&.dig("images").is_a?(Array)
-        post_data["preview"]["images"].each do |image|
-          url = image.dig("source", "url")
-          urls << url.gsub("&amp;", "&") if url && url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
-        end
-        return urls if urls.any?
-      end
-
-      # Priority 5: Generic single image
-      if post_data["url"] && post_data["url"].match?(/^https?:\/\//)
-        return [post_data["url"]]
-      end
-
-      []
-    end
-
     # Phase 1: Weighted random selection by score
     def weighted_random_select(memes)
       return nil if memes.empty?
@@ -1123,24 +1014,12 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
-    # ENHANCED: Filters out broken link images to ensure reliable loading
     def random_memes_pool
       # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
       cache_memes = MEME_CACHE.get(:memes)
       if cache_memes.is_a?(Array) && !cache_memes.empty?
-        puts "✅ [MEME POOL] Retrieved #{cache_memes.size} memes from cache"
-        
-        # FILTER STEP: Non-blocking validation of external links
-        # Separate into local files (always valid) and external links (checked asynchronously)
-        valid_memes = cache_memes.select do |m|
-          url = m["url"] || m["file"]
-          next true if url.to_s.start_with?("/")  # Local files are always valid
-          next true if is_image_broken?(url) == false  # Not known to be broken
-          false  # Skip known broken links
-        end
-        
-        # If we filtered out too many, return all (user experience > perfection)
-        return valid_memes.empty? ? cache_memes : valid_memes
+        puts "✅ [MEME POOL] Returning #{cache_memes.size} memes from cache"
+        return cache_memes
       end
 
       puts "⚠️ [MEME POOL] Cache empty, using local memes fallback"
@@ -1165,21 +1044,13 @@ class MemeExplorer < Sinatra::Base
     # Get likes safely
     def get_meme_likes(url)
       return 0 unless url
-      begin
-        likes = REDIS&.get("meme:likes:#{url}")&.to_i
-        return likes if likes
-      rescue
-        # Redis unavailable, continue
-      end
+      likes = REDIS&.get("meme:likes:#{url}")&.to_i
+      return likes if likes
 
-      begin
-        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
-        likes = row ? row["likes"].to_i : 0
-        REDIS&.set("meme:likes:#{url}", likes)
-        likes
-      rescue
-        0
-      end
+      row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
+      likes = row ? row["likes"].to_i : 0
+      REDIS&.set("meme:likes:#{url}", likes)
+      likes
     end
 
     # Toggle like for meme (only count once per session)
@@ -1246,36 +1117,19 @@ class MemeExplorer < Sinatra::Base
       nil
     end
 
-    # Pre-validate image URL (HEAD request to check if accessible) - ENHANCED FOR LINK IMAGE LOADING
+    # Pre-validate image URL (HEAD request to check if accessible)
     def is_image_accessible?(url)
-      return true if url&.start_with?("/")  # Local files always considered accessible
       return false unless url&.match?(/^https?:\/\//)
       
       begin
         uri = URI(url)
-        # Use cached result if available (avoid repeated checks)
-        cache_key = "image:accessible:#{url}"
-        cached = REDIS&.get(cache_key)
-        return cached == "true" if cached
-        
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 3, open_timeout: 3) do |http|
-          request = Net::HTTP::Head.new(uri.request_uri)
-          request["User-Agent"] = "MemeExplorer/1.0"
-          http.request(request)
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 5, open_timeout: 5) do |http|
+          http.head(uri.request_uri)
         end
         
-        # Check if response indicates accessible image (200-299 range)
-        is_accessible = response.code.to_i >= 200 && response.code.to_i < 300
-        
-        # Cache result for 1 hour
-        REDIS&.setex(cache_key, 3600, is_accessible ? "true" : "false") rescue nil
-        is_accessible
-      rescue Timeout::Error => e
-        # Timeout = likely dead link
-        REDIS&.setex("image:accessible:#{url}", 300, "false") rescue nil
-        false
-      rescue => e
-        # Network error = assume dead
+        # Check if response indicates accessible image
+        response.code == "200" && response["Content-Type"]&.include?("image")
+      rescue
         false
       end
     end
@@ -1565,11 +1419,9 @@ class MemeExplorer < Sinatra::Base
     
     halt 404, { error: "No memes found" }.to_json if memes.empty?
     
-    # AGGRESSIVE CACHING - reduce server load & network requests
-    # Browser cache: 5 minutes, CDN cache: 1 hour for shared resources
-    headers "Cache-Control" => "public, max-age=300, s-maxage=3600"
-    headers "ETag" => Digest::MD5.hexdigest(memes.first(3).to_json) # Hash first 3 for variety detection
-    headers "Vary" => "Accept-Encoding"
+    # CDN caching - 1 hour for meme data
+    headers "Cache-Control" => "public, max-age=3600"
+    headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
     
     # Track in session history and pick from pool
     session[:meme_history] ||= []
@@ -1601,16 +1453,11 @@ class MemeExplorer < Sinatra::Base
     session[:meme_history] = session[:meme_history].last(100)
     session[:last_subreddit] = @meme["subreddit"]&.downcase
     
-    # Extract all image URLs for gallery posts
-    image_urls = extract_image_urls(@meme)
-    image_urls = [(@meme["url"] || @meme["file"])] if image_urls.empty?
-    
-    # Primary image is the first one
-    primary_image_url = image_urls.first
+    image_url = @meme["url"] || @meme["file"]
     
     reddit_path = nil
     if @meme["reddit_post_urls"]&.is_a?(Array)
-      post_url = @meme["reddit_post_urls"].find { |u| u.include?(primary_image_url) }
+      post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
       reddit_path = post_url
     end
     
@@ -1625,44 +1472,28 @@ class MemeExplorer < Sinatra::Base
       reddit_path = uri.path
     end
     
-    # Track view in meme_stats if it's an API meme (not local file) - ASYNC to not block response
-    if !primary_image_url.start_with?("/")
+    # Track view in meme_stats if it's an API meme (not local file)
+    if !image_url.start_with?("/")
       meme_title = @meme["title"] || "Unknown"
       meme_subreddit = @meme["subreddit"] || "reddit"
-      
-      # Fire-and-forget: non-blocking analytics update
-      Thread.new do
-        begin
-          DB.execute(
-            "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-            [primary_image_url, meme_title, meme_subreddit]
-          )
-        rescue => e
-          puts "⚠️ [ASYNC STATS] Analytics update failed: #{e.message}"
-        end
-      end
+      DB.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+        [image_url, meme_title, meme_subreddit]
+      ) rescue nil
     end
     
     response_data = {
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
-      url: primary_image_url,
-      images: image_urls,
-      current_index: 0,
-      total_images: image_urls.size,
+      url: image_url,
       reddit_path: reddit_path,
-      likes: get_meme_likes(primary_image_url)
+      likes: get_meme_likes(image_url)
     }
     
     content_type :json
-    puts "✅ [/random.json] Returning response with #{image_urls.size} image(s): #{response_data.to_json[0..100]}..."
-    
-    # Compress response if client supports it (reduce bytes from 11.8KB to ~3KB)
-    response_json = response_data.to_json
-    
-    # Return JSON with gzip-ready headers
-    response_json
+    puts "✅ [/random.json] Returning response: #{response_data.to_json[0..100]}..."
+    response_data.to_json
   end
   
   
@@ -1685,9 +1516,6 @@ class MemeExplorer < Sinatra::Base
     # Only count like once per session globally
     likes = toggle_like(url, liked_now, session)
   
-    # Cache response for 10 seconds
-    headers "Cache-Control" => "private, max-age=10"
-    
     content_type :json
     { liked: liked_now, likes: likes }.to_json
   end
@@ -1696,14 +1524,7 @@ class MemeExplorer < Sinatra::Base
     url = params[:url]
     halt 400, { error: "No URL provided" }.to_json unless url
 
-    # Fire-and-forget: async broken image report (don't block response)
-    Thread.new do
-      begin
-        report_broken_image(url)
-      rescue => e
-        puts "⚠️ [BROKEN IMAGE] Report failed: #{e.message}"
-      end
-    end
+    report_broken_image(url)
     
     content_type :json
     { reported: true, message: "Broken image tracked" }.to_json
@@ -1832,12 +1653,8 @@ class MemeExplorer < Sinatra::Base
     query = params[:q]
     
     if request.accept.include?("application/json")
-      # JSON API endpoint with smart caching (doesn't cache empty searches)
+      # JSON API endpoint
       results = search_memes(query)
-      
-      # Cache search results for 10 minutes if query is not empty
-      headers "Cache-Control" => "public, max-age=600" if query && query.length > 2
-      
       content_type :json
       {
         query: query,
@@ -1864,9 +1681,6 @@ class MemeExplorer < Sinatra::Base
     query = params[:q]
     results = search_memes(query)
     
-    # Cache non-empty searches
-    headers "Cache-Control" => "public, max-age=600" if query && query.length > 2
-    
     content_type :json
     {
       query: query,
@@ -1891,9 +1705,6 @@ class MemeExplorer < Sinatra::Base
 
     avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
     avg_views = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
-
-    # Cache metrics for 5 minutes
-    headers "Cache-Control" => "public, max-age=300"
 
     content_type :json
     {
@@ -2056,9 +1867,6 @@ class MemeExplorer < Sinatra::Base
     halt 400, { error: "URL required" }.to_json unless url
 
     save_meme(session[:user_id], url, title, subreddit)
-    
-    # Cache POST response for 5 seconds (idempotent for this session)
-    headers "Cache-Control" => "private, max-age=5"
 
     content_type :json
     { saved: true, message: "Meme saved" }.to_json
@@ -2071,9 +1879,6 @@ class MemeExplorer < Sinatra::Base
     halt 400, { error: "URL required" }.to_json unless url
 
     unsave_meme(session[:user_id], url)
-    
-    # Cache POST response for 5 seconds
-    headers "Cache-Control" => "private, max-age=5"
 
     content_type :json
     { unsaved: true, message: "Meme unsaved" }.to_json
@@ -2101,9 +1906,6 @@ class MemeExplorer < Sinatra::Base
   # Monitoring Routes
   # -----------------------
   get "/health" do
-    # Cache health check for 30 seconds
-    headers "Cache-Control" => "public, max-age=30"
-    
     content_type :json
     
     begin
@@ -2268,6 +2070,3 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   run! if app_file == $0
 end
-
-# Initialize background threads after class is fully defined
-MemeExplorer.initialize_background_threads unless ENV["RACK_ENV"] == "test"
