@@ -41,10 +41,20 @@ module MemeExplorer
       # Select using weighted algorithm
       weighted_meme = weighted_random_selection(filtered_memes)
       
+      # 3-Tier Intelligent Fallback if primary fails
+      if weighted_meme.nil?
+        weighted_meme = intelligent_fallback(memes, session_id)
+      end
+      
+      return nil if weighted_meme.nil?
+      
+      # Enhance with media metadata
+      enhanced_meme = enhance_with_media_metadata(weighted_meme)
+      
       # Track in session to prevent immediate repetition
-      track_shown_meme(weighted_meme, session_id) if session_id
+      track_shown_meme(enhanced_meme, session_id) if session_id
 
-      weighted_meme
+      enhanced_meme
     end
 
     private
@@ -94,7 +104,68 @@ module MemeExplorer
       # Freshness bonus (newer memes slightly preferred)
       freshness_bonus = calculate_freshness_bonus(meme)
 
-      base_weight * humor_multiplier * freshness_bonus
+      # Media loadability factor (NEW)
+      loadability_factor = calculate_loadability_score(meme)
+
+      base_weight * humor_multiplier * freshness_bonus * loadability_factor
+    end
+
+    def self.calculate_loadability_score(meme)
+      url = meme['url'] || meme['media_url'] || meme['link']
+      return 0.0 if url.blank?
+
+      base = case url.downcase
+             when /\.jpg|\.jpeg|\.png|\.webp/ then 1.0
+             when /\.gif/ then 0.95
+             when /\.mp4|\.webm|\.avi/ then 0.9
+             when /imgur|i\.imgur/ then 0.85
+             when /gfycat|redgifs/ then 0.80
+             when /reddit/ then 0.65
+             else 0.5
+             end
+
+      boost = [(meme['successful_loads'].to_i * 0.05), 0.2].min
+      penalty = [(meme['failed_loads'].to_i * 0.05), 0.3].min
+      gallery_bonus = is_meme_gallery?(meme) ? 1.05 : 1.0
+
+      final = (base + boost - penalty) * gallery_bonus
+      [[final, 1.0].min, 0.0].max
+    end
+
+    def self.is_meme_gallery?(meme)
+      urls = meme['media_urls'] || meme['images'] || []
+      urls.is_a?(Array) && urls.length > 1
+    end
+
+    def self.intelligent_fallback(all_memes, session_id)
+      best = find_most_loadable_meme(all_memes)
+      return best if best
+      return weighted_random_selection(all_memes) unless all_memes.empty?
+      nil
+    end
+
+    def self.find_most_loadable_meme(memes)
+      return nil if memes.empty?
+      best_meme = nil
+      best_score = 0.5
+      memes.each do |meme|
+        score = calculate_loadability_score(meme)
+        best_meme = meme if score > best_score
+        best_score = score if score > best_score
+      end
+      best_meme
+    end
+
+    def self.enhance_with_media_metadata(meme)
+      enhanced = meme.dup
+      url = meme['url'] || meme['media_url'] || meme['link']
+      enhanced['media_metadata'] = {
+        primary_url: url,
+        all_urls: (meme['media_urls'] || meme['images'] || [url]),
+        is_gallery: is_meme_gallery?(meme),
+        loadability_score: calculate_loadability_score(meme)
+      }
+      enhanced
     end
 
     def self.calculate_freshness_bonus(meme)
