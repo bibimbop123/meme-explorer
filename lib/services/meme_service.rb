@@ -37,10 +37,43 @@ class MemeService
     pool = api_memes + local_memes
     pool = pool.uniq { |m| m["url"] || m["file"] }
 
-    # Validate memes - be lenient, accept if either file exists or URL is valid
-    validated = pool.select do |m| 
+    # Validate memes - STRICT: must have valid media, not just a URL
+    # This prevents showing fallback images for memes without actual media
+    validated = pool.select do |m|
+      # Check for local file
       next true if m["file"] && File.exist?(File.join("public", m["file"]))
-      next true if m["url"] && m["url"].match?(/^https?:\/\//)
+      
+      # For URL-based memes, check if it's actual media (not just a reddit post link)
+      url = m["url"]
+      next false unless url && url.match?(/^https?:\/\//)
+      
+      # Exclude reddit post URLs (these would show fallback images)
+      next false if url.include?('/r/') && url.include?('/comments/')
+      
+      # Valid media URLs should have recognizable media extensions or domains
+      url_lower = url.downcase
+      
+      # Check for image/video extensions
+      next true if url_lower =~ /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?|$|&)/
+      
+      # Check for known media hosting domains
+      media_domains = [
+        'i.redd.it',
+        'i.imgur.com',
+        'imgur.com',
+        'gfycat.com',
+        'redgifs.com',
+        'v.redd.it',
+        'giphy.com',
+        'tenor.com'
+      ]
+      
+      next true if media_domains.any? { |domain| url_lower.include?(domain) }
+      
+      # If we have preview images from Reddit, that's valid
+      next true if m["preview"] && m["preview"].is_a?(Hash)
+      
+      # Default: reject to avoid fallback images
       false
     end
 

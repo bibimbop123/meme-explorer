@@ -30,6 +30,7 @@ require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
+require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/services/smart_media_renderer_service"
 require "digest"
 
@@ -457,9 +458,10 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # Gamification & Auth Helpers
+  # Gamification & Gallery Helpers
   # -----------------------
   helpers GamificationHelpers
+  helpers GalleryHelpers
   
   helpers do
     # Hash password with bcrypt

@@ -116,6 +116,51 @@ module MemeHelpers
     false
   end
   
+  # Check if meme has valid media URL (not just a reddit post link)
+  # This prevents showing fallback images for memes without actual media
+  def has_valid_media?(meme)
+    return false unless meme.is_a?(Hash)
+    
+    # Local file-based memes are always valid if file exists
+    if meme["file"]
+      file_path = File.join(settings.public_folder, meme["file"])
+      return File.exist?(file_path)
+    end
+    
+    # For URL-based memes, check if it's an actual media URL
+    url = meme["url"]
+    return false unless url && url.match?(/^https?:\/\//)
+    
+    # Exclude reddit post URLs (these would trigger fallback images)
+    return false if url.include?('/r/') && url.include?('/comments/')
+    
+    # Valid media URLs should have recognizable media extensions or domains
+    url_lower = url.downcase
+    
+    # Check for image/video extensions
+    return true if url_lower =~ /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?|$|&)/
+    
+    # Check for known media hosting domains
+    media_domains = [
+      'i.redd.it',
+      'i.imgur.com',
+      'imgur.com',
+      'gfycat.com',
+      'redgifs.com',
+      'v.redd.it',
+      'giphy.com',
+      'tenor.com'
+    ]
+    
+    return true if media_domains.any? { |domain| url_lower.include?(domain) }
+    
+    # If we have preview images from Reddit, that's valid
+    return true if meme["preview"] && meme["preview"].is_a?(Hash)
+    
+    # Default: reject to avoid fallback images
+    false
+  end
+  
   # Get reddit path for meme (permalink or URL)
   def reddit_path(meme, image_src)
     return nil unless meme.is_a?(Hash)

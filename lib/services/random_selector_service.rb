@@ -29,8 +29,12 @@ module MemeExplorer
     def self.select_random_meme(memes, session_id: nil, preferences: {})
       return nil if memes.empty?
 
+      # Filter out memes without valid media (prevents fallback images)
+      filtered_memes = filter_invalid_media(memes)
+      return nil if filtered_memes.empty?
+
       # Filter out excluded categories
-      filtered_memes = filter_excluded_content(memes, preferences)
+      filtered_memes = filter_excluded_content(filtered_memes, preferences)
       return nil if filtered_memes.empty?
 
       # Filter out recently shown memes in this session
@@ -58,6 +62,49 @@ module MemeExplorer
     end
 
     private
+
+    def self.filter_invalid_media(memes)
+      memes.select do |meme|
+        # Check for local file
+        if meme['file']
+          file_path = File.join("public", meme['file'])
+          next true if File.exist?(file_path)
+        end
+        
+        # For URL-based memes, check if it's actual media (not just a reddit post link)
+        url = meme['url']
+        next false unless url && url.match?(/^https?:\/\//)
+        
+        # Exclude reddit post URLs (these would show fallback images)
+        next false if url.include?('/r/') && url.include?('/comments/')
+        
+        # Valid media URLs should have recognizable media extensions or domains
+        url_lower = url.downcase
+        
+        # Check for image/video extensions
+        next true if url_lower =~ /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?|$|&)/
+        
+        # Check for known media hosting domains
+        media_domains = [
+          'i.redd.it',
+          'i.imgur.com',
+          'imgur.com',
+          'gfycat.com',
+          'redgifs.com',
+          'v.redd.it',
+          'giphy.com',
+          'tenor.com'
+        ]
+        
+        next true if media_domains.any? { |domain| url_lower.include?(domain) }
+        
+        # If we have preview images from Reddit, that's valid
+        next true if meme['preview'] && meme['preview'].is_a?(Hash)
+        
+        # Default: reject to avoid fallback images
+        false
+      end
+    end
 
     def self.filter_excluded_content(memes, preferences = {})
       excluded = preferences[:excluded_categories] || EXCLUDED_CATEGORIES
