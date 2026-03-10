@@ -162,7 +162,19 @@ class ProgressiveImageComponent
   end
 
   def default_image
-    '<img src="/images/dank1.jpeg" alt="' + meme.title.to_s + '" class="progressive-image loaded" />'
+    # Use Tattoo Annie as the SEO-optimized placeholder
+    placeholder_config = PlaceholderImageService.get_placeholder(
+      alt: "#{meme.title} - Loading",
+      loading: 'eager'
+    )
+    
+    '<img src="' + placeholder_config[:url] + 
+    '" alt="' + placeholder_config[:alt] + 
+    '" title="' + placeholder_config[:title] +
+    '" width="' + placeholder_config[:width].to_s +
+    '" height="' + placeholder_config[:height].to_s +
+    '" class="progressive-image loaded tattoo-annie" ' +
+    'data-placeholder-type="tattoo-annie" />'
   end
 end
 

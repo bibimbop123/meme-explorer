@@ -4,6 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meme Explorer 😎 | Keyboard Hotkeys: Space Bar=Load Random Meme, Command+K=Toggle Dark Mode</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Discover and explore the best memes from Reddit! Featuring Tattoo Annie and trending meme content from top subreddits. Browse funny, wholesome, dank memes and more.">
+  <meta name="keywords" content="memes, reddit memes, funny memes, wholesome memes, dank memes, meme explorer, tattoo annie, simpsons memes">
+  <meta name="author" content="Meme Explorer">
+  <meta name="theme-color" content="#e52e71">
+  
+  <!-- Open Graph / Facebook Meta Tags -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= request.base_url %>">
+  <meta property="og:title" content="Meme Explorer 😎 - Discover the Best Memes from Reddit">
+  <meta property="og:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from top Reddit communities.">
+  <meta property="og:image" content="<%= request.base_url %>/images/tattoo-annie-placeholder.jpg">
+  <meta property="og:image:secure_url" content="<%= request.base_url.gsub('http:', 'https:') %>/images/tattoo-annie-placeholder.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="600">
+  <meta property="og:image:height" content="800">
+  <meta property="og:image:alt" content="Tattoo Annie from The Simpsons - Meme Explorer mascot representing the fun and entertaining world of internet memes">
+  <meta property="og:site_name" content="Meme Explorer">
+  <meta property="og:locale" content="en_US">
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="<%= request.base_url %>">
+  <meta name="twitter:title" content="Meme Explorer 😎 - Discover the Best Memes">
+  <meta name="twitter:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from Reddit.">
+  <meta name="twitter:image" content="<%= request.base_url %>/images/tattoo-annie-placeholder.jpg">
+  <meta name="twitter:image:alt" content="Tattoo Annie from The Simpsons - Meme Explorer mascot">
+  <meta name="twitter:creator" content="@MemeExplorer">
+  
+  <!-- Additional Meta Tags -->
+  <meta name="robots" content="index, follow">
+  <meta name="googlebot" content="index, follow">
+  <meta name="google" content="nositelinkssearchbox">
+  <link rel="canonical" href="<%= request.base_url %><%= request.path %>">
+  
+  <!-- Favicon and Icons -->
   <link rel="icon" href="/images/favicon.png">
   <link rel="apple-touch-icon" href="/images/favicon.png">
   <link rel="manifest" href="/manifest.json">

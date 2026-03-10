@@ -581,6 +581,84 @@ footer p {
 }
 
 /* =========================
+   TATTOO ANNIE PLACEHOLDER (SEO-OPTIMIZED)
+   ========================= */
+
+/* Tattoo Annie Placeholder Styles - SEO Optimized */
+.tattoo-annie-placeholder-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  aspect-ratio: 3 / 4;
+}
+
+.placeholder-image.tattoo-annie {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.placeholder-image.tattoo-annie:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
+}
+
+/* Progressive loading animation */
+.tattoo-annie-placeholder-wrapper.loading .placeholder-image {
+  animation: placeholder-shimmer 2s infinite;
+}
+
+@keyframes placeholder-shimmer {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+/* Screen reader only caption */
+.placeholder-caption.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Blur placeholder for progressive loading */
+.placeholder-blur {
+  animation: blur-fade 0.8s ease-out forwards;
+}
+
+@keyframes blur-fade {
+  to { opacity: 0; }
+}
+
+/* Fallback image in media unavailable state */
+.placeholder-fallback-image {
+  max-width: 300px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* =========================
    REDUCED MOTION SUPPORT
    ========================= */
 
@@ -589,5 +667,33 @@ footer p {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  
+  .placeholder-image.tattoo-annie,
+  .placeholder-blur,
+  .placeholder-fallback-image {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =========================
+   PRINT STYLES FOR PLACEHOLDER
+   ========================= */
+
+@media print {
+  .tattoo-annie-placeholder-wrapper {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
+
+/* =========================
+   HIGH CONTRAST MODE SUPPORT
+   ========================= */
+
+@media (prefers-contrast: high) {
+  .tattoo-annie-placeholder-wrapper {
+    border: 2px solid currentColor;
   }
 }

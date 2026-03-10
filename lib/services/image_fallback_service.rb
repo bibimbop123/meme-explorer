@@ -1,26 +1,34 @@
 # Image Fallback Service
 # Smart category-based fallback logic
 # Phase 3: Advanced Features - Part 1
+# Updated to use Tattoo Annie as primary placeholder
 
 class ImageFallbackService
-  # Category-aware fallback images
+  # Primary placeholder - Tattoo Annie (SEO-optimized)
+  PRIMARY_PLACEHOLDER = '/images/tattoo-annie-placeholder.jpg'.freeze
+
+  # Category-aware fallback images (secondary fallbacks)
   CATEGORY_FALLBACKS = {
     'funny' => [
+      PRIMARY_PLACEHOLDER,
       '/images/funny1.jpeg',
       '/images/funny2.jpeg',
       '/images/funny3.jpeg'
     ],
     'wholesome' => [
+      PRIMARY_PLACEHOLDER,
       '/images/wholesome1.jpeg',
       '/images/wholesome2.jpeg',
       '/images/wholesome3.jpeg'
     ],
     'selfcare' => [
+      PRIMARY_PLACEHOLDER,
       '/images/selfcare1.jpeg',
       '/images/selfcare2.jpeg',
       '/images/selfcare3.jpeg'
     ],
     'dank' => [
+      PRIMARY_PLACEHOLDER,
       '/images/dank1.jpeg',
       '/images/dank2.jpeg'
     ]
@@ -41,11 +49,21 @@ class ImageFallbackService
     # Get fallback image for subreddit
     # @param subreddit [String] Subreddit name
     # @param randomize [Boolean] Randomize or return first
+    # @param use_primary [Boolean] Always use Tattoo Annie as primary
     # @return [String] Fallback image URL
-    def get_fallback(subreddit, randomize: true)
+    def get_fallback(subreddit, randomize: true, use_primary: true)
+      # Always return Tattoo Annie if use_primary is true
+      return PRIMARY_PLACEHOLDER if use_primary
+
       category = categorize_subreddit(subreddit)
       fallbacks = CATEGORY_FALLBACKS[category] || CATEGORY_FALLBACKS['dank']
       randomize ? fallbacks.sample : fallbacks.first
+    end
+
+    # Get primary placeholder (Tattoo Annie)
+    # @return [String] Primary placeholder URL
+    def get_primary_placeholder
+      PRIMARY_PLACEHOLDER
     end
 
     # Get all fallbacks for category

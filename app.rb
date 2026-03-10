@@ -32,6 +32,7 @@ require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/services/smart_media_renderer_service"
+require_relative "./lib/services/placeholder_image_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -1230,6 +1231,31 @@ class MemeExplorer < Sinatra::Base
 
     def media_placeholder_styles
       SmartMediaRendererService.placeholder_styles
+    end
+
+    # Tattoo Annie Placeholder helpers (SEO-optimized)
+    def tattoo_annie_placeholder
+      PlaceholderImageService.get_placeholder
+    end
+
+    def render_tattoo_annie(options = {})
+      PlaceholderImageService.render_html(options)
+    end
+
+    def tattoo_annie_alt_text(context: 'meme', additional_info: nil)
+      PlaceholderImageService.generate_alt_text(context: context, additional_info: additional_info)
+    end
+
+    def tattoo_annie_og_tags(page_context = {})
+      PlaceholderImageService.generate_og_meta_tags(page_context)
+    end
+
+    def tattoo_annie_styles
+      PlaceholderImageService.generate_styles
+    end
+
+    def tattoo_annie_preload_tag
+      PlaceholderImageService.generate_preload_tag
     end
   end
 

@@ -163,10 +163,14 @@ class SmartMediaRendererService
               <<~JS
                 const container = elem.parentElement;
                 if (container) {
+                  // Use Tattoo Annie as fallback placeholder
                   const placeholder = document.createElement('div');
                   placeholder.className = 'media-unavailable-placeholder';
                   placeholder.innerHTML = `
-                    <div class="placeholder-icon">📭</div>
+                    <img src="/images/tattoo-annie-placeholder.jpg" 
+                         alt="Tattoo Annie - Content Unavailable" 
+                         class="placeholder-fallback-image"
+                         style="max-width: 300px; border-radius: 8px; margin-bottom: 16px;" />
                     <div class="placeholder-message">#{placeholder_message}</div>
                     <div class="placeholder-hint">This content is no longer available</div>
                   `;
