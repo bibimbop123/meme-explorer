@@ -10,6 +10,96 @@
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/meme_explorer.css">
   <style>
+    /* Gamification UI Styles */
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      transition: transform 0.2s;
+    }
+    .streak-badge:hover {
+      transform: scale(1.05);
+    }
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+      transition: transform 0.2s;
+    }
+    .level-badge:hover {
+      transform: scale(1.05);
+    }
+    .xp-notification {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: slideInRight 0.3s ease-out;
+      z-index: 1000;
+      font-weight: bold;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .level-up-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .level-up-content {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      padding: 3rem;
+      border-radius: 20px;
+      text-align: center;
+      color: white;
+      animation: bounceIn 0.5s ease-out;
+    }
+    .level-up-content h2 {
+      font-size: 3rem;
+      margin: 0 0 1rem 0;
+    }
+    .level-up-content p {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
     /* Mobile navbar optimization - hide non-essential items on mobile */
     @media (max-width: 768px) {
       nav a[href*="/category/"],
@@ -53,9 +143,16 @@
       <a href="/category/dank">Dank</a>
       <a href="/category/selfcare">Self Care</a>
       <a href="/trending">Trending</a>
+      <a href="/leaderboard">🏆 Leaderboard</a>
       <a href="/metrics">📈 Metrics</a>
       <a href="/random">Random 🎲</a>
       <% if session[:user_id] %>
+        <% if @streak_data && @streak_data[:current_streak] > 0 %>
+          <span class="streak-badge" title="Current streak">🔥 <%= @streak_data[:current_streak] %></span>
+        <% end %>
+        <% if @user_level %>
+          <span class="level-badge" title="Your level">⭐ Lv <%= @user_level[:level] %></span>
+        <% end %>
         <a href="/profile">👤 Profile</a>
         <% if session[:reddit_username] == "brianhkim13@gmail.com" %>
           <a href="/admin" style="background: #ff6b00;">🔒 Admin</a>
@@ -78,9 +175,39 @@
     <p>Built with Sinatra</p>
   </footer>
 
-  <!-- ================= SESSION DATA ================= -->
+  <!-- ================= SESSION DATA & GAMIFICATION ================= -->
   <script>
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
+    
+    // Level-up celebration
+    <% if session[:last_xp_gain] && session[:last_xp_gain][:leveled_up] %>
+      setTimeout(() => {
+        const modal = document.createElement('div');
+        modal.className = 'level-up-modal';
+        modal.innerHTML = `
+          <div class="level-up-content">
+            <h2>🎉 LEVEL UP! 🎉</h2>
+            <p>You're now Level <%= session[:last_xp_gain][:new_level] %>!</p>
+            <p>+<%= session[:last_xp_gain][:xp_gained] %> XP</p>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; padding: 0.75rem 2rem; font-size: 1.1rem; border: none; background: white; color: #f5576c; border-radius: 10px; cursor: pointer; font-weight: bold;">Awesome!</button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) modal.remove();
+        });
+      }, 500);
+      <% session.delete(:last_xp_gain) %>
+    <% elsif session[:last_xp_gain] %>
+      setTimeout(() => {
+        const notification = document.createElement('div');
+        notification.className = 'xp-notification';
+        notification.textContent = '+<%= session[:last_xp_gain][:xp_gained] %> XP';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+      }, 300);
+      <% session.delete(:last_xp_gain) %>
+    <% end %>
     
     // Dark mode toggle for entire UI
     const darkModeToggle = document.getElementById('darkModeToggle');

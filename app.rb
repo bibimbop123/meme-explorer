@@ -29,6 +29,7 @@ require_relative "./config/constants"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/meme_helpers"
+require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/services/smart_media_renderer_service"
 require "digest"
 
@@ -72,7 +73,8 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Rack::Attack
   # -----------------------
-  Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(url: REDIS_URL) if REDIS
+  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+  
   class Rack::Attack
     safelist("allow-localhost") { |req| ["127.0.0.1", "::1"].include?(req.ip) }
     throttle("req/ip", limit: 60, period: 60) { |req| req.ip unless req.path.start_with?("/assets") }
@@ -294,6 +296,18 @@ class MemeExplorer < Sinatra::Base
       @redis_meme_history_key = "user:#{user_id}:meme_history"
       @redis_meme_likes_key = "user:#{user_id}:meme_like_counts"
     end
+    
+    # GAMIFICATION: Track streak and level for logged-in users
+    if session[:user_id]
+      begin
+        @streak_data = update_streak(session[:user_id])
+        @user_level = get_user_level(session[:user_id])
+      rescue => e
+        puts "⚠️ Gamification error: #{e.message}"
+        @streak_data = nil
+        @user_level = nil
+      end
+    end
   end
 
   after do
@@ -443,8 +457,10 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # Auth Helpers
+  # Gamification & Auth Helpers
   # -----------------------
+  helpers GamificationHelpers
+  
   helpers do
     # Hash password with bcrypt
     def hash_password(password)
@@ -521,6 +537,13 @@ class MemeExplorer < Sinatra::Base
         "INSERT OR IGNORE INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit) VALUES (?, ?, ?, ?)",
         [user_id, meme_url, meme_title, meme_subreddit]
       )
+      
+      # GAMIFICATION: Award XP for saving
+      begin
+        add_xp(user_id, :save_meme)
+      rescue => e
+        puts "⚠️ XP error on save: #{e.message}"
+      end
     end
 
     # Unsave meme
@@ -1082,8 +1105,14 @@ class MemeExplorer < Sinatra::Base
             [user_id, url]
           )
           
-          # Phase 2: Update user preference for this subreddit
-          # (We'll get subreddit from DB query - need to store it in session during navigate_meme)
+          # GAMIFICATION: Award XP for liking + update leaderboard
+          begin
+            xp_result = add_xp(user_id, :like_meme)
+            session[:last_xp_gain] = xp_result if xp_result
+            update_weekly_leaderboard(user_id, 1)
+          rescue => e
+            puts "⚠️ XP/Leaderboard error: #{e.message}"
+          end
         end
         session[:meme_like_counts][url] = true
       elsif !liked_now && was_liked_before
@@ -1825,6 +1854,26 @@ class MemeExplorer < Sinatra::Base
   get "/logout" do
     session.clear
     redirect "/"
+  end
+
+  # -----------------------
+  # Gamification Routes
+  # -----------------------
+  get "/leaderboard" do
+    begin
+      @challenge = current_weekly_challenge
+      @leaderboard = get_leaderboard
+      @user_rank = nil
+      
+      if session[:user_id]
+        @user_rank = get_my_rank(session[:user_id])
+      end
+      
+      erb :leaderboard
+    rescue => e
+      puts "⚠️ Leaderboard error: #{e.message}"
+      halt 500, "Error loading leaderboard"
+    end
   end
 
   # -----------------------

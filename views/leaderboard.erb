@@ -1,0 +1,99 @@
+<div class="container" style="max-width: 900px; margin: 2rem auto; padding: 0 1rem;">
+  <h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 2rem;">🏆 Leaderboard</h1>
+
+  <!-- Weekly Challenge Banner -->
+  <% if @challenge %>
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center;">
+      <h2 style="margin: 0 0 0.5rem 0; font-size: 1.8rem;">🎯 Weekly Challenge</h2>
+      <p style="margin: 0; font-size: 1.2rem;"><%= @challenge[:description] %></p>
+      <p style="margin: 0.5rem 0 0 0; font-size: 1rem; opacity: 0.9;">Reward: <%= @challenge[:reward_xp] %> XP</p>
+    </div>
+  <% end %>
+
+  <!-- Your Rank Card -->
+  <% if @user_rank %>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+      <h3 style="margin: 0 0 0.5rem 0;">Your Rank</h3>
+      <div style="font-size: 2rem; font-weight: bold;">#<%= @user_rank[:rank] %></div>
+      <div style="margin-top: 0.5rem;">
+        <span style="margin-right: 1rem;">⭐ Level <%= @user_rank[:level] %></span>
+        <span style="margin-right: 1rem;">🔥 <%= @user_rank[:total_xp] %> XP</span>
+        <span>💪 <%= @user_rank[:score] %> points this week</span>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Top 10 Leaderboard -->
+  <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+    <h2 style="margin: 0 0 1.5rem 0; text-align: center;">Top Meme Connoisseurs</h2>
+    
+    <% if @leaderboard && @leaderboard.any? %>
+      <div class="leaderboard-list">
+        <% @leaderboard.each_with_index do |entry, index| %>
+          <div style="display: flex; align-items: center; padding: 1rem; margin-bottom: 0.75rem; background: <%= index < 3 ? 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)' : '#f8f9fa' %>; border-radius: 10px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+            <!-- Rank -->
+            <div style="width: 50px; font-size: 1.5rem; font-weight: bold; text-align: center;">
+              <% if index == 0 %>🥇
+              <% elsif index == 1 %>🥈
+              <% elsif index == 2 %>🥉
+              <% else %>#<%= index + 1 %>
+              <% end %>
+            </div>
+            
+            <!-- User Info -->
+            <div style="flex: 1; margin-left: 1rem;">
+              <div style="font-weight: bold; font-size: 1.1rem;">
+                <%= entry["reddit_username"] || entry["email"]&.split('@')&.first || "User ##{entry['user_id']}" %>
+              </div>
+              <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
+                <span style="margin-right: 1rem;">⭐ Level <%= entry["level"] %></span>
+                <span>🔥 <%= entry["total_xp"] %> XP</span>
+              </div>
+            </div>
+            
+            <!-- Weekly Score -->
+            <div style="text-align: right; margin-right: 1rem;">
+              <div style="font-size: 1.3rem; font-weight: bold; color: #667eea;">
+                <%= entry["score"] %>
+              </div>
+              <div style="font-size: 0.8rem; color: #666;">points</div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p style="text-align: center; color: #999; padding: 2rem;">No leaderboard data yet. Be the first to climb the ranks!</p>
+    <% end %>
+  </div>
+
+  <!-- How It Works -->
+  <div style="margin-top: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 15px;">
+    <h3 style="margin: 0 0 1rem 0;">📚 How It Works</h3>
+    <ul style="line-height: 1.8; color: #555;">
+      <li><strong>Like memes</strong> - Earn 5 XP per like</li>
+      <li><strong>Save memes</strong> - Earn 10 XP per save</li>
+      <li><strong>Daily streaks</strong> - Visit daily to build your streak (2x XP multiplier!)</li>
+      <li><strong>Weekly challenges</strong> - Complete special tasks for bonus XP</li>
+      <li><strong>Level up</strong> - Every 100 XP = 1 level gained</li>
+      <li><strong>Compete</strong> - Climb the weekly leaderboard!</li>
+    </ul>
+  </div>
+
+  <div style="text-align: center; margin-top: 2rem;">
+    <a href="/" style="display: inline-block; padding: 0.75rem 2rem; background: #667eea; color: white; text-decoration: none; border-radius: 10px; font-weight: bold;">Back to Memes</a>
+  </div>
+</div>
+
+<style>
+  .dark-mode .leaderboard-list > div {
+    background: #2d3748 !important;
+    color: white;
+  }
+  .dark-mode .leaderboard-list > div[style*="ffeaa7"] {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+  }
+  .dark-mode .leaderboard-list .user-info,
+  .dark-mode .leaderboard-list div[style*="#666"] {
+    color: #cbd5e0 !important;
+  }
+</style>
