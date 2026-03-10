@@ -7,7 +7,7 @@
         src="<%= @image_src || '/images/funny1.jpeg' %>"
         alt="<%= @meme["title"] || 'Meme Image' %>"
         class="meme-display-image"
-        onerror="this.src='/images/funny1.jpeg'"
+        onerror="this.src='<%= get_category_fallback(@meme) %>'"
       >
     </div>
   </div>

@@ -161,6 +161,96 @@ module MemeHelpers
     false
   end
   
+  # Extract preview images from Reddit post data for fallback chain
+  # Returns array of preview image URLs in descending quality order
+  def extract_preview_images(meme)
+    return [] unless meme.is_a?(Hash)
+    
+    preview_urls = []
+    
+    # Check for Reddit preview data structure
+    if meme["preview"] && meme["preview"]["images"].is_a?(Array)
+      meme["preview"]["images"].each do |img_data|
+        # Get source (highest quality)
+        if img_data["source"] && img_data["source"]["url"]
+          preview_urls << unescape_html_entities(img_data["source"]["url"])
+        end
+        
+        # Get resolutions (fallback options)
+        if img_data["resolutions"].is_a?(Array)
+          img_data["resolutions"].reverse.each do |res|
+            preview_urls << unescape_html_entities(res["url"]) if res["url"]
+          end
+        end
+      end
+    end
+    
+    # Check for thumbnail
+    if meme["thumbnail"] && valid_thumbnail_url?(meme["thumbnail"])
+      preview_urls << meme["thumbnail"]
+    end
+    
+    preview_urls.compact.uniq
+  end
+  
+  # Check if thumbnail URL is valid (not default Reddit placeholders)
+  def valid_thumbnail_url?(thumbnail)
+    return false if thumbnail.nil? || thumbnail.empty?
+    return false if %w[self default nsfw].include?(thumbnail)
+    return false unless thumbnail.start_with?('http')
+    true
+  end
+  
+  # Unescape HTML entities in URLs (Reddit returns &amp; instead of &)
+  def unescape_html_entities(url)
+    return url unless url
+    url.gsub('&amp;', '&')
+  rescue => e
+    puts "⚠️ URL unescape error: #{e.message}"
+    url
+  end
+  
+  # Detect media type from URL
+  def detect_media_type(url)
+    return 'unknown' unless url
+    
+    url_lower = url.downcase
+    
+    return 'video' if url_lower =~ /\.(mp4|webm|mov)(\?|$)/
+    return 'gif' if url_lower =~ /\.gif(\?|$)/
+    return 'image' if url_lower =~ /\.(jpg|jpeg|png|webp)(\?|$)/
+    
+    # Check if it's a Reddit video domain
+    return 'video' if url.include?('v.redd.it')
+    
+    # Default to image
+    'image'
+  end
+  
+  # Get category-appropriate fallback image
+  def get_category_fallback(meme)
+    return '/images/funny1.jpeg' unless meme.is_a?(Hash)
+    
+    subreddit = meme["subreddit"]&.downcase || ""
+    
+    # Use ImageFallbackService if available
+    if defined?(ImageFallbackService)
+      return ImageFallbackService.get_fallback(subreddit, randomize: true, use_primary: false)
+    end
+    
+    # Fallback to category-based logic
+    case subreddit
+    when /wholesome|aww|mademesmile/
+      ['/images/wholesome1.jpeg', '/images/wholesome2.jpeg', '/images/wholesome3.jpeg'].sample
+    when /selfcare|health|fitness|wellness/
+      ['/images/selfcare1.jpeg', '/images/selfcare2.jpeg', '/images/selfcare3.jpeg'].sample
+    when /dank/
+      ['/images/dank1.jpeg', '/images/dank2.jpeg'].sample
+    else
+      ['/images/funny1.jpeg', '/images/funny2.jpeg', '/images/funny3.jpeg'].sample
+    end
+  end
+  
   # Get reddit path for meme (permalink or URL)
   def reddit_path(meme, image_src)
     return nil unless meme.is_a?(Hash)

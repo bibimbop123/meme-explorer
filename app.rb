@@ -924,13 +924,8 @@ class MemeExplorer < Sinatra::Base
                   image_url = extract_image_url(post_data)
                   next unless image_url && image_url.match?(/^https?:\/\//)
 
-                  meme = {
-                    "title" => post_data["title"],
-                    "url" => image_url,
-                    "subreddit" => post_data["subreddit"],
-                    "likes" => post_data["ups"] || 0,
-                    "permalink" => post_data["permalink"]
-                  }
+                  # Use build_meme_object to include preview images for fallback
+                  meme = build_meme_object(post_data, image_url)
                   memes << meme
                 end
                 break  # Success, exit retry loop
@@ -955,7 +950,7 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Extract direct image URL from Reddit post data (including GIFs and animated content)
-    # LENIENT approach: accept any HTTPS image URL, prioritizing established image hosts
+    # NOW ENHANCED: Also enriches meme with preview images for fallback chain
     def extract_image_url(post_data)
       url = post_data["url"]
       return nil unless url && url.is_a?(String)
@@ -991,6 +986,29 @@ class MemeExplorer < Sinatra::Base
       end
 
       nil
+    end
+    
+    # Build enriched meme object with preview images for smart fallback
+    def build_meme_object(post_data, image_url)
+      meme = {
+        "title" => post_data["title"],
+        "url" => image_url,
+        "subreddit" => post_data["subreddit"],
+        "likes" => post_data["ups"] || 0,
+        "permalink" => post_data["permalink"]
+      }
+      
+      # Add preview data for smart fallback chain
+      if post_data["preview"]
+        meme["preview"] = post_data["preview"]
+      end
+      
+      # Add thumbnail if valid
+      if post_data["thumbnail"] && !%w[self default nsfw].include?(post_data["thumbnail"])
+        meme["thumbnail"] = post_data["thumbnail"]
+      end
+      
+      meme
     end
 
     # Phase 1: Weighted random selection by score
@@ -1043,15 +1061,18 @@ class MemeExplorer < Sinatra::Base
     end
 
     # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
+    # NOW WITH QUALITY FILTERING: Only returns memes with valid media URLs
     def random_memes_pool
       # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
       cache_memes = MEME_CACHE.get(:memes)
       if cache_memes.is_a?(Array) && !cache_memes.empty?
-        puts "✅ [MEME POOL] Returning #{cache_memes.size} memes from cache"
-        return cache_memes
+        # FILTER: Only return memes with valid media
+        valid_memes = cache_memes.select { |m| has_valid_media?(m) }
+        puts "✅ [MEME POOL] Returning #{valid_memes.size}/#{cache_memes.size} valid memes from cache"
+        return valid_memes unless valid_memes.empty?
       end
 
-      puts "⚠️ [MEME POOL] Cache empty, using local memes fallback"
+      puts "⚠️ [MEME POOL] Cache empty or no valid memes, using local memes fallback"
       
       # Always load local memes as guaranteed fallback
       local_memes = begin
@@ -1066,8 +1087,12 @@ class MemeExplorer < Sinatra::Base
         []
       end
 
-      MEME_CACHE.set(:memes, local_memes.shuffle)
-      local_memes
+      # Filter local memes for valid media
+      valid_local_memes = local_memes.select { |m| has_valid_media?(m) }
+      puts "✅ [MEME POOL] Filtered to #{valid_local_memes.size}/#{local_memes.size} valid local memes"
+
+      MEME_CACHE.set(:memes, valid_local_memes.shuffle)
+      valid_local_memes
     end
 
     # Get likes safely
@@ -1256,6 +1281,93 @@ class MemeExplorer < Sinatra::Base
 
     def tattoo_annie_preload_tag
       PlaceholderImageService.generate_preload_tag
+    end
+    
+    # Extract preview images from Reddit post data for fallback chain
+    def extract_preview_images(meme)
+      return [] unless meme.is_a?(Hash)
+      
+      images = []
+      
+      # Extract from preview metadata
+      if meme["preview"].is_a?(Hash)
+        preview_images = meme["preview"].dig("images") || []
+        preview_images.each do |img_data|
+          # Get source URL (highest quality)
+          if img_data["source"] && img_data["source"]["url"]
+            url = img_data["source"]["url"].gsub("&amp;", "&")
+            images << url unless images.include?(url)
+          end
+          
+          # Get resolutions (alternative qualities)
+          if img_data["resolutions"].is_a?(Array)
+            img_data["resolutions"].each do |res|
+              if res["url"]
+                url = res["url"].gsub("&amp;", "&")
+                images << url unless images.include?(url)
+              end
+            end
+          end
+        end
+      end
+      
+      # Add thumbnail if available
+      if meme["thumbnail"] && !%w[self default nsfw].include?(meme["thumbnail"])
+        images << meme["thumbnail"] unless images.include?(meme["thumbnail"])
+      end
+      
+      images.uniq.compact
+    end
+    
+    # Detect media type from URL
+    def detect_media_type(url)
+      return 'image' unless url.is_a?(String)
+      
+      ext = File.extname(url).downcase
+      case ext
+      when '.mp4', '.webm', '.mov'
+        'video'
+      when '.gif', '.gifv'
+        'gif'
+      else
+        'image'
+      end
+    end
+    
+    # Get category-appropriate fallback image based on subreddit
+    def get_category_fallback(meme)
+      return '/images/funny1.jpeg' unless meme.is_a?(Hash)
+      
+      subreddit = (meme["subreddit"] || '').downcase
+      
+      # Match subreddit to category
+      if subreddit.match?(/wholesome|aww|mademesmile|heartwarming/)
+        ['/images/wholesome1.jpeg', '/images/wholesome2.jpeg', '/images/wholesome3.jpeg'].sample
+      elsif subreddit.match?(/selfcare|health|fitness|wellness|meditation/)
+        ['/images/selfcare1.jpeg', '/images/selfcare2.jpeg', '/images/selfcare3.jpeg'].sample
+      elsif subreddit.match?(/dank/)
+        ['/images/dank1.jpeg', '/images/dank2.jpeg'].sample
+      else
+        # Funny/general - rotate through all
+        ['/images/funny1.jpeg', '/images/funny2.jpeg', '/images/funny3.jpeg'].sample
+      end
+    end
+    
+    # Check if meme has valid media URL
+    def has_valid_media?(meme)
+      return false unless meme.is_a?(Hash)
+      
+      url = meme["url"] || meme["file"]
+      return false unless url.is_a?(String) && !url.strip.empty?
+      
+      # Local files: check existence
+      if url.start_with?('/')
+        File.exist?(File.join(settings.public_folder, url))
+      else
+        # Remote URLs: basic validation
+        url.match?(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|mp4|webm|gifv)(\?.*)?$/i) ||
+        url.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it)\//)
+      end
     end
   end
 
@@ -1551,17 +1663,23 @@ class MemeExplorer < Sinatra::Base
       ) rescue nil
     end
     
+    # Extract preview images for client-side fallback chain
+    preview_images = extract_preview_images(@meme)
+    media_type = detect_media_type(image_url)
+    
     response_data = {
       title: @meme["title"],
       subreddit: @meme["subreddit"],
       file: @meme["file"],
       url: image_url,
       reddit_path: reddit_path,
-      likes: get_meme_likes(image_url)
+      likes: get_meme_likes(image_url),
+      preview_images: preview_images,
+      media_type: media_type
     }
     
     content_type :json
-    puts "✅ [/random.json] Returning response: #{response_data.to_json[0..100]}..."
+    puts "✅ [/random.json] Returning response with #{preview_images.size} preview images..."
     response_data.to_json
   end
   
