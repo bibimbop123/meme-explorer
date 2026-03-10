@@ -8,6 +8,8 @@ class TrendingService
   LIKES_WEIGHT = 1.0
   VIEWS_WEIGHT = 0.1
   COMMENTS_WEIGHT = 0.5
+  HUMOR_BOOST = 2.0
+  RELATIONSHIP_BOOST = 3.0
   
   class << self
     def calculate_score(meme)
@@ -18,7 +20,34 @@ class TrendingService
       views_score = (meme.views || 0) * VIEWS_WEIGHT
       comments_score = (meme.comments_count || 0) * COMMENTS_WEIGHT * decay_factor
       
-      likes_score + views_score + comments_score
+      # HUMOR & RELATIONSHIP BOOST
+      content_boost = calculate_content_boost(meme)
+      
+      (likes_score + views_score + comments_score) * content_boost
+    end
+    
+    def calculate_content_boost(meme)
+      boost = 1.0
+      title = (meme.title || "").downcase
+      subreddit = (meme.subreddit || "").downcase
+      
+      # Relationship keywords
+      relationship_keywords = ['boyfriend', 'girlfriend', 'dating', 'relationship', 'couples', 
+                               'partner', 'wife', 'husband', 'marriage', 'ex', 'tinder', 
+                               'crush', 'breakup', 'single', 'taken']
+      boost += RELATIONSHIP_BOOST if relationship_keywords.any? { |kw| title.include?(kw) }
+      
+      # Humor keywords
+      humor_keywords = ['funny', 'lol', 'hilarious', 'meme', 'savage', 'relatable', 
+                        'mood', 'pov', 'when she', 'when he', 'be like']
+      boost += HUMOR_BOOST if humor_keywords.any? { |kw| title.include?(kw) }
+      
+      # Subreddit boost
+      priority_subs = ['funny', 'memes', 'dankmemes', 'relationships', 'relationship_memes',
+                       'relationshipmemes', 'dating', 'tinder', 'me_irl', 'adviceanimals']
+      boost += HUMOR_BOOST if priority_subs.include?(subreddit)
+      
+      boost
     end
     
     def trending_memes(time_window: '24h', sort_by: 'trending', limit: 20, cursor: nil)

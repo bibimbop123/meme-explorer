@@ -11,6 +11,12 @@ tier_1:
   - ComedyHeaven       # ✅ 10 images - absurd humor
   - comedycemetery     # ✅ 10 images - bad memes (ironically funny)
   - terriblefacebookmemes  # ✅ 4 images - wholesome bad memes
+  - relationships      # Relationship humor and advice
+  - relationship_memes # Funny relationship content
+  - relationshipmemes  # More relationship jokes
+  - dating             # Dating humor
+  - Tinder             # Dating app humor
+  - AdviceAnimals      # Classic meme format with humor
   - MadeMeSmile        # Wholesomeness focus
   - IllegallySmolCats  # Cute animals
   - IllegallySmolDogs  # Cute animals
@@ -69,6 +75,12 @@ popular:
   - ComedyHeaven
   - comedycemetery
   - terriblefacebookmemes
+  - relationships
+  - relationship_memes
+  - relationshipmemes
+  - dating
+  - Tinder
+  - AdviceAnimals
   - MadeMeSmile
   - IllegallySmolCats
   - IllegallySmolDogs

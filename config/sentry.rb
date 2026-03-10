@@ -2,8 +2,16 @@
 require 'sentry-ruby'
 
 Sentry.init do |config|
-  # Use environment variable or fallback to provided DSN for testing
-  config.dsn = ENV['SENTRY_DSN'] || 'https://2025f47967d9c2172b963c34e79c0b71@o4510297986498560.ingest.us.sentry.io/4510297991348224'
+  # FIX: Remove hardcoded DSN fallback - fail gracefully if not configured
+  config.dsn = ENV['SENTRY_DSN']
+  
+  # Disable Sentry if DSN not configured
+  if config.dsn.nil? || config.dsn.empty?
+    puts "⚠️  Sentry DSN not configured - error tracking disabled"
+    config.enabled_environments = []
+    return
+  end
+  
   config.environment = ENV['RACK_ENV'] || 'development'
   config.enabled_environments = %w[production staging development]
   config.release = "meme-explorer@#{File.read('VERSION').strip rescue 'unknown'}"

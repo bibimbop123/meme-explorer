@@ -66,22 +66,17 @@ module Validators
 
   # String sanitization: removes XSS vectors and control characters
   # Returns sanitized string or raises ValidationError if exceeds max_length
+  # OPTIMIZED: Uses single regex and in-place modification for better performance
   def self.sanitize_string(string, max_length: 1000)
     string = string.to_s
     
     raise ValidationError, "String exceeds maximum length (#{max_length} chars)" if string.length > max_length
     
-    # Remove dangerous HTML/JS tags
-    string = string.gsub(/<script[^>]*>.*?<\/script>/im, '')
-    string = string.gsub(/<iframe[^>]*>.*?<\/iframe>/im, '')
-    string = string.gsub(/<object[^>]*>.*?<\/object>/im, '')
-    string = string.gsub(/<embed[^>]*>/im, '')
-    string = string.gsub(/on\w+\s*=\s*["'][^"']*["']/im, '')  # Remove event handlers
-    string = string.gsub(/javascript:/im, '')  # Remove javascript: protocol
+    # PERFORMANCE FIX: Combined regex for dangerous tags (single pass)
+    string.gsub!(/<(script|iframe|object|embed)[^>]*>.*?<\/\1>|<embed[^>]*>|on\w+\s*=\s*["'][^"']*["']|javascript:/im, '')
     
-    # Remove null bytes and other control characters
-    string = string.gsub(/\x00/, '')  # Null byte
-    string = string.gsub(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/, '')  # Other control chars
+    # Remove null bytes and control characters (single pass)
+    string.gsub!(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/, '')
     
     string
   end

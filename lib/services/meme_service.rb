@@ -58,10 +58,67 @@ class MemeService
       m_copy
     end
 
-    @cache[:memes] = normalized.shuffle
+    # HUMOR & RELATIONSHIP MAXIMIZATION: Score and prioritize funny/relationship content
+    scored_memes = normalized.map do |m|
+      score = calculate_humor_score(m)
+      { meme: m, score: score }
+    end
+
+    # Sort by score (highest first), then shuffle within score groups for variety
+    sorted = scored_memes.sort_by { |sm| -sm[:score] }
+    
+    # Weighted shuffle: 70% high-score memes, 30% variety from lower scores
+    high_score = sorted.first(sorted.size * 0.7).map { |sm| sm[:meme] }.shuffle
+    variety = sorted.last(sorted.size * 0.3).map { |sm| sm[:meme] }.shuffle
+    
+    weighted_pool = high_score + variety
+
+    @cache[:memes] = weighted_pool
     @cache[:last_refresh] = Time.now
 
-    normalized
+    weighted_pool
+  end
+
+  # Calculate humor score based on keywords and subreddit
+  def calculate_humor_score(meme)
+    score = 1.0
+    title = (meme["title"] || "").downcase
+    subreddit = (meme["subreddit"] || "").downcase
+
+    # RELATIONSHIP KEYWORDS - High boost
+    relationship_keywords = [
+      'boyfriend', 'girlfriend', 'dating', 'relationship', 'couples',
+      'partner', 'wife', 'husband', 'marriage', 'married', 'crush',
+      'ex', 'tinder', 'bumble', 'texting', 'replied', 'talking',
+      'argument', 'fight', 'breakup', 'single', 'taken'
+    ]
+    
+    relationship_keywords.each do |keyword|
+      score += 3.0 if title.include?(keyword)
+    end
+
+    # HUMOR KEYWORDS - Medium boost
+    humor_keywords = [
+      'funny', 'lol', 'hilarious', 'comedy', 'joke', 'humor',
+      'laughing', 'lmao', 'rofl', 'haha', 'meme', 'savage',
+      'relatable', 'mood', 'accurate', 'real', 'fr', 'ngl',
+      'pov', 'when she', 'when he', 'be like', 'that moment'
+    ]
+    
+    humor_keywords.each do |keyword|
+      score += 2.0 if title.include?(keyword)
+    end
+
+    # SUBREDDIT BOOST - Prioritize relationship and humor subreddits
+    humor_subreddits = [
+      'funny', 'memes', 'dankmemes', 'me_irl', 'comedyheaven',
+      'relationships', 'relationship_memes', 'relationshipmemes',
+      'dating', 'tinder', 'adviceanimals'
+    ]
+    
+    score += 5.0 if humor_subreddits.include?(subreddit)
+
+    score
   end
 
   # Get likes safely

@@ -25,8 +25,11 @@ require 'rack/csrf'
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
 require_relative "./config/application"
+require_relative "./config/constants"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
+require_relative "./lib/helpers/meme_helpers"
+require_relative "./lib/services/smart_media_renderer_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -1188,6 +1191,15 @@ class MemeExplorer < Sinatra::Base
 
       nil
     end
+
+    # Smart media rendering helpers
+    def render_meme_with_smart_fallback(meme_data, options = {})
+      SmartMediaRendererService.render_with_smart_fallback(meme_data, options)
+    end
+
+    def media_placeholder_styles
+      SmartMediaRendererService.placeholder_styles
+    end
   end
 
   # -----------------------
@@ -1609,6 +1621,9 @@ class MemeExplorer < Sinatra::Base
     query_lower = query.downcase.strip
     return [] if query_lower.empty?
     
+    # FIX: Escape SQL wildcards to prevent injection
+    escaped_query = query_lower.gsub(/[%_]/, '\\\\\0')
+    
     # Tier 1: Search in-memory cache (instant, fresh Reddit memes)
     cache_results = (MEME_CACHE[:memes] || []).select do |m|
       (m["title"]&.downcase&.include?(query_lower) ||
@@ -1625,8 +1640,9 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Tier 3: Fall back to DB + YAML if still empty
+    # FIX: Use escaped query for SQL LIKE to prevent injection
     if cache_results.empty?
-      db_results = (DB.execute("SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE", ["%#{query_lower}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
+      db_results = (DB.execute("SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE", ["%#{escaped_query}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
       yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end
@@ -1885,8 +1901,14 @@ class MemeExplorer < Sinatra::Base
   end
 
   get "/saved/:id" do
+    # FIX: IDOR vulnerability - require authentication and authorization
+    halt 401, "Not logged in" unless session[:user_id]
+    
     saved_id = params[:id].to_i
-    saved_meme = DB.execute("SELECT * FROM saved_memes WHERE id = ?", [saved_id]).first
+    saved_meme = DB.execute(
+      "SELECT * FROM saved_memes WHERE id = ? AND user_id = ?", 
+      [saved_id, session[:user_id]]
+    ).first
 
     halt 404, "Meme not found" unless saved_meme
 
