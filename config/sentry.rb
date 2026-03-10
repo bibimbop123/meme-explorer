@@ -3,14 +3,16 @@ require 'sentry-ruby'
 
 Sentry.init do |config|
   # FIX: Remove hardcoded DSN fallback - fail gracefully if not configured
-  config.dsn = ENV['SENTRY_DSN']
+  sentry_dsn = ENV['SENTRY_DSN']
   
   # Disable Sentry if DSN not configured
-  if config.dsn.nil? || config.dsn.empty?
+  if sentry_dsn.nil? || sentry_dsn.to_s.strip.empty?
     puts "⚠️  Sentry DSN not configured - error tracking disabled"
     config.enabled_environments = []
     return
   end
+  
+  config.dsn = sentry_dsn
   
   config.environment = ENV['RACK_ENV'] || 'development'
   config.enabled_environments = %w[production staging development]
