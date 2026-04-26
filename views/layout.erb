@@ -46,6 +46,7 @@
   <link rel="manifest" href="/manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/meme_explorer.css">
+  <link rel="stylesheet" href="/css/animations.css">
   <style>
     /* Gamification UI Styles */
     .streak-badge {
@@ -216,17 +217,22 @@
   <script>
     window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
     
-    // Level-up celebration
+    // Level-up celebration with screen shake and confetti
     <% if session[:last_xp_gain] && session[:last_xp_gain][:leveled_up] %>
       setTimeout(() => {
+        // Screen shake for impact!
+        document.body.classList.add('screen-shake');
+        setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+        
         const modal = document.createElement('div');
         modal.className = 'level-up-modal';
         modal.innerHTML = `
           <div class="level-up-content">
             <h2>🎉 LEVEL UP! 🎉</h2>
-            <p>You're now Level <%= session[:last_xp_gain][:new_level] %>!</p>
+            <p>You're now Level <%= session[:last_xp_gain][:level] %>!</p>
+            <p class="level-title" style="font-size: 1.3rem; margin: 0.5rem 0;"><%= session[:last_xp_gain][:title] %></p>
             <p>+<%= session[:last_xp_gain][:xp_gained] %> XP</p>
-            <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; padding: 0.75rem 2rem; font-size: 1.1rem; border: none; background: white; color: #f5576c; border-radius: 10px; cursor: pointer; font-weight: bold;">Awesome!</button>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; padding: 0.75rem 2rem; font-size: 1.1rem; border: none; background: white; color: #f5576c; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Let's GOOO! 🚀</button>
           </div>
         `;
         document.body.appendChild(modal);

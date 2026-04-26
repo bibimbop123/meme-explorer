@@ -18,7 +18,10 @@
             <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="handleImageError(this, '<%= @image_src %>')" style="max-width: 100%; max-height: 100%; object-fit: contain;">
           <% end %>
         <% else %>
-          <div class="meme-loading"></div>
+          <div class="meme-loading">
+            <div class="loading-spinner"></div>
+            <p class="loading-text"><%= PersonalityContent.random_loading_message %></p>
+          </div>
         <% end %>
       </div>
       <button class="carousel-arrow carousel-arrow-right" id="carousel-next" aria-label="Next image" style="display: none;">›</button>
@@ -63,9 +66,13 @@
   </div>
 
   <div class="nav-hints-container">
-    <div class="nav-hint">Broccoli makes you Brolic!</div>
-    <div class="nav-hint">Swipe or press Space ↑</div>
-    <div class="nav-hint">Press T for Title</div>
+    <div class="nav-hint"><%= PersonalityContent.random_nav_hint %></div>
+    <div class="nav-hint"><%= PersonalityContent.time_greeting %></div>
+    <% if session[:user_id] && @streak_data %>
+      <div class="nav-hint" style="color: #ff6b6b; font-weight: bold;"><%= PersonalityContent.streak_encouragement(@streak_data[:days] || @streak_data[:current_streak] || 0) %></div>
+    <% else %>
+      <div class="nav-hint"><%= PersonalityContent.random_nav_hint %></div>
+    <% end %>
   </div>
 </div>
 

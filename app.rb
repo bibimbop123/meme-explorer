@@ -31,6 +31,7 @@ require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
+require_relative "./lib/helpers/personality_content"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require "digest"
@@ -459,10 +460,15 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # Gamification & Gallery Helpers
+  # Gamification, Gallery & Personality Helpers
   # -----------------------
   helpers GamificationHelpers
   helpers GalleryHelpers
+  
+  # Include personality content methods
+  helpers do
+    include PersonalityContent
+  end
   
   helpers do
     # Hash password with bcrypt
