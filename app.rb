@@ -2315,8 +2315,8 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/reactions'
   require_relative './routes/battles'
   
-  MemeExplorer::Routes::Reactions.register(self)
-  MemeExplorer::Routes::Battles.register(self)
+  ReactionsRoutes.register(self)
+  BattlesRoutes.register(self)
   
   # -----------------------
   # Start server

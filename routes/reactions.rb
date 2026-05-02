@@ -1,10 +1,8 @@
 # Reactions Routes
 # Handles meme reactions (😂 🔥 💀 😱 🤔)
 
-module MemeExplorer
-  module Routes
-    class Reactions
-      def self.register(app)
+class ReactionsRoutes
+  def self.register(app)
         # Add or toggle a reaction
         app.post '/api/reactions' do
           url = params[:url]
@@ -163,7 +161,5 @@ module MemeExplorer
             [].to_json
           end
         end
-      end
-    end
   end
 end

@@ -1,13 +1,11 @@
 # Meme Battles Routes
 # Head-to-head meme voting with ELO ratings
 
-module MemeExplorer
-  module Routes
-    class Battles
-      # ELO calculation constants
-      K_FACTOR = 32 # Sensitivity to wins/losses
-      
-      def self.register(app)
+class BattlesRoutes
+  # ELO calculation constants
+  K_FACTOR = 32 # Sensitivity to wins/losses
+  
+  def self.register(app)
         # Get a new battle (two random memes)
         app.get '/battles/new' do
           begin
@@ -242,7 +240,5 @@ module MemeExplorer
             [loser_url, new_loser_elo, new_loser_elo]
           )
         end
-      end
-    end
   end
 end
