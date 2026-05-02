@@ -34,6 +34,8 @@ require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/personality_content"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
+require_relative "./lib/services/image_validator_service"
+require_relative "./lib/services/activity_tracker_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -2287,6 +2289,34 @@ class MemeExplorer < Sinatra::Base
     { deleted: true, message: "Meme deleted" }.to_json
   end
 
+  # -----------------------
+  # Activity Tracking API
+  # -----------------------
+  get '/api/activity-stats' do
+    content_type :json
+    
+    begin
+      stats = ActivityTrackerService.stats
+      stats.to_json
+    rescue => e
+      puts "❌ [Activity Stats] Error: #{e.message}"
+      { 
+        active_users: 0, 
+        viewing_users: 0, 
+        redis_available: false,
+        error: e.message 
+      }.to_json
+    end
+  end
+  
+  # -----------------------
+  # Load Additional Routes
+  # -----------------------
+  require_relative './routes/reactions'
+  require_relative './routes/battles'
+  
+  MemeExplorer::Routes::Reactions.register(self)
+  MemeExplorer::Routes::Battles.register(self)
   
   # -----------------------
   # Start server
