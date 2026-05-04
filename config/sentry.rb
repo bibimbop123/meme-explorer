@@ -52,17 +52,9 @@ Sentry.init do |config|
   # Privacy: DO NOT send PII
   config.send_default_pii = false
   
-  # Sanitize sensitive fields
-  config.sanitize_fields = [
-    'password',
-    'password_confirmation',
-    'secret',
-    'api_key',
-    'access_token',
-    'refresh_token',
-    'session_secret',
-    'reddit_client_secret'
-  ]
+  # Note: sanitize_fields has been removed in Sentry 5.x
+  # PII protection is now handled by send_default_pii = false
+  # Additional filtering can be done via before_send callback if needed
   
   # Enhanced error context
   config.before_send = lambda do |event, hint|
