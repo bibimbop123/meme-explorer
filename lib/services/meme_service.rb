@@ -91,18 +91,21 @@ class MemeService
       m_copy
     end
 
-    # HUMOR & RELATIONSHIP MAXIMIZATION: Score and prioritize funny/relationship content
+    # IMPROVED: Use quality_score if available, otherwise calculate humor score
     scored_memes = normalized.map do |m|
-      score = calculate_humor_score(m)
+      # Use API quality score if present, otherwise calculate manually
+      score = m['quality_score'] || calculate_humor_score(m)
       { meme: m, score: score }
     end
 
-    # Sort by score (highest first), then shuffle within score groups for variety
+    # Sort by score (highest first)
     sorted = scored_memes.sort_by { |sm| -sm[:score] }
     
-    # Weighted shuffle: 70% high-score memes, 30% variety from lower scores
-    high_score = sorted.first(sorted.size * 0.7).map { |sm| sm[:meme] }.shuffle
-    variety = sorted.last(sorted.size * 0.3).map { |sm| sm[:meme] }.shuffle
+    # IMPROVED: Weighted shuffle for maximum quality
+    # 80% high-score memes (funnier content), 20% variety
+    high_score_count = (sorted.size * 0.8).to_i
+    high_score = sorted.first(high_score_count).map { |sm| sm[:meme] }.shuffle
+    variety = sorted.last(sorted.size - high_score_count).map { |sm| sm[:meme] }.shuffle
     
     weighted_pool = high_score + variety
 
@@ -112,44 +115,66 @@ class MemeService
     weighted_pool
   end
 
-  # Calculate humor score based on keywords and subreddit
+  # Calculate humor score based on keywords, subreddit, and engagement
   def calculate_humor_score(meme)
     score = 1.0
     title = (meme["title"] || "").downcase
     subreddit = (meme["subreddit"] || "").downcase
+    
+    # Use engagement metrics if available
+    likes = (meme["likes"] || 0).to_i
+    comments = (meme["comments"] || 0).to_i
+    upvote_ratio = (meme["upvote_ratio"] || 0.5).to_f
 
-    # RELATIONSHIP KEYWORDS - High boost
+    # ENGAGEMENT SCORE - Primary factor
+    engagement_score = (likes * 0.1) + (comments * 0.05) + (upvote_ratio * 10)
+    score += engagement_score
+
+    # RELATIONSHIP KEYWORDS - Highest boost (most addictive content)
     relationship_keywords = [
       'boyfriend', 'girlfriend', 'dating', 'relationship', 'couples',
       'partner', 'wife', 'husband', 'marriage', 'married', 'crush',
       'ex', 'tinder', 'bumble', 'texting', 'replied', 'talking',
-      'argument', 'fight', 'breakup', 'single', 'taken'
+      'argument', 'fight', 'breakup', 'single', 'taken', 'toxic'
     ]
     
     relationship_keywords.each do |keyword|
-      score += 3.0 if title.include?(keyword)
+      score += 5.0 if title.include?(keyword)  # Increased from 3.0
     end
 
-    # HUMOR KEYWORDS - Medium boost
+    # HUMOR KEYWORDS - High boost
     humor_keywords = [
       'funny', 'lol', 'hilarious', 'comedy', 'joke', 'humor',
       'laughing', 'lmao', 'rofl', 'haha', 'meme', 'savage',
       'relatable', 'mood', 'accurate', 'real', 'fr', 'ngl',
-      'pov', 'when she', 'when he', 'be like', 'that moment'
+      'pov', 'when she', 'when he', 'be like', 'that moment',
+      'nobody:', 'imagine', 'literally'
     ]
     
     humor_keywords.each do |keyword|
+      score += 3.0 if title.include?(keyword)  # Increased from 2.0
+    end
+
+    # VIRAL KEYWORDS - Medium boost
+    viral_keywords = ['holup', 'wait', 'blessed', 'cursed', 'bruh', 'oof']
+    viral_keywords.each do |keyword|
       score += 2.0 if title.include?(keyword)
     end
 
-    # SUBREDDIT BOOST - Prioritize relationship and humor subreddits
-    humor_subreddits = [
-      'funny', 'memes', 'dankmemes', 'me_irl', 'comedyheaven',
-      'relationships', 'relationship_memes', 'relationshipmemes',
-      'dating', 'tinder', 'adviceanimals'
+    # SUBREDDIT BOOST - Prioritize top-tier subreddits
+    top_tier_subs = [
+      'memes', 'dankmemes', 'me_irl', 'meirl', '2meirl4meirl',
+      'comedyheaven', 'tinder', 'bumble', 'relationship_memes',
+      'relationshipmemes', 'holup', 'okbuddyretard', 'adviceanimals'
     ]
     
-    score += 5.0 if humor_subreddits.include?(subreddit)
+    mid_tier_subs = [
+      'funny', 'wholesomememes', 'mademesmile', 'murderedbywords',
+      'rareinsults', 'facepalm', 'instant_regret'
+    ]
+    
+    score += 8.0 if top_tier_subs.include?(subreddit)    # Increased from 5.0
+    score += 4.0 if mid_tier_subs.include?(subreddit)
 
     score
   end

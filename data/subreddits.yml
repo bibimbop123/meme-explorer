@@ -1,116 +1,155 @@
-# MEME EXPLORER SUBREDDITS - CURATED FOR WHOLESOME/INTERESTING/EDUCATIONAL
-# Based on audit: 28 confirmed working subreddits with reliable image delivery
-# Removed non-performing tiers (stocks, music, sports/gaming)
+# MEME EXPLORER SUBREDDITS - OPTIMIZED FOR MAXIMUM HUMOR & ENGAGEMENT
+# Updated 2026 - Focus on HIGH-QUALITY, FUNNY, RELATABLE content
 
-# TIER 1: WHOLESOME & HUMOR (50% priority) - BEST PERFORMERS
+# TIER 1: PEAK HUMOR & RELATIONSHIPS (60% priority) - ABSOLUTE BEST
 tier_1:
-  - funny              # ✅ 5 images - core humor
-  - memes              # ✅ 10 images - internet culture
-  - dankmemes          # ✅ 10 images - edgy but quality
-  - me_irl             # ✅ 9 images - relatable memes
-  - ComedyHeaven       # ✅ 10 images - absurd humor
-  - comedycemetery     # ✅ 10 images - bad memes (ironically funny)
-  - terriblefacebookmemes  # ✅ 4 images - wholesome bad memes
-  - relationships      # Relationship humor and advice
-  - relationship_memes # Funny relationship content
-  - relationshipmemes  # More relationship jokes
-  - dating             # Dating humor
-  - Tinder             # Dating app humor
-  - AdviceAnimals      # Classic meme format with humor
-  - MadeMeSmile        # Wholesomeness focus
-  - IllegallySmolCats  # Cute animals
-  - IllegallySmolDogs  # Cute animals
-  - Eyebleach          # Wholesome animals
+  # Core Meme Powerhouses
+  - memes              # The biggest meme hub
+  - dankmemes          # Edgy, fresh memes
+  - me_irl             # Ultra relatable
+  - meirl              # Alternative relatable hub
+  - 2meirl4meirl       # Deep relatable content
+  - ComedyHeaven       # Absurdist gold
+  - funny              # Classic humor
+  - HolUp              # Unexpected twists
+  - cursedcomments     # Dark humor in comments
+  - blursedimages      # Blessed + cursed
+  
+  # Relationship & Dating Gold
+  - Tinder             # Dating app fails & wins
+  - Bumble             # More dating humor
+  - relationship_memes # Relationship-focused memes
+  - relationshipmemes  # More relationship comedy
+  - AdviceAnimals      # Classic relationship advice memes
+  - dating_advice      # Dating humor and fails
+  - niceguys           # Cringe dating content
+  - Nicegirls          # Female equivalent
+  - Badfaketexts       # Hilarious fake conversations
+  - CreepyPMs          # Awkward messages
 
-# TIER 2: INTERESTING & AMAZING (25% priority) - ENGAGING CONTENT
+# TIER 2: VIRAL HUMOR (20% priority) - TRENDING CONTENT
 tier_2:
-  - interestingasfuck  # ✅ 3 images - fascinating
-  - ThatsInsane        # ✅ 5 images - wow moments
-  - Damnthatsinteresting  # High quality interesting posts
-  - BeAmazed           # Visually interesting content
-  - NextFuckingLevel   # Impressive achievements
-  - TopTalent          # Skilled performances
+  - OkBuddyRetard      # Ironic absurdist humor
+  - shitposting        # Quality shitposts
+  - comedycemetery     # So bad it's funny
+  - terriblefacebookmemes  # Wholesome cringe
+  - wholesomememes     # Feel-good content
+  - MadeMeSmile        # Uplifting moments
+  - ContagiousLaughter # Infectious joy
+  - Unexpected         # Plot twists
+  - yesyesyesyesno     # Rollercoaster endings
+  - nonononoyes        # Reverse rollercoaster
 
-# TIER 3: SATISFYING & ENTERTAINING (15% priority) - HIGH ENGAGEMENT
+# TIER 3: SPECIFIC HUMOR NICHES (10% priority) - TARGETED COMEDY
 tier_3:
-  - oddlysatisfying    # ✅ 1 image - reliable source
-  - gifs               # ✅ 5 images - motion content
-  - facepalm           # ✅ 8 images - funny mistakes
-  - instant_regret     # Comedic moments
-  - Unexpected         # Surprising content
+  # Workplace & Life
+  - antiwork           # Work-life humor
+  - recruitinghell     # Job search fails
+  - LinkedInLunatics   # Professional cringe
+  - ABoringDystopia    # Modern life satire
+  
+  # Tech & Nerd Humor
+  - ProgrammerHumor    # Code comedy
+  - softwaregore       # Tech fails
+  - techsupportgore    # IT nightmares
+  
+  # Specific Formats
+  - MurderedByWords    # Epic comebacks
+  - rareinsults        # Creative roasts
+  - BrandNewSentence   # Unique phrases
+  - suspiciouslyspecific # Oddly specific content
 
-# TIER 4: WHOLESOME ANIMALS (10% priority) - PET & NATURE CONTENT
+# TIER 4: VISUAL COMEDY (5% priority) - IMAGE-BASED HUMOR
 tier_4:
-  - Zoomies            # ✅ 2 images - energetic pets
-  - Catswithjobs       # ✅ 3 images - cats in situations
-  - rarepuppers        # Rare dog moments
-  - IllegallySmolAnimals  # Cute small creatures
-  - Aww                # General cuteness
-  - Ducks              # Wholesome bird content
-  - MurderedByWords    # ✅ 10 images - clever comebacks
+  - facepalm           # Facepalm moments
+  - instant_regret     # Regret in action
+  - Whatcouldgowrong   # Predictable failures
+  - WinStupidPrizes    # Stupid decisions
+  - therewasanattempt  # Failed attempts
+  - CrappyDesign       # Design fails
+  - mildlyinfuriating  # Minor annoyances
+  - oddlysatisfying    # Satisfying content
+  - Damnthatsinteresting  # Fascinating posts
+  - interestingasfuck  # Mind-blowing content
 
-# TIER 5: EDUCATIONAL & QUALITY (8% priority) - LEARNING CONTENT
+# TIER 5: WHOLESOME BALANCE (5% priority) - PALATE CLEANSERS
 tier_5:
-  - Animemes           # ✅ 8 images - anime culture
-  - educationalgifs    # Learning through GIFs
-  - LearnUselessFacts  # Fun facts for all
-  - gifsthatkeepongiving  # Long-form educational
+  - Eyebleach          # Cute overload
+  - aww                # Adorable animals
+  - AnimalsBeingDerps  # Silly animals
+  - AnimalsBeingBros   # Heartwarming animals
+  - IllegallySmolCats  # Tiny cats
+  - rarepuppers        # Good dogs
+  - Zoomies            # Energetic pets
+  - Catswithjobs       # Working cats
 
-# TIER 6: NICHE & COMMUNITY (6% priority) - SPECIFIC COMMUNITIES
-tier_6:
-  - ProgrammerHumor    # ✅ 10 images - tech humor
-  - webdev             # ✅ 4 images - web development
-  - backend            # ✅ 1 image - backend development
-  - datascience        # ✅ 2 images - data science humor
-  - linux              # ✅ 4 images - Linux culture
-  - java               # ✅ 2 images - Java programming
-  - antiwork           # ✅ 5 images - workplace humor
-
-# Legacy compatibility - includes all tiers
+# Legacy compatibility - includes all tiers weighted by priority
 popular:
-  - funny
+  # TIER 1: Peak Humor & Relationships (60%)
   - memes
   - dankmemes
   - me_irl
+  - meirl
+  - 2meirl4meirl
   - ComedyHeaven
-  - comedycemetery
-  - terriblefacebookmemes
-  - relationships
+  - funny
+  - HolUp
+  - cursedcomments
+  - blursedimages
+  - Tinder
+  - Bumble
   - relationship_memes
   - relationshipmemes
-  - dating
-  - Tinder
   - AdviceAnimals
+  - dating_advice
+  - niceguys
+  - Nicegirls
+  - Badfaketexts
+  - CreepyPMs
+  
+  # TIER 2: Viral Humor (20%)
+  - OkBuddyRetard
+  - shitposting
+  - comedycemetery
+  - terriblefacebookmemes
+  - wholesomememes
   - MadeMeSmile
-  - IllegallySmolCats
-  - IllegallySmolDogs
-  - Eyebleach
-  - interestingasfuck
-  - ThatsInsane
-  - Damnthatsinteresting
-  - BeAmazed
-  - NextFuckingLevel
-  - TopTalent
-  - oddlysatisfying
-  - gifs
+  - ContagiousLaughter
+  - Unexpected
+  - yesyesyesyesno
+  - nonononoyes
+  
+  # TIER 3: Specific Humor (10%)
+  - antiwork
+  - recruitinghell
+  - LinkedInLunatics
+  - ABoringDystopia
+  - ProgrammerHumor
+  - softwaregore
+  - techsupportgore
+  - MurderedByWords
+  - rareinsults
+  - BrandNewSentence
+  - suspiciouslyspecific
+  
+  # TIER 4: Visual Comedy (5%)
   - facepalm
   - instant_regret
-  - Unexpected
+  - Whatcouldgowrong
+  - WinStupidPrizes
+  - therewasanattempt
+  - CrappyDesign
+  - mildlyinfuriating
+  - oddlysatisfying
+  - Damnthatsinteresting
+  - interestingasfuck
+  
+  # TIER 5: Wholesome (5%)
+  - Eyebleach
+  - aww
+  - AnimalsBeingDerps
+  - AnimalsBeingBros
+  - IllegallySmolCats
+  - rarepuppers
   - Zoomies
   - Catswithjobs
-  - rarepuppers
-  - IllegallySmolAnimals
-  - Aww
-  - Ducks
-  - MurderedByWords
-  - Animemes
-  - educationalgifs
-  - LearnUselessFacts
-  - gifsthatkeepongiving
-  - ProgrammerHumor
-  - webdev
-  - backend
-  - datascience
-  - linux
-  - java
-  - antiwork

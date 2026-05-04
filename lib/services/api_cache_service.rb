@@ -10,6 +10,12 @@ class ApiCacheService
   CACHE_TTL = 1800
   LOCK_TTL = 30
   FETCH_TIMEOUT = 45
+  
+  # QUALITY FILTERS - Higher quality memes only
+  MIN_UPVOTES = 50          # Minimum upvotes to be considered
+  MIN_UPVOTE_RATIO = 0.7    # Upvote ratio threshold (70%+)
+  MIN_COMMENTS = 5          # Minimum engagement
+  PREFERRED_MIN_UPVOTES = 200  # Bonus for high-quality memes
 
   # Thread-safe in-memory cache
   @@memory_cache = {}
@@ -151,11 +157,14 @@ class ApiCacheService
       begin
         api_memes = []
 
+        # IMPROVED: Fetch from MORE subreddits with HIGHER quality
         # Try unauthenticated fetch first (faster)
         begin
           Timeout.timeout(FETCH_TIMEOUT) do
-            subreddits_sample = popular_subreddits.sample([8, popular_subreddits.size].min)
-            api_memes = fetch_reddit_memes_unauthenticated(subreddits_sample, 40)
+            # IMPROVEMENT 1: Fetch from 15 subreddits instead of 8 for more variety
+            subreddits_sample = popular_subreddits.sample([15, popular_subreddits.size].min)
+            # IMPROVEMENT 2: Fetch 100 posts per subreddit to get better selection after filtering
+            api_memes = fetch_reddit_memes_unauthenticated(subreddits_sample, 100)
             puts "[CACHE] Unauthenticated fetch: #{api_memes.size} memes"
           end
         rescue Timeout::Error
@@ -180,8 +189,8 @@ class ApiCacheService
                   token_url: '/api/v1/access_token'
                 )
                 token = client.client_credentials.get_token(scope: 'read')
-                subreddits_sample = popular_subreddits.sample([8, popular_subreddits.size].min)
-                api_memes = fetch_reddit_memes_authenticated(token.token, subreddits_sample, 40)
+                subreddits_sample = popular_subreddits.sample([15, popular_subreddits.size].min)
+                api_memes = fetch_reddit_memes_authenticated(token.token, subreddits_sample, 100)
                 puts "[CACHE] Authenticated fetch: #{api_memes.size} memes"
               end
             rescue Timeout::Error
@@ -192,12 +201,12 @@ class ApiCacheService
           end
         end
 
-        # Validate and cache
+        # IMPROVEMENT 3: Validate, filter quality, and sort by engagement
         if api_memes && !api_memes.empty?
-          validated = validate_memes(api_memes)
+          validated = validate_and_filter_quality_memes(api_memes)
           if !validated.empty?
             set_cached_memes(validated)
-            puts "[CACHE] Cached #{validated.size} valid memes"
+            puts "[CACHE] Cached #{validated.size} high-quality memes"
             return validated
           end
         end
@@ -215,31 +224,64 @@ class ApiCacheService
       memes = []
       subreddits.each do |subreddit|
         begin
-          response = HTTParty.get(
-            "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}",
-            headers: {
-              'Authorization' => "Bearer #{token}",
-              'User-Agent' => 'MemeExplorer/1.0'
-            },
-            timeout: 15
-          )
-          if response.success?
-            (response.parsed_response.dig('data', 'children') || []).each do |post|
-              post_data = post['data']
-              next if post_data['is_video']
+          # IMPROVEMENT 4: Fetch from both HOT and TOP for variety
+          ['hot', 'top'].each do |sort_type|
+            url = if sort_type == 'top'
+                    "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit / 2}"
+                  else
+                    "https://oauth.reddit.com/r/#{subreddit}/hot?limit=#{limit / 2}"
+                  end
+                  
+            response = HTTParty.get(
+              url,
+              headers: {
+                'Authorization' => "Bearer #{token}",
+                'User-Agent' => 'MemeExplorer/1.0'
+              },
+              timeout: 15
+            )
+            
+            if response.success?
+              (response.parsed_response.dig('data', 'children') || []).each do |post|
+                post_data = post['data']
+                
+                # IMPROVEMENT 5: Quality filtering - skip low-quality posts
+                upvotes = post_data['ups'] || 0
+                next if upvotes < MIN_UPVOTES
+                
+                # Check upvote ratio
+                upvote_ratio = post_data['upvote_ratio'] || 0
+                next if upvote_ratio < MIN_UPVOTE_RATIO
+                
+                # Check engagement (comments)
+                num_comments = post_data['num_comments'] || 0
+                next if num_comments < MIN_COMMENTS
 
-              image_url = extract_image_url(post_data)
-              next unless image_url
+                # IMPROVEMENT 6: Support videos (reddit hosted only, no external)
+                is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
+                
+                image_url = if is_reddit_video
+                              post_data.dig('media', 'reddit_video', 'fallback_url') # Video thumbnail/fallback
+                            else
+                              extract_image_url(post_data)
+                            end
+                            
+                next unless image_url
 
-              memes << {
-                'title' => post_data['title'],
-                'url' => image_url,
-                'subreddit' => post_data['subreddit'],
-                'likes' => post_data['ups'] || 0
-              }
+                memes << {
+                  'title' => post_data['title'],
+                  'url' => image_url,
+                  'subreddit' => post_data['subreddit'],
+                  'likes' => upvotes,
+                  'comments' => num_comments,
+                  'upvote_ratio' => upvote_ratio,
+                  'is_video' => is_reddit_video ? true : false,
+                  'quality_score' => calculate_quality_score(upvotes, num_comments, upvote_ratio)
+                }
+              end
             end
+            sleep 0.3 # Reduced sleep for faster fetching
           end
-          sleep 0.5
         rescue => e
           puts "[FETCH] Error from r/#{subreddit}: #{e.class}"
         end
@@ -257,39 +299,68 @@ class ApiCacheService
 
       subreddits.each do |subreddit|
         begin
-          url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
-          uri = URI(url)
+          # IMPROVEMENT 7: Fetch from both HOT and TOP
+          ['hot', 'top'].each do |sort_type|
+            url = if sort_type == 'top'
+                    "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit / 2}"
+                  else
+                    "https://www.reddit.com/r/#{subreddit}/hot.json?limit=#{limit / 2}"
+                  end
+                  
+            uri = URI(url)
 
-          response = Net::HTTP.start(
-            uri.host,
-            uri.port,
-            use_ssl: true,
-            read_timeout: 10,
-            open_timeout: 10
-          ) do |http|
-            request = Net::HTTP::Get.new(uri.request_uri)
-            request['User-Agent'] = user_agents.sample
-            http.request(request)
-          end
-
-          if response.code == '200'
-            data = JSON.parse(response.body)
-            (data.dig('data', 'children') || []).each do |post|
-              post_data = post['data']
-              next if post_data['is_video']
-
-              image_url = extract_image_url(post_data)
-              next unless image_url
-
-              memes << {
-                'title' => post_data['title'],
-                'url' => image_url,
-                'subreddit' => post_data['subreddit'],
-                'likes' => post_data['ups'] || 0
-              }
+            response = Net::HTTP.start(
+              uri.host,
+              uri.port,
+              use_ssl: true,
+              read_timeout: 10,
+              open_timeout: 10
+            ) do |http|
+              request = Net::HTTP::Get.new(uri.request_uri)
+              request['User-Agent'] = user_agents.sample
+              http.request(request)
             end
+
+            if response.code == '200'
+              data = JSON.parse(response.body)
+              (data.dig('data', 'children') || []).each do |post|
+                post_data = post['data']
+                
+                # QUALITY FILTERING
+                upvotes = post_data['ups'] || 0
+                next if upvotes < MIN_UPVOTES
+                
+                upvote_ratio = post_data['upvote_ratio'] || 0
+                next if upvote_ratio < MIN_UPVOTE_RATIO
+                
+                num_comments = post_data['num_comments'] || 0
+                next if num_comments < MIN_COMMENTS
+
+                # Support reddit videos
+                is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
+                
+                image_url = if is_reddit_video
+                              post_data.dig('media', 'reddit_video', 'fallback_url')
+                            else
+                              extract_image_url(post_data)
+                            end
+                            
+                next unless image_url
+
+                memes << {
+                  'title' => post_data['title'],
+                  'url' => image_url,
+                  'subreddit' => post_data['subreddit'],
+                  'likes' => upvotes,
+                  'comments' => num_comments,
+                  'upvote_ratio' => upvote_ratio,
+                  'is_video' => is_reddit_video ? true : false,
+                  'quality_score' => calculate_quality_score(upvotes, num_comments, upvote_ratio)
+                }
+              end
+            end
+            sleep 0.3
           end
-          sleep 0.5
         rescue => e
           puts "[FETCH] Error from r/#{subreddit}: #{e.class}"
         end
@@ -315,11 +386,37 @@ class ApiCacheService
       nil
     end
 
-    def validate_memes(memes)
-      memes.select do |m|
+    # IMPROVEMENT 8: Calculate quality score for sorting
+    def calculate_quality_score(upvotes, comments, upvote_ratio)
+      # Weighted formula: upvotes are king, but engagement matters
+      score = (upvotes * 1.0) + (comments * 0.5) + (upvote_ratio * 100)
+      
+      # Bonus for very popular posts
+      score *= 1.5 if upvotes >= PREFERRED_MIN_UPVOTES
+      
+      score
+    end
+
+    # IMPROVEMENT 9: Strict validation AND quality filtering
+    def validate_and_filter_quality_memes(memes)
+      validated = memes.select do |m|
         url = m['url'].to_s.strip
-        url.match?(/^https?:\/\//)
+        
+        # Must have valid URL
+        next false unless url.match?(/^https?:\/\//)
+        
+        # Must have minimum quality metrics
+        next false unless m['likes'].to_i >= MIN_UPVOTES
+        next false unless m['upvote_ratio'].to_f >= MIN_UPVOTE_RATIO
+        
+        true
       end
+      
+      # Sort by quality score (highest first)
+      sorted = validated.sort_by { |m| -(m['quality_score'] || 0) }
+      
+      # IMPROVEMENT 10: Return top 200 highest quality memes
+      sorted.first(200)
     end
   end
 end

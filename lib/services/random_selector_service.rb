@@ -17,13 +17,14 @@ module MemeExplorer
       'incest'
     ].freeze
 
-    # Humor type weights for diversity
+    # Humor type weights for diversity (INCREASED for funnier content)
     HUMOR_WEIGHTS = {
-      'dank' => 1.0,
-      'funny' => 1.2,
-      'wholesome' => 0.9,
-      'absurdist' => 1.1,
-      'dark' => 0.95
+      'dank' => 1.3,
+      'funny' => 1.5,
+      'wholesome' => 1.1,
+      'absurdist' => 1.4,
+      'dark' => 1.2,
+      'relationship' => 1.6  # NEW: Highest weight for relationship memes
     }.freeze
 
     def self.select_random_meme(memes, session_id: nil, preferences: {})
@@ -140,21 +141,35 @@ module MemeExplorer
     end
 
     def self.calculate_weight(meme)
+      # IMPROVED: Use quality_score from API if available
+      quality_score = meme['quality_score'] || 0
+      
       # Base weight from engagement
       likes = (meme['likes'] || 0).to_i
-      base_weight = 1.0 + (likes * 0.01)
+      comments = (meme['comments'] || 0).to_i
+      upvote_ratio = (meme['upvote_ratio'] || 0.5).to_f
+      
+      # If quality_score exists, use it; otherwise calculate
+      base_weight = if quality_score > 0
+                      1.0 + (quality_score * 0.01)  # Use pre-calculated score
+                    else
+                      1.0 + (likes * 0.01) + (comments * 0.005) + (upvote_ratio * 0.5)
+                    end
 
-      # Apply humor type weight
-      humor_type = meme['humor_type'] || 'funny'
+      # IMPROVED: Detect humor type from title/subreddit
+      humor_type = detect_humor_type(meme)
       humor_multiplier = HUMOR_WEIGHTS[humor_type] || 1.0
 
       # Freshness bonus (newer memes slightly preferred)
       freshness_bonus = calculate_freshness_bonus(meme)
 
-      # Media loadability factor (NEW)
+      # Media loadability factor
       loadability_factor = calculate_loadability_score(meme)
+      
+      # BONUS: High engagement posts get extra boost
+      viral_boost = calculate_viral_boost(likes, comments)
 
-      base_weight * humor_multiplier * freshness_bonus * loadability_factor
+      base_weight * humor_multiplier * freshness_bonus * loadability_factor * viral_boost
     end
 
     def self.calculate_loadability_score(meme)
@@ -219,19 +234,61 @@ module MemeExplorer
       created_at = meme['created_at']
       return 1.0 unless created_at
 
-      # Memes from last 24 hours get 1.1x bonus, last 7 days get 1.05x
+      # IMPROVED: Stronger freshness bonus for new content
       age_days = (Time.now - Time.parse(created_at.to_s)).to_i / (24 * 3600)
       
       case age_days
       when 0..1
-        1.15
-      when 2..7
+        1.25  # Increased from 1.15
+      when 2..3
+        1.15  # Increased from 1.08
+      when 4..7
         1.08
       else
         1.0
       end
     rescue
       1.0
+    end
+    
+    # NEW: Detect humor type from content
+    def self.detect_humor_type(meme)
+      title = (meme['title'] || '').downcase
+      subreddit = (meme['subreddit'] || '').downcase
+      
+      # Relationship memes (highest priority)
+      relationship_keywords = ['boyfriend', 'girlfriend', 'dating', 'relationship', 'tinder', 
+                               'bumble', 'crush', 'ex', 'marriage', 'wife', 'husband']
+      return 'relationship' if relationship_keywords.any? { |kw| title.include?(kw) || subreddit.include?(kw) }
+      
+      # Absurdist
+      absurdist_subs = ['okbuddyretard', 'comedyheaven', 'shitposting', 'blursed']
+      return 'absurdist' if absurdist_subs.any? { |sub| subreddit.include?(sub) }
+      
+      # Wholesome
+      wholesome_subs = ['wholesome', 'mademesmile', 'eyebleach', 'aww']
+      return 'wholesome' if wholesome_subs.any? { |sub| subreddit.include?(sub) }
+      
+      # Dank
+      dank_subs = ['dank', 'holup', 'cursed']
+      return 'dank' if dank_subs.any? { |sub| subreddit.include?(sub) }
+      
+      # Default to funny
+      'funny'
+    end
+    
+    # NEW: Viral boost for high-engagement posts
+    def self.calculate_viral_boost(likes, comments)
+      # Posts with 500+ upvotes and 50+ comments are "viral"
+      if likes >= 500 && comments >= 50
+        1.5  # 50% boost for viral content
+      elsif likes >= 200 && comments >= 20
+        1.3  # 30% boost for popular content
+      elsif likes >= 100
+        1.15 # 15% boost for decent content
+      else
+        1.0
+      end
     end
 
     def self.extract_categories(meme)
