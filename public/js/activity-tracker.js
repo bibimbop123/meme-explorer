@@ -79,10 +79,10 @@ class ActivityTracker {
       
       const data = await response.json();
       
-      // Update display
+      // Update display - use active_users for site-wide visitor count (5-min window)
       const countElement = this.activityElement.querySelector('.count');
       if (countElement) {
-        const newCount = data.viewing_users || data.active_users || 0;
+        const newCount = data.active_users || 0;  // Site visitors (5-min TTL)
         const oldCount = parseInt(countElement.textContent) || 0;
         
         // Animate count change

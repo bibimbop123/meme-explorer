@@ -313,6 +313,21 @@ class MemeExplorer < Sinatra::Base
         @user_level = nil
       end
     end
+    
+    # 🔥 ACTIVITY TRACKING: Track ALL visitors (not just logged-in users)
+    # Skip tracking for static assets, API endpoints, and health checks
+    unless request.path.start_with?('/css', '/js', '/images', '/videos', '/favicon', '/health', '/metrics.json')
+      begin
+        # Generate unique visitor ID from session (works for all visitors)
+        visitor_id = session[:user_id] || session.object_id.to_s
+        
+        # Track visitor as active (5-min window)
+        ActivityTrackerService.mark_active(visitor_id, page: request.path.split('/')[1] || 'home')
+      rescue => e
+        # Don't break the app if tracking fails
+        puts "⚠️ Activity tracking error: #{e.message}"
+      end
+    end
   end
 
   after do

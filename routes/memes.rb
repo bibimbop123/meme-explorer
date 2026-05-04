@@ -32,10 +32,9 @@ module MemeExplorer
           @likes = MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
 
-          # Track user activity for live counter
-          user_id = session[:user_id] || session_id
-          ActivityTrackerService.mark_active(user_id, page: 'random')
-          ActivityTrackerService.mark_viewing(user_id, @image_src)
+          # Track meme viewing activity (active tracking is now handled globally in before filter)
+          visitor_id = session[:user_id] || session.object_id.to_s
+          ActivityTrackerService.mark_viewing(visitor_id, @image_src)
 
           erb :random
         end
