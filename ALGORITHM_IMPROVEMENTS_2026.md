@@ -339,11 +339,3 @@ MIN_COMMENTS = 3  # Lower from 5
 ```
 
 ### Issue: Want more specific humor type
-**Solution:** Adjust weights in `random_selector_service.rb`
-```ruby
-'relationship' => 2.0,  # Even higher priority
-```
-
----
-
-**Questions?** Check the code comments in each service file for detailed explanations! 🎯

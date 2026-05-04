@@ -372,7 +372,18 @@ class ApiCacheService
       # Try direct image URL
       if post_data['url']
         url = post_data['url']
+        
+        # CRITICAL: Reject subreddit URLs (e.g., /r/SubredditName/)
+        return nil if url.match?(/^\/r\/[^\/]+\/?$/)
+        return nil if url.match?(/reddit\.com\/r\/[^\/]+\/?$/)
+        
+        # Accept only actual image URLs
         if url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+          return url
+        end
+        
+        # Accept known image hosting domains even without extension
+        if url.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it)/i)
           return url
         end
       end
@@ -380,7 +391,10 @@ class ApiCacheService
       # Try preview image
       preview = post_data.dig('preview', 'images', 0, 'source', 'url')
       if preview
-        return preview.gsub('&amp;', '&')
+        cleaned = preview.gsub('&amp;', '&')
+        # Validate preview URL is not a subreddit path
+        return nil if cleaned.match?(/^\/r\/[^\/]+\/?$/)
+        return cleaned
       end
 
       nil
@@ -404,6 +418,16 @@ class ApiCacheService
         
         # Must have valid URL
         next false unless url.match?(/^https?:\/\//)
+        
+        # CRITICAL: Reject subreddit paths (these cause fallback errors)
+        next false if url.match?(/^\/r\/[^\/]+\/?$/)
+        next false if url.match?(/reddit\.com\/r\/[^\/]+\/?$/)
+        next false if url.include?('/r/') && url.include?('/comments/')
+        
+        # Must be actual media URL
+        is_media = url.match?(/\.(jpg|jpeg|png|gif|webp|mp4|webm)(\?|$)/i) ||
+                   url.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it|v\.redd\.it)/)
+        next false unless is_media
         
         # Must have minimum quality metrics
         next false unless m['likes'].to_i >= MIN_UPVOTES

@@ -381,8 +381,19 @@
   
   // SINGLE UPDATE FUNCTION - prevents duplicate DOM mutations
   function updateMemeDisplay(data) {
+    // Safety check: ensure data and data.url exist
+    if (!data || !data.url) {
+      console.error('❌ [UPDATE DISPLAY] Invalid data:', data);
+      return;
+    }
+    
     const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
     const memeDisplay = document.querySelector('.meme-display');
+    
+    if (!memeDisplay) {
+      console.error('❌ [UPDATE DISPLAY] Meme display container not found');
+      return;
+    }
     
     if (mediaType === 'video') {
       const existingVid = memeDisplay.querySelector('video');
@@ -401,10 +412,15 @@
       if (!img) {
         img = document.createElement('img');
         img.onerror = function() { handleImageError(this, data.url); };
-        memeDisplay.querySelector('.meme-display-content').appendChild(img);
+        const displayContent = memeDisplay.querySelector('.meme-display-content');
+        if (displayContent) {
+          displayContent.appendChild(img);
+        } else {
+          memeDisplay.appendChild(img);
+        }
       }
       img.src = data.url;
-      img.alt = data.title;
+      img.alt = data.title || 'Meme';
     }
   }
   
