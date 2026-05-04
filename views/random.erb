@@ -212,14 +212,6 @@
     preview_images: <%= (extract_preview_images(@meme) rescue []).to_json %>,
     media_type: <%= (detect_media_type(@image_src) rescue 'image').to_json %>
   };
-  // Update current meme object WITH preview_images and media_type
-      currentMeme = {
-        url: data.url,
-        subreddit: data.subreddit || 'REDDIT',
-        title: data.title || 'Unknown',
-        preview_images: data.preview_images || [],
-        media_type: data.media_type || 'image'
-      };
   
   const likeBtn = document.getElementById('like-btn');
   const likeCount = document.getElementById('like-count');
@@ -380,14 +372,14 @@
   }
   
   // SINGLE UPDATE FUNCTION - prevents duplicate DOM mutations
-  function updateMemeDisplay(data) {
+  function updateMemeDisplay(memeData) {
     // Safety check: ensure data and data.url exist
-    if (!data || !data.url) {
-      console.error('❌ [UPDATE DISPLAY] Invalid data:', data);
+    if (!memeData || !memeData.url) {
+      console.error('❌ [UPDATE DISPLAY] Invalid data:', memeData);
       return;
     }
     
-    const mediaType = data.media_type || (data.url.endsWith('.mp4') || data.url.endsWith('.webm') ? 'video' : 'image');
+    const mediaType = memeData.media_type || (memeData.url.endsWith('.mp4') || memeData.url.endsWith('.webm') ? 'video' : 'image');
     const memeDisplay = document.querySelector('.meme-display');
     
     if (!memeDisplay) {
@@ -398,10 +390,10 @@
     if (mediaType === 'video') {
       const existingVid = memeDisplay.querySelector('video');
       if (existingVid) {
-        existingVid.src = data.url;
+        existingVid.src = memeData.url;
         existingVid.play();
       } else {
-        memeDisplay.innerHTML = `<video src="${data.url}" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">Your browser does not support the video tag.</video>`;
+        memeDisplay.innerHTML = `<video src="${memeData.url}" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">Your browser does not support the video tag.</video>`;
       }
     } else {
       const video = memeDisplay.querySelector('video');
@@ -411,7 +403,7 @@
       let img = memeDisplay.querySelector('img');
       if (!img) {
         img = document.createElement('img');
-        img.onerror = function() { handleImageError(this, data.url); };
+        img.onerror = function() { handleImageError(this, memeData.url); };
         const displayContent = memeDisplay.querySelector('.meme-display-content');
         if (displayContent) {
           displayContent.appendChild(img);
@@ -419,8 +411,8 @@
           memeDisplay.appendChild(img);
         }
       }
-      img.src = data.url;
-      img.alt = data.title || 'Meme';
+      img.src = memeData.url;
+      img.alt = memeData.title || 'Meme';
     }
   }
   
