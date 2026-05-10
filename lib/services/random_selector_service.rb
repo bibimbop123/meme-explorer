@@ -234,16 +234,16 @@ module MemeExplorer
       created_at = meme['created_at']
       return 1.0 unless created_at
 
-      # IMPROVED: Stronger freshness bonus for new content
+      # BALANCED: Modest freshness bonus - prioritize FUNNY over NEW
       age_days = (Time.now - Time.parse(created_at.to_s)).to_i / (24 * 3600)
       
       case age_days
       when 0..1
-        1.25  # Increased from 1.15
+        1.12  # Reduced from 1.25 - less aggressive new content bias
       when 2..3
-        1.15  # Increased from 1.08
+        1.08  # Reduced from 1.15
       when 4..7
-        1.08
+        1.05  # Reduced from 1.08
       else
         1.0
       end
@@ -304,7 +304,7 @@ module MemeExplorer
       key = "recent_memes_#{session_id}"
       recent = fetch_recent_memes(session_id)
       recent.push(meme_id(meme))
-      recent = recent.last(10) # Keep last 10 to prevent repetition
+      recent = recent.last(50) # Keep last 50 to prevent repetition (increased from 10)
       
       # Store in session or cache (implementation depends on your framework)
       # This is a placeholder - adjust based on your session/cache implementation

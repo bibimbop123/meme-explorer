@@ -352,8 +352,10 @@
       console.log('🎠 [LOAD MEME] Re-initializing carousel with new data...');
       initializeCarousel(data);
       
-      // Haptic feedback
-      if (navigator.vibrate) navigator.vibrate(30);
+      // Multi-sensory feedback for next meme
+      if (window.soundSystem) window.soundSystem.play('next');
+      if (window.hapticSystem) window.hapticSystem.trigger('light');
+      
       console.log('✅ [LOAD MEME] DOM updated successfully');
     } catch (e) {
       console.error('❌ [LOAD MEME] Error:', {
@@ -454,7 +456,18 @@
         likeCount.textContent = newCount;
         updateLikeUI();
         
-        if (navigator.vibrate) navigator.vibrate(50);
+        // Enhanced multi-sensory feedback!
+        if (window.soundSystem) window.soundSystem.play('like');
+        if (window.hapticSystem) window.hapticSystem.trigger(isLiked ? 'heartbeat' : 'light');
+        
+        // Particle celebration for likes!
+        if (window.particleSystem && isLiked) {
+          const rect = likeBtn.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          window.particleSystem.hearts(x, y, 8);
+        }
+        
         console.log(`❤️ [LIKE] Updated: liked=${isLiked}, count=${newCount}`);
       }
     } catch (e) {
@@ -484,7 +497,18 @@
       if (response.ok) {
         saveBtn.style.color = '#ff4458';
         saveBtn.style.filter = 'drop-shadow(0 0 8px #ff4458)';
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+        
+        // Enhanced multi-sensory feedback!
+        if (window.soundSystem) window.soundSystem.play('save');
+        if (window.hapticSystem) window.hapticSystem.trigger('success');
+        
+        // Star burst celebration for saves!
+        if (window.particleSystem) {
+          const rect = saveBtn.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          window.particleSystem.stars(x, y, 12);
+        }
       }
     } catch (e) {
       console.error('Save error:', e);

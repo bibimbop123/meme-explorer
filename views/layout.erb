@@ -176,6 +176,7 @@
     <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
     <nav>
       <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">🌙</button>
+      <button class="sound-toggle" id="soundToggle" title="Toggle sound effects">🔊</button>
       <a href="/category/funny">Funny</a>
       <a href="/category/wholesome">Wholesome</a>
       <a href="/category/dank">Dank</a>
@@ -223,6 +224,16 @@
         // Screen shake for impact!
         document.body.classList.add('screen-shake');
         setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+        
+        // Confetti celebration!
+        if (window.particleSystem) {
+          window.particleSystem.confetti(window.innerWidth / 2, window.innerHeight / 2, 60);
+        }
+        
+        // Level up sound!
+        if (window.soundSystem) {
+          window.soundSystem.play('levelUp');
+        }
         
         const modal = document.createElement('div');
         modal.className = 'level-up-modal';
@@ -298,6 +309,34 @@
   <% if defined?(gallery_script) %>
     <%= gallery_script %>
   <% end %>
+  
+  <!-- ================= SOUND, HAPTIC & PARTICLE SYSTEMS ================= -->
+  <script src="/js/sound-system.js"></script>
+  <script src="/js/haptic-system.js"></script>
+  <script src="/js/particle-effects.js"></script>
+  <script>
+    // Sound toggle functionality
+    const soundToggle = document.getElementById('soundToggle');
+    if (soundToggle) {
+      // Set initial button state
+      soundToggle.textContent = window.soundSystem.isMuted() ? '🔇' : '🔊';
+      
+      // Toggle on click
+      soundToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isMuted = window.soundSystem.toggleMute();
+        soundToggle.textContent = isMuted ? '🔇' : '🔊';
+        
+        // Play test sound if unmuted
+        if (!isMuted) {
+          window.soundSystem.play('achievement');
+        }
+        
+        // Haptic feedback
+        window.hapticSystem.trigger('light');
+      });
+    }
+  </script>
   
   <!-- ================= ACTIVITY TRACKER (real-time user counts) ================= -->
   <script src="/js/activity-tracker.js"></script>
