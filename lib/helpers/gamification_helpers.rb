@@ -380,10 +380,16 @@ module GamificationHelpers
   def current_weekly_challenge
     week_num = Date.today.strftime("%Y%U").to_i
     
-    challenge = DB.execute(
-      "SELECT * FROM weekly_challenges WHERE week_number = ?",
-      [week_num]
-    ).first
+    challenge = begin
+      DB.execute(
+        "SELECT * FROM weekly_challenges WHERE week_number = ?",
+        [week_num]
+      ).first
+    rescue SQLite3::SQLException => e
+      # Table doesn't exist yet - return nil
+      puts "⚠️ weekly_challenges table not found: #{e.message}"
+      return nil
+    end
     
     # Create challenge if doesn't exist
     if challenge.nil?

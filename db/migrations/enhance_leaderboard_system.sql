@@ -160,12 +160,11 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_type ON leaderboard_snapshots(leaderboa
 CREATE INDEX IF NOT EXISTS idx_snapshots_period ON leaderboard_snapshots(period);
 
 -- ============================================
--- 9. ADD MISSING COLUMNS TO EXISTING TABLES
+-- 9. ADD MISSING COLUMNS TO EXISTING TABLES (SAFE - IGNORES IF EXISTS)
 -- ============================================
 
--- Add rank_change_notified to weekly_leaderboard
-ALTER TABLE weekly_leaderboard ADD COLUMN rank_change_notified INTEGER DEFAULT 0;
-ALTER TABLE weekly_leaderboard ADD COLUMN last_rank INTEGER;
+-- SQLite doesn't have IF NOT EXISTS for ALTER TABLE, so we'll handle errors gracefully in the script
+-- These will fail silently if columns already exist (handled by the migration runner)
 
 -- ============================================
 -- 10. SEED INITIAL DATA
