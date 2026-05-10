@@ -318,11 +318,23 @@ class MemeExplorer < Sinatra::Base
     # Skip tracking for static assets, API endpoints, and health checks
     unless request.path.start_with?('/css', '/js', '/images', '/videos', '/favicon', '/health', '/metrics.json')
       begin
-        # Generate unique visitor ID from session (works for all visitors)
-        visitor_id = session[:user_id] || session.object_id.to_s
+        # Generate unique visitor ID using proper session ID (NOT object_id!)
+        # session.object_id changes on every request - BUG!
+        # Use Rack session ID which persists across requests
+        visitor_id = session[:user_id] || request.session_options[:id] || SecureRandom.hex(16)
         
-        # Track visitor as active (5-min window)
-        ActivityTrackerService.mark_active(visitor_id, page: request.path.split('/')[1] || 'home')
+        # Store session ID in session for consistency if not already present
+        session[:visitor_id] ||= visitor_id
+        
+        # Get client IP for additional fingerprinting
+        client_ip = request.ip
+        
+        # Track visitor as active (5-min window) with IP-based deduplication
+        ActivityTrackerService.mark_active(
+          session[:visitor_id], 
+          page: request.path.split('/')[1] || 'home',
+          ip_address: client_ip
+        )
       rescue => e
         # Don't break the app if tracking fails
         puts "⚠️ Activity tracking error: #{e.message}"

@@ -1,31 +1,44 @@
 # Activity Tracker Service
 # Tracks real-time user activity for social proof and engagement
-# Uses Redis for fast, real-time counters
+# Uses Redis for fast, real-time counters with proper visitor deduplication
 
 class ActivityTrackerService
   ACTIVE_USER_TTL = 300 # 5 minutes - user considered active
   VIEWING_USER_TTL = 60 # 1 minute - user currently viewing
+  PAGE_VIEW_DEDUP_TTL = 10 # 10 seconds - prevent rapid-fire duplicate page views
   
   class << self
     # Mark user as active
-    # @param user_id [Integer, String] User ID or session ID
+    # @param visitor_id [String] Persistent visitor identifier (session ID or user ID)
     # @param page [String] Page being viewed (optional)
-    def mark_active(user_id, page: nil)
+    # @param ip_address [String] IP address for additional deduplication (optional)
+    def mark_active(visitor_id, page: nil, ip_address: nil)
       return unless redis_available?
       
       timestamp = Time.now.to_i
       
+      # Create composite key for better deduplication
+      # Use visitor_id as primary, IP as backup fingerprint
+      tracking_id = generate_tracking_id(visitor_id, ip_address)
+      
       # Add to active users set with score = timestamp
-      REDIS.zadd('active_users', timestamp, user_id.to_s)
+      # ZADD with XX flag would update only if exists, but we want to add new ones too
+      # The timestamp score ensures older entries get pruned automatically
+      REDIS.zadd('active_users', timestamp, tracking_id)
       
       # Track page-specific activity if provided
       if page
-        REDIS.zadd("active_users:#{page}", timestamp, user_id.to_s)
+        REDIS.zadd("active_users:#{page}", timestamp, tracking_id)
         REDIS.expire("active_users:#{page}", ACTIVE_USER_TTL)
       end
       
-      # Increment total page views
-      REDIS.incr('stats:total_page_views')
+      # Only increment total page views if this visitor hasn't been counted recently
+      # Use a separate deduplication key to prevent double-counting rapid clicks
+      pageview_key = "pageview_dedup:#{tracking_id}"
+      unless REDIS.exists(pageview_key)
+        REDIS.incr('stats:total_page_views')
+        REDIS.setex(pageview_key, PAGE_VIEW_DEDUP_TTL, '1')
+      end
       
       true
     rescue => e
@@ -34,19 +47,21 @@ class ActivityTrackerService
     end
     
     # Mark user as currently viewing a meme
-    # @param user_id [Integer, String] User ID or session ID
+    # @param visitor_id [String] Persistent visitor identifier
     # @param meme_url [String] Meme being viewed
-    def mark_viewing(user_id, meme_url)
+    # @param ip_address [String] IP address for deduplication (optional)
+    def mark_viewing(visitor_id, meme_url, ip_address: nil)
       return unless redis_available?
       
       timestamp = Time.now.to_i
+      tracking_id = generate_tracking_id(visitor_id, ip_address)
       
       # Add to currently viewing set
-      REDIS.zadd('viewing_users', timestamp, user_id.to_s)
+      REDIS.zadd('viewing_users', timestamp, tracking_id)
       
       # Track specific meme viewers
       meme_key = "viewing:#{Digest::MD5.hexdigest(meme_url)}"
-      REDIS.zadd(meme_key, timestamp, user_id.to_s)
+      REDIS.zadd(meme_key, timestamp, tracking_id)
       REDIS.expire(meme_key, VIEWING_USER_TTL)
       
       true
@@ -189,6 +204,23 @@ class ActivityTrackerService
     end
     
     private
+    
+    # Generate a stable tracking ID for visitor deduplication
+    # @param visitor_id [String] Primary visitor identifier (session ID or user ID)
+    # @param ip_address [String, nil] Optional IP address for fingerprinting
+    # @return [String] Composite tracking identifier
+    def generate_tracking_id(visitor_id, ip_address = nil)
+      # Primary: Use visitor_id if it's not nil/empty
+      return visitor_id.to_s if visitor_id && !visitor_id.to_s.empty?
+      
+      # Fallback: Use IP-based identifier
+      if ip_address
+        "ip:#{Digest::MD5.hexdigest(ip_address)}"
+      else
+        # Last resort: Use timestamp-based temp ID (not ideal but prevents crashes)
+        "temp:#{Time.now.to_i}_#{rand(10000)}"
+      end
+    end
     
     def redis_available?
       defined?(REDIS) && REDIS

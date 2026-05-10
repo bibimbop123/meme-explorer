@@ -33,8 +33,10 @@ module MemeExplorer
           @reddit_path = extract_reddit_path(@meme, @image_src)
 
           # Track meme viewing activity (active tracking is now handled globally in before filter)
-          visitor_id = session[:user_id] || session.object_id.to_s
-          ActivityTrackerService.mark_viewing(visitor_id, @image_src)
+          # Use consistent visitor_id from session, NOT object_id which changes every request!
+          visitor_id = session[:visitor_id] || session[:user_id]
+          client_ip = request.ip
+          ActivityTrackerService.mark_viewing(visitor_id, @image_src, ip_address: client_ip) if visitor_id
 
           erb :random
         end
