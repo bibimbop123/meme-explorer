@@ -1,99 +1,306 @@
-<div class="container" style="max-width: 900px; margin: 2rem auto; padding: 0 1rem;">
-  <h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 2rem;">🏆 Leaderboard</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏆 Leaderboard - Meme Explorer</title>
+  <link rel="stylesheet" href="/css/meme_explorer.css">
+  <link rel="stylesheet" href="/css/leaderboard.css">
+</head>
+<body>
+  <div class="leaderboard-container">
+    <!-- Header -->
+    <header class="leaderboard-header">
+      <h1 class="leaderboard-title">🏆 Leaderboard</h1>
+    </header>
 
-  <!-- Weekly Challenge Banner -->
-  <% if @challenge %>
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center;">
-      <h2 style="margin: 0 0 0.5rem 0; font-size: 1.8rem;">🎯 Weekly Challenge</h2>
-      <p style="margin: 0; font-size: 1.2rem;"><%= @challenge[:description] %></p>
-      <p style="margin: 0.5rem 0 0 0; font-size: 1rem; opacity: 0.9;">Reward: <%= @challenge[:reward_xp] %> XP</p>
-    </div>
-  <% end %>
+    <!-- Leaderboard Type Selector -->
+    <nav class="leaderboard-type-selector" role="navigation" aria-label="Leaderboard types">
+      <a href="?type=weekly" 
+         class="leaderboard-type-btn <%= @leaderboard_type == 'weekly' ? 'active' : '' %>" 
+         data-type="weekly">
+        📅 Weekly Champions
+      </a>
+      <a href="?type=monthly" 
+         class="leaderboard-type-btn <%= @leaderboard_type == 'monthly' ? 'active' : '' %>" 
+         data-type="monthly">
+        📆 Monthly Masters
+      </a>
+      <a href="?type=all_time" 
+         class="leaderboard-type-btn <%= @leaderboard_type == 'all_time' ? 'active' : '' %>" 
+         data-type="all_time">
+        ⏰ All-Time Legends
+      </a>
+      <a href="?type=streak" 
+         class="leaderboard-type-btn <%= @leaderboard_type == 'streak' ? 'active' : '' %>" 
+         data-type="streak">
+        🔥 Streak Masters
+      </a>
+    </nav>
 
-  <!-- Your Rank Card -->
-  <% if @user_rank %>
-    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
-      <h3 style="margin: 0 0 0.5rem 0;">Your Rank</h3>
-      <div style="font-size: 2rem; font-weight: bold;">#<%= @user_rank[:rank] %></div>
-      <div style="margin-top: 0.5rem;">
-        <span style="margin-right: 1rem;">⭐ Level <%= @user_rank[:level] %></span>
-        <span style="margin-right: 1rem;">🔥 <%= @user_rank[:total_xp] %> XP</span>
-        <span>💪 <%= @user_rank[:score] %> points this week</span>
+    <!-- Period Selector (for weekly/monthly only) -->
+    <% if @leaderboard_type == 'weekly' || @leaderboard_type == 'monthly' %>
+      <div class="period-selector">
+        <select id="period-select" aria-label="Select time period">
+          <option value="">Current <%= @leaderboard_type == 'weekly' ? 'Week' : 'Month' %></option>
+          <% if @previous_periods && @previous_periods.any? %>
+            <% @previous_periods.each do |period| %>
+              <option value="<%= period[:value] %>" <%= @current_period == period[:value] ? 'selected' : '' %>>
+                <%= period[:label] %>
+              </option>
+            <% end %>
+          <% end %>
+        </select>
+        <button id="refresh-btn" class="leaderboard-pagination__btn" aria-label="Refresh leaderboard">
+          🔄 Refresh
+        </button>
       </div>
-    </div>
-  <% end %>
+    <% end %>
 
-  <!-- Top 10 Leaderboard -->
-  <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
-    <h2 style="margin: 0 0 1.5rem 0; text-align: center;">Top Meme Connoisseurs</h2>
-    
-    <% if @leaderboard && @leaderboard.any? %>
-      <div class="leaderboard-list">
-        <% @leaderboard.each_with_index do |entry, index| %>
-          <div style="display: flex; align-items: center; padding: 1rem; margin-bottom: 0.75rem; background: <%= index < 3 ? 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)' : '#f8f9fa' %>; border-radius: 10px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
-            <!-- Rank -->
-            <div style="width: 50px; font-size: 1.5rem; font-weight: bold; text-align: center;">
-              <% if index == 0 %>🥇
-              <% elsif index == 1 %>🥈
-              <% elsif index == 2 %>🥉
-              <% else %>#<%= index + 1 %>
-              <% end %>
-            </div>
-            
-            <!-- User Info -->
-            <div style="flex: 1; margin-left: 1rem;">
-              <div style="font-weight: bold; font-size: 1.1rem;">
-                <%= entry["reddit_username"] || entry["email"]&.split('@')&.first || "User ##{entry['user_id']}" %>
+    <!-- Weekly Challenge Banner -->
+    <% if @challenge %>
+      <div class="challenge-banner" role="region" aria-label="Weekly challenge">
+        <h2 class="challenge-banner__title">🎯 Weekly Challenge</h2>
+        <p class="challenge-banner__description"><%= @challenge[:description] %></p>
+        <p class="challenge-banner__reward">Reward: <%= @challenge[:reward_xp] %> XP</p>
+        
+        <% if @challenge_progress %>
+          <div class="challenge-progress">
+            <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">
+              Your Progress: <%= @challenge_progress[:current] %> / <%= @challenge_progress[:required] %>
+            </p>
+            <div class="challenge-progress__bar-container" role="progressbar" 
+                 aria-valuenow="<%= (@challenge_progress[:current].to_f / @challenge_progress[:required] * 100).round %>"
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+              <div class="challenge-progress__bar" 
+                   style="width: <%= [(@challenge_progress[:current].to_f / @challenge_progress[:required] * 100).round, 100].min %>%">
+                <%= [(@challenge_progress[:current].to_f / @challenge_progress[:required] * 100).round, 100].min %>%
               </div>
-              <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
-                <span style="margin-right: 1rem;">⭐ Level <%= entry["level"] %></span>
-                <span>🔥 <%= entry["total_xp"] %> XP</span>
-              </div>
-            </div>
-            
-            <!-- Weekly Score -->
-            <div style="text-align: right; margin-right: 1rem;">
-              <div style="font-size: 1.3rem; font-weight: bold; color: #667eea;">
-                <%= entry["score"] %>
-              </div>
-              <div style="font-size: 0.8rem; color: #666;">points</div>
             </div>
           </div>
         <% end %>
       </div>
-    <% else %>
-      <p style="text-align: center; color: #999; padding: 2rem;">No leaderboard data yet. Be the first to climb the ranks!</p>
     <% end %>
+
+    <!-- Your Rank Card -->
+    <% if @user_rank %>
+      <div class="user-rank-card" id="user-rank-card" role="region" aria-label="Your current rank">
+        <h3 class="user-rank-card__title">Your Rank</h3>
+        <div class="user-rank-card__rank">
+          #<%= @user_rank['rank'] %>
+          <% if @rank_change && @rank_change[:change] %>
+            <% change = @rank_change[:change].abs %>
+            <% direction = @rank_change[:direction] %>
+            <% if direction == 'up' %>
+              <span class="rank-change rank-change--up" aria-label="Moved up <%= change %> positions">
+                ↑<%= change %>
+              </span>
+            <% elsif direction == 'down' %>
+              <span class="rank-change rank-change--down" aria-label="Moved down <%= change %> positions">
+                ↓<%= change %>
+              </span>
+            <% elsif direction == 'same' %>
+              <span class="rank-change rank-change--same" aria-label="Rank unchanged">−</span>
+            <% end %>
+          <% end %>
+        </div>
+        <div class="user-rank-card__stats">
+          <span class="user-rank-card__stat">⭐ Level <%= @user_rank['level'] || 1 %></span>
+          <span class="user-rank-card__stat">🔥 <%= @user_rank['total_xp'] || @user_rank['score'] || 0 %> XP</span>
+          <span class="user-rank-card__stat">💪 <%= @user_rank['score'] || 0 %> points this <%= @leaderboard_type == 'weekly' ? 'week' : 'month' %></span>
+        </div>
+        <button class="share-rank-btn leaderboard-pagination__btn" 
+                style="margin-top: 1rem; background: rgba(255,255,255,0.2); border: none; color: white;"
+                aria-label="Share your rank">
+          📤 Share Your Rank
+        </button>
+      </div>
+    <% end %>
+
+    <!-- Insights Section -->
+    <% if @insights && @insights.any? %>
+      <div class="leaderboard-insights" id="leaderboard-insights" role="region" aria-label="Performance insights">
+        <h3 class="leaderboard-insights__title">
+          💡 Insights
+        </h3>
+        <ul class="leaderboard-insights__list">
+          <% @insights.each do |insight| %>
+            <li class="leaderboard-insights__item">
+              <span class="leaderboard-insights__icon"><%= insight[:icon] %></span>
+              <span><%= insight[:text] %></span>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <!-- Top Leaderboard -->
+    <section class="leaderboard-section" role="region" aria-label="Top rankings">
+      <h2 class="leaderboard-section__title">
+        <%= 
+          case @leaderboard_type
+          when 'weekly' then '📅 Top Weekly Performers'
+          when 'monthly' then '📆 Monthly Champions'
+          when 'all_time' then '⏰ All-Time Hall of Fame'
+          when 'streak' then '🔥 Longest Active Streaks'
+          else 'Top Meme Connoisseurs'
+          end
+        %>
+      </h2>
+      
+      <!-- Loading Indicator -->
+      <div id="loading-indicator" class="leaderboard-loading" style="display: none;">
+        <div class="leaderboard-loading__spinner" aria-label="Loading"></div>
+        <p>Loading leaderboard...</p>
+      </div>
+
+      <!-- Leaderboard List -->
+      <div class="leaderboard-list" id="leaderboard-list">
+        <% if @leaderboard && @leaderboard.any? %>
+          <% @leaderboard.each_with_index do |entry, index| %>
+            <%
+              rank = entry['rank'] || (index + 1)
+              is_current_user = session[:user_id] && entry['user_id'].to_i == session[:user_id].to_i
+              entry_classes = ['leaderboard-entry']
+              
+              if rank <= 3
+                entry_classes << 'leaderboard-entry--podium'
+                entry_classes << "leaderboard-entry--top#{rank}"
+              end
+              entry_classes << 'leaderboard-entry--current-user' if is_current_user
+            %>
+            <div class="<%= entry_classes.join(' ') %>" 
+                 data-user-id="<%= entry['user_id'] %>" 
+                 data-rank="<%= rank %>"
+                 tabindex="0"
+                 role="listitem">
+              
+              <!-- Rank -->
+              <% if rank == 1 %>
+                <span class="leaderboard-entry__rank leaderboard-entry__rank--medal" aria-label="First place">🥇</span>
+              <% elsif rank == 2 %>
+                <span class="leaderboard-entry__rank leaderboard-entry__rank--medal" aria-label="Second place">🥈</span>
+              <% elsif rank == 3 %>
+                <span class="leaderboard-entry__rank leaderboard-entry__rank--medal" aria-label="Third place">🥉</span>
+              <% else %>
+                <div class="leaderboard-entry__rank" aria-label="Rank <%= rank %>">#<%= rank %></div>
+              <% end %>
+              
+              <!-- User Info -->
+              <div class="leaderboard-entry__info">
+                <div class="leaderboard-entry__username">
+                  <%= entry['reddit_username'] || entry['email']&.split('@')&.first || "User ##{entry['user_id']}" %>
+                  <% if is_current_user %>
+                    <span style="color: var(--leaderboard-accent); margin-left: 0.5rem;">👋 You</span>
+                  <% end %>
+                </div>
+                <div class="leaderboard-entry__stats">
+                  <span class="leaderboard-entry__stat">⭐ Level <%= entry['level'] || 1 %></span>
+                  <span class="leaderboard-entry__stat">🔥 <%= entry['total_xp'] || entry['score'] || 0 %> XP</span>
+                  <% if entry['current_streak'] && entry['current_streak'].to_i > 0 %>
+                    <span class="leaderboard-entry__stat">📅 <%= entry['current_streak'] %> day streak</span>
+                  <% end %>
+                  <% if entry['longest_streak'] && @leaderboard_type == 'streak' %>
+                    <span class="leaderboard-entry__stat">🏅 Best: <%= entry['longest_streak'] %> days</span>
+                  <% end %>
+                </div>
+              </div>
+              
+              <!-- Score -->
+              <div class="leaderboard-entry__score-container">
+                <div class="leaderboard-entry__score"><%= entry['score'] || 0 %></div>
+                <div class="leaderboard-entry__score-label">
+                  <%= @leaderboard_type == 'streak' ? 'days' : 'points' %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="leaderboard-empty">
+            <div class="leaderboard-empty__icon">🏆</div>
+            <h3 class="leaderboard-empty__title">No Rankings Yet</h3>
+            <p class="leaderboard-empty__message">Be the first to climb the leaderboard!</p>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Load More Button -->
+      <div class="leaderboard-pagination">
+        <button id="load-more-btn" class="leaderboard-pagination__btn" style="display: none;">
+          Load More
+        </button>
+      </div>
+    </section>
+
+    <!-- Nearby Competitors (for logged-in users) -->
+    <% if @nearby && @nearby.any? %>
+      <section class="leaderboard-section nearby-competitors" id="nearby-competitors">
+        <h2 class="nearby-competitors__title">🎯 Your Nearby Competitors</h2>
+        <div class="leaderboard-list">
+          <% @nearby.each_with_index do |entry, index| %>
+            <%
+              rank = entry['rank']
+              is_current_user = session[:user_id] && entry['user_id'].to_i == session[:user_id].to_i
+              entry_classes = ['leaderboard-entry']
+              entry_classes << 'leaderboard-entry--current-user' if is_current_user
+            %>
+            <div class="<%= entry_classes.join(' ') %>" 
+                 data-user-id="<%= entry['user_id'] %>" 
+                 data-rank="<%= rank %>">
+              <div class="leaderboard-entry__rank">#<%= rank %></div>
+              <div class="leaderboard-entry__info">
+                <div class="leaderboard-entry__username">
+                  <%= entry['reddit_username'] || entry['email']&.split('@')&.first || "User ##{entry['user_id']}" %>
+                  <% if is_current_user %>
+                    <span style="color: var(--leaderboard-accent);">👋 You</span>
+                  <% end %>
+                </div>
+                <div class="leaderboard-entry__stats">
+                  <span class="leaderboard-entry__stat">⭐ Level <%= entry['level'] || 1 %></span>
+                  <span class="leaderboard-entry__stat">🔥 <%= entry['total_xp'] || 0 %> XP</span>
+                </div>
+              </div>
+              <div class="leaderboard-entry__score-container">
+                <div class="leaderboard-entry__score"><%= entry['score'] || 0 %></div>
+                <div class="leaderboard-entry__score-label">points</div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+      <h3 class="how-it-works__title">📚 How It Works</h3>
+      <ul class="how-it-works__list">
+        <li><strong>Like memes</strong> - Earn 10 XP per like and climb the weekly leaderboard</li>
+        <li><strong>Save memes</strong> - Earn 15 XP per save for your favorite content</li>
+        <li><strong>Daily streaks</strong> - Visit daily to build your streak and earn bonus XP</li>
+        <li><strong>Weekly challenges</strong> - Complete special tasks for bonus rewards</li>
+        <li><strong>Level up</strong> - Gain XP to increase your level and unlock titles</li>
+        <li><strong>Compete</strong> - Multiple leaderboards: Weekly, Monthly, All-Time, and Streaks!</li>
+        <li><strong>Rewards</strong> - Top 10 weekly performers earn bonus XP and badges</li>
+      </ul>
+    </section>
+
+    <!-- Back Button -->
+    <div style="text-align: center; margin-top: 2rem;">
+      <a href="/" class="leaderboard-pagination__btn">← Back to Memes</a>
+    </div>
   </div>
 
-  <!-- How It Works -->
-  <div style="margin-top: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 15px;">
-    <h3 style="margin: 0 0 1rem 0;">📚 How It Works</h3>
-    <ul style="line-height: 1.8; color: #555;">
-      <li><strong>Like memes</strong> - Earn 5 XP per like</li>
-      <li><strong>Save memes</strong> - Earn 10 XP per save</li>
-      <li><strong>Daily streaks</strong> - Visit daily to build your streak (2x XP multiplier!)</li>
-      <li><strong>Weekly challenges</strong> - Complete special tasks for bonus XP</li>
-      <li><strong>Level up</strong> - Every 100 XP = 1 level gained</li>
-      <li><strong>Compete</strong> - Climb the weekly leaderboard!</li>
-    </ul>
-  </div>
-
-  <div style="text-align: center; margin-top: 2rem;">
-    <a href="/" style="display: inline-block; padding: 0.75rem 2rem; background: #667eea; color: white; text-decoration: none; border-radius: 10px; font-weight: bold;">Back to Memes</a>
-  </div>
-</div>
-
-<style>
-  .dark-mode .leaderboard-list > div {
-    background: #2d3748 !important;
-    color: white;
-  }
-  .dark-mode .leaderboard-list > div[style*="ffeaa7"] {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-  }
-  .dark-mode .leaderboard-list .user-info,
-  .dark-mode .leaderboard-list div[style*="#666"] {
-    color: #cbd5e0 !important;
-  }
-</style>
+  <!-- JavaScript -->
+  <script src="/js/leaderboard.js"></script>
+  
+  <script>
+    // Pass server data to JavaScript
+    window.LEADERBOARD_DATA = {
+      type: '<%= @leaderboard_type || 'weekly' %>',
+      period: '<%= @current_period %>',
+      userId: <%= session[:user_id] || 'null' %>
+    };
+  </script>
+</body>
+</html>

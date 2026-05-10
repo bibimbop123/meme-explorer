@@ -36,6 +36,7 @@ require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
 require_relative "./lib/services/activity_tracker_service"
+require_relative "./lib/services/leaderboard_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -2040,20 +2041,211 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Gamification Routes
   # -----------------------
+  
+  # Enhanced Leaderboard Route with Multiple Types
   get "/leaderboard" do
     begin
-      @challenge = current_weekly_challenge
-      @leaderboard = get_leaderboard
+      # Get leaderboard type from params (default: weekly)
+      @leaderboard_type = params[:type]&.to_sym || :weekly
+      @current_period = params[:period]
+      
+      # Get leaderboard data using LeaderboardService
+      @leaderboard = LeaderboardService.get_leaderboard(
+        type: @leaderboard_type,
+        period: @current_period,
+        limit: 25
+      )
+      
+      # Mark current user in leaderboard
+      if session[:user_id]
+        @leaderboard.each do |entry|
+          entry['is_current_user'] = (entry['user_id'].to_i == session[:user_id].to_i)
+        end
+      end
+      
+      # Get user's rank and rank change
       @user_rank = nil
+      @rank_change = nil
+      @nearby = []
+      @insights = []
       
       if session[:user_id]
-        @user_rank = get_my_rank(session[:user_id])
+        @user_rank = LeaderboardService.get_user_rank(
+          session[:user_id],
+          type: @leaderboard_type,
+          period: @current_period
+        )
+        
+        if @user_rank
+          # Get rank change from previous period
+          @rank_change = LeaderboardService.rank_change(
+            session[:user_id],
+            type: @leaderboard_type
+          )
+          
+          # Get nearby competitors
+          @nearby = LeaderboardService.get_nearby_ranks(
+            session[:user_id],
+            type: @leaderboard_type,
+            range: 5,
+            period: @current_period
+          )
+          
+          # Generate insights
+          current_rank = @user_rank['rank'].to_i
+          if current_rank > 10
+            gap_analysis = LeaderboardService.rank_gap_analysis(
+              session[:user_id],
+              10,
+              type: @leaderboard_type,
+              period: @current_period
+            )
+            
+            if gap_analysis
+              @insights << {
+                icon: '🎯',
+                text: "You need #{gap_analysis[:gap]} more points to reach the top 10!"
+              }
+            end
+          elsif current_rank <= 3
+            @insights << {
+              icon: '🏆',
+              text: "Amazing! You're in the top 3!"
+            }
+          elsif current_rank <= 10
+            @insights << {
+              icon: '⭐',
+              text: "Great job! You're in the top 10!"
+            }
+          end
+          
+          # Rank improvement insight
+          if @rank_change && @rank_change[:change] && @rank_change[:change] > 0
+            @insights << {
+              icon: '📈',
+              text: "You've climbed #{@rank_change[:change]} positions!"
+            }
+          end
+        end
+      end
+      
+      # Get weekly challenge
+      @challenge = current_weekly_challenge
+      
+      # Get challenge progress for current user
+      @challenge_progress = nil
+      if session[:user_id] && @challenge
+        # TODO: Implement challenge progress tracking
+        # This would check user's progress toward the challenge goal
+      end
+      
+      # Generate previous periods for dropdown
+      @previous_periods = []
+      if @leaderboard_type == :weekly || @leaderboard_type == :monthly
+        current = LeaderboardService.current_period(@leaderboard_type)
+        5.times do |i|
+          period = LeaderboardService.previous_period(@leaderboard_type, current)
+          label = if @leaderboard_type == :weekly
+            date = Date.strptime(period.to_s + '1', '%Y%U%u')
+            "Week of #{date.strftime('%b %d, %Y')}"
+          else
+            year = period.to_s[0..3]
+            month = period.to_s[4..5]
+            Date.new(year.to_i, month.to_i).strftime('%B %Y')
+          end
+          
+          @previous_periods << { value: period, label: label }
+          current = period
+        end
       end
       
       erb :leaderboard
     rescue => e
       puts "⚠️ Leaderboard error: #{e.message}"
+      puts e.backtrace.first(10)
       halt 500, "Error loading leaderboard"
+    end
+  end
+  
+  # API Endpoint for AJAX leaderboard updates
+  get "/api/leaderboard" do
+    content_type :json
+    
+    begin
+      type = (params[:type] || 'weekly').to_sym
+      period = params[:period]
+      limit = (params[:limit] || 25).to_i
+      offset = (params[:offset] || 0).to_i
+      
+      # Get leaderboard data
+      leaderboard = LeaderboardService.get_leaderboard(
+        type: type,
+        period: period,
+        limit: limit,
+        offset: offset
+      )
+      
+      # Mark current user
+      if session[:user_id]
+        leaderboard.each do |entry|
+          entry['is_current_user'] = (entry['user_id'].to_i == session[:user_id].to_i)
+        end
+      end
+      
+      # Get user rank and nearby competitors
+      user_rank = nil
+      rank_change = nil
+      nearby = []
+      insights = {}
+      
+      if session[:user_id]
+        user_rank = LeaderboardService.get_user_rank(
+          session[:user_id],
+          type: type,
+          period: period
+        )
+        
+        if user_rank
+          rank_change = LeaderboardService.rank_change(session[:user_id], type: type)
+          nearby = LeaderboardService.get_nearby_ranks(
+            session[:user_id],
+            type: type,
+            range: 5,
+            period: period
+          )
+          
+          # Generate insights
+          current_rank = user_rank['rank'].to_i
+          if current_rank > 10
+            gap_analysis = LeaderboardService.rank_gap_analysis(
+              session[:user_id],
+              10,
+              type: type,
+              period: period
+            )
+            insights[:gap_to_top10] = gap_analysis[:gap] if gap_analysis
+          end
+        end
+      end
+      
+      # Get challenge
+      challenge = current_weekly_challenge
+      
+      {
+        success: true,
+        leaderboard: leaderboard,
+        user_rank: user_rank,
+        rank_change: rank_change,
+        nearby: nearby,
+        insights: insights,
+        challenge: challenge
+      }.to_json
+    rescue => e
+      puts "❌ API Leaderboard error: #{e.message}"
+      {
+        success: false,
+        error: e.message
+      }.to_json
     end
   end
 
