@@ -50,7 +50,7 @@
   font-weight: 800;
   background: linear-gradient(135deg, var(--leaderboard-gradient-start), var(--leaderboard-gradient-end));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-text-fill-color: rgb(0, 0, 0);
   background-clip: text;
   margin: 0 0 1rem 0;
   animation: titlePulse 3s ease-in-out infinite;

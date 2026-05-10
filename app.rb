@@ -133,6 +133,14 @@ class MemeExplorer < Sinatra::Base
       "http://localhost:#{ENV.fetch('PORT', 8080)}/auth/reddit/callback"
     end
   end
+  
+  # Expose OAuth settings for auth routes
+  configure do
+    set :reddit_oauth_client_id, REDDIT_OAUTH_CLIENT_ID
+    set :reddit_oauth_client_secret, REDDIT_OAUTH_CLIENT_SECRET
+    set :reddit_redirect_uri, REDDIT_REDIRECT_URI
+    set :redis, REDIS
+  end
 
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
