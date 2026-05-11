@@ -2399,13 +2399,13 @@ class MemeExplorer < Sinatra::Base
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   use Routes::ABTesting
-  use Routes::Home
-  use Routes::RandomMeme
-  use Routes::MemeStats
-  use Routes::SearchRoutes
-  use Routes::TrendingRoutes
-  use Routes::ProfileRoutes
-  use Routes::AdminRoutes
+  register Routes::Home
+  register Routes::RandomMeme
+  register Routes::MemeStats
+  register Routes::SearchRoutes
+  register Routes::TrendingRoutes
+  register Routes::ProfileRoutes
+  register Routes::AdminRoutes
   register Routes::MetricsRoutes
   
   # -----------------------
