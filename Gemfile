@@ -33,6 +33,9 @@ gem "sentry-ruby", "~> 5.0"
 # Scheduling
 gem "whenever", require: false
 
+# Push Notifications
+gem "web-push"
+
 # Optional (for Tier 2)
 gem "sqlite3"
 gem "sidekiq"

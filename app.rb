@@ -42,6 +42,8 @@ require_relative "./lib/services/user_service"
 require_relative "./lib/services/ab_testing_service"
 require_relative "./lib/services/trending_service"
 require_relative "./lib/services/meme_service"
+require_relative "./lib/services/push_notification_service"
+require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
@@ -52,6 +54,7 @@ begin
   require_relative "./app/workers/leaderboard_calculation_worker"
   require_relative "./app/workers/database_cleanup_worker"
   require_relative "./app/workers/activity_aggregation_worker"
+  require_relative "./app/workers/streak_reminder_worker"
   puts "✅ Sidekiq workers loaded"
 rescue LoadError => e
   puts "⚠️  Sidekiq not available: #{e.message}"
@@ -2171,6 +2174,87 @@ class MemeExplorer < Sinatra::Base
 
     content_type :json
     { unsaved: true, message: "Meme unsaved" }.to_json
+  end
+
+  # -----------------------
+  # Push Notification API (Priority 1)
+  # -----------------------
+  post "/api/subscribe-push" do
+    halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+    
+    begin
+      subscription_data = JSON.parse(request.body.read)
+      
+      # Store subscription in database
+      DB.execute(
+        "INSERT INTO push_subscriptions (user_id, subscription_data) 
+         VALUES (?, ?) 
+         ON CONFLICT (user_id, md5(subscription_data::text)) DO UPDATE 
+         SET updated_at = CURRENT_TIMESTAMP",
+        [session[:user_id], subscription_data.to_json]
+      )
+      
+      puts "✅ Push subscription saved for user #{session[:user_id]}"
+      
+      content_type :json
+      { success: true, message: "Push subscription saved" }.to_json
+    rescue => e
+      puts "❌ Push subscription error: #{e.message}"
+      halt 500, { error: "Failed to save subscription", details: e.message }.to_json
+    end
+  end
+
+  # Test endpoint for admins to send test notifications
+  post "/api/test-push" do
+    halt 401 unless session[:user_id]
+    halt 403 unless is_admin?
+    
+    begin
+      PushNotificationService.send_custom(
+        session[:user_id],
+        "🔥 Test Notification",
+        "Your push notifications are working perfectly!",
+        "/random"
+      )
+      
+      content_type :json
+      { success: true, message: "Test notification sent" }.to_json
+    rescue => e
+      puts "❌ Test push error: #{e.message}"
+      halt 500, { error: e.message }.to_json
+    end
+  end
+
+  # -----------------------
+  # Surprise Rewards API (Priority 2)
+  # -----------------------
+  get "/api/surprise-rewards/check" do
+    halt 401 unless session[:user_id]
+    
+    begin
+      # Check if user has pending reward
+      reward = session.delete(:pending_surprise_reward)
+      
+      content_type :json
+      { reward: reward }.to_json
+    rescue => e
+      puts "❌ Surprise reward check error: #{e.message}"
+      halt 500, { error: e.message }.to_json
+    end
+  end
+
+  get "/api/surprise-rewards/active-boosts" do
+    halt 401 unless session[:user_id]
+    
+    begin
+      boosts = SurpriseRewardsService.active_boosts(session[:user_id])
+      
+      content_type :json
+      { boosts: boosts }.to_json
+    rescue => e
+      puts "❌ Active boosts error: #{e.message}"
+      halt 500, { error: e.message }.to_json
+    end
   end
 
   get "/saved/:id" do
