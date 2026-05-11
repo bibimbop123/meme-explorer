@@ -57,16 +57,17 @@ module Routes
             @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0
 
             # Top memes (DB already returns hashes with results_as_hash = true)
-            # FIXED: Exclude fallback/placeholder memes and require minimum engagement
+            # FIXED: Only show real Reddit memes with external URLs (not local YAML fallbacks)
             @top_memes = app.class::DB.execute("
               SELECT title, subreddit, url, likes, views
               FROM meme_stats
-              WHERE url NOT LIKE '%/images/%'
-                AND url NOT LIKE '%placeholder%'
-                AND url NOT LIKE '%fallback%'
-                AND url NOT LIKE '%tattoo-annie%'
-                AND url NOT LIKE '%/public/%'
-                AND (likes > 0 OR views >= 5)
+              WHERE (url LIKE 'https://i.redd.it/%'
+                OR url LIKE 'https://i.imgur.com/%'
+                OR url LIKE 'https://imgur.com/%'
+                OR url LIKE 'https://v.redd.it/%'
+                OR url LIKE 'https://external-preview.redd.it/%'
+                OR url LIKE 'https://preview.redd.it/%')
+                AND (likes > 0 OR views >= 10)
                 AND title IS NOT NULL
                 AND title != 'Unknown'
               ORDER BY (likes * 2 + views) DESC
