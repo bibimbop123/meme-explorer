@@ -1,10 +1,8 @@
 # Authentication Routes
 require_relative '../lib/validators'
 
-module MemeExplorer
-  module Routes
-    class Auth
-      def self.register(app)
+class AuthRoutes
+  def self.register(app)
         # OAuth Reddit Routes
         app.get "/auth/reddit" do
           redirect AuthService.generate_oauth_url(
@@ -124,7 +122,5 @@ module MemeExplorer
           session.clear
           redirect "/"
         end
-      end
-    end
   end
 end

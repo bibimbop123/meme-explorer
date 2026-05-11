@@ -2474,7 +2474,7 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/reactions'
   require_relative './routes/battles'
   
-  MemeExplorer::Routes::Auth.register(self)
+  AuthRoutes.register(self)
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   
