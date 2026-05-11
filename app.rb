@@ -43,6 +43,18 @@ require_relative "./lib/services/ab_testing_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
+# Load Sidekiq and workers
+begin
+  require_relative "./config/initializers/sidekiq"
+  require_relative "./app/workers/cache_refresh_worker"
+  require_relative "./app/workers/leaderboard_calculation_worker"
+  require_relative "./app/workers/database_cleanup_worker"
+  require_relative "./app/workers/activity_aggregation_worker"
+  puts "✅ Sidekiq workers loaded"
+rescue LoadError => e
+  puts "⚠️  Sidekiq not available: #{e.message}"
+end
+
 # Sentry Error Tracking (if configured)
 begin
   require 'sentry-ruby'
@@ -2512,6 +2524,25 @@ class MemeExplorer < Sinatra::Base
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   use Routes::ABTesting
+  
+  # -----------------------
+  # Sidekiq Web UI (Production only, admin auth)
+  # -----------------------
+  if ENV['RACK_ENV'] == 'production'
+    begin
+      require 'sidekiq/web'
+      
+      # Basic auth for Sidekiq web UI
+      use Rack::Auth::Basic, "Protected Area" do |username, password|
+        username == ENV['SIDEKIQ_USERNAME'] && password == ENV['SIDEKIQ_PASSWORD']
+      end
+      
+      mount Sidekiq::Web, at: '/sidekiq'
+      puts "✅ Sidekiq Web UI mounted at /sidekiq"
+    rescue LoadError
+      puts "⚠️  Sidekiq::Web not available"
+    end
+  end
   
   # -----------------------
   # Start server

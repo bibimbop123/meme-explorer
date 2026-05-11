@@ -1,0 +1,39 @@
+---
+:concurrency: 5
+:timeout: 25
+:queues:
+  - critical
+  - default
+  - low
+
+# Scheduled jobs configuration
+:schedule:
+  cache_refresh:
+    cron: '*/10 * * * *'  # Every 10 minutes
+    class: CacheRefreshWorker
+    queue: default
+    description: "Refresh meme cache from Reddit API"
+    
+  leaderboard_update:
+    cron: '0 * * * *'  # Every hour
+    class: LeaderboardCalculationWorker
+    queue: critical
+    description: "Calculate leaderboard scores for all users"
+    
+  database_cleanup:
+    cron: '0 2 * * *'  # Daily at 2 AM
+    class: DatabaseCleanupWorker
+    queue: low
+    description: "Remove old broken images and stale data"
+    
+  activity_aggregation:
+    cron: '*/5 * * * *'  # Every 5 minutes
+    class: ActivityAggregationWorker
+    queue: default
+    description: "Aggregate visitor activity stats"
+
+production:
+  :concurrency: 10
+
+development:
+  :concurrency: 2

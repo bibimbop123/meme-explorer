@@ -36,6 +36,7 @@ gem "whenever", require: false
 # Optional (for Tier 2)
 gem "sqlite3"
 gem "sidekiq"
+gem "sidekiq-scheduler"  # Cron-like scheduling for Sidekiq
 gem "thread"
 gem "ostruct"
 
