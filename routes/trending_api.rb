@@ -9,6 +9,9 @@ module Routes
         content_type :json
         
         time_window = params['time_window'] || '24h'
+        # Normalize all-time to all_time for consistency
+        time_window = 'all_time' if time_window == 'all-time'
+        
         sort_by = params['sort_by'] || 'trending'
         limit = [(params['limit'] || 20).to_i, 100].min
         cursor = params['cursor']
@@ -18,7 +21,7 @@ module Routes
         
         unless valid_windows.include?(time_window)
           status 400
-          return { error: "Invalid time_window" }.to_json
+          return { error: "Invalid time_window", received: time_window }.to_json
         end
         
         unless valid_sorts.include?(sort_by)
@@ -27,7 +30,9 @@ module Routes
         end
         
         begin
-          result = TrendingService.trending_memes(
+          # Temporarily use simplified service for debugging
+          require_relative '../lib/services/trending_service_simple'
+          result = TrendingServiceSimple.trending_memes(
             time_window: time_window,
             sort_by: sort_by,
             limit: limit,
@@ -45,9 +50,10 @@ module Routes
             } 
           }.to_json
         rescue => e
-          puts "❌ Trending API error: #{e.message}"
+          puts "❌ [TRENDING API] Error: #{e.class}: #{e.message}"
+          puts "❌ [TRENDING API] Backtrace: #{e.backtrace.first(5).join("\n")}"
           status 500
-          { error: 'Failed to fetch trending memes' }.to_json
+          { error: 'Failed to fetch trending memes', details: e.message }.to_json
         end
       end
 

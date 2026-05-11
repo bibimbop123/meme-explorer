@@ -2,6 +2,11 @@ require 'redis'
 require 'active_support/core_ext/time'
 
 class TrendingService
+  # Access DB from global scope (defined in app.rb)
+  def self.db
+    defined?(::DB) ? ::DB : nil
+  end
+  
   REDIS = begin
     Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
   rescue => e
@@ -51,8 +56,11 @@ class TrendingService
     
     def calculate_content_boost(meme)
       boost = 1.0
-      title = (get_value(meme, 'title') || "").to_s.downcase
-      subreddit = (get_value(meme, 'subreddit') || "").to_s.downcase
+      title_val = meme.is_a?(Hash) ? meme['title'] : meme['title']
+      subreddit_val = meme.is_a?(Hash) ? meme['subreddit'] : meme['subreddit']
+      
+      title = (title_val || "").to_s.downcase
+      subreddit = (subreddit_val || "").to_s.downcase
       
       # Relationship keywords
       relationship_keywords = ['boyfriend', 'girlfriend', 'dating', 'relationship', 'couples', 
@@ -87,10 +95,26 @@ class TrendingService
       cutoff_time = time_cutoff(time_window)
       
       # Query meme_stats table directly
-      memes = DB.execute(
-        "SELECT * FROM meme_stats WHERE datetime(updated_at) >= datetime(?) ORDER BY updated_at DESC",
-        [cutoff_time.strftime('%Y-%m-%d %H:%M:%S')]
-      ) rescue []
+      memes = if db
+        begin
+          db.execute(
+            "SELECT * FROM meme_stats WHERE datetime(updated_at) >= datetime(?) ORDER BY updated_at DESC",
+            [cutoff_time.strftime('%Y-%m-%d %H:%M:%S')]
+          )
+        rescue => e
+          puts "⚠️ [TRENDING] DB query error: #{e.message}"
+          []
+        end
+      else
+        puts "⚠️ [TRENDING] DB not available"
+        []
+      end
+      
+      # FALLBACK: If meme_stats is empty, get from MEME_CACHE
+      if memes.empty?
+        puts "⚠️ [TRENDING] meme_stats empty, using MEME_CACHE fallback"
+        memes = get_cache_memes
+      end
       
       memes_with_scores = memes.map do |meme|
         {
@@ -123,6 +147,24 @@ class TrendingService
     end
     
     private
+    
+    def get_cache_memes
+      # Access global MEME_CACHE from app.rb
+      cache_memes = defined?(::MemeExplorer) ? ::MemeExplorer::MEME_CACHE.get(:memes) : nil
+      cache_memes ||= []
+      
+      # Convert to format expected by trending (with url, title, subreddit keys)
+      cache_memes.map do |m|
+        {
+          'url' => m['url'] || m['file'],
+          'title' => m['title'] || 'Untitled Meme',
+          'subreddit' => m['subreddit'] || 'local',
+          'likes' => m['likes'] || 0,
+          'views' => 0,
+          'updated_at' => Time.now.iso8601
+        }
+      end.compact.select { |m| m['url'] }
+    end
     
     def time_cutoff(time_window)
       case time_window
@@ -170,14 +212,14 @@ class TrendingService
     end
     
     def paginate_results(memes, limit, cursor)
-      start_index = cursor.present? ? cursor.to_i : 0
+      start_index = (cursor && !cursor.to_s.strip.empty?) ? cursor.to_i : 0
       paginated = memes[start_index...start_index + limit]
       next_cursor = (start_index + limit < memes.length) ? (start_index + limit).to_s : nil
       
       {
         memes: paginated || [],
         pagination: {
-          has_more: next_cursor.present?,
+          has_more: !next_cursor.nil? && !next_cursor.empty?,
           next_cursor: next_cursor,
           total: memes.length
         }

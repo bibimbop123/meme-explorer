@@ -8,13 +8,21 @@ module Routes
       app.get "/trending" do
         # P2 OPTIMIZATION: Sort in SQL, not Ruby (70% faster)
         # Use calculated column and LIMIT in database
-        @memes = DB.execute(
-          "SELECT url, title, subreddit, views, likes, 
-                  (likes * 2 + views) AS score 
-           FROM meme_stats 
-           ORDER BY score DESC 
-           LIMIT 20"
-        )
+        @memes = begin
+          DB.execute(
+            "SELECT url, title, subreddit, views, likes, 
+                    (likes * 2 + views) AS score 
+             FROM meme_stats 
+             ORDER BY score DESC 
+             LIMIT 20"
+          )
+        rescue => e
+          puts "⚠️ [TRENDING] Database error: #{e.message}"
+          []
+        end
+        
+        # FALLBACK: If no memes in database, the JavaScript will fetch via API
+        # which uses TrendingService that can pull from cache/API
         
         erb :trending
       end

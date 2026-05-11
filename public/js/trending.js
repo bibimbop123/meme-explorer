@@ -49,8 +49,7 @@ class TrendingPage {
       threshold: 0.1
     };
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !this.isLoading) {
-        this.currentPage++;
+      if (entries[0].isIntersecting && !this.isLoading && this.hasMore !== false) {
         this.loadTrendingMemes(true);
       }
     }, options);
@@ -73,7 +72,9 @@ class TrendingPage {
     if (this.isLoading) return;
     this.isLoading = true;
 
-    const url = `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&page=${this.currentPage}&limit=20`;
+    // Use cursor-based pagination instead of page
+    const cursor = append && this.nextCursor ? this.nextCursor : '';
+    const url = `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&cursor=${cursor}&limit=20`;
 
     fetch(url)
       .then(response => response.json())
@@ -84,6 +85,10 @@ class TrendingPage {
             this.container.innerHTML = '';
           }
           memes.forEach(meme => this.renderMemeCard(meme));
+          
+          // Store next cursor for infinite scroll
+          this.nextCursor = data.pagination?.next_cursor || null;
+          this.hasMore = data.pagination?.has_more || false;
         }
         this.isLoading = false;
       })
@@ -102,6 +107,7 @@ class TrendingPage {
     
     const card = document.createElement('div');
     card.className = 'meme-card';
+    card.style.cursor = 'pointer';
     card.innerHTML = `
       <img 
         class="meme-image"
@@ -119,6 +125,12 @@ class TrendingPage {
         </div>
       </div>
     `;
+    
+    // Make card clickable - navigates to /random to view meme
+    card.addEventListener('click', () => {
+      // Navigate to /random which shows meme viewing interface
+      window.location.href = '/random';
+    });
     
     this.container.appendChild(card);
   }
