@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Experiment: <%= @experiment_name %> - Meme Explorer Admin</title>
+  <link rel="stylesheet" href="/css/meme_explorer.css">
+  <style>
+    .stats-container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: #007bff;
+      text-decoration: none;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    
+    .variant-card {
+      background: white;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    
+    .variant-card.winner {
+      border-color: #28a745;
+      background: #f1f9f3;
+    }
+    
+    .variant-card h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.3rem;
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    
+    .stat-label {
+      font-weight: 500;
+      color: #495057;
+    }
+    
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+    
+    .conversion-rate {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #28a745;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    
+    .conversions-breakdown {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid #e0e0e0;
+    }
+    
+    .conversions-breakdown h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      color: #6c757d;
+    }
+    
+    .conversion-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="stats-container">
+    <a href="/admin/ab-testing" class="back-link">← Back to Experiments</a>
+    
+    <h1>📊 Experiment: <%= @experiment_name %></h1>
+    
+    <% if @stats.nil? %>
+      <p>No data available for this experiment.</p>
+    <% else %>
+      <div class="stats-grid">
+        <% 
+          # Find winning variant (highest conversion rate)
+          winning_variant = @stats[:results].max_by { |_, v| v[:conversion_rate] }&.first
+        %>
+        
+        <% @stats[:results].each do |variant_name, data| %>
+          <div class="variant-card <%= winning_variant == variant_name ? 'winner' : '' %>">
+            <h3>
+              <%= variant_name.capitalize %>
+              <% if winning_variant == variant_name && @stats[:results].size > 1 %>
+                🏆
+              <% end %>
+            </h3>
+            
+            <div class="conversion-rate">
+              <%= data[:conversion_rate] %>%
+            </div>
+            
+            <div class="stat-row">
+              <span class="stat-label">Total Users</span>
+              <span class="stat-value"><%= data[:users] %></span>
+            </div>
+            
+            <div class="stat-row">
+              <span class="stat-label">Total Conversions</span>
+              <span class="stat-value"><%= data[:conversions] %></span>
+            </div>
+            
+            <% unless data[:conversions_by_type].empty? %>
+              <div class="conversions-breakdown">
+                <h4>Conversions by Type</h4>
+                <% data[:conversions_by_type].each do |conversion| %>
+                  <div class="conversion-item">
+                    <span><%= conversion[:type] %></span>
+                    <span><%= conversion[:count] %></span>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+      
+      <% if @stats[:results].size > 1 %>
+        <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+          <h3>📈 Analysis</h3>
+          <% 
+            best = @stats[:results].max_by { |_, v| v[:conversion_rate] }
+            worst = @stats[:results].min_by { |_, v| v[:conversion_rate] }
+            improvement = best[1][:conversion_rate] - worst[1][:conversion_rate]
+          %>
+          <p>
+            <strong><%= best[0].capitalize %></strong> is performing 
+            <strong><%= improvement.round(2) %>%</strong> better than 
+            <strong><%= worst[0].capitalize %></strong>.
+          </p>
+          <% if best[1][:users] > 30 && worst[1][:users] > 30 %>
+            <p style="color: #28a745;">
+              ✅ Sample size is sufficient for reliable results.
+            </p>
+          <% else %>
+            <p style="color: #ffc107;">
+              ⚠️ Sample size is small. Continue running the experiment for more reliable results.
+            </p>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</body>
+</html>

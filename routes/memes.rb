@@ -141,8 +141,14 @@ module MemeExplorer
         end
 
         app.get "/trending" do
-          db_memes = DB.execute("SELECT url, title, subreddit, views, likes, (likes * 2 + views) AS score FROM meme_stats")
-          @memes = db_memes.sort_by { |m| -(m["score"].to_i) }.first(20)
+          # P2 OPTIMIZATION: Sort in SQL with LIMIT (no Ruby sorting needed)
+          @memes = DB.execute(
+            "SELECT url, title, subreddit, views, likes, 
+                    (likes * 2 + views) AS score 
+             FROM meme_stats 
+             ORDER BY score DESC 
+             LIMIT 20"
+          )
           erb :trending
         end
 
