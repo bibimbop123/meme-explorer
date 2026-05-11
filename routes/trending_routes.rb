@@ -9,20 +9,29 @@ module Routes
         # P2 OPTIMIZATION: Sort in SQL, not Ruby (70% faster)
         # Use calculated column and LIMIT in database
         @memes = begin
-          DB.execute(
-            "SELECT url, title, subreddit, views, likes, 
-                    (likes * 2 + views) AS score 
-             FROM meme_stats 
-             ORDER BY score DESC 
-             LIMIT 20"
-          )
+          if defined?(DB) && DB
+            DB.execute(
+              "SELECT url, title, subreddit, views, likes, 
+                      (likes * 2 + views) AS score 
+               FROM meme_stats 
+               ORDER BY score DESC 
+               LIMIT 20"
+            )
+          else
+            puts "⚠️ [TRENDING] Database not available"
+            []
+          end
+        rescue SQLite3::Exception => e
+          puts "⚠️ [TRENDING] SQLite error: #{e.message}"
+          []
         rescue => e
-          puts "⚠️ [TRENDING] Database error: #{e.message}"
+          puts "⚠️ [TRENDING] Database error: #{e.class} - #{e.message}"
           []
         end
         
         # FALLBACK: If no memes in database, the JavaScript will fetch via API
         # which uses TrendingService that can pull from cache/API
+        # This is expected behavior - frontend handles empty state gracefully
         
         erb :trending
       end

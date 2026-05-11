@@ -188,76 +188,7 @@ module Routes
           }.to_json
         end
 
-        app.get "/trending" do
-          # P2 OPTIMIZATION: Sort in SQL with LIMIT (no Ruby sorting needed)
-          @memes = DB.execute(
-            "SELECT url, title, subreddit, views, likes, 
-                    (likes * 2 + views) AS score 
-             FROM meme_stats 
-             ORDER BY score DESC 
-             LIMIT 20"
-          )
-          erb :trending
-        end
-
-        app.get "/api/v1/trending" do
-          time_window = params[:time_window] || "24h"
-          sort_by = params[:sort_by] || "trending"
-          page = (params[:page] || 0).to_i
-          limit = (params[:limit] || 20).to_i
-          offset = page * limit
-
-          begin
-            # Get memes from database
-            memes = app.class::MEME_CACHE[:memes] || []
-            
-            # If database memes exist, use them
-            if memes.empty?
-              db_result = DB.execute("SELECT url, file, title, subreddit, views, likes FROM meme_stats ORDER BY likes DESC LIMIT ?", [limit])
-              memes = db_result.map do |m|
-                {
-                  "url" => m["url"],
-                  "file" => m["file"],
-                  "title" => m["title"],
-                  "subreddit" => m["subreddit"],
-                  "image_url" => m["url"] || m["file"],
-                  "views" => m["views"].to_i,
-                  "likes" => m["likes"].to_i
-                }
-              end
-            end
-
-            # Sort based on parameter
-            memes = case sort_by
-                    when "latest"
-                      memes.reverse
-                    when "most_liked"
-                      memes.sort_by { |m| -(m["likes"] || 0) }
-                    when "rising"
-                      memes.sort_by { |m| -((m["likes"] || 0) * 2 + (m["views"] || 0)) }
-                    else # trending
-                      memes.sort_by { |m| -((m["likes"] || 0) * 2 + (m["views"] || 0)) }
-                    end
-
-            # Paginate
-            paginated_memes = memes[offset...(offset + limit)] || []
-
-            content_type :json
-            {
-              success: true,
-              data: paginated_memes,
-              pagination: {
-                page: page,
-                limit: limit,
-                has_more: memes.length > (offset + limit)
-              }
-            }.to_json
-          rescue => e
-            ErrorHandler::Logger.log(e, { time_window: time_window, sort_by: sort_by }, :error)
-            content_type :json
-            halt 500, { success: false, error: "Failed to fetch trending memes" }.to_json
-          end
-        end
+        # NOTE: /trending and /api/v1/trending routes moved to routes/trending_routes.rb and routes/trending_api.rb
 
         app.get "/category/:name" do
           category_name = params[:name].to_sym
