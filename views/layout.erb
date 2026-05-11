@@ -186,7 +186,7 @@
       <a href="/metrics">📈 Metrics</a>
       <a href="/random">Random 🎲</a>
       <% if session[:user_id] %>
-        <% if @streak_data && @streak_data[:current_streak] > 0 %>
+        <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
           <span class="streak-badge" title="Current streak">🔥 <%= @streak_data[:current_streak] %></span>
         <% end %>
         <% if @user_level %>
