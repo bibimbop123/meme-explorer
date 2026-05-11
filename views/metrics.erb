@@ -501,47 +501,55 @@
       const views = <%= @chart_views&.to_json || '[]' %>;
       const likes = <%= @chart_likes&.to_json || '[]' %>;
       
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: dates,
-          datasets: [
-            {
-              label: 'Views',
-              data: views,
-              borderColor: '#667eea',
-              backgroundColor: 'rgba(102, 126, 234, 0.1)',
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'Likes',
-              data: likes,
-              borderColor: '#4caf50',
-              backgroundColor: 'rgba(76, 175, 80, 0.1)',
-              fill: true,
-              tension: 0.4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: {
-              position: 'top',
-            },
-            title: {
-              display: false
-            }
+      // Debug: Log chart data
+      console.log('Chart Data:', { dates, views, likes });
+      
+      // Check if we have data
+      if (dates.length === 0 || (views.every(v => v === 0) && likes.every(l => l === 0))) {
+        ctx.parentElement.innerHTML = '<p style="text-align: center; padding: 3rem; color: #999;">📊 No chart data available yet. Data will appear as users interact with memes.</p>';
+      } else {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [
+              {
+                label: 'Views',
+                data: views,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: 'Likes',
+                data: likes,
+                borderColor: '#4caf50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                fill: true,
+                tension: 0.4
+              }
+            ]
           },
-          scales: {
-            y: {
-              beginAtZero: true
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              title: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     // Real-time Auto-refresh (every 60 seconds)

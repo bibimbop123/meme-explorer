@@ -78,6 +78,46 @@
 
 <script>
   // ============================================
+  // CONSOLE FILTER - Suppress external browser extension warnings
+  // ============================================
+  (function() {
+    const originalWarn = console.warn;
+    const originalLog = console.log;
+    
+    // List of patterns to filter out (browser extensions)
+    const suppressPatterns = [
+      /installHook\.js/i,
+      /EternlDomAPI/i,
+      /initEternlDomAPI/i,
+      /overrideMethod/i,
+      /chrome-extension:/i,
+      /moz-extension:/i
+    ];
+    
+    // Override console.warn to filter out extension warnings
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      const shouldSuppress = suppressPatterns.some(pattern => pattern.test(message));
+      
+      if (!shouldSuppress) {
+        originalWarn.apply(console, args);
+      }
+    };
+    
+    // Override console.log to filter out extension logs
+    console.log = function(...args) {
+      const message = args.join(' ');
+      const shouldSuppress = suppressPatterns.some(pattern => pattern.test(message));
+      
+      if (!shouldSuppress) {
+        originalLog.apply(console, args);
+      }
+    };
+    
+    console.log('🧹 [CONSOLE] Extension warning filter active');
+  })();
+  
+  // ============================================
   // REQUEST DEDUPLICATION & CACHING
   // ============================================
   const requestCache = new Map();
@@ -274,22 +314,28 @@
     }
   });
   
-  // Update like button UI
+  // Update like button UI - ENHANCED with clear liked/unliked states
   function updateLikeUI() {
+    // Get the current count element (in case it was recreated)
+    const currentCount = document.getElementById('like-count');
+    
     if (isLiked) {
+      // LIKED STATE: Bright red, glowing, scaled up, pulsing
       likeBtn.style.color = '#ff4458';
-      likeBtn.style.filter = 'drop-shadow(0 0 8px #ff4458)';
+      likeBtn.style.filter = 'drop-shadow(0 0 15px #ff4458) brightness(1.3)';
+      likeBtn.style.transform = 'scale(1.15)';
+      likeBtn.classList.add('liked');
     } else {
+      // UNLIKED STATE: White, no glow, normal size
       likeBtn.style.color = 'white';
       likeBtn.style.filter = 'none';
+      likeBtn.style.transform = 'scale(1)';
+      likeBtn.classList.remove('liked');
     }
     
-    // Hide like count if it's 0
-    const count = parseInt(likeCount.textContent);
-    if (count === 0) {
-      likeCount.style.display = 'none';
-    } else {
-      likeCount.style.display = 'inline';
+    // Always show the counter - never hide it
+    if (currentCount) {
+      currentCount.style.display = 'inline';
     }
   }
   
@@ -444,16 +490,19 @@
       if (response.ok) {
         const data = await response.json();
         isLiked = data.liked;
-        const oldCount = parseInt(likeCount.textContent);
+        
+        // Get fresh reference to counter element
+        const currentCount = document.getElementById('like-count');
+        const oldCount = parseInt(currentCount.textContent);
         const newCount = data.likes;
         
         if (oldCount !== newCount) {
-          likeCount.classList.remove('count-bump');
-          void likeCount.offsetWidth;
-          likeCount.classList.add('count-bump');
+          currentCount.classList.remove('count-bump');
+          void currentCount.offsetWidth;
+          currentCount.classList.add('count-bump');
         }
         
-        likeCount.textContent = newCount;
+        currentCount.textContent = newCount;
         updateLikeUI();
         
         // Enhanced multi-sensory feedback!
