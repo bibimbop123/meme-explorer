@@ -6,9 +6,12 @@
 **Problem:** `lib/services/trending_service.rb` existed but was never required in `app.rb`
 **Fix:** Added `require_relative "./lib/services/trending_service"` to app.rb (line 43)
 
-### 2. **Trending API Routes Not Loaded**
-**Problem:** `routes/trending_api.rb` contained the `/api/v1/trending` endpoint but was never loaded
-**Fix:** Added `require_relative './routes/trending_api'` to app.rb (line 2396)
+### 2. **Trending API Routes Not Loaded & Wrong Structure**
+**Problem:** `routes/trending_api.rb` had bare route definitions without Sinatra module wrapper
+**Fix:** 
+- Wrapped routes in proper `Routes::TrendingAPI` module structure
+- Added `require_relative './routes/trending_api'` to app.rb (line 2396)
+- Registered module with `register Routes::TrendingAPI` in app.rb
 
 ### 3. **TrendingService Expected ActiveRecord Model**
 **Problem:** TrendingService was written for ActiveRecord `Meme` model but app uses raw SQL with `meme_stats` table

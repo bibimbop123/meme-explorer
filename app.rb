@@ -2406,6 +2406,7 @@ class MemeExplorer < Sinatra::Base
   register Routes::MemeStats
   register Routes::SearchRoutes
   register Routes::TrendingRoutes
+  register Routes::TrendingAPI
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
   register Routes::MetricsRoutes
