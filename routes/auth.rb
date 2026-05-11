@@ -12,9 +12,18 @@ class AuthRoutes
         end
 
         app.get "/auth/reddit/callback" do
+          puts "🔵 [CALLBACK] Reddit callback hit!"
+          $stdout.flush
+          
           code = params[:code]
+          puts "🔵 [CALLBACK] Authorization code: #{code ? 'present' : 'missing'}"
+          $stdout.flush
+          
           halt 400, "No authorization code received" unless code
 
+          puts "🔵 [CALLBACK] Calling AuthService.verify_reddit_oauth..."
+          $stdout.flush
+          
           result = AuthService.verify_reddit_oauth(
             code,
             settings.reddit_oauth_client_id,
@@ -22,7 +31,13 @@ class AuthRoutes
             settings.reddit_redirect_uri
           )
 
+          puts "🔵 [CALLBACK] AuthService result: #{result.inspect}"
+          $stdout.flush
+
           unless result[:success]
+            puts "❌ [CALLBACK] OAuth failed: #{result[:error]}"
+            $stdout.flush
+            
             ErrorHandler::Logger.log(
               StandardError.new("OAuth failed: #{result[:error]}"),
               { provider: "reddit" },
