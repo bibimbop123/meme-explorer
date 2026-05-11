@@ -1,10 +1,4 @@
 # Meme Routes
-require_relative '../lib/services/meme_service'
-require_relative '../lib/services/api_cache_service'
-require_relative '../lib/services/random_selector_service'
-require_relative '../lib/services/activity_tracker_service'
-require_relative '../lib/services/search_service'
-
 module Routes
   module Memes
     def self.registered(app)
@@ -16,7 +10,7 @@ module Routes
 
         app.get "/random" do
           # Try to get fresh memes from API cache first
-          memes = ::ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
           
           # Fallback to MEME_CACHE if API returns empty
           memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
@@ -33,19 +27,19 @@ module Routes
           
           # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
           user_prefs = {}
-          @meme = ::RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+          @meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
           
           halt 404, "No suitable memes available" unless @meme
           
           @image_src = app.helpers.meme_image_src(@meme)
-          @likes = ::MemeService.get_likes(@image_src)
+          @likes = MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
 
           # Track meme viewing activity (active tracking is now handled globally in before filter)
           # Use consistent visitor_id from session, NOT object_id which changes every request!
           visitor_id = session[:visitor_id] || session[:user_id]
           client_ip = request.ip
-          ::ActivityTrackerService.mark_viewing(visitor_id, @image_src, ip_address: client_ip) if visitor_id
+          ActivityTrackerService.mark_viewing(visitor_id, @image_src, ip_address: client_ip) if visitor_id
 
           erb :random
         end
@@ -66,7 +60,7 @@ module Routes
                       end
 
           # Update global like counter
-          likes = ::MemeService.toggle_like(url, liked_now, session, DB)
+          likes = MemeService.toggle_like(url, liked_now, session, DB)
 
           # IMPROVEMENT: Track user-specific likes for logged-in users
           if session[:user_id]
@@ -99,7 +93,7 @@ module Routes
                 meme_data = DB.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [url]).first
                 subreddit = meme_data ? meme_data["subreddit"] : "unknown"
                 
-                ::ActivityTrackerService.track_action('like', session[:user_id], {
+                ActivityTrackerService.track_action('like', session[:user_id], {
                   meme_url: url,
                   subreddit: subreddit
                 })
@@ -115,7 +109,7 @@ module Routes
         end
 
         app.get "/random.json" do
-          memes = ::ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
           memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
           memes = app.class::MEMES.values.flatten if memes.empty?
           halt 404, { error: "No memes available" }.to_json if memes.empty?
@@ -127,13 +121,13 @@ module Routes
           
           # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
           user_prefs = {}
-          meme = ::RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+          meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
           
           halt 404, { error: "No suitable memes available" }.to_json unless meme
           
           image_src = app.helpers.meme_image_src(meme)
           reddit_path = extract_reddit_path(meme, image_src)
-          likes = ::MemeService.get_likes(image_src)
+          likes = MemeService.get_likes(image_src)
 
           content_type :json
           {
@@ -150,11 +144,11 @@ module Routes
           halt 400, { error: "No URL provided" }.to_json unless url
 
           begin
-            ::MemeService.report_broken_image(url)
+            MemeService.report_broken_image(url)
             content_type :json
             { reported: true, message: "Broken image tracked" }.to_json
           rescue => e
-            ::ErrorHandler::Logger.log(e, { url: url }, :warning)
+            ErrorHandler::Logger.log(e, { url: url }, :warning)
             halt 500, { error: "Failed to report" }.to_json
           end
         end
@@ -163,7 +157,7 @@ module Routes
           query = params[:q]
 
           if request.accept.include?("application/json")
-            results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
+            results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
             content_type :json
             {
               query: query,
@@ -171,7 +165,7 @@ module Routes
               total: results.size
             }.to_json
           else
-            @results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
+            @results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
             @query = query
             erb :search
           end
@@ -179,7 +173,7 @@ module Routes
 
         app.get "/api/search.json" do
           query = params[:q]
-          results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
+          results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
 
           content_type :json
           {
@@ -254,7 +248,7 @@ module Routes
               }
             }.to_json
           rescue => e
-            ::ErrorHandler::Logger.log(e, { time_window: time_window, sort_by: sort_by }, :error)
+            ErrorHandler::Logger.log(e, { time_window: time_window, sort_by: sort_by }, :error)
             content_type :json
             halt 500, { success: false, error: "Failed to fetch trending memes" }.to_json
           end
@@ -319,7 +313,7 @@ module Routes
         session[:last_subreddit] = meme["subreddit"]&.downcase
 
         if !meme_identifier.start_with?("/")
-          ::MemeService.track_view(meme_identifier, meme["title"], meme["subreddit"])
+          MemeService.track_view(meme_identifier, meme["title"], meme["subreddit"])
         end
       end
 
@@ -346,7 +340,7 @@ module Routes
           url: image_url,
           media_type: media_type,
           reddit_path: extract_reddit_path(meme, image_url),
-          likes: ::MemeService.get_likes(image_url)
+          likes: MemeService.get_likes(image_url)
         }.to_json
       end
 
