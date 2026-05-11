@@ -8,7 +8,7 @@ module Routes
       app.get "/trending" do
         # P2 OPTIMIZATION: Sort in SQL, not Ruby (70% faster)
         # Use calculated column and LIMIT in database
-        @memes = app.class::DB.execute(
+        @memes = DB.execute(
           "SELECT url, title, subreddit, views, likes, 
                   (likes * 2 + views) AS score 
            FROM meme_stats 
