@@ -43,7 +43,7 @@ module Routes
             # Get meme stats
             @total_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0).to_i
             @total_likes = (app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0).to_i
-            @total_views = (app.class::DB.get_first_value("SELECT SUM(views) FROM meme_stats") || 0).to_i
+            @total_views = (app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0).to_i
             @total_users = (app.class::DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
             @total_saved_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
             @memes_with_no_likes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats WHERE likes = 0") || 0).to_i
@@ -52,6 +52,9 @@ module Routes
             # Calculate averages
             @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
             @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
+            
+            # Calculate engagement rate
+            @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0
 
             # Top memes (DB already returns hashes with results_as_hash = true)
             @top_memes = app.class::DB.execute("
