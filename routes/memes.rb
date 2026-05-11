@@ -9,27 +9,65 @@ module Routes
         end
 
         app.get "/random" do
-          # Try to get fresh memes from API cache first
-          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          # Check if a specific URL was requested (from trending page)
+          requested_url = params[:url]
           
-          # Fallback to MEME_CACHE if API returns empty
-          memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+          if requested_url && !requested_url.empty?
+            # Find the specific meme by URL
+            memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+            memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+            memes = app.class::MEMES.values.flatten if memes.empty?
+            
+            # Find meme matching the requested URL
+            @meme = memes.find { |m| (m['url'] || m['file']) == requested_url }
+            
+            # If not found in cache, try database
+            if @meme.nil? && defined?(DB) && DB
+              begin
+                row = DB.execute("SELECT * FROM meme_stats WHERE url = ? LIMIT 1", [requested_url]).first
+                if row
+                  @meme = {
+                    'url' => row['url'],
+                    'title' => row['title'],
+                    'subreddit' => row['subreddit']
+                  }
+                end
+              rescue => e
+                puts "⚠️ [RANDOM] Database lookup failed: #{e.message}"
+              end
+            end
+            
+            # Fall back to random if specific meme not found
+            if @meme.nil?
+              puts "⚠️ [RANDOM] Requested meme not found: #{requested_url}, showing random instead"
+              # Continue to random selection below
+            end
+          end
           
-          # Final fallback to local memes
-          memes = app.class::MEMES.values.flatten if memes.empty?
-          
-          halt 404, "No memes available" if memes.empty?
+          # If no specific meme requested or not found, pick a random one
+          if @meme.nil?
+            # Try to get fresh memes from API cache first
+            memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+            
+            # Fallback to MEME_CACHE if API returns empty
+            memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+            
+            # Final fallback to local memes
+            memes = app.class::MEMES.values.flatten if memes.empty?
+            
+            halt 404, "No memes available" if memes.empty?
 
-          # Use weighted random selector with session tracking
-          # FIX: Use consistent session ID (not object_id which changes every request!)
-          session_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
-          session[:visitor_id] ||= session_id  # Persist for consistency
-          
-          # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
-          user_prefs = {}
-          @meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
-          
-          halt 404, "No suitable memes available" unless @meme
+            # Use weighted random selector with session tracking
+            # FIX: Use consistent session ID (not object_id which changes every request!)
+            session_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
+            session[:visitor_id] ||= session_id  # Persist for consistency
+            
+            # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
+            user_prefs = {}
+            @meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+            
+            halt 404, "No suitable memes available" unless @meme
+          end
           
           @image_src = app.helpers.meme_image_src(@meme)
           @likes = ::MemeService.get_likes(@image_src)

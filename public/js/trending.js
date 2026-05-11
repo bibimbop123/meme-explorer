@@ -126,10 +126,11 @@ class TrendingPage {
       </div>
     `;
     
-    // Make card clickable - navigates to /random to view meme
+    // Make card clickable - navigates to view that specific meme
     card.addEventListener('click', () => {
-      // Navigate to /random which shows meme viewing interface
-      window.location.href = '/random';
+      // Pass the meme URL as a query parameter to view that specific meme
+      const encodedUrl = encodeURIComponent(meme.url);
+      window.location.href = `/random?url=${encodedUrl}`;
     });
     
     this.container.appendChild(card);
