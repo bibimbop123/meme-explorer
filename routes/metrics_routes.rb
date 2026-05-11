@@ -57,17 +57,30 @@ module Routes
             @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0
 
             # Top memes (DB already returns hashes with results_as_hash = true)
+            # FIXED: Exclude fallback/placeholder memes and require minimum engagement
             @top_memes = app.class::DB.execute("
               SELECT title, subreddit, url, likes, views
               FROM meme_stats
+              WHERE url NOT LIKE '%/images/%'
+                AND url NOT LIKE '%placeholder%'
+                AND url NOT LIKE '%fallback%'
+                AND url NOT LIKE '%tattoo-annie%'
+                AND url NOT LIKE '%/public/%'
+                AND (likes > 0 OR views >= 5)
+                AND title IS NOT NULL
+                AND title != 'Unknown'
               ORDER BY (likes * 2 + views) DESC
               LIMIT 10
             ")
 
             # Top subreddits
+            # FIXED: Exclude 'local' fallback subreddit
             @top_subreddits = app.class::DB.execute("
               SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
               FROM meme_stats
+              WHERE subreddit IS NOT NULL
+                AND subreddit != 'Unknown'
+                AND subreddit != 'local'
               GROUP BY subreddit
               ORDER BY total_likes DESC
               LIMIT 10
