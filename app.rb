@@ -1675,108 +1675,19 @@ class MemeExplorer < Sinatra::Base
     response_data.to_json
   end
   
+  # ========================================================================
+  # P2 WEEK 2: REFACTORED ROUTES - Old implementations below (commented out)
+  # NEW MODULAR ROUTES: routes/meme_stats.rb, routes/trending_routes.rb, routes/search_routes.rb
+  # ========================================================================
   
-  post "/like" do
-    url = params[:url]
-    halt 400, { error: "No URL provided" }.to_json unless url
-  
-    session[:liked_memes] ||= []
-    session[:meme_like_counts] ||= {}
-  
-    # Toggle user's local like state
-    liked_now = if session[:liked_memes].include?(url)
-                  session[:liked_memes].delete(url)
-                  false
-                else
-                  session[:liked_memes] << url
-                  true
-                end
-  
-    # Only count like once per session globally
-    likes = toggle_like(url, liked_now, session)
-  
-    content_type :json
-    { liked: liked_now, likes: likes }.to_json
-  end
+  # post "/like" - NOW IN routes/meme_stats.rb
+  # post "/report-broken-image" - NOW IN routes/meme_stats.rb
+  # get "/trending" - NOW IN routes/trending_routes.rb
+  # before "/category/*" - NOW IN routes/trending_routes.rb
+  # get "/category/:name" - NOW IN routes/trending_routes.rb
+  # get "/category/:name/meme/:title" - NOW IN routes/trending_routes.rb
 
-  post "/report-broken-image" do
-    url = params[:url]
-    halt 400, { error: "No URL provided" }.to_json unless url
-
-    report_broken_image(url)
-    
-    content_type :json
-    { reported: true, message: "Broken image tracked" }.to_json
-  end
-  
-  get "/trending" do
-    # P2 OPTIMIZATION: Sort in SQL, not Ruby (70% faster)
-    # Use calculated column and LIMIT in database
-    @memes = DB.execute(
-      "SELECT url, title, subreddit, views, likes, 
-              (likes * 2 + views) AS score 
-       FROM meme_stats 
-       ORDER BY score DESC 
-       LIMIT 20"
-    )
-    
-    erb :trending
-  end
-  before "/category/*" do
-    # Define default categories if not loaded
-    @categories = {
-      funny: ["funny", "memes"],
-      wholesome: ["wholesome", "aww"],
-      dank: ["dank", "dankmemes"],
-      selfcare: ["selfcare", "wellness"]
-    }
-  end
-  
-  get "/category/:name" do
-    category_name = params[:name].to_sym
-    subreddits = @categories[category_name]
-    halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
-  
-    # Filter valid memes
-    local_memes = MEMES.is_a?(Hash) ? MEMES[category_name.to_s] || [] : []
-    api_memes = (fetch_fresh_memes(batch_size: 50) rescue []).select { |m| subreddits.include?(m["subreddit"]) }
-  
-    @memes = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }
-  
-    # Use fallback only if empty
-    @memes = [fallback_meme.merge("subreddit" => category_name.to_s)] if @memes.empty?
-  
-    if request.accept.include?("application/json")
-      content_type :json
-      @memes.to_json
-    else
-      @category_name = category_name
-      erb :category, layout: :layout
-    end
-  end
-  
-  get "/category/:name/meme/:title" do
-    category_name = params[:name].to_sym
-    subreddits = @categories[category_name] || []
-  
-    local_memes = MEMES.is_a?(Hash) ? MEMES[category_name.to_s] || [] : []
-    api_memes = (fetch_fresh_memes(batch_size: 50) rescue []).select { |m| subreddits.include?(m["subreddit"]) }
-  
-    combined = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }
-  
-    requested_title = URI.decode_www_form_component(params[:title])
-    @meme = combined.find { |m| m["title"] == requested_title }
-  
-    # Fallback
-    @meme ||= fallback_meme.merge("subreddit" => category_name.to_s)
-    @image_src = meme_image_src(@meme)
-  
-    erb :random, layout: :layout
-  end
-  
-  
-
-  # Smart Hybrid Search: Cache → API (if needed) → DB/YAML Fallback
+  # Smart Hybrid Search helper method - KEPT for use by route modules
   def search_memes(query)
     return [] unless query
     query_lower = query.downcase.strip
@@ -1826,54 +1737,8 @@ class MemeExplorer < Sinatra::Base
     ranked
   end
 
-  get "/search" do
-    query = params[:q]
-    
-    if request.accept.include?("application/json")
-      # JSON API endpoint
-      results = search_memes(query)
-      content_type :json
-      {
-        query: query,
-        results: results.map { |m| {
-          title: m["title"],
-          url: m["url"] || m["file"],
-          file: m["file"],
-          subreddit: m["subreddit"],
-          likes: m["likes"].to_i,
-          views: m["views"].to_i,
-          source: m["file"] ? "local" : "reddit"
-        }},
-        total: results.size
-      }.to_json
-    else
-      # HTML view
-      @results = search_memes(query)
-      @query = query
-      erb :search
-    end
-  end
-  
-  get "/api/search.json" do
-    query = params[:q]
-    results = search_memes(query)
-    
-    content_type :json
-    {
-      query: query,
-      results: results.map { |m| {
-        title: m["title"],
-        url: m["url"] || m["file"],
-        file: m["file"],
-        subreddit: m["subreddit"],
-        likes: m["likes"].to_i,
-        views: m["views"].to_i,
-        source: m["file"] ? "local" : "reddit",
-        engagement_score: (m["likes"].to_i * 2 + m["views"].to_i)
-      }},
-      total: results.size
-    }.to_json
-  end
+  # get "/search" - NOW IN routes/search_routes.rb
+  # get "/api/search.json" - NOW IN routes/search_routes.rb
 
   get "/metrics.json" do
     total_memes = DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
@@ -2520,10 +2385,28 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/battles'
   require_relative './routes/ab_testing'
   
+  # P2 Week 2: Refactored route modules
+  require_relative './routes/home'
+  require_relative './routes/random_meme'
+  require_relative './routes/meme_stats'
+  require_relative './routes/search_routes'
+  require_relative './routes/trending_routes'
+  require_relative './routes/profile_routes'
+  require_relative './routes/admin_routes'
+  require_relative './routes/metrics_routes'
+  
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   use Routes::ABTesting
+  use Routes::Home
+  use Routes::RandomMeme
+  use Routes::MemeStats
+  use Routes::SearchRoutes
+  use Routes::TrendingRoutes
+  use Routes::ProfileRoutes
+  use Routes::AdminRoutes
+  use Routes::MetricsRoutes
   
   # -----------------------
   # Sidekiq Web UI (Production only, admin auth)
