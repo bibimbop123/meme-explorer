@@ -9,52 +9,33 @@ module Routes
         end
 
         app.get "/random" do
-          # Check if a specific URL was requested (from trending page)
-          requested_url = params[:url]
+          # Check if this is from trending page (cleaner approach)
+          trending_url = params[:trending]
           
-          if requested_url && !requested_url.empty?
-            puts "🔍 [RANDOM] Looking for specific meme: #{requested_url}"
+          if trending_url && !trending_url.empty?
+            puts "🔍 [TRENDING CLICK] Looking for URL: #{trending_url}"
             
-            # Try multiple sources to find the meme
+            # Get memes from cache
             memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
             memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
             memes = app.class::MEMES.values.flatten if memes.empty?
             
-            # Find meme matching the requested URL - try multiple matching strategies
+            # Find exact URL match (most reliable for trending)
             @meme = memes.find { |m| 
               meme_url = m['url'] || m['file']
-              meme_url == requested_url || 
-              meme_url&.include?(requested_url) || 
-              requested_url&.include?(meme_url.to_s)
+              meme_url == trending_url || 
+              meme_url&.include?(trending_url) || 
+              trending_url&.include?(meme_url.to_s)
             }
             
             if @meme
-              puts "✅ [RANDOM] Found meme in cache: #{@meme['title']}"
-            end
-            
-            # If not found in cache, try database
-            if @meme.nil? && defined?(DB) && DB
-              begin
-                row = DB.execute("SELECT * FROM meme_stats WHERE url = ? LIMIT 1", [requested_url]).first
-                if row
-                  @meme = {
-                    'url' => row['url'],
-                    'title' => row['title'],
-                    'subreddit' => row['subreddit']
-                  }
-                  puts "✅ [RANDOM] Found meme in database: #{@meme['title']}"
-                end
-              rescue => e
-                puts "⚠️ [RANDOM] Database lookup failed: #{e.message}"
-              end
-            end
-            
-            # If still not found, create a minimal meme object with just the URL
-            # This allows the view to display it even if we don't have full metadata
-            if @meme.nil?
-              puts "⚠️ [RANDOM] Meme not found in cache/DB, creating minimal meme object"
+              puts "✅ [TRENDING] Found meme:"
+              puts "   Title: #{@meme['title']}"
+              puts "   URL: #{@meme['url']}"
+            else
+              puts "⚠️ [TRENDING] Meme not found in cache, creating minimal object"
               @meme = {
-                'url' => requested_url,
+                'url' => trending_url,
                 'title' => 'Trending Meme',
                 'subreddit' => 'trending'
               }
@@ -91,10 +72,9 @@ module Routes
           @reddit_path = extract_reddit_path(@meme, @image_src)
 
           # Debug logging
-          if params[:url]
-            puts "✅ [RANDOM] Final meme being displayed:"
+          if params[:trending]
+            puts "✅ [TRENDING] Final display:"
             puts "   Title: #{@meme['title']}"
-            puts "   URL: #{@meme['url'] || @meme['file']}"
             puts "   Image src: #{@image_src}"
           end
 

@@ -126,13 +126,53 @@ class TrendingPage {
       </div>
     `;
     
-    // Make card clickable - navigates to view that specific meme
+    // Make card clickable - shows meme in modal (no redirect)
     card.addEventListener('click', () => {
-      // Pass the meme URL as a query parameter to view that specific meme
-      const encodedUrl = encodeURIComponent(meme.url);
-      window.location.href = `/random?url=${encodedUrl}`;
+      this.showMemeModal(meme);
     });
     
     this.container.appendChild(card);
+  }
+
+  showMemeModal(meme) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'meme-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      cursor: pointer;
+    `;
+
+    const imageUrl = meme.image_url || meme.url;
+    
+    modal.innerHTML = `
+      <div style="max-width: 90%; max-height: 90%; position: relative;">
+        <img src="${imageUrl}" 
+             alt="${meme.title}" 
+             style="max-width: 100%; max-height: 90vh; object-fit: contain;"
+             onerror="this.src='/images/dank1.jpeg'">
+        <div style="color: white; text-align: center; margin-top: 15px;">
+          <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
+          <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
+          <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Click anywhere to close</p>
+        </div>
+      </div>
+    `;
+
+    // Close on click
+    modal.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+
+    document.body.appendChild(modal);
   }
 }
