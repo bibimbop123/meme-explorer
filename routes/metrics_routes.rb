@@ -64,30 +64,81 @@ module Routes
             # Calculate engagement rate
             @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0
             
-            # Get chart data for last 7 days
+            # Get chart data based on selected period
             @chart_dates = []
             @chart_views = []
             @chart_likes = []
             
-            7.downto(0) do |days_ago|
-              date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
-              date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
-              date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
-              
-              daily_views = app.class::DB.get_first_value(
-                "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
-                [date_start, date_end]
-              ).to_i
-              
-              daily_likes = app.class::DB.get_first_value(
-                "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
-                [date_start, date_end]
-              ).to_i
-              
-              @chart_dates << date
-              @chart_views << daily_views
-              @chart_likes << daily_likes
+            # Determine chart range based on period
+            case period
+            when '24h'
+              # Show last 24 hours (hourly)
+              23.downto(0) do |hours_ago|
+                time = Time.now - (hours_ago * 3600)
+                date = time.strftime('%I %p')
+                date_start = time.strftime('%Y-%m-%d %H:00:00')
+                date_end = time.strftime('%Y-%m-%d %H:59:59')
+                
+                hourly_views = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                hourly_likes = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                @chart_dates << date
+                @chart_views << hourly_views
+                @chart_likes << hourly_likes
+              end
+            when '7d'
+              # Show last 7 days (daily)
+              6.downto(0) do |days_ago|
+                date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
+                date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                
+                daily_views = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                daily_likes = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                @chart_dates << date
+                @chart_views << daily_views
+                @chart_likes << daily_likes
+              end
+            when '30d', 'all'
+              # Show last 30 days (daily)
+              29.downto(0) do |days_ago|
+                date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
+                date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                
+                daily_views = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                daily_likes = app.class::DB.get_first_value(
+                  "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
+                  [date_start, date_end]
+                ).to_i
+                
+                @chart_dates << date
+                @chart_views << daily_views
+                @chart_likes << daily_likes
+              end
             end
+            
+            # Store period for view
+            @chart_period = period
 
             # Top memes (DB already returns hashes with results_as_hash = true)
             # FIXED: Only show real Reddit memes with external URLs (not local YAML fallbacks)

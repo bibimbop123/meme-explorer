@@ -382,7 +382,18 @@
     </div>
 
     <!-- Engagement Chart -->
-    <h2>📈 Engagement Over Time (Last 7 Days)</h2>
+    <h2>📈 Engagement Over Time 
+      <% case params[:period]
+         when '24h' %>
+        (Last 24 Hours)
+      <% when '7d' %>
+        (Last 7 Days)
+      <% when '30d' %>
+        (Last 30 Days)
+      <% else %>
+        (Last 30 Days)
+      <% end %>
+    </h2>
     <div class="table-container" style="padding: 2rem;">
       <canvas id="engagementChart" height="80"></canvas>
     </div>
