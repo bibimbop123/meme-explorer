@@ -37,6 +37,8 @@ require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
 require_relative "./lib/services/activity_tracker_service"
 require_relative "./lib/services/leaderboard_service"
+require_relative "./lib/services/auth_service"
+require_relative "./lib/services/user_service"
 require "digest"
 
 # Sentry Error Tracking (if configured)
@@ -1416,111 +1418,6 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # OAuth Routes
-  # -----------------------
-  get "/auth/reddit" do
-    client = OAuth2::Client.new(
-      REDDIT_OAUTH_CLIENT_ID,
-      REDDIT_OAUTH_CLIENT_SECRET,
-      site: "https://www.reddit.com",
-      authorize_url: "/api/v1/authorize",
-      token_url: "/api/v1/access_token"
-    )
-    
-    redirect client.auth_code.authorize_url(
-      redirect_uri: REDDIT_REDIRECT_URI,
-      response_type: "code",
-      state: SecureRandom.hex(16),
-      scope: "identity read",
-      duration: "permanent"
-    )
-  end
-
-  get "/auth/reddit/callback" do
-    code = params[:code]
-    halt 400, "No authorization code received" unless code
-
-    client = OAuth2::Client.new(
-      REDDIT_OAUTH_CLIENT_ID,
-      REDDIT_OAUTH_CLIENT_SECRET,
-      site: "https://www.reddit.com",
-      authorize_url: "/api/v1/authorize",
-      token_url: "/api/v1/access_token"
-    )
-
-    begin
-      token = client.auth_code.get_token(
-        code,
-        redirect_uri: REDDIT_REDIRECT_URI,
-        headers: {
-          "User-Agent" => "MemeExplorer/1.0"
-        }
-      )
-
-      # Get Reddit user info from /api/v1/me endpoint
-      begin
-        me_response = HTTParty.get(
-          "https://oauth.reddit.com/api/v1/me",
-          headers: {
-            "Authorization" => "Bearer #{token.token}",
-            "User-Agent" => "MemeExplorer/1.0"
-          },
-          timeout: 10
-        )
-        
-        if me_response.success?
-          user_data = me_response.parsed_response
-          reddit_username = user_data["name"]
-          reddit_id = user_data["id"]
-          
-          puts "OAuth Success: username=#{reddit_username}, id=#{reddit_id}"
-        else
-          puts "OAuth API Error: #{me_response.code} - #{me_response.body}"
-          halt 400, "Failed to get Reddit user info: HTTP #{me_response.code}"
-        end
-        
-        halt 400, "Failed to get Reddit username" unless reddit_username
-      rescue Timeout::Error
-        puts "OAuth Timeout: /api/v1/me took too long"
-        halt 504, "Reddit API timeout"
-      rescue => e
-        puts "OAuth HTTP Error: #{e.class}: #{e.message}"
-        halt 503, "Failed to contact Reddit API: #{e.message}"
-      end
-
-      # Store access token in Redis
-      if REDIS
-        REDIS.setex("reddit:access_token", 3600, token.token)
-        REDIS.setex("reddit:token_expires_at", 3600, (Time.now + 3600).to_i.to_s)
-      end
-
-      # Create or find user
-      begin
-        user_id = create_or_find_user(reddit_username, reddit_id, nil)
-        
-        puts "OAuth: Setting session - user_id=#{user_id}, username=#{reddit_username}"
-        
-        # Set session
-        session[:user_id] = user_id
-        session[:reddit_username] = reddit_username
-        session[:reddit_token] = token.token
-        
-        puts "OAuth: Session after set - user_id=#{session[:user_id]}, username=#{session[:reddit_username]}"
-
-        redirect "/profile", 302
-      rescue => e
-        puts "OAuth User Creation Error: #{e.class}: #{e.message}"
-        puts e.backtrace.join("\n")
-        halt 500, "Failed to create/find user: #{e.message}"
-      end
-    rescue => e
-      puts "OAuth Error: #{e.class}: #{e.message}"
-      puts e.backtrace.join("\n")
-      halt 400, "OAuth authentication failed: #{e.message}"
-    end
-  end
-
-  # -----------------------
   # Routes
   # -----------------------
   get "/" do
@@ -2573,9 +2470,11 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Load Additional Routes
   # -----------------------
+  require_relative './routes/auth'
   require_relative './routes/reactions'
   require_relative './routes/battles'
   
+  MemeExplorer::Routes::Auth.register(self)
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   
