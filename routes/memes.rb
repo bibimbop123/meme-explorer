@@ -32,7 +32,7 @@ module Routes
           halt 404, "No suitable memes available" unless @meme
           
           @image_src = app.helpers.meme_image_src(@meme)
-          @likes = MemeService.get_likes(@image_src)
+          @likes = ::MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
 
           # Track meme viewing activity (active tracking is now handled globally in before filter)
@@ -45,6 +45,7 @@ module Routes
         end
 
         app.post "/like" do
+          content_type :json
           url = params[:url]
           halt 400, { error: "No URL provided" }.to_json unless url
 
@@ -59,28 +60,32 @@ module Routes
                         true
                       end
 
-          # Update global like counter
-          likes = MemeService.toggle_like(url, liked_now, session, DB)
+          # Update global like counter - access DB through ::DB constant
+          likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
 
-          # IMPROVEMENT: Track user-specific likes for logged-in users
+          # IMPROVEMENT: Track user-specific likes for logged-in users (if table exists)
           if session[:user_id]
             begin
-              if liked_now
-                # User liked - save to user_meme_stats
-                DB.execute(
-                  "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at, updated_at) 
-                   VALUES (?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                   ON CONFLICT(user_id, meme_url) DO UPDATE SET 
-                   liked = 1, liked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
-                  [session[:user_id], url]
-                )
-              else
-                # User unliked - update user_meme_stats
-                DB.execute(
-                  "UPDATE user_meme_stats SET liked = 0, unliked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+              # Check if user_meme_stats table exists before using it
+              tables = ::DB.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_meme_stats'")
+              if !tables.empty?
+                if liked_now
+                  # User liked - save to user_meme_stats
+                  ::DB.execute(
+                    "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at, updated_at) 
+                     VALUES (?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                     ON CONFLICT(user_id, meme_url) DO UPDATE SET 
+                     liked = 1, liked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
+                    [session[:user_id], url]
+                  )
+                else
+                  # User unliked - update user_meme_stats
+                  ::DB.execute(
+                    "UPDATE user_meme_stats SET liked = 0, unliked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
                    WHERE user_id = ? AND meme_url = ?",
                   [session[:user_id], url]
                 )
+                end
               end
             rescue => e
               puts "⚠️ Failed to track user like: #{e.message}"

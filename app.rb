@@ -41,6 +41,7 @@ require_relative "./lib/services/auth_service"
 require_relative "./lib/services/user_service"
 require_relative "./lib/services/ab_testing_service"
 require_relative "./lib/services/trending_service"
+require_relative "./lib/services/meme_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
