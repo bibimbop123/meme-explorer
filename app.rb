@@ -40,6 +40,7 @@ require_relative "./lib/services/leaderboard_service"
 require_relative "./lib/services/auth_service"
 require_relative "./lib/services/user_service"
 require_relative "./lib/services/ab_testing_service"
+require_relative "./lib/services/trending_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
@@ -2391,6 +2392,7 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/meme_stats'
   require_relative './routes/search_routes'
   require_relative './routes/trending_routes'
+  require_relative './routes/trending_api'
   require_relative './routes/profile_routes'
   require_relative './routes/admin_routes'
   require_relative './routes/metrics_routes'

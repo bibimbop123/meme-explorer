@@ -1,7 +1,14 @@
 require 'redis'
+require 'active_support/core_ext/time'
 
 class TrendingService
-  REDIS = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+  REDIS = begin
+    Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+  rescue => e
+    puts "⚠️ TrendingService: Redis unavailable - #{e.message}"
+    nil
+  end
+  
   CACHE_TTL = 5 * 60
   DECAY_HALF_LIFE = 7 * 24 * 60 * 60
   
@@ -13,23 +20,39 @@ class TrendingService
   
   class << self
     def calculate_score(meme)
-      age_seconds = (Time.current - meme.created_at).to_i
+      # Handle both hash and row objects
+      created_at = meme.is_a?(Hash) ? parse_time(meme['created_at'] || meme['updated_at']) : parse_time(meme['updated_at'])
+      created_at ||= Time.now - (7 * 24 * 60 * 60) # Default to 7 days ago if no timestamp
+      
+      age_seconds = (Time.now - created_at).to_i
       decay_factor = Math.exp(-Math.log(2) * age_seconds / DECAY_HALF_LIFE)
       
-      likes_score = (meme.likes || 0) * LIKES_WEIGHT * decay_factor
-      views_score = (meme.views || 0) * VIEWS_WEIGHT
-      comments_score = (meme.comments_count || 0) * COMMENTS_WEIGHT * decay_factor
+      likes = get_value(meme, 'likes')
+      views = get_value(meme, 'views')
+      
+      likes_score = likes * LIKES_WEIGHT * decay_factor
+      views_score = views * VIEWS_WEIGHT
       
       # HUMOR & RELATIONSHIP BOOST
       content_boost = calculate_content_boost(meme)
       
-      (likes_score + views_score + comments_score) * content_boost
+      (likes_score + views_score) * content_boost
+    end
+    
+    def get_value(meme, key)
+      value = meme.is_a?(Hash) ? meme[key] : meme[key]
+      (value || 0).to_i
+    end
+    
+    def parse_time(time_str)
+      return nil if time_str.nil? || time_str.to_s.strip.empty?
+      Time.parse(time_str.to_s) rescue nil
     end
     
     def calculate_content_boost(meme)
       boost = 1.0
-      title = (meme.title || "").downcase
-      subreddit = (meme.subreddit || "").downcase
+      title = (get_value(meme, 'title') || "").to_s.downcase
+      subreddit = (get_value(meme, 'subreddit') || "").to_s.downcase
       
       # Relationship keywords
       relationship_keywords = ['boyfriend', 'girlfriend', 'dating', 'relationship', 'couples', 
@@ -52,36 +75,49 @@ class TrendingService
     
     def trending_memes(time_window: '24h', sort_by: 'trending', limit: 20, cursor: nil)
       cache_key = "trending:#{time_window}:#{sort_by}"
-      cached_result = REDIS.get(cache_key) rescue nil
       
-      if cached_result.present?
-        memes = JSON.parse(cached_result)
-        return paginate_results(memes, limit, cursor)
+      if REDIS
+        cached_result = REDIS.get(cache_key) rescue nil
+        if cached_result && !cached_result.empty?
+          memes = JSON.parse(cached_result) rescue nil
+          return paginate_results(memes, limit, cursor) if memes
+        end
       end
       
       cutoff_time = time_cutoff(time_window)
-      memes = Meme.where('created_at >= ?', cutoff_time).to_a
+      
+      # Query meme_stats table directly
+      memes = DB.execute(
+        "SELECT * FROM meme_stats WHERE datetime(updated_at) >= datetime(?) ORDER BY updated_at DESC",
+        [cutoff_time.strftime('%Y-%m-%d %H:%M:%S')]
+      ) rescue []
       
       memes_with_scores = memes.map do |meme|
         {
-          id: meme.id,
-          title: meme.title,
-          subreddit: meme.subreddit,
-          likes: meme.likes || 0,
-          views: meme.views || 0,
-          created_at: meme.created_at.iso8601,
+          id: meme['url'],
+          title: meme['title'] || 'Untitled',
+          subreddit: meme['subreddit'] || 'local',
+          likes: (meme['likes'] || 0).to_i,
+          views: (meme['views'] || 0).to_i,
+          url: meme['url'],
+          image_url: meme['url'],
+          created_at: (meme['updated_at'] || Time.now.iso8601),
           trending_score: calculate_score(meme),
           badge: determine_badge(meme)
         }
       end
       
       sorted_memes = sort_memes(memes_with_scores, sort_by)
-      REDIS.setex(cache_key, CACHE_TTL, sorted_memes.to_json) rescue nil
+      
+      if REDIS
+        REDIS.setex(cache_key, CACHE_TTL, sorted_memes.to_json) rescue nil
+      end
       
       paginate_results(sorted_memes, limit, cursor)
     end
     
     def invalidate_cache
+      return unless REDIS
       keys = REDIS.keys('trending:*') rescue []
       keys.each { |key| REDIS.del(key) } if keys.any?
     end
@@ -106,20 +142,27 @@ class TrendingService
       when 'trending'
         memes.sort_by { |m| -m[:trending_score] }
       when 'latest'
-        memes.sort_by { |m| -Time.parse(m[:created_at]).to_i }
+        memes.sort_by { |m| -(parse_time(m[:created_at]) || Time.now).to_i }
       when 'most_liked'
         memes.sort_by { |m| -m[:likes] }
       when 'rising'
-        memes.sort_by { |m| -(m[:likes].to_f / [1, (Time.current - Time.parse(m[:created_at])).to_i / 3600.0].max) }
+        memes.sort_by do |m|
+          time_created = parse_time(m[:created_at]) || (Time.now - 86400)
+          hours_old = [(Time.now - time_created).to_i / 3600.0, 1].max
+          -(m[:likes].to_f / hours_old)
+        end
       else
         memes.sort_by { |m| -m[:trending_score] }
       end
     end
     
     def determine_badge(meme)
-      if meme[:trending_score] > 500
+      score = meme.is_a?(Hash) ? meme[:trending_score] : calculate_score(meme)
+      likes = meme.is_a?(Hash) ? meme[:likes] : get_value(meme, 'likes')
+      
+      if score && score > 500
         'trending_now'
-      elsif meme[:likes] > 100
+      elsif likes && likes > 100
         'hot'
       else
         nil
