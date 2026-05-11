@@ -2406,7 +2406,7 @@ class MemeExplorer < Sinatra::Base
   use Routes::TrendingRoutes
   use Routes::ProfileRoutes
   use Routes::AdminRoutes
-  use Routes::MetricsRoutes
+  Routes::MetricsRoutes.register(self)
   
   # -----------------------
 
