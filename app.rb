@@ -151,6 +151,7 @@ class MemeExplorer < Sinatra::Base
 
   # Pre-warm cache IMMEDIATELY on startup (non-blocking)
   @startup_thread = Thread.new do
+    Thread.current.name = "StartupPreloadThread"
     begin
       puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
       
@@ -173,12 +174,20 @@ class MemeExplorer < Sinatra::Base
       # Note: Cache refresh thread will handle API meme fetching
     rescue => e
       puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
+      # Log to error tracking
+      begin
+        Sentry.capture_exception(e) if defined?(Sentry)
+      rescue
+        # Ignore Sentry errors in startup thread
+      end
     end
   end
 
-  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes (FAST: 5 second initial delay, 30 second refresh interval)
+  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
+  # IMPROVED: Better error handling, monitoring, and refresh interval (10 minutes instead of 30 seconds)
   @cache_refresh_thread = Thread.new do
-    sleep 2  # Quick start - only wait for basic setup
+    Thread.current.name = "CacheRefreshThread"
+    sleep 5  # Initial startup delay
     loop do
       begin
         puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
@@ -265,6 +274,15 @@ class MemeExplorer < Sinatra::Base
       rescue => e
         puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
         puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
+        
+        # Log to error tracking service if available
+        begin
+          Sentry.capture_exception(e) if defined?(Sentry)
+        rescue => sentry_error
+          puts "⚠️ [CACHE REFRESH] Sentry logging failed: #{sentry_error.message}"
+        end
+        
+        # Fallback to local memes
         begin
           local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
           MEME_CACHE.set(:memes, local_memes.shuffle)
@@ -273,13 +291,16 @@ class MemeExplorer < Sinatra::Base
         end
       end
       
-      puts "⏸️  [CACHE REFRESH] Sleeping 30 seconds until next refresh..."
-      sleep 30
+      # PERFORMANCE FIX: Increased from 30 seconds to 10 minutes
+      # Reddit API has rate limits (60 req/min), no need to refresh so frequently
+      puts "⏸️  [CACHE REFRESH] Sleeping 10 minutes until next refresh..."
+      sleep 600  # 10 minutes
     end
   end
 
   # Hourly database cleanup (non-blocking)
   @db_cleanup_thread = Thread.new do
+    Thread.current.name = "DBCleanupThread"
     sleep 3600  # Wait 1 hour before first cleanup
     loop do
       begin
@@ -288,6 +309,12 @@ class MemeExplorer < Sinatra::Base
         puts "✅ [DB CLEANUP] Old records removed"
       rescue => e
         puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
+        # Log to error tracking
+        begin
+          Sentry.capture_exception(e) if defined?(Sentry)
+        rescue
+          # Ignore Sentry errors in cleanup thread
+        end
       end
       sleep 3600
     end

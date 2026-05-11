@@ -21,9 +21,13 @@ module MemeExplorer
           
           halt 404, "No memes available" if memes.empty?
 
-          # Use weighted random selector with content filtering and session tracking
-          session_id = session.object_id.to_s
-          user_prefs = { excluded_categories: ['lgbtq', 'trans'] }
+          # Use weighted random selector with session tracking
+          # FIX: Use consistent session ID (not object_id which changes every request!)
+          session_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
+          session[:visitor_id] ||= session_id  # Persist for consistency
+          
+          # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
+          user_prefs = {}
           @meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
           
           halt 404, "No suitable memes available" unless @meme
@@ -67,9 +71,13 @@ module MemeExplorer
           memes = app.class::MEMES.values.flatten if memes.empty?
           halt 404, { error: "No memes available" }.to_json if memes.empty?
 
-          # Use weighted random selector with content filtering
-          session_id = session.object_id.to_s
-          user_prefs = { excluded_categories: ['lgbtq', 'trans'] }
+          # Use weighted random selector with consistent session tracking
+          # FIX: Use consistent session ID (not object_id which changes every request!)
+          session_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
+          session[:visitor_id] ||= session_id  # Persist for consistency
+          
+          # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
+          user_prefs = {}
           meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
           
           halt 404, { error: "No suitable memes available" }.to_json unless meme

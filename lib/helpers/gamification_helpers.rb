@@ -333,12 +333,14 @@ module GamificationHelpers
   def calculate_collection_progress(user_id, requirements)
     if requirements["subreddits"]
       # Count views from specific subreddits
-      subreddit_list = requirements["subreddits"].join("','")
+      # FIX: Use parameterized query to prevent SQL injection
+      subreddits = requirements["subreddits"]
+      placeholders = (['?'] * subreddits.length).join(',')
       count = DB.get_first_value(
         "SELECT COUNT(*) FROM user_meme_exposure ume
          JOIN meme_stats ms ON ume.meme_url = ms.url
-         WHERE ume.user_id = ? AND ms.subreddit IN ('#{subreddit_list}')",
-        [user_id]
+         WHERE ume.user_id = ? AND ms.subreddit IN (#{placeholders})",
+        [user_id, *subreddits]
       ).to_i
       return count
       
