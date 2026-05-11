@@ -2389,6 +2389,7 @@ class MemeExplorer < Sinatra::Base
   # P2 Week 2: Refactored route modules
   require_relative './routes/home'
   require_relative './routes/random_meme'
+  require_relative './routes/memes'
   require_relative './routes/meme_stats'
   require_relative './routes/search_routes'
   require_relative './routes/trending_routes'
@@ -2403,6 +2404,7 @@ class MemeExplorer < Sinatra::Base
   use Routes::ABTesting
   register Routes::Home
   register Routes::RandomMeme
+  register Routes::Memes
   register Routes::MemeStats
   register Routes::SearchRoutes
   register Routes::TrendingRoutes
