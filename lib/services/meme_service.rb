@@ -248,8 +248,8 @@ class MemeService
     return 0 unless db && url
     
     begin
-      # IMPROVEMENT: Removed session[:meme_like_counts] - now using session[:liked_memes] only
-      # This consolidates session tracking and removes redundancy
+      # Use session[:liked_memes] as single source of truth (managed in routes/memes.rb)
+      # NO DUAL TRACKING - session[:meme_like_counts] removed to prevent state desync
       
       # Ensure the record exists before updating (with proper columns)
       db.execute(
@@ -257,13 +257,14 @@ class MemeService
         [url, 'Unknown', 'unknown']
       )
       
-      # Update global like counter in meme_stats
+      # Update database based on current like state
+      # liked_now is already determined by routes/memes.rb checking session[:liked_memes]
       if liked_now
-        # User just liked - increment counter
+        # Liking - increment counter
         db.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
         puts "✅ [LIKE] Incremented likes for: #{url}"
       else
-        # User just unliked - decrement counter
+        # Unliking - decrement counter
         db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
         puts "✅ [UNLIKE] Decremented likes for: #{url}"
       end
