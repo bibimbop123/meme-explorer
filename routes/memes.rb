@@ -51,6 +51,7 @@ module MemeExplorer
 
           session[:liked_memes] ||= []
 
+          # Toggle like state in session
           liked_now = if session[:liked_memes].include?(url)
                         session[:liked_memes].delete(url)
                         false
@@ -59,7 +60,50 @@ module MemeExplorer
                         true
                       end
 
+          # Update global like counter
           likes = MemeService.toggle_like(url, liked_now, session, DB)
+
+          # IMPROVEMENT: Track user-specific likes for logged-in users
+          if session[:user_id]
+            begin
+              if liked_now
+                # User liked - save to user_meme_stats
+                DB.execute(
+                  "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at, updated_at) 
+                   VALUES (?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                   ON CONFLICT(user_id, meme_url) DO UPDATE SET 
+                   liked = 1, liked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
+                  [session[:user_id], url]
+                )
+              else
+                # User unliked - update user_meme_stats
+                DB.execute(
+                  "UPDATE user_meme_stats SET liked = 0, unliked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+                   WHERE user_id = ? AND meme_url = ?",
+                  [session[:user_id], url]
+                )
+              end
+            rescue => e
+              puts "⚠️ Failed to track user like: #{e.message}"
+            end
+
+            # IMPROVEMENT: Award XP for likes (gamification integration)
+            if liked_now
+              begin
+                # Extract subreddit from meme for tracking
+                meme_data = DB.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [url]).first
+                subreddit = meme_data ? meme_data["subreddit"] : "unknown"
+                
+                ActivityTrackerService.track_action('like', session[:user_id], {
+                  meme_url: url,
+                  subreddit: subreddit
+                })
+                puts "✅ [XP] Awarded 10 XP for like"
+              rescue => e
+                puts "⚠️ Failed to award XP: #{e.message}"
+              end
+            end
+          end
 
           content_type :json
           { liked: liked_now, likes: likes }.to_json

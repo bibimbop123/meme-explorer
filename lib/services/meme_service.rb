@@ -248,30 +248,25 @@ class MemeService
     return 0 unless db && url
     
     begin
-      # Initialize session tracking hash if not exists
-      session[:meme_like_counts] ||= {}
-      was_liked_before = session[:meme_like_counts][url] || false
+      # IMPROVEMENT: Removed session[:meme_like_counts] - now using session[:liked_memes] only
+      # This consolidates session tracking and removes redundancy
       
-      # Don't create table - it's already created in db/setup.rb with proper schema
       # Ensure the record exists before updating (with proper columns)
       db.execute(
         "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 0, 0)", 
         [url, 'Unknown', 'unknown']
       )
       
-      # Only update DB on first like/unlike transition in this session
-      if liked_now && !was_liked_before
-        # First time liking in this session - increment counter
+      # Update global like counter in meme_stats
+      if liked_now
+        # User just liked - increment counter
         db.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-        session[:meme_like_counts][url] = true
         puts "✅ [LIKE] Incremented likes for: #{url}"
-      elsif !liked_now && was_liked_before
-        # Unliking after having liked in this session - decrement counter
+      else
+        # User just unliked - decrement counter
         db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-        session[:meme_like_counts][url] = false
         puts "✅ [UNLIKE] Decremented likes for: #{url}"
       end
-      # If liked_now == was_liked_before, no state change, don't update DB
       
       get_likes(url, db)
     rescue => e
