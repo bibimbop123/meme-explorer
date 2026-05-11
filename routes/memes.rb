@@ -13,13 +13,24 @@ module Routes
           requested_url = params[:url]
           
           if requested_url && !requested_url.empty?
-            # Find the specific meme by URL
+            puts "🔍 [RANDOM] Looking for specific meme: #{requested_url}"
+            
+            # Try multiple sources to find the meme
             memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
             memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
             memes = app.class::MEMES.values.flatten if memes.empty?
             
-            # Find meme matching the requested URL
-            @meme = memes.find { |m| (m['url'] || m['file']) == requested_url }
+            # Find meme matching the requested URL - try multiple matching strategies
+            @meme = memes.find { |m| 
+              meme_url = m['url'] || m['file']
+              meme_url == requested_url || 
+              meme_url&.include?(requested_url) || 
+              requested_url&.include?(meme_url.to_s)
+            }
+            
+            if @meme
+              puts "✅ [RANDOM] Found meme in cache: #{@meme['title']}"
+            end
             
             # If not found in cache, try database
             if @meme.nil? && defined?(DB) && DB
@@ -31,16 +42,22 @@ module Routes
                     'title' => row['title'],
                     'subreddit' => row['subreddit']
                   }
+                  puts "✅ [RANDOM] Found meme in database: #{@meme['title']}"
                 end
               rescue => e
                 puts "⚠️ [RANDOM] Database lookup failed: #{e.message}"
               end
             end
             
-            # Fall back to random if specific meme not found
+            # If still not found, create a minimal meme object with just the URL
+            # This allows the view to display it even if we don't have full metadata
             if @meme.nil?
-              puts "⚠️ [RANDOM] Requested meme not found: #{requested_url}, showing random instead"
-              # Continue to random selection below
+              puts "⚠️ [RANDOM] Meme not found in cache/DB, creating minimal meme object"
+              @meme = {
+                'url' => requested_url,
+                'title' => 'Trending Meme',
+                'subreddit' => 'trending'
+              }
             end
           end
           
@@ -72,6 +89,14 @@ module Routes
           @image_src = app.helpers.meme_image_src(@meme)
           @likes = ::MemeService.get_likes(@image_src)
           @reddit_path = extract_reddit_path(@meme, @image_src)
+
+          # Debug logging
+          if params[:url]
+            puts "✅ [RANDOM] Final meme being displayed:"
+            puts "   Title: #{@meme['title']}"
+            puts "   URL: #{@meme['url'] || @meme['file']}"
+            puts "   Image src: #{@image_src}"
+          end
 
           # Track meme viewing activity (active tracking is now handled globally in before filter)
           # Use consistent visitor_id from session, NOT object_id which changes every request!
