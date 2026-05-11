@@ -2409,25 +2409,7 @@ class MemeExplorer < Sinatra::Base
   use Routes::MetricsRoutes
   
   # -----------------------
-  # Sidekiq Web UI (Production only, admin auth)
-  # -----------------------
-  if ENV['RACK_ENV'] == 'production'
-    begin
-      require 'sidekiq/web'
-      
-      # Basic auth for Sidekiq web UI
-      use Rack::Auth::Basic, "Protected Area" do |username, password|
-        username == ENV['SIDEKIQ_USERNAME'] && password == ENV['SIDEKIQ_PASSWORD']
-      end
-      
-      mount Sidekiq::Web, at: '/sidekiq'
-      puts "✅ Sidekiq Web UI mounted at /sidekiq"
-    rescue LoadError
-      puts "⚠️  Sidekiq::Web not available"
-    end
-  end
-  
-  # -----------------------
+
   # Start server
   # -----------------------
   run! if app_file == $0
