@@ -1,11 +1,11 @@
-# Enhanced Random Selector Service - MAXIMUM HUMOR & ENGAGEMENT
+# Enhanced Random Selector Service V2 - MAXIMUM HUMOR & ENGAGEMENT
 # Improvements:
 # 1. FEWER FALLBACKS: Aggressive media validation, URL quality scoring
 # 2. FUNNIER CONTENT: Advanced humor detection, viral boost, quality filters
 # 3. MORE ADDICTIVE: Variety algorithm, surprise mechanics, streak tracking
 
 module MemeExplorer
-  class RandomSelectorService
+  class RandomSelectorServiceV2
     # Excluded categories (safety filters)
     EXCLUDED_CATEGORIES = [
       'explicit_adult_content', 'graphic_violence', 'hate_speech',
