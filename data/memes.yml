@@ -16,9 +16,6 @@ wholesome:
   - title: "Finding a job"
     file: "images/wholesome2.jpeg"
     subreddit: "wholesome"
-  - title: "Happy Dance GIF"
-    file: "videos/wholesome_dance.gif"
-    subreddit: "wholesome"
 
 dank:
   - title: "Loading chunks of trees"
