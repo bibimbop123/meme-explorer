@@ -15,29 +15,32 @@
 /* Only apply grid on desktop (1200px+) */
 @media (min-width: 1200px) {
   .meme-container {
-    display: grid;
-    grid-template-columns: 300px 1fr 300px;
-    grid-template-rows: auto auto auto auto;
+    display: grid !important;
+    grid-template-columns: 300px 1fr 300px !important;
+    grid-template-rows: auto auto auto auto !important;
     grid-template-areas:
       "left-sidebar progress right-sidebar"
       "left-sidebar meme right-sidebar"
       "left-sidebar info right-sidebar"
-      "controls controls controls";
-    gap: 1.5rem;
-    padding: 1.5rem;
-    max-width: 1600px;
-    margin: 0 auto;
-    min-height: calc(100vh - 100px);
+      "controls controls controls" !important;
+    gap: 0.5rem !important;
+    row-gap: 0.75rem !important;
+    padding: 1.5rem !important;
+    max-width: 2000px !important;
+    margin: 0 auto !important;
+    min-height: calc(100vh - 100px) !important;
   }
 
   /* Assign grid areas to elements */
   .meme-container > .milestone-progress-bar {
     grid-area: progress;
+    margin-bottom: 0 !important;
   }
 
   .meme-container > .meme-display {
     grid-area: meme;
     min-height: 400px;
+    margin-top: 0 !important;
   }
 
   .meme-container > .meme-info {
@@ -45,10 +48,12 @@
   }
 
   .meme-container > .meme-controls {
-    grid-area: controls;
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
+    grid-area: controls !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 1rem !important;
   }
 
   .meme-container > .nav-hints-container {

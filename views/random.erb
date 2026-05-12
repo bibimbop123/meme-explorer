@@ -1,5 +1,14 @@
-<div class="meme-container">
-  <div class="meme-display" id="meme-display">
+<div class="page-wrapper">
+  <!-- Left Ad Column -->
+  <% if should_show_ads? %>
+    <aside class="ad-sidebar ad-sidebar-left">
+      <%= render_ad_unit(0, format: 'vertical') %>
+    </aside>
+  <% end %>
+
+  <!-- Center Content Column -->
+  <div class="meme-container">
+    <div class="meme-display" id="meme-display">
     <% if @meme && is_gallery_post?(@meme) && @meme["gallery_images"] %>
       <!-- Multi-image gallery carousel -->
       <%= gallery_styles %>
@@ -15,7 +24,7 @@
               Your browser does not support the video tag.
             </video>
           <% else %>
-            <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="showPlaceholder()" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="showPlaceholder()" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in;">
           <% end %>
         <% else %>
           <div class="meme-loading">
@@ -30,8 +39,12 @@
   </div>
   
   <div class="meme-info" id="meme-info">
-    <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">👁️</button>
-    <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
+    <div class="meme-info-header">
+      <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
+      <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">
+        <span class="toggle-icon"></span>
+      </button>
+    </div>
     <div class="meme-meta">
       <span class="meme-subreddit"><%= @meme&.dig('subreddit')&.upcase || 'MEME' %></span>
       <% if @reddit_path || @meme&.dig('permalink') %>
@@ -114,12 +127,22 @@
     </div>
   <% end %>
 
-  <!-- Ad Placement: Shows on every random meme view -->
+  </div>
+
+  <!-- Right Ad Column -->
   <% if should_show_ads? %>
-    <div style="margin-top: 2rem;">
-      <%= render_ad_unit(0, format: 'square') %>
-    </div>
+    <aside class="ad-sidebar ad-sidebar-right">
+      <%= render_ad_unit(1, format: 'vertical') %>
+    </aside>
   <% end %>
+</div>
+
+<!-- Fullscreen Lightbox Modal -->
+<div id="lightbox-modal" class="lightbox-modal" style="display: none;">
+  <div class="lightbox-close" id="lightbox-close">✕</div>
+  <div class="lightbox-content">
+    <img id="lightbox-image" src="" alt="">
+  </div>
 </div>
 
 <script>
@@ -878,6 +901,69 @@
     const count = parseInt(sessionStorage.getItem('memes_viewed_count') || '0') + 1;
     sessionStorage.setItem('memes_viewed_count', count.toString());
   }
+  
+  // ============================================
+  // LIGHTBOX FUNCTIONALITY
+  // ============================================
+  
+  const lightboxModal = document.getElementById('lightbox-modal');
+  const lightboxImage = document.getElementById('lightbox-image');
+  const lightboxClose = document.getElementById('lightbox-close');
+  
+  // Open lightbox when clicking meme image
+  function openLightbox() {
+    const memeImage = document.getElementById('meme-image');
+    if (memeImage && memeImage.src) {
+      lightboxImage.src = memeImage.src;
+      lightboxImage.alt = memeImage.alt;
+      lightboxModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden'; // Prevent scrolling
+      console.log('🖼️ [LIGHTBOX] Opened');
+    }
+  }
+  
+  // Close lightbox
+  function closeLightbox() {
+    lightboxModal.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scrolling
+    console.log('🖼️ [LIGHTBOX] Closed');
+  }
+  
+  // Attach click handler to meme image
+  function attachLightboxHandler() {
+    const memeImage = document.getElementById('meme-image');
+    if (memeImage) {
+      memeImage.style.cursor = 'zoom-in';
+      memeImage.addEventListener('click', openLightbox);
+    }
+  }
+  
+  // Initial attachment
+  attachLightboxHandler();
+  
+  // Close button click
+  lightboxClose.addEventListener('click', closeLightbox);
+  
+  // Click outside image to close
+  lightboxModal.addEventListener('click', (e) => {
+    if (e.target === lightboxModal) {
+      closeLightbox();
+    }
+  });
+  
+  // ESC key to close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightboxModal.style.display === 'flex') {
+      closeLightbox();
+    }
+  });
+  
+  // Re-attach handler when meme changes
+  const originalUpdateMemeDisplay = updateMemeDisplay;
+  updateMemeDisplay = function(memeData) {
+    originalUpdateMemeDisplay(memeData);
+    setTimeout(() => attachLightboxHandler(), 100);
+  };
 </script>
 
 <style>
@@ -891,30 +977,30 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 600px;
+    max-width: 100%;
   }
 
   .meme-info.title-hidden {
     opacity: 0;
-    transform: translateY(-12px) scale(0.98);
+    visibility: hidden;
     pointer-events: none;
-    max-height: 0;
-    padding: 0 1rem;
-    overflow: visible;
   }
 
+  /* Keep toggle button visible and clickable even when title is hidden */
   .meme-info.title-hidden .title-toggle-btn {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     position: absolute;
-    top: 0;
-    right: 0;
+    right: 0.75rem;
+    top: 0.5rem;
+    z-index: 10;
   }
 
   .meme-info.title-hidden .meme-title,
@@ -924,27 +1010,56 @@
 
   .meme-info.title-visible {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    visibility: visible;
     pointer-events: auto;
-    max-height: 500px;
   }
 
   .meme-info {
     position: relative;
   }
 
+  .meme-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+  }
+  
   .title-toggle-btn {
-    align-self: flex-end;
-    background: rgba(102, 126, 234, 0.15);
-    border: 2px solid rgba(102, 126, 234, 0.4);
-    font-size: 1.5rem;
+    flex-shrink: 0;
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    font-size: 1.3rem;
     cursor: pointer;
-    padding: 0.6rem 0.8rem;
-    border-radius: 10px;
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
     transition: all 0.2s ease;
     opacity: 1;
-    z-index: 5;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  }
+  
+  .title-toggle-btn:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: scale(1.05);
+  }
+  
+  .meme-info.title-hidden .meme-title,
+  .meme-info.title-hidden .meme-meta {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Icon changes based on state - only ONE eye icon */
+  .toggle-icon::before {
+    content: '👁️';
+  }
+  
+  .meme-info.title-hidden .toggle-icon::before {
+    content: '👁️';
   }
 
   .title-toggle-btn:hover {
@@ -959,9 +1074,9 @@
   }
 
   .meme-title {
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-    font-weight: 700;
-    line-height: 1.4;
+    font-size: clamp(0.85rem, 2vw, 1.1rem);
+    font-weight: 600;
+    line-height: 1.3;
     color: #1a1a1a;
     word-wrap: break-word;
     animation: titleSlideIn 0.3s ease-out;
@@ -1012,10 +1127,12 @@
 
   .meme-display {
     width: 100%;
-    max-width: 600px;
-    aspect-ratio: 1;
+    max-width: 100%;
+    height: 70vh;
+    min-height: 400px;
+    max-height: 800px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1034,8 +1151,8 @@
 
   .meme-display img,
   .meme-display video {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     animation: mediaFadeIn 0.4s ease-out;
   }
@@ -1129,9 +1246,9 @@
     width: 100%;
     display: flex;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
-    max-width: 600px;
+    max-width: 100%;
   }
 
   .control-btn {
@@ -1171,14 +1288,44 @@
     letter-spacing: 0.5px;
   }
 
-  .meme-container {
+  /* Page Wrapper - 3 Column Layout */
+  .page-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 1.5rem;
     width: 100%;
-    max-width: 600px;
+    max-width: 2400px;
+    margin: 0 auto;
+    padding: 0.5rem;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* Ad Sidebars */
+  .ad-sidebar {
+    flex: 0 0 300px;
+    width: 300px;
+    position: sticky;
+    top: 80px;
+    align-self: flex-start;
+  }
+
+  /* Hide ads on mobile/tablet - only show on desktop */
+  @media (max-width: 1200px) {
+    .ad-sidebar {
+      display: none;
+    }
+  }
+
+  .meme-container {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 1400px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.25rem;
-    padding: 1.5rem 1rem;
+    gap: 0.75rem;
+    padding: 0.25rem;
   }
 
   .nav-hints-container {
@@ -1186,12 +1333,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    max-width: 600px;
+    max-width: 900px;
     padding: 0 1rem;
   }
 
   .nav-hint {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: #666;
     text-align: center;
     font-weight: 500;
@@ -1605,26 +1752,26 @@
       width: 100%;
     }
 
-    .control-btn {
-      width: 100%;
-      padding: 0.85rem 1rem;
-      font-size: 0.95rem;
-      min-height: 44px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      opacity: 1;
-    }
-
-    .control-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
-    }
-
-    #next-btn {
-      background: linear-gradient(135deg, #ff8a00, #e52e71);
-      font-weight: 700;
-      min-height: 48px;
-      margin-top: 0.25rem;
-    }
+  .control-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    min-height: 44px;
+    flex: 1 1 auto;
+    max-width: 130px;
+  }
 
     #next-btn:hover {
       transform: translateY(-2px);
@@ -1632,12 +1779,93 @@
     }
 
     /* Hide navigation hints on desktop - they take too much space */
-    .nav-hints-container {
-      display: none;
+  .nav-hints-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 100%;
+    padding: 0 0.5rem;
+  }
+  
+  /* ========================================
+     LIGHTBOX MODAL STYLING
+     ======================================== */
+  
+  .lightbox-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  .lightbox-content {
+    position: relative;
+    max-width: 95vw;
+    max-height: 95vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .lightbox-content img {
+    max-width: 100%;
+    max-height: 95vh;
+    object-fit: contain;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    animation: zoomIn 0.3s ease-out;
+  }
+  
+  .lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 48px;
+    color: white;
+    cursor: pointer;
+    z-index: 10001;
+    background: rgba(0, 0, 0, 0.5);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    font-weight: 300;
+    line-height: 1;
+  }
+  
+  .lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+  }
+  
+  @keyframes zoomIn {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
     }
-
-    .nav-hint {
-      display: none;
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .lightbox-close {
+      top: 10px;
+      right: 10px;
+      font-size: 36px;
+      width: 50px;
+      height: 50px;
     }
   }
 </style>
