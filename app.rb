@@ -1493,6 +1493,43 @@ class MemeExplorer < Sinatra::Base
     
     @image_src = meme_image_src(@meme)
     @likes = 0  # Will be loaded by JS
+    
+    # GAMIFICATION: Track view count and check for milestones/rewards
+    begin
+      require_relative './lib/services/milestone_service'
+      
+      # Increment view count (session-based, works for everyone)
+      session[:view_count] ||= 0
+      session[:view_count] += 1
+      
+      # Check if milestone reached
+      milestone = MilestoneService.check_milestone(session[:view_count])
+      if milestone
+        @milestone = milestone
+        # Award to DB if logged in
+        if session[:user_id]
+          MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
+        end
+      end
+      
+      # Get progress to next milestone
+      @progress = MilestoneService.get_progress(session[:view_count])
+      
+      # Surprise rewards (10% chance)
+      if rand < 0.10
+        @surprise_reward = {
+          icon: ["🎁", "⚡", "🛡️", "🔥", "💎"].sample,
+          title: ["Bonus XP!", "Double XP!", "Streak Freeze!", "Lucky You!", "Jackpot!"].sample,
+          message: ["You earned bonus points!", "Your next meme counts double!", "Your streak is protected!", "Keep the momentum going!", "Fortune favors the bold!"].sample
+        }
+      end
+    rescue => e
+      puts "⚠️ Gamification error: #{e.message}"
+      # Don't break page if gamification fails
+      @milestone = nil
+      @progress = nil
+      @surprise_reward = nil
+    end
   
     # Determine reddit_path for this specific image
     @reddit_path = nil
