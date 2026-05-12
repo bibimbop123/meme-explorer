@@ -1,0 +1,165 @@
+# Algorithm Configuration - Phase 2
+# All algorithm parameters in one place for easy A/B testing and tuning
+
+production:
+  # Streak Bonuses (Reward engagement momentum)
+  streak_bonuses:
+    none: 1.0           # 0-1 consecutive likes
+    warming_up: 1.15    # 2 consecutive likes
+    hot_streak: 1.30    # 3-4 consecutive
+    on_fire: 1.50       # 5-9 consecutive
+    legendary: 1.75     # 10+ consecutive
+
+  # Freshness Multipliers (Prioritize new content)
+  freshness:
+    brand_new_hours: 2        # Hours threshold for "brand new"
+    brand_new_boost: 2.5      # Multiplier for 0-2 hours
+    ultra_fresh_hours: 6      # Hours threshold for "ultra fresh"
+    ultra_fresh_boost: 2.0    # Multiplier for 3-6 hours
+    very_fresh_hours: 12      # Hours threshold for "very fresh"
+    very_fresh_boost: 1.7     # Multiplier for 7-12 hours
+    today_hours: 24           # Hours threshold for "today"
+    today_boost: 1.4          # Multiplier for 13-24 hours
+    yesterday_hours: 48       # Hours threshold for "yesterday"
+    yesterday_boost: 1.2      # Multiplier for 25-48 hours
+    this_week_hours: 168      # Hours threshold for "this week"
+    this_week_boost: 1.1      # Multiplier for 49-168 hours
+    this_month_hours: 720     # Hours threshold for "this month"
+    this_month_boost: 1.0     # Multiplier for 169-720 hours
+    old_content_penalty: 0.85 # Penalty for content older than 30 days
+
+  # Viral Boost Thresholds (Reward popular content)
+  viral:
+    mega_threshold: 10000     # 10k+ upvotes
+    mega_boost: 2.5
+    mega_ratio: 0.8           # Minimum upvote ratio
+    super_threshold: 5000     # 5k+ upvotes
+    super_boost: 2.0
+    super_ratio: 0.75
+    viral_threshold: 1000     # 1k+ upvotes
+    viral_boost: 1.7
+    viral_comments: 100       # Minimum comments
+    popular_threshold: 500    # 500+ upvotes
+    popular_boost: 1.4
+    popular_comments: 50
+    good_threshold: 200       # 200+ upvotes
+    good_boost: 1.2
+    decent_threshold: 100     # 100+ upvotes
+    decent_boost: 1.1
+
+  # Variety Bonuses (Prevent repetition)
+  variety:
+    new_type_bonus: 1.5       # Bonus for showing new humor type
+    normal: 1.0               # 1 of last 5 was same type
+    starting_repeat: 0.7      # 2 of last 5 were same type
+    too_much: 0.4             # 3 of last 5 were same type
+    way_too_much: 0.2         # 4+ of last 5 were same type
+
+  # Time of Day Multipliers (Context-aware content)
+  time_of_day:
+    morning:
+      start_hour: 6
+      end_hour: 10
+      wholesome_boost: 1.8
+      funny_boost: 1.5
+      relatable_boost: 1.5
+      dark_penalty: 0.6
+      cringe_penalty: 0.6
+    lunch:
+      start_hour: 11
+      end_hour: 14
+      relatable_boost: 1.7
+      funny_boost: 1.7
+      cringe_boost: 1.4
+    afternoon:
+      start_hour: 15
+      end_hour: 17
+      unexpected_boost: 1.6
+      absurdist_boost: 1.6
+      funny_boost: 1.3
+    evening:
+      start_hour: 18
+      end_hour: 22
+      relationship_boost: 1.9
+      dating_fail_boost: 1.9
+      dark_boost: 1.5
+      dank_boost: 1.5
+    late_night:
+      start_hour: 23
+      end_hour: 2
+      absurdist_boost: 2.0
+      unexpected_boost: 2.0
+      wholesome_penalty: 0.7
+    early_morning:
+      start_hour: 3
+      end_hour: 5
+      relatable_boost: 1.5
+      funny_boost: 1.5
+
+  # Surprise Mechanics (Add unpredictability)
+  surprise:
+    base_chance: 0.15         # 15% base surprise chance
+    hot_streak_multiplier: 1.5  # Increase during hot streaks
+    late_night_multiplier: 1.3  # More surprises late night
+    max_chance: 0.40          # Cap at 40%
+    types:
+      random_variety: 0.40    # 40% random
+      ultra_premium: 0.25     # 25% ultra-premium (10k+ likes)
+      unseen_category: 0.20   # 20% unseen category
+      vintage_throwback: 0.15 # 15% old content
+
+  # Personalization (User preference weights)
+  personalization:
+    engagement_rate_multiplier: 1.5  # Max boost from engagement
+    min_multiplier: 0.5              # Min weight for disliked types
+    preference_learning_rate: 0.2     # How fast to learn preferences
+
+  # Quality Filters
+  quality:
+    min_upvote_ratio: 0.6     # Reject memes below 60% upvote ratio
+    low_quality_penalty: 0.5  # Penalty for low-quality content
+    min_media_quality: 0.6    # Minimum media quality score (0-1)
+
+  # Preference Decay (Phase 2 - Important)
+  preference_decay:
+    enabled: true
+    half_life_days: 30        # Preferences lose 50% weight after 30 days
+    min_weight: 0.1           # Minimum weight (never fully disappear)
+
+  # Cold Start Strategy (Phase 2 - Important)
+  cold_start:
+    detection_threshold: 10   # < 10 views = new user
+    contextual_defaults: true # Use time/device/referrer hints
+    collaborative_filtering: false  # Not yet implemented
+
+development:
+  # Use same config as production for consistency
+  <<: *production
+
+test:
+  # Simplified config for testing
+  streak_bonuses:
+    none: 1.0
+    warming_up: 1.1
+    hot_streak: 1.2
+    on_fire: 1.3
+    legendary: 1.4
+  freshness:
+    brand_new_hours: 2
+    brand_new_boost: 2.0
+  viral:
+    viral_threshold: 100
+    viral_boost: 1.5
+  variety:
+    new_type_bonus: 1.5
+    normal: 1.0
+  surprise:
+    base_chance: 0.15
+  personalization:
+    engagement_rate_multiplier: 1.5
+  quality:
+    min_upvote_ratio: 0.6
+  preference_decay:
+    enabled: false
+  cold_start:
+    detection_threshold: 5
