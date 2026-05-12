@@ -168,20 +168,40 @@ class AdManager {
       return;
     }
     
-    // Push new ads to AdSense
-    const unloadedAds = this.impressions.filter(imp => !imp.loaded);
-    unloadedAds.forEach(impression => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        impression.loaded = true;
-        console.log(`📢 [AD MANAGER] Loaded ad #${impression.index}`);
-        
-        // Track impression
-        this.trackAdImpression(impression);
-      } catch (e) {
-        console.error('❌ [AD MANAGER] Error loading ad:', e);
+    // Debounce ad loading to prevent multiple rapid calls
+    if (this.loadTimeout) {
+      clearTimeout(this.loadTimeout);
+    }
+    
+    this.loadTimeout = setTimeout(() => {
+      // Push new ads to AdSense (only unloaded ones)
+      const unloadedAds = this.impressions.filter(imp => !imp.loaded);
+      
+      if (unloadedAds.length === 0) {
+        return; // No new ads to load
       }
-    });
+      
+      console.log(`📢 [AD MANAGER] Loading ${unloadedAds.length} new ad(s)...`);
+      
+      unloadedAds.forEach(impression => {
+        try {
+          // Verify the ad element still exists in DOM
+          if (!impression.element.isConnected) {
+            console.warn(`⚠️ [AD MANAGER] Ad #${impression.index} element removed from DOM, skipping`);
+            return;
+          }
+          
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          impression.loaded = true;
+          console.log(`✅ [AD MANAGER] Loaded ad #${impression.index}`);
+          
+          // Track impression
+          this.trackAdImpression(impression);
+        } catch (e) {
+          console.error(`❌ [AD MANAGER] Error loading ad #${impression.index}:`, e.message);
+        }
+      });
+    }, 100); // 100ms debounce
   }
   
   // Track ad impression for analytics
