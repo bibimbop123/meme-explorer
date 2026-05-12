@@ -236,13 +236,16 @@ module MemeExplorer
         max_weight
       end
 
-      # ENHANCEMENT 3: Intelligent weighted selection with surprise mechanics
+      # ENHANCEMENT 3: Intelligent weighted selection with surprise mechanics + time-of-day
       def intelligent_weighted_selection(memes, session_id = nil)
         return memes.sample if memes.size <= 3
 
-        # 15% chance for "surprise pick" - totally random for variety
-        if session_id && rand < 0.15
-          return memes.sample
+        # Enhanced surprise mechanics with multiple types
+        if session_id
+          surprise_chance = calculate_surprise_chance(session_id)
+          if rand < surprise_chance
+            return select_surprise_meme(memes, session_id)
+          end
         end
 
         # Calculate weights for all memes
@@ -271,7 +274,7 @@ module MemeExplorer
         top_tier.last[:meme]
       end
 
-      # ENHANCEMENT 4: Comprehensive weight calculation
+      # ENHANCEMENT 4: Comprehensive weight calculation with personalization + time-of-day
       def calculate_comprehensive_weight(meme, session_id = nil)
         # Base engagement score
         likes = meme['likes'].to_i
@@ -280,8 +283,8 @@ module MemeExplorer
 
         base_score = 1.0 + (likes * 0.01) + (comments * 0.008) + (upvote_ratio * 0.3)
 
-        # Humor multiplier
-        humor_score = calculate_humor_score(meme)
+        # Humor multiplier with time-of-day adjustment
+        humor_score = calculate_humor_score_with_time(meme)
 
         # Source quality multiplier
         subreddit = (meme['subreddit'] || '').downcase
@@ -294,7 +297,7 @@ module MemeExplorer
         # Viral boost (ENHANCED)
         viral_multiplier = calculate_viral_multiplier(likes, comments, upvote_ratio)
 
-        # Freshness factor (moderate - funny > new)
+        # Freshness factor (AGGRESSIVE - new content prioritized)
         freshness = calculate_freshness_multiplier(meme)
 
         # Variety bonus (NEW - prevents monotony)
@@ -303,7 +306,13 @@ module MemeExplorer
         # Quality filter - reject low-quality upvote ratios
         quality_filter = upvote_ratio >= 0.6 ? 1.0 : 0.5
 
-        # FINAL WEIGHT
+        # Personalization multiplier (if user has history)
+        personalization_bonus = calculate_personalization_bonus(meme, session_id)
+
+        # Hot streak bonus (reward engagement momentum)
+        streak_bonus = calculate_streak_bonus(session_id)
+
+        # FINAL WEIGHT with all enhancements
         final_weight = base_score * 
                       humor_score * 
                       source_multiplier * 
@@ -311,7 +320,9 @@ module MemeExplorer
                       viral_multiplier * 
                       freshness * 
                       variety_bonus * 
-                      quality_filter
+                      quality_filter *
+                      personalization_bonus *
+                      streak_bonus
 
         final_weight
       end
@@ -377,18 +388,22 @@ module MemeExplorer
         'funny'
       end
 
-      # Freshness multiplier (balanced - not too aggressive)
+      # IMPROVED: Aggressive freshness multiplier for better content discovery
       def calculate_freshness_multiplier(meme)
         created_at = meme['created_at']
         return 1.0 unless created_at
 
-        age_days = (Time.now - Time.parse(created_at.to_s)).to_i / (24 * 3600)
+        age_hours = (Time.now - Time.parse(created_at.to_s)).to_i / 3600
         
-        case age_days
-        when 0..1 then 1.15    # Today/yesterday - small boost
-        when 2..3 then 1.08    # This week
-        when 4..7 then 1.03    # Past week
-        else 1.0               # Older content
+        case age_hours
+        when 0..2 then 2.5       # BRAND NEW (0-2 hours) - HUGE boost!
+        when 3..6 then 2.0       # Ultra fresh (3-6 hours)
+        when 7..12 then 1.7      # Very fresh (7-12 hours)
+        when 13..24 then 1.4     # Today (13-24 hours)
+        when 25..48 then 1.2     # Yesterday
+        when 49..168 then 1.1    # This week
+        when 169..720 then 1.0   # This month
+        else 0.85                # Old content - slight penalty
         end
       rescue
         1.0
@@ -577,6 +592,155 @@ module MemeExplorer
 
       def meme_identifier(meme)
         meme['id'] || meme['url'] || meme['file'] || meme.to_s
+      end
+
+      # NEW: Time-of-day adjusted humor scoring
+      def calculate_humor_score_with_time(meme)
+        base_humor = calculate_humor_score(meme)
+        time_multiplier = get_time_of_day_multiplier(meme)
+        base_humor * time_multiplier
+      end
+
+      # NEW: Time-of-day content strategy
+      def get_time_of_day_multiplier(meme)
+        hour = Time.now.hour
+        humor_type = detect_primary_humor_type(meme)
+
+        case hour
+        when 6..10  # Morning: wholesome, uplifting
+          case humor_type
+          when 'wholesome' then 1.8
+          when 'funny', 'relatable' then 1.5
+          when 'dark', 'cringe' then 0.6
+          else 1.0
+          end
+        when 11..14  # Lunch: quick laughs, work humor
+          case humor_type
+          when 'relatable', 'funny' then 1.7
+          when 'cringe' then 1.4
+          else 1.0
+          end
+        when 15..17  # Afternoon slump: energetic, unexpected
+          case humor_type
+          when 'unexpected', 'absurdist' then 1.6
+          when 'funny' then 1.3
+          else 1.0
+          end
+        when 18..22  # Evening: diverse, relationships
+          case humor_type
+          when 'relationship', 'dating_fail' then 1.9
+          when 'dark', 'dank' then 1.5
+          else 1.0
+          end
+        when 23..27  # Late night: weird, absurdist (27 = 3am next day)
+          hour = hour % 24
+          if hour >= 23 || hour < 3
+            case humor_type
+            when 'absurdist', 'unexpected' then 2.0
+            when 'wholesome' then 0.7
+            else 1.0
+            end
+          else
+            1.0
+          end
+        else  # Early morning 3-6am: contemplative
+          case humor_type
+          when 'relatable', 'funny' then 1.5
+          else 1.0
+          end
+        end
+      end
+
+      # NEW: Enhanced surprise mechanics with multiple types
+      def calculate_surprise_chance(session_id)
+        base_chance = 0.15
+        
+        # Increase if user is on hot streak
+        recent_actions = fetch_recent_humor_types(session_id).last(5)
+        consecutive_likes = recent_actions.count('liked')
+        
+        if consecutive_likes >= 3
+          base_chance *= 1.5  # 22.5% when hot
+        end
+        
+        # Time-based bonus (late night = more surprises)
+        hour = Time.now.hour
+        if (hour >= 23 || hour < 3)
+          base_chance *= 1.3  # ~20-30% late night
+        end
+        
+        [base_chance, 0.40].min  # Cap at 40%
+      end
+
+      # NEW: Select surprise meme with variety
+      def select_surprise_meme(memes, session_id)
+        surprise_type = rand
+        
+        case surprise_type
+        when 0.0..0.40  # 40%: Random variety
+          memes.sample
+        when 0.40..0.65  # 25%: Ultra-premium quality
+          premium = memes.select { |m| m['likes'].to_i > 10000 && calculate_media_quality_score(m) > 0.85 }
+          premium.any? ? premium.sample : memes.sample
+        when 0.65..0.85  # 20%: Unseen category
+          seen_subs = fetch_recent_humor_types(session_id).map { |type| type.split(':').last }.uniq
+          unseen = memes.reject { |m| seen_subs.include?(m['subreddit']) }
+          unseen.any? ? unseen.sample : memes.sample
+        else  # 15%: Oldest/vintage content (throwback)
+          oldest = memes.sort_by { |m| m['created_at'] || Time.now.to_s }.first(10)
+          oldest.sample
+        end
+      end
+
+      # NEW: Personalization bonus based on user history
+      def calculate_personalization_bonus(meme, session_id)
+        return 1.0 unless session_id
+        
+        # Get user's interaction history
+        recent_types = fetch_recent_humor_types(session_id)
+        return 1.0 if recent_types.empty?
+        
+        # Count likes vs skips for this humor type
+        current_humor = detect_primary_humor_type(meme)
+        humor_interactions = recent_types.select { |t| t.include?(current_humor) }
+        
+        return 1.0 if humor_interactions.empty?
+        
+        # Calculate engagement rate for this type
+        likes = humor_interactions.count { |t| t.include?('liked') }
+        total = humor_interactions.size
+        engagement_rate = likes.to_f / total
+        
+        # Convert to multiplier (0.5 - 2.0 range)
+        0.5 + (engagement_rate * 1.5)
+      end
+
+      # NEW: Hot streak detection and bonus
+      def calculate_streak_bonus(session_id)
+        return 1.0 unless session_id
+        
+        recent_actions = fetch_recent_humor_types(session_id).last(10)
+        return 1.0 if recent_actions.empty?
+        
+        # Count consecutive likes at the end
+        consecutive_likes = 0
+        recent_actions.reverse.each do |action|
+          if action.include?('liked')
+            consecutive_likes += 1
+          else
+            break
+          end
+        end
+        
+        # Apply streak bonus
+        case consecutive_likes
+        when 0..1 then 1.0
+        when 2 then 1.15      # Warming up
+        when 3..4 then 1.30   # Hot streak
+        when 5..9 then 1.50   # On fire!
+        when 10..Float::INFINITY then 1.75  # Legendary
+        else 1.0
+        end
       end
     end
   end

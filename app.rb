@@ -2484,6 +2484,7 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/profile_routes'
   require_relative './routes/admin_routes'
   require_relative './routes/metrics_routes'
+  require_relative './routes/behavioral_tracking'
   
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
@@ -2499,6 +2500,7 @@ class MemeExplorer < Sinatra::Base
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
   register Routes::MetricsRoutes
+  register Routes::BehavioralTracking
   
   # -----------------------
 

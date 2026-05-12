@@ -260,6 +260,10 @@
     media_type: <%= (detect_media_type(@image_src) rescue 'image').to_json %>
   };
   
+  // BEHAVIORAL TRACKING: Track view start time for duration analytics
+  let viewStartTime = Date.now();
+  let memeViewData = { viewed: false, liked: false, saved: false, shared: false };
+  
   const likeBtn = document.getElementById('like-btn');
   const likeCount = document.getElementById('like-count');
   const saveBtn = document.getElementById('save-btn');
@@ -348,7 +352,7 @@
   
   updateLikeUI();
   
-  // AJAX: Load next meme without full page reload (deduplicated & cached)
+  // AJAX: Load next meme without full page reload (deduplicated & cached) + behavioral tracking
   let loadingMeme = false;
   
   async function loadNextMeme() {
@@ -357,6 +361,11 @@
       console.log('⏳ [LOAD MEME] Already loading, skipping duplicate request');
       return;
     }
+    
+    // BEHAVIORAL TRACKING: Track skip/view duration before loading next
+    const viewDuration = (Date.now() - viewStartTime) / 1000;
+    const action = viewDuration < 2 ? 'quick_skip' : 'skip';
+    trackBehavioralAction(action, viewDuration);
     
     loadingMeme = true;
     
@@ -382,6 +391,10 @@
       
       // Reset fallback attempts for new meme
       fallbackAttempts.clear();
+      
+      // BEHAVIORAL TRACKING: Reset tracking for new meme
+      viewStartTime = Date.now();
+      memeViewData = { viewed: true, liked: false, saved: false, shared: false };
       
       // Update DOM - SINGLE SOURCE OF TRUTH for media updates
       updateMemeDisplay(data);
@@ -478,7 +491,7 @@
     likeBtn.classList.add('heart-pulse');
   }
 
-  // Like functionality (debounced - max 1 like per 500ms)
+  // Like functionality (debounced - max 1 like per 500ms) with behavioral tracking
   let lastLikeTime = 0;
   likeBtn.addEventListener('click', async () => {
     const now = Date.now();
@@ -497,6 +510,10 @@
       if (response.ok) {
         const data = await response.json();
         isLiked = data.liked;
+        memeViewData.liked = isLiked;
+        
+        // BEHAVIORAL TRACKING: Track like action with duration
+        trackBehavioralAction('like', (Date.now() - viewStartTime) / 1000);
         
         // Get fresh reference to counter element
         const currentCount = document.getElementById('like-count');
@@ -811,6 +828,61 @@
   
   // Start watching for media load completion
   triggerPrefetchAfterMediaLoad();
+  
+  // ============================================
+  // BEHAVIORAL TRACKING SYSTEM
+  // ============================================
+  
+  function trackBehavioralAction(action, duration) {
+    // Track user behavior for personalization algorithm
+    const trackingData = {
+      meme_url: currentMeme.url,
+      subreddit: currentMeme.subreddit,
+      title: currentMeme.title,
+      action: action,  // 'like', 'skip', 'quick_skip', 'save', 'share'
+      duration: duration,
+      timestamp: Date.now()
+    };
+    
+    // Store in session storage for personalization
+    try {
+      const sessionBehavior = JSON.parse(sessionStorage.getItem('meme_behavior') || '[]');
+      sessionBehavior.push(trackingData);
+      
+      // Keep last 50 interactions
+      if (sessionBehavior.length > 50) {
+        sessionBehavior.shift();
+      }
+      
+      sessionStorage.setItem('meme_behavior', JSON.stringify(sessionBehavior));
+      
+      // Also send to backend for persistent learning (non-blocking)
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/track-behavior', JSON.stringify(trackingData));
+      }
+      
+      console.log(`📊 [BEHAVIOR] Tracked ${action} after ${duration.toFixed(1)}s`);
+    } catch (e) {
+      console.warn('[BEHAVIOR] Tracking error:', e);
+    }
+  }
+  
+  // Track page visibility for accurate duration
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && memeViewData.viewed) {
+      const duration = (Date.now() - viewStartTime) / 1000;
+      trackBehavioralAction('view_end', duration);
+    }
+  });
+  
+  // Track session start
+  if (!sessionStorage.getItem('session_start')) {
+    sessionStorage.setItem('session_start', Date.now().toString());
+    sessionStorage.setItem('memes_viewed_count', '1');
+  } else {
+    const count = parseInt(sessionStorage.getItem('memes_viewed_count') || '0') + 1;
+    sessionStorage.setItem('memes_viewed_count', count.toString());
+  }
 </script>
 
 <style>
