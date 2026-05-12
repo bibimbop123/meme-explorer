@@ -104,7 +104,7 @@
 
   <!-- GAMIFICATION: Progress Bar -->
   <% if @progress && @progress[:next_milestone] %>
-    <div class="milestone-progress-bar">
+    <div class="milestone-progress-bar" id="progress-bar">
       <div class="progress-text">
         <%= @progress[:memes_until_next] %> memes until next milestone! (Level <%= @progress[:current_count] %>)
       </div>
@@ -277,21 +277,33 @@
   
   initializeTitleVisibility();
   
-  // Toggle title visibility
+  // Toggle title visibility AND progress bar
   function toggleTitleVisibility() {
     isTitleVisible = !isTitleVisible;
     sessionStorage.setItem('titleVisible', isTitleVisible);
+    
+    const progressBar = document.getElementById('progress-bar');
     
     if (isTitleVisible) {
       memeInfo.classList.remove('title-hidden');
       memeInfo.classList.add('title-visible');
       titleToggle.classList.remove('toggle-hidden');
       titleToggle.classList.add('toggle-visible');
+      // Show progress bar
+      if (progressBar) {
+        progressBar.style.display = 'block';
+        progressBar.style.opacity = '1';
+      }
     } else {
       memeInfo.classList.remove('title-visible');
       memeInfo.classList.add('title-hidden');
       titleToggle.classList.remove('toggle-visible');
       titleToggle.classList.add('toggle-hidden');
+      // Hide progress bar
+      if (progressBar) {
+        progressBar.style.display = 'none';
+        progressBar.style.opacity = '0';
+      }
     }
     
     // Haptic feedback - mobile devices
