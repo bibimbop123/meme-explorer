@@ -28,17 +28,17 @@ module Routes
           session[:view_count] += 1
           
           # Check if milestone reached
-          milestone = MilestoneService.check_milestone(session[:view_count])
+          milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
           if milestone
             @milestone = milestone
             # Only award to DB if logged in
             if session[:user_id]
-              MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
+              MemeExplorer::MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
             end
           end
           
           # Get progress to next milestone
-          @progress = MilestoneService.get_progress(session[:view_count])
+          @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
           
           # Check for surprise rewards (10% chance)
           if rand < 0.10
