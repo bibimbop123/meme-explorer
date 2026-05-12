@@ -21,6 +21,32 @@ module Routes
           @meme = fallback_meme
         end
         
+        # GAMIFICATION: Check for milestones and near-miss teases
+        if session[:user_id]
+          begin
+            # Increment view count for milestones
+            session[:view_count] ||= 0
+            session[:view_count] += 1
+            
+            # Check if milestone reached
+            milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
+            if milestone
+              @milestone = milestone
+              MemeExplorer::MilestoneService.award_milestone(session[:user_id], milestone)
+            end
+            
+            # Get progress to next milestone
+            @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
+            
+            # Check for surprise rewards (10% chance)
+            if rand < 0.10
+              @surprise_reward = SurpriseRewardsService.check_for_reward(session[:user_id], :view_meme)
+            end
+          rescue => e
+            puts "⚠️  Gamification error: #{e.message}"
+          end
+        end
+        
         @image_src = meme_image_src(@meme)
         @likes = 0  # Will be loaded by JS
       

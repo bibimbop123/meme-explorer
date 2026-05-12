@@ -7,6 +7,11 @@
 # Phase 2: Load algorithm configuration service
 require_relative './algorithm_config_service'
 
+# Phase 3: Load addiction/gamification services
+require_relative './surprise_mechanics_service' rescue nil
+require_relative './near_miss_service' rescue nil
+require_relative './milestone_service' rescue nil
+
 module MemeExplorer
   class RandomSelectorService
     # Excluded categories (safety filters)
