@@ -47,6 +47,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/meme_explorer.css">
   <link rel="stylesheet" href="/css/animations.css">
+  <link rel="stylesheet" href="/css/ads.css">
+  
+  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= ENV['GOOGLE_ADSENSE_CLIENT'] %>"
+          crossorigin="anonymous"></script>
+  <% end %>
+  
   <style>
     /* Gamification UI Styles */
     .streak-badge {
@@ -343,6 +351,17 @@
   
   <!-- ================= SURPRISE REWARDS (Priority 2) ================= -->
   <script src="/js/surprise-rewards.js"></script>
+  
+  <!-- ================= AD SYSTEM CONFIGURATION ================= -->
+  <script>
+    // Ad configuration from environment
+    window.AD_FREQUENCY = <%= ENV['AD_FREQUENCY'] || 12 %>;
+    window.GOOGLE_ADSENSE_CLIENT = <%= ENV['GOOGLE_ADSENSE_CLIENT'].to_json %>;
+    window.GOOGLE_AD_SLOT_SQUARE = <%= ENV['GOOGLE_AD_SLOT_SQUARE'].to_json %>;
+    window.GOOGLE_AD_SLOT_BANNER = <%= ENV['GOOGLE_AD_SLOT_BANNER'].to_json %>;
+    window.GOOGLE_AD_SLOT_NATIVE = <%= ENV['GOOGLE_AD_SLOT_NATIVE'].to_json %>;
+  </script>
+  <script src="/js/ad-manager.js"></script>
   
   <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->
   <% if session[:user_id] %>

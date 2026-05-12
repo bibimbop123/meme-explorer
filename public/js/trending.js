@@ -12,6 +12,15 @@ class TrendingPage {
     this.currentTimeWindow = '24h';
     this.currentSort = 'trending';
     this.isLoading = false;
+    
+    // Initialize Ad Manager if available
+    this.adManager = window.AdManager ? new AdManager({
+      frequency: parseInt(window.AD_FREQUENCY || '12', 10),
+      adSenseClient: window.GOOGLE_ADSENSE_CLIENT || null,
+      squareSlot: window.GOOGLE_AD_SLOT_SQUARE || null
+    }) : null;
+    
+    this.memeCount = 0; // Track total memes rendered for ad placement
   }
 
   initialize() {
@@ -83,8 +92,14 @@ class TrendingPage {
           const memes = data.data;
           if (!append) {
             this.container.innerHTML = '';
+            this.memeCount = 0; // Reset counter when loading fresh
           }
           memes.forEach(meme => this.renderMemeCard(meme));
+          
+          // Setup lazy loading for ads after rendering
+          if (this.adManager) {
+            setTimeout(() => this.adManager.setupLazyLoading(), 200);
+          }
           
           // Store next cursor for infinite scroll
           this.nextCursor = data.pagination?.next_cursor || null;
@@ -102,6 +117,18 @@ class TrendingPage {
   }
 
   renderMemeCard(meme) {
+    // Check if we should insert an ad before this meme
+    if (this.adManager && this.adManager.shouldShowAdAtPosition(this.memeCount)) {
+      const ad = this.adManager.createAdElement(this.adManager.adCount, 'square');
+      this.container.appendChild(ad);
+      this.adManager.adCount++;
+      
+      // Load the ad
+      if (this.adManager.adSenseClient) {
+        setTimeout(() => this.adManager.loadAdSenseAds(), 100);
+      }
+    }
+    
     // Use API image URL with smart fallback
     const imageUrl = meme.image_url || `/images/${meme.subreddit || 'dank'}1.jpeg`;
     
@@ -132,6 +159,7 @@ class TrendingPage {
     });
     
     this.container.appendChild(card);
+    this.memeCount++; // Increment meme counter
   }
 
   showMemeModal(meme) {

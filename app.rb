@@ -32,6 +32,7 @@ require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/personality_content"
+require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
@@ -551,10 +552,11 @@ class MemeExplorer < Sinatra::Base
   end
 
   # -----------------------
-  # Gamification, Gallery & Personality Helpers
+  # Gamification, Gallery, Ad & Personality Helpers
   # -----------------------
   helpers GamificationHelpers
   helpers GalleryHelpers
+  helpers AdHelpers
   
   # Include personality content methods
   helpers do

@@ -74,6 +74,13 @@
       <div class="nav-hint"><%= PersonalityContent.random_nav_hint %></div>
     <% end %>
   </div>
+
+  <!-- Ad Placement: Shows on every random meme view -->
+  <% if should_show_ads? %>
+    <div style="margin-top: 2rem;">
+      <%= render_ad_unit(0, format: 'square') %>
+    </div>
+  <% end %>
 </div>
 
 <script>
