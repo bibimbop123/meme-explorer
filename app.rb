@@ -1433,6 +1433,13 @@ class MemeExplorer < Sinatra::Base
   # -----------------------
   # Routes
   # -----------------------
+  
+  # AdSense ads.txt file - serve as plain text
+  get "/ads.txt" do
+    content_type 'text/plain'
+    File.read('ads.txt')
+  end
+  
   get "/" do
     begin
       # FAST: Serve from pre-warmed cache (instant)
