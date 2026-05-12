@@ -40,8 +40,9 @@ module AdHelpers
   # Generate ad HTML for insertion
   # @param ad_index [Integer] Sequential ad number (for tracking)
   # @param format [String] Ad format: 'banner', 'square', 'native'
+  # @param position [String] Grid position: 'top', 'bottom', 'left', 'right', 'left-1', 'left-2', 'right-1', 'right-2', etc.
   # @return [String] HTML for ad unit
-  def render_ad_unit(ad_index = 0, format: 'square')
+  def render_ad_unit(ad_index = 0, format: 'square', position: nil)
     ad_id = "ad-unit-#{ad_index}"
     
     case format
@@ -59,14 +60,17 @@ module AdHelpers
       slot_id = ENV['GOOGLE_AD_SLOT_SQUARE'] || 'SQUARE_SLOT_ID'
     end
     
+    # Add grid position attribute if specified
+    position_attr = position ? " data-position=\"#{position}\"" : ""
+    
     # Return placeholder if AdSense not configured
     unless ENV['GOOGLE_ADSENSE_CLIENT']
-      return render_ad_placeholder(ad_id, width, height)
+      return render_ad_placeholder(ad_id, width, height, position)
     end
     
     # Render actual AdSense unit
     <<-HTML
-      <div class="ad-container" data-ad-index="#{ad_index}">
+      <div class="ad-container" data-ad-index="#{ad_index}"#{position_attr}>
         <div class="ad-label">Advertisement</div>
         <ins class="adsbygoogle"
              style="display:inline-block;width:#{width};height:#{height}"
@@ -79,15 +83,18 @@ module AdHelpers
   end
   
   # Render placeholder ad (for development/testing)
-  def render_ad_placeholder(ad_id, width, height)
+  def render_ad_placeholder(ad_id, width, height, position = nil)
+    position_attr = position ? " data-position=\"#{position}\"" : ""
+    
     <<-HTML
-      <div class="ad-container ad-placeholder" id="#{ad_id}" data-width="#{width}" data-height="#{height}">
+      <div class="ad-container ad-placeholder" id="#{ad_id}" data-width="#{width}" data-height="#{height}"#{position_attr}>
         <div class="ad-label">Advertisement</div>
         <div class="ad-demo-content" style="width:#{width};height:#{height};">
           <div class="ad-demo-text">
             <strong>Ad Placeholder</strong><br>
             <small>Configure GOOGLE_ADSENSE_CLIENT in .env</small><br>
             <span style="font-size: 11px; opacity: 0.7;">#{width} × #{height}</span>
+            #{position ? "<br><span style='font-size: 10px; color: #999;'>Grid: #{position}</span>" : ""}
           </div>
         </div>
       </div>
