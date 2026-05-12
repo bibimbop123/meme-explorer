@@ -3,7 +3,7 @@ class MemeExplorerConfig
   # Session Configuration
   SESSION_EXPIRE_AFTER = 2_592_000  # 30 days in seconds
   COOKIE_OPTIONS = {
-    secure: true,
+    secure: ENV['RACK_ENV'] == 'production',  # Only secure in production
     httponly: true,
     same_site: :lax,
     expires: Time.now + SESSION_EXPIRE_AFTER

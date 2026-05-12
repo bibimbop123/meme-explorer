@@ -295,12 +295,20 @@
   <script src="/js/leaderboard.js"></script>
   
   <script>
-    // Pass server data to JavaScript
+    // Pass server data to JavaScript - Always start with current session state
     window.LEADERBOARD_DATA = {
       type: '<%= @leaderboard_type || 'weekly' %>',
-      period: '<%= @current_period %>',
-      userId: <%= session[:user_id] || 'null' %>
+      period: '<%= @current_period || '' %>',
+      userId: <%= session[:user_id] ? session[:user_id] : 'null' %>,
+      isLoggedIn: <%= session[:user_id] ? 'true' : 'false' %>
     };
+    
+    // Log initial state for debugging
+    console.log('🔐 Leaderboard Initial State:', {
+      isLoggedIn: window.LEADERBOARD_DATA.isLoggedIn,
+      userId: window.LEADERBOARD_DATA.userId,
+      hasSession: <%= session[:user_id] ? 'true' : 'false' %>
+    });
   </script>
 </body>
 </html>

@@ -19,7 +19,9 @@
     loading: false,
     userRank: null,
     nearby: [],
-    challenge: null
+    challenge: null,
+    userId: null,  // Track user authentication state
+    isLoggedIn: false  // Track if user is logged in
   };
 
   // ============================================
@@ -41,6 +43,9 @@
   // ============================================
   
   function init() {
+    // Initialize user state from server data
+    initializeUserState();
+    
     // Cache DOM elements
     cacheElements();
     
@@ -53,7 +58,24 @@
     // Start auto-refresh
     startAutoRefresh();
     
-    console.log('✅ Leaderboard.js initialized');
+    console.log('✅ Leaderboard.js initialized', {
+      isLoggedIn: state.isLoggedIn,
+      userId: state.userId
+    });
+  }
+  
+  function initializeUserState() {
+    // Get user state from server-provided data
+    if (window.LEADERBOARD_DATA) {
+      state.userId = window.LEADERBOARD_DATA.userId;
+      state.isLoggedIn = Boolean(state.userId);
+      state.currentType = window.LEADERBOARD_DATA.type || 'weekly';
+      state.currentPeriod = window.LEADERBOARD_DATA.period || null;
+    } else {
+      // Default to logged out
+      state.userId = null;
+      state.isLoggedIn = false;
+    }
   }
 
   function cacheElements() {
@@ -302,7 +324,8 @@
   function createLeaderboardEntry(entry, index) {
     const div = document.createElement('div');
     const rank = entry.rank || (index + 1);
-    const isCurrentUser = entry.is_current_user;
+    // Check if this is the current user (only if logged in)
+    const isCurrentUser = state.isLoggedIn && entry.is_current_user;
     
     // Determine entry classes
     let entryClasses = ['leaderboard-entry'];
