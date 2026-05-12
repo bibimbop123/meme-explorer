@@ -37,6 +37,14 @@ class MemeService
     pool = api_memes + local_memes
     pool = pool.uniq { |m| m["url"] || m["file"] }
 
+    # PREVENTION: Filter out blacklisted URLs first (instant check)
+    if defined?(ImageHealthService)
+      before_blacklist = pool.size
+      pool = ImageHealthService.filter_blacklisted(pool)
+      blacklisted_count = before_blacklist - pool.size
+      puts "🚫 [MEME SERVICE] Filtered #{blacklisted_count} blacklisted memes" if blacklisted_count > 0
+    end
+    
     # Validate memes - STRICT: must have valid media, not just a URL
     # This prevents showing fallback images for memes without actual media
     validated = pool.select do |m|

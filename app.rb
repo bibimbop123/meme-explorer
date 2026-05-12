@@ -39,6 +39,7 @@ require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
 require_relative "./lib/services/image_validation_service"
+require_relative "./lib/services/image_health_service"
 require_relative "./lib/services/activity_tracker_service"
 require_relative "./lib/services/leaderboard_service"
 require_relative "./lib/services/auth_service"
@@ -55,6 +56,7 @@ require "digest"
 begin
   require_relative "./config/initializers/sidekiq"
   require_relative "./app/workers/cache_refresh_worker"
+  require_relative "./app/workers/image_health_worker"
   require_relative "./app/workers/leaderboard_calculation_worker"
   require_relative "./app/workers/database_cleanup_worker"
   require_relative "./app/workers/activity_aggregation_worker"
@@ -2458,6 +2460,42 @@ class MemeExplorer < Sinatra::Base
     { deleted: true, message: "Meme deleted" }.to_json
   end
 
+  # -----------------------
+  # Content Feedback API (Chunk 4)
+  # -----------------------
+  post '/api/report-broken-content' do
+    content_type :json
+    
+    begin
+      data = JSON.parse(request.body.read)
+      url = data['url']
+      page = data['page']
+      
+      halt 400, { success: false, error: 'URL required' }.to_json unless url
+      
+      # Record failure with user feedback flag
+      if defined?(ImageHealthService)
+        ImageHealthService.record_failure(
+          url,
+          reason: 'User reported broken content',
+          status_code: nil,
+          duration_ms: nil
+        )
+        
+        puts "👤 [USER FEEDBACK] Broken content reported: #{url} (from #{page})"
+        
+        { success: true, message: 'Thank you for your feedback!' }.to_json
+      else
+        halt 500, { success: false, error: 'Service unavailable' }.to_json
+      end
+    rescue JSON::ParserError => e
+      halt 400, { success: false, error: 'Invalid JSON' }.to_json
+    rescue => e
+      puts "❌ [USER FEEDBACK] Error: #{e.message}"
+      halt 500, { success: false, error: 'Server error' }.to_json
+    end
+  end
+  
   # -----------------------
   # Activity Tracking API
   # -----------------------

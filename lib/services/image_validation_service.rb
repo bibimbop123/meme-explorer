@@ -19,13 +19,30 @@ class ImageValidationService
     def validate(url, use_cache: true)
       return false if url.nil? || url.empty?
       
+      # PREVENTION: Check blacklist first (fastest check)
+      if defined?(ImageHealthService) && ImageHealthService.blacklisted?(url)
+        AppLogger.debug("⚡ [VALIDATION] Skipping blacklisted URL: #{url[0..50]}...")
+        return false
+      end
+      
       # Check cache first
       if use_cache && cached_result = get_cached_result(url)
         return cached_result
       end
       
       # Perform validation
+      start_time = Time.now
       is_valid = perform_validation(url)
+      duration_ms = ((Time.now - start_time) * 1000).to_i
+      
+      # Record result in health service
+      if defined?(ImageHealthService)
+        if is_valid
+          ImageHealthService.record_success(url)
+        else
+          ImageHealthService.record_failure(url, reason: "Validation failed", duration_ms: duration_ms)
+        end
+      end
       
       # Cache the result
       cache_result(url, is_valid)
@@ -33,6 +50,10 @@ class ImageValidationService
       is_valid
     rescue => e
       AppLogger.warn("Image validation error for #{url}: #{e.message}")
+      # Record failure in health service
+      if defined?(ImageHealthService)
+        ImageHealthService.record_failure(url, reason: e.message, duration_ms: 0)
+      end
       false # Assume invalid on error
     end
     

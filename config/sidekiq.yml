@@ -14,6 +14,12 @@
     queue: default
     description: "Refresh meme cache from Reddit API"
     
+  image_health_check:
+    cron: '*/30 * * * *'  # Every 30 minutes (proactive validation)
+    class: ImageHealthWorker
+    queue: low_priority
+    description: "Proactively validate cached meme URLs and remove broken content"
+    
   leaderboard_update:
     cron: '0 * * * *'  # Every hour
     class: LeaderboardCalculationWorker
