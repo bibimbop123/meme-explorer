@@ -35,9 +35,11 @@
       </div>
       <button class="carousel-arrow carousel-arrow-right" id="carousel-next" aria-label="Next image" style="display: none;">›</button>
       <div class="carousel-counter" id="carousel-counter" style="display: none;">1/1</div>
-      
-      <!-- Caption overlaid at bottom center of meme -->
-      <div class="meme-info" id="meme-info">
+    <% end %>
+  </div>
+  
+  <!-- Caption centered below the meme -->
+  <div class="meme-info" id="meme-info">
     <div class="meme-info-header">
       <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
       <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">
@@ -55,8 +57,6 @@
       <% end %>
       </div>
     </div>
-  </div>
-    <% end %>
   </div>
 
   <div class="meme-controls">
@@ -974,25 +974,20 @@
     display: none;
   }
 
-  /* MEME INFO & TITLE STYLING - OVERLAID AT BOTTOM CENTER */
+  /* MEME INFO & TITLE STYLING - CENTERED BELOW MEME */
   
   .meme-info {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
+    width: 100%;
     max-width: 800px;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     padding: 1rem;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(10px);
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
+    margin: 0 auto;
   }
 
   .meme-info.title-hidden {
@@ -1006,11 +1001,7 @@
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    position: absolute;
-    bottom: 1rem;
-    right: 50%;
-    transform: translateX(50%);
-    z-index: 101;
+    z-index: 10;
   }
 
   .meme-info.title-hidden .meme-title,
@@ -1051,8 +1042,8 @@
   
   .title-toggle-btn {
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.3);
     font-size: 1.3rem;
     cursor: pointer;
     padding: 0.5rem 0.7rem;
@@ -1062,8 +1053,8 @@
   }
   
   .title-toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
     transform: scale(1.05);
   }
   
@@ -1086,9 +1077,9 @@
   }
 
   .title-toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.4);
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.6);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   }
   
   .meme-info-header .title-toggle-btn:hover {
@@ -1103,7 +1094,7 @@
     font-size: clamp(0.9rem, 2.5vw, 1.2rem);
     font-weight: 600;
     line-height: 1.4;
-    color: #ffffff;
+    color: #1a1a1a;
     word-wrap: break-word;
     animation: titleSlideIn 0.3s ease-out;
     text-align: center;
