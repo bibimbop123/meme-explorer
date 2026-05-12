@@ -120,6 +120,17 @@ DB.execute <<-SQL
   );
 SQL
 
+DB.execute <<-SQL
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    subscription_data TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+SQL
+
 # Create indexes for performance - CRITICAL for query optimization
 begin
   DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_url ON meme_stats(url)")
@@ -133,6 +144,7 @@ begin
   DB.execute("CREATE INDEX IF NOT EXISTS idx_meme_stats_score ON meme_stats(likes, views)")
   DB.execute("CREATE INDEX IF NOT EXISTS idx_user_subreddit_prefs ON user_subreddit_preferences(user_id)")
   DB.execute("CREATE INDEX IF NOT EXISTS idx_user_category_prefs ON user_category_preferences(user_id)")
+  DB.execute("CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)")
 rescue => e
   puts "⚠️ Index creation warning: #{e.message}"
 end

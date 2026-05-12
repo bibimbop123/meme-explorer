@@ -96,7 +96,11 @@ class PushNotificationService
     DB.execute(
       "SELECT subscription_data FROM push_subscriptions WHERE user_id = ?",
       [user_id]
-    ).map { |row| JSON.parse(row["subscription_data"]) }
+    ).map do |row|
+      data = row["subscription_data"]
+      # Handle both string and already-parsed JSON
+      data.is_a?(String) ? JSON.parse(data) : data
+    end
   rescue => e
     puts "❌ Error fetching subscriptions: #{e.message}"
     []

@@ -2185,15 +2185,29 @@ class MemeExplorer < Sinatra::Base
     
     begin
       subscription_data = JSON.parse(request.body.read)
+      subscription_json = subscription_data.to_json
       
-      # Store subscription in database
-      DB.execute(
-        "INSERT INTO push_subscriptions (user_id, subscription_data) 
-         VALUES (?, ?) 
-         ON CONFLICT (user_id, md5(subscription_data::text)) DO UPDATE 
-         SET updated_at = CURRENT_TIMESTAMP",
-        [session[:user_id], subscription_data.to_json]
-      )
+      # Store subscription in database (SQLite-compatible)
+      # Check if subscription already exists
+      existing = DB.execute(
+        "SELECT id FROM push_subscriptions WHERE user_id = ? AND subscription_data = ?",
+        [session[:user_id], subscription_json]
+      ).first
+      
+      if existing
+        # Update existing subscription timestamp
+        DB.execute(
+          "UPDATE push_subscriptions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [existing['id']]
+        )
+      else
+        # Insert new subscription
+        DB.execute(
+          "INSERT INTO push_subscriptions (user_id, subscription_data, created_at, updated_at) 
+           VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+          [session[:user_id], subscription_json]
+        )
+      end
       
       puts "✅ Push subscription saved for user #{session[:user_id]}"
       
