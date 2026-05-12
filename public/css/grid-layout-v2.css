@@ -1,0 +1,137 @@
+/* =========================
+   CSS GRID LAYOUT V2 - Clean Implementation
+   Simple, semantic grid without breaking existing styles
+   ========================= */
+
+/* Mobile First: Vertical Stack */
+.meme-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto auto auto;
+  grid-template-areas:
+    "progress"
+    "meme"
+    "info"
+    "controls"
+    "hints";
+  gap: 1rem;
+  min-height: calc(100vh - 100px);
+  padding: 1rem;
+  max-width: 100%;
+}
+
+/* Assign grid areas to existing elements */
+.meme-container > .milestone-progress-bar {
+  grid-area: progress;
+}
+
+.meme-container > .meme-display {
+  grid-area: meme;
+  min-height: 400px;
+}
+
+.meme-container > .meme-info {
+  grid-area: info;
+}
+
+.meme-container > .meme-controls {
+  grid-area: controls;
+}
+
+.meme-container > .nav-hints-container {
+  grid-area: hints;
+}
+
+/* Ads positioned outside grid flow (optional enhancement) */
+.meme-container > .ad-container {
+  display: none; /* Hidden by default on mobile */
+}
+
+/* =========================
+   TABLET: 768px+ 
+   2-column layout with sidebar
+   ========================= */
+
+@media (min-width: 768px) {
+  .meme-container {
+    grid-template-columns: 1fr 300px;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+      "progress progress"
+      "meme sidebar"
+      "info sidebar"
+      "controls controls"
+      "hints hints";
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .meme-container > .ad-container {
+    grid-area: sidebar;
+    display: block;
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+}
+
+/* =========================
+   DESKTOP: 1200px+
+   3-column layout with left & right sidebars
+   ========================= */
+
+@media (min-width: 1200px) {
+  .meme-container {
+    grid-template-columns: 300px 1fr 300px;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+      "progress progress progress"
+      "left-sidebar meme right-sidebar"
+      "left-sidebar info right-sidebar"
+      "controls controls controls"
+      "hints hints hints";
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1600px;
+  }
+
+  .meme-container > .ad-container[data-position="left"] {
+    grid-area: left-sidebar;
+  }
+
+  .meme-container > .ad-container[data-position="right"],
+  .meme-container > .ad-container:not([data-position]) {
+    grid-area: right-sidebar;
+  }
+}
+
+/* =========================
+   ULTRA-WIDE: 1600px+
+   Enhanced with top ad slots
+   ========================= */
+
+@media (min-width: 1600px) {
+  .meme-container {
+    grid-template-columns: 300px 1fr 300px;
+    grid-template-rows: auto auto 1fr auto auto;
+    grid-template-areas:
+      "top-left progress top-right"
+      "left-sidebar meme right-sidebar"
+      "left-sidebar info right-sidebar"
+      "controls controls controls"
+      "hints hints hints";
+    gap: 2rem;
+    max-width: 1800px;
+  }
+
+  .meme-container > .ad-container[data-position="top-left"] {
+    grid-area: top-left;
+  }
+
+  .meme-container > .ad-container[data-position="top-right"] {
+    grid-area: top-right;
+  }
+}

@@ -1,0 +1,88 @@
+/* =========================
+   CSS GRID LAYOUT V3 - Desktop 3-Column Layout
+   Based on actual requirement:
+   ┌────┬──────────────┬────┐
+   │left│   progress   │right│
+   ├────┼──────────────┼────┤
+   │    │    meme      │    │
+   │ads │──────────────│ads │
+   │    │    info      │    │
+   ├────┴──────────────┴────┤
+   │       controls         │
+   └────────────────────────┘
+   ========================= */
+
+/* Only apply grid on desktop (1200px+) */
+@media (min-width: 1200px) {
+  .meme-container {
+    display: grid;
+    grid-template-columns: 300px 1fr 300px;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "left-sidebar progress right-sidebar"
+      "left-sidebar meme right-sidebar"
+      "left-sidebar info right-sidebar"
+      "controls controls controls";
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    min-height: calc(100vh - 100px);
+  }
+
+  /* Assign grid areas to elements */
+  .meme-container > .milestone-progress-bar {
+    grid-area: progress;
+  }
+
+  .meme-container > .meme-display {
+    grid-area: meme;
+    min-height: 400px;
+  }
+
+  .meme-container > .meme-info {
+    grid-area: info;
+  }
+
+  .meme-container > .meme-controls {
+    grid-area: controls;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .meme-container > .nav-hints-container {
+    display: none; /* Hide hints on desktop to reduce clutter */
+  }
+
+  /* Ad positioning */
+  .meme-container > .ad-container[data-position="left"],
+  .meme-container > .ad-container:first-of-type {
+    grid-area: left-sidebar;
+    position: sticky;
+    top: 100px;
+    align-self: start;
+  }
+
+  .meme-container > .ad-container[data-position="right"],
+  .meme-container > .ad-container:last-of-type {
+    grid-area: right-sidebar;
+    position: sticky;
+    top: 100px;
+    align-self: start;
+  }
+
+  /* If there's no ad positioning attribute, default positioning */
+  .meme-container > .ad-container:not([data-position]) {
+    grid-area: right-sidebar;
+  }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 1600px) {
+  .meme-container {
+    max-width: 1800px;
+    gap: 2rem;
+    padding: 2rem;
+  }
+}
