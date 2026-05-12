@@ -180,7 +180,7 @@ class MemeExplorer < Sinatra::Base
     begin
       puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
       
-      # Load local memes
+      # Load local memes first (fast)
       local_memes = begin
         yaml_data = YAML.load_file("data/memes.yml")
         if yaml_data.is_a?(Hash)
@@ -193,10 +193,57 @@ class MemeExplorer < Sinatra::Base
         []
       end
       
+      # Set local memes immediately so server can start serving
       MEME_CACHE.set(:memes, local_memes.shuffle)
       puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
       
-      # Note: Cache refresh thread will handle API meme fetching
+      # Now fetch API memes in background
+      puts "🔄 [STARTUP PRELOAD] Fetching API memes..."
+      api_memes = []
+      client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
+      client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+      
+      if !client_id.empty? && !client_secret.empty?
+        begin
+          require 'oauth2'
+          client = OAuth2::Client.new(
+            client_id,
+            client_secret,
+            site: "https://www.reddit.com",
+            authorize_url: "/api/v1/authorize",
+            token_url: "/api/v1/access_token"
+          )
+          
+          token = client.client_credentials.get_token(scope: "read")
+          subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+          api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+          puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes"
+        rescue => e
+          puts "⚠️ [STARTUP PRELOAD] OAuth fetch failed: #{e.message}"
+        end
+      end
+      
+      # Fallback to unauthenticated if OAuth failed
+      if api_memes.empty?
+        begin
+          subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+          api_memes = MemeExplorer.fetch_reddit_memes_static(subreddits, 30)
+          puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes (unauthenticated)"
+        rescue => e
+          puts "⚠️ [STARTUP PRELOAD] Unauthenticated fetch failed: #{e.message}"
+        end
+      end
+      
+      # Update cache with combined memes
+      if api_memes.any?
+        all_memes = (api_memes + local_memes).uniq { |m| m["url"] || m["file"] }
+        MEME_CACHE.set(:memes, all_memes.shuffle)
+        MEME_CACHE.set(:last_refresh, Time.now)
+        puts "🎉 [STARTUP PRELOAD] Cache updated: #{api_memes.size} API + #{local_memes.size} local = #{all_memes.size} total"
+      else
+        puts "⚠️ [STARTUP PRELOAD] No API memes fetched, using local memes only"
+      end
+      
     rescue => e
       puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
       # Log to error tracking
