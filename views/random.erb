@@ -103,7 +103,7 @@
   <% end %>
 
   <!-- GAMIFICATION: Progress Bar -->
-  <% if session[:user_id] && @progress && @progress[:next_milestone] %>
+  <% if @progress && @progress[:next_milestone] %>
     <div class="milestone-progress-bar">
       <div class="progress-text">
         <%= @progress[:memes_until_next] %> memes until next milestone! (Level <%= @progress[:current_count] %>)

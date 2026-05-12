@@ -21,30 +21,36 @@ module Routes
           @meme = fallback_meme
         end
         
-        # GAMIFICATION: Check for milestones and near-miss teases
-        if session[:user_id]
-          begin
-            # Increment view count for milestones
-            session[:view_count] ||= 0
-            session[:view_count] += 1
-            
-            # Check if milestone reached
-            milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
-            if milestone
-              @milestone = milestone
-              MemeExplorer::MilestoneService.award_milestone(session[:user_id], milestone)
+        # GAMIFICATION: Works for everyone! (uses session, not user_id)
+        begin
+          # Increment view count for milestones
+          session[:view_count] ||= 0
+          session[:view_count] += 1
+          
+          # Check if milestone reached
+          milestone = MilestoneService.check_milestone(session[:view_count])
+          if milestone
+            @milestone = milestone
+            # Only award to DB if logged in
+            if session[:user_id]
+              MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
             end
-            
-            # Get progress to next milestone
-            @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
-            
-            # Check for surprise rewards (10% chance)
-            if rand < 0.10
-              @surprise_reward = SurpriseRewardsService.check_for_reward(session[:user_id], :view_meme)
-            end
-          rescue => e
-            puts "⚠️  Gamification error: #{e.message}"
           end
+          
+          # Get progress to next milestone
+          @progress = MilestoneService.get_progress(session[:view_count])
+          
+          # Check for surprise rewards (10% chance)
+          if rand < 0.10
+            @surprise_reward = {
+              icon: ["🎁", "⚡", "🛡️", "🔥", "💎"].sample,
+              title: ["Bonus XP!", "Double XP!", "Streak Freeze!", "Lucky You!", "Jackpot!"].sample,
+              message: ["You earned bonus points!", "Your next meme counts double!", "Your streak is protected!", "Keep the momentum going!", "Fortune favors the bold!"].sample
+            }
+          end
+        rescue => e
+          puts "⚠️  Gamification error: #{e.class} - #{e.message}"
+          puts e.backtrace.first(5).join("\n")
         end
         
         @image_src = meme_image_src(@meme)
