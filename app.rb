@@ -1358,12 +1358,24 @@ class MemeExplorer < Sinatra::Base
       
       # Local files: check existence
       if url.start_with?('/')
-        File.exist?(File.join(settings.public_folder, url))
-      else
-        # Remote URLs: basic validation
-        url.match?(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|mp4|webm|gifv)(\?.*)?$/i) ||
-        url.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it)\//)
+        return File.exist?(File.join(settings.public_folder, url))
       end
+      
+      # Remote URLs: Accept all valid HTTP/HTTPS URLs
+      # The CacheRefreshWorker and MemeService already validate quality
+      # We just need to ensure it's a valid URL and not a Reddit post link
+      return false unless url.match?(/^https?:\/\//)
+      
+      # Reject Reddit comment/post URLs (these would show fallback images)
+      return false if url.include?('/r/') && url.include?('/comments/')
+      
+      # Accept any other HTTP/HTTPS URL - validation already done upstream
+      # This includes:
+      # - Direct image URLs (i.redd.it, i.imgur.com, etc.)
+      # - Preview URLs (preview.redd.it)
+      # - Gallery URLs with media metadata
+      # - URLs with preview data in the meme object
+      true
     end
   end
 
