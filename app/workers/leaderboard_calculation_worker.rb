@@ -6,27 +6,33 @@ class LeaderboardCalculationWorker
   def perform
     puts "🏆 [LEADERBOARD WORKER] Calculating leaderboard scores at #{Time.now}"
     
-    # Get current week period
-    current_week = Time.now.strftime('%Y%U')
+    # Get current week and month periods
+    current_week = Time.now.strftime('%Y%U').to_i
+    current_month = Time.now.strftime('%Y%m').to_i
     
     # Get all users with activity
     users_with_activity = DB.execute("
       SELECT DISTINCT user_id 
-      FROM user_meme_stats 
-      WHERE liked = 1 OR saved = 1
-      UNION
-      SELECT DISTINCT user_id 
-      FROM saved_memes
+      FROM user_levels
+      WHERE total_xp > 0
     ")
     
     updated_count = 0
     users_with_activity.each do |row|
       user_id = row['user_id']
-      calculate_user_score(user_id, current_week)
+      calculate_weekly_score(user_id, current_week)
+      calculate_monthly_score(user_id, current_month)
       updated_count += 1
     end
     
-    puts "✅ [LEADERBOARD WORKER] Updated #{updated_count} users"
+    # Recalculate ranks after all scores are updated
+    recalculate_weekly_ranks(current_week)
+    recalculate_monthly_ranks(current_month)
+    
+    puts "✅ [LEADERBOARD WORKER] Updated #{updated_count} users and recalculated ranks"
+    
+    # Invalidate leaderboard cache
+    invalidate_leaderboard_cache
     
   rescue => e
     puts "❌ [LEADERBOARD WORKER] Error: #{e.message}"
@@ -37,40 +43,92 @@ class LeaderboardCalculationWorker
   
   private
   
-  def calculate_user_score(user_id, period)
-    # Calculate engagement metrics
-    likes = DB.get_first_value(
-      "SELECT COUNT(*) FROM user_meme_stats WHERE user_id = ? AND liked = 1",
+  def calculate_weekly_score(user_id, week_number)
+    # Calculate engagement metrics for this week
+    # Get total XP from user_levels as the metric value
+    total_xp = DB.get_first_value(
+      "SELECT total_xp FROM user_levels WHERE user_id = ?",
       [user_id]
     ).to_i
     
-    saved = DB.get_first_value(
-      "SELECT COUNT(*) FROM saved_memes WHERE user_id = ?",
-      [user_id]
-    ).to_i
-    
-    battles_won = DB.get_first_value(
-      "SELECT COUNT(*) FROM meme_battles WHERE winner_id = ?",
-      [user_id]
-    ).to_i || 0
-    
-    # Calculate total score: likes * 10 + saved * 20 + battles_won * 50
-    score = (likes * 10) + (saved * 20) + (battles_won * 50)
-    
-    # Update or insert leaderboard entry
+    # Update or insert weekly leaderboard entry
     DB.execute(
-      "INSERT INTO leaderboard_entries (user_id, period, period_type, score, likes_count, saved_count, battles_won) 
-       VALUES (?, ?, 'weekly', ?, ?, ?, ?)
-       ON CONFLICT(user_id, period, period_type) 
+      "INSERT INTO weekly_leaderboard (user_id, week_number, metric_value, updated_at) 
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, week_number) 
        DO UPDATE SET 
-         score = excluded.score,
-         likes_count = excluded.likes_count,
-         saved_count = excluded.saved_count,
-         battles_won = excluded.battles_won,
+         metric_value = excluded.metric_value,
          updated_at = CURRENT_TIMESTAMP",
-      [user_id, period, score, likes, saved, battles_won]
+      [user_id, week_number, total_xp]
     )
   rescue => e
-    puts "⚠️  Error calculating score for user #{user_id}: #{e.message}"
+    puts "⚠️  Error calculating weekly score for user #{user_id}: #{e.message}"
+  end
+  
+  def calculate_monthly_score(user_id, month_number)
+    # Get total XP from user_levels
+    total_xp = DB.get_first_value(
+      "SELECT total_xp FROM user_levels WHERE user_id = ?",
+      [user_id]
+    ).to_i
+    
+    # Update or insert monthly leaderboard entry
+    DB.execute(
+      "INSERT INTO monthly_leaderboard (user_id, month_number, total_xp, updated_at) 
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, month_number) 
+       DO UPDATE SET 
+         total_xp = excluded.total_xp,
+         updated_at = CURRENT_TIMESTAMP",
+      [user_id, month_number, total_xp]
+    )
+  rescue => e
+    puts "⚠️  Error calculating monthly score for user #{user_id}: #{e.message}"
+  end
+  
+  def recalculate_weekly_ranks(week_number)
+    # Recalculate ranks based on metric_value
+    DB.execute("
+      UPDATE weekly_leaderboard
+      SET rank = (
+        SELECT COUNT(*) + 1
+        FROM weekly_leaderboard w2
+        WHERE w2.week_number = weekly_leaderboard.week_number
+        AND w2.metric_value > weekly_leaderboard.metric_value
+      )
+      WHERE week_number = ?
+    ", [week_number])
+    
+    puts "✅ Recalculated weekly ranks for week #{week_number}"
+  rescue => e
+    puts "⚠️  Error recalculating weekly ranks: #{e.message}"
+  end
+  
+  def recalculate_monthly_ranks(month_number)
+    # Recalculate ranks based on total_xp
+    DB.execute("
+      UPDATE monthly_leaderboard
+      SET rank = (
+        SELECT COUNT(*) + 1
+        FROM monthly_leaderboard m2
+        WHERE m2.month_number = monthly_leaderboard.month_number
+        AND m2.total_xp > monthly_leaderboard.total_xp
+      )
+      WHERE month_number = ?
+    ", [month_number])
+    
+    puts "✅ Recalculated monthly ranks for month #{month_number}"
+  rescue => e
+    puts "⚠️  Error recalculating monthly ranks: #{e.message}"
+  end
+  
+  def invalidate_leaderboard_cache
+    # Clear Redis cache for leaderboards
+    if defined?(MEME_CACHE)
+      MEME_CACHE.delete_matched('leaderboard:*')
+      puts "🔄 Invalidated leaderboard cache"
+    end
+  rescue => e
+    puts "⚠️  Error invalidating cache: #{e.message}"
   end
 end
