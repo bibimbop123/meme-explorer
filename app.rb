@@ -208,120 +208,12 @@ class MemeExplorer < Sinatra::Base
     end
   end
 
-  # Background cache refresh - Try OAuth2 → Fallback to unauthenticated → Local memes
-  # IMPROVED: Better error handling, monitoring, and refresh interval (10 minutes instead of 30 seconds)
-  @cache_refresh_thread = Thread.new do
-    Thread.current.name = "CacheRefreshThread"
-    sleep 5  # Initial startup delay
-    loop do
-      begin
-        puts "🔄 [CACHE REFRESH] Starting cache refresh cycle at #{Time.now}"
-        
-        # Always start with local memes as fallback
-        local_memes = begin
-          yaml_data = YAML.load_file("data/memes.yml")
-          if yaml_data.is_a?(Hash)
-            yaml_data.values.flatten.compact
-          else
-            yaml_data || []
-          end
-        rescue => e
-          puts "❌ [CACHE REFRESH] Failed to load local memes: #{e.message}"
-          []
-        end
-        
-        puts "✅ [CACHE REFRESH] Loaded #{local_memes.size} local memes"
-
-        api_memes = []
-        
-        # STRATEGY 1: Try OAuth2 if credentials are configured
-        client_id = REDDIT_OAUTH_CLIENT_ID.to_s.strip
-        client_secret = REDDIT_OAUTH_CLIENT_SECRET.to_s.strip
-        
-        if !client_id.empty? && !client_secret.empty?
-          begin
-            puts "🔄 [CACHE REFRESH] Attempting OAuth2 authentication..."
-            
-            client = OAuth2::Client.new(
-              client_id,
-              client_secret,
-              site: "https://www.reddit.com",
-              authorize_url: "/api/v1/authorize",
-              token_url: "/api/v1/access_token"
-            )
-
-            token = client.client_credentials.get_token(scope: "read")
-            puts "✅ [CACHE REFRESH] OAuth2 token acquired"
-
-            subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
-            puts "🔄 [CACHE REFRESH] Fetching #{subreddits_to_fetch.size} subreddits via OAuth2..."
-            
-            api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits_to_fetch, 30) rescue []
-            puts "✓ [CACHE REFRESH] OAuth2: Fetched #{api_memes.size} memes"
-          rescue => e
-            puts "⚠️ [CACHE REFRESH] OAuth2 failed: #{e.class} - #{e.message}"
-            puts "🔄 [CACHE REFRESH] Falling back to unauthenticated Reddit API..."
-            api_memes = []
-          end
-        else
-          puts "ℹ️  [CACHE REFRESH] OAuth2 credentials not configured, skipping OAuth2"
-        end
-        
-        # STRATEGY 2: Fall back to unauthenticated REST API if OAuth didn't work
-        if api_memes.empty?
-          begin
-            puts "🔄 [CACHE REFRESH] Attempting unauthenticated Reddit API fetch..."
-            subreddits_to_fetch = POPULAR_SUBREDDITS.sample(8)
-            api_memes = fetch_reddit_memes(subreddits_to_fetch, 30) rescue []
-            puts "✓ [CACHE REFRESH] Unauthenticated: Fetched #{api_memes.size} memes"
-          rescue => e
-            puts "⚠️ [CACHE REFRESH] Unauthenticated API failed: #{e.class} - #{e.message}"
-            api_memes = []
-          end
-        end
-
-        # Validate memes - LENIENT: accept any non-empty URL to ensure API memes make it through
-        validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
-        puts "✓ [CACHE REFRESH] Validated #{validated.size} API memes"
-        
-        # Combine with local memes (thread-safe via CacheManager)
-        if validated.empty?
-          puts "⚠️ [CACHE REFRESH] No valid API memes - using local fallback only"
-          MEME_CACHE.set(:memes, local_memes.shuffle)
-        else
-          all_memes = (validated + local_memes).uniq { |m| m["url"] }
-          MEME_CACHE.set(:memes, all_memes.shuffle)
-          puts "✅ [CACHE REFRESH] Cache updated: #{validated.size} API + #{local_memes.size} local memes"
-        end
-        
-        # Track when cache was last refreshed
-        MEME_CACHE.set(:last_refresh, Time.now)
-      rescue => e
-        puts "❌ [CACHE REFRESH] Unexpected error: #{e.class} - #{e.message}"
-        puts "❌ [CACHE REFRESH] Backtrace: #{e.backtrace.first(5).join("\n")}"
-        
-        # Log to error tracking service if available
-        begin
-          Sentry.capture_exception(e) if defined?(Sentry)
-        rescue => sentry_error
-          puts "⚠️ [CACHE REFRESH] Sentry logging failed: #{sentry_error.message}"
-        end
-        
-        # Fallback to local memes
-        begin
-          local_memes = (YAML.load_file("data/memes.yml").values.flatten.compact rescue [])
-          MEME_CACHE.set(:memes, local_memes.shuffle)
-        rescue => fallback_error
-          puts "⚠️ [CACHE REFRESH] Fallback also failed: #{fallback_error.class}"
-        end
-      end
-      
-      # PERFORMANCE FIX: Increased from 30 seconds to 10 minutes
-      # Reddit API has rate limits (60 req/min), no need to refresh so frequently
-      puts "⏸️  [CACHE REFRESH] Sleeping 10 minutes until next refresh..."
-      sleep 600  # 10 minutes
-    end
-  end
+  # Background cache refresh - DISABLED: Now handled by Sidekiq CacheRefreshWorker
+  # The old thread-based system caused duplicate API calls and rate limiting issues
+  # Cache refresh now runs via Sidekiq every 30 minutes
+  # See: app/workers/cache_refresh_worker.rb and config/sidekiq.yml
+  
+  puts "ℹ️  [CACHE] Using Sidekiq worker for cache refresh (every 30 minutes)"
 
   # Hourly database cleanup (non-blocking)
   @db_cleanup_thread = Thread.new do
