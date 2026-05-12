@@ -33,6 +33,8 @@ require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/ad_helpers"
+require_relative "./lib/helpers/seo_helpers"
+require_relative "./lib/services/seo_service"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
@@ -497,6 +499,7 @@ class MemeExplorer < Sinatra::Base
   helpers GamificationHelpers
   helpers GalleryHelpers
   helpers AdHelpers
+  helpers SeoHelpers
   
   # Include personality content methods
   helpers do
@@ -2438,6 +2441,7 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/metrics_routes'
   require_relative './routes/behavioral_tracking'
   require_relative './routes/algorithm_metrics'
+  require_relative './routes/seo_routes'
   
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
@@ -2455,6 +2459,7 @@ class MemeExplorer < Sinatra::Base
   register Routes::MetricsRoutes
   register Routes::BehavioralTracking
   register Routes::AlgorithmMetrics
+  register Routes::Seo
   
   # -----------------------
 
