@@ -556,10 +556,66 @@ footer p {
    DARK MODE SUPPORT
    ========================= */
 
+/* Dark mode via class (manual toggle) */
+html.dark-mode body {
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+html.dark-mode header {
+  background: linear-gradient(90deg, #d67700, #c12a5f);
+}
+
+html.dark-mode footer {
+  background: #0a0a0a;
+}
+
+html.dark-mode .meme-grid-item,
+html.dark-mode .meme-list-item {
+  background: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode .meme-grid-item:hover,
+html.dark-mode .meme-list-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+html.dark-mode .search-form input[type="text"],
+html.dark-mode .search-form input[type="search"] {
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+html.dark-mode .search-form input[type="text"]:focus,
+html.dark-mode .search-form input[type="search"]:focus {
+  border-color: #e52e71;
+  background: #333;
+}
+
+html.dark-mode .meme-title {
+  color: #e0e0e0;
+}
+
+html.dark-mode .meme-subtitle {
+  color: #aaa;
+}
+
+html.dark-mode nav a:not(:hover),
+html.dark-mode nav button:not(:hover) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Dark mode via system preference */
 @media (prefers-color-scheme: dark) {
   body {
     background: #1a1a1a;
     color: #e0e0e0;
+  }
+
+  header {
+    background: linear-gradient(90deg, #d67700, #c12a5f);
   }
 
   footer {
@@ -572,11 +628,35 @@ footer p {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
 
+  .meme-grid-item:hover,
+  .meme-list-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+  }
+
   .search-form input[type="text"],
   .search-form input[type="search"] {
     background: #2a2a2a;
     color: #e0e0e0;
     border-color: #444;
+  }
+
+  .search-form input[type="text"]:focus,
+  .search-form input[type="search"]:focus {
+    border-color: #e52e71;
+    background: #333;
+  }
+
+  .meme-title {
+    color: #e0e0e0;
+  }
+
+  .meme-subtitle {
+    color: #aaa;
+  }
+
+  nav a:not(:hover),
+  nav button:not(:hover) {
+    background: rgba(255, 255, 255, 0.15);
   }
 }
 
