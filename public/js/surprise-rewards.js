@@ -164,9 +164,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Inline styles
-const style = document.createElement('style');
-style.textContent = `
+// Inline styles (check if already injected to prevent duplicate declaration errors)
+if (!document.getElementById('surprise-rewards-styles')) {
+  const style = document.createElement('style');
+  style.id = 'surprise-rewards-styles';
+  style.textContent = `
   .surprise-reward-modal {
     position: fixed;
     top: 0;
@@ -325,4 +327,5 @@ style.textContent = `
     to { transform: translateX(0); opacity: 1; }
   }
 `;
-document.head.appendChild(style);
+  document.head.appendChild(style);
+}
