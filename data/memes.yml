@@ -8,9 +8,6 @@ funny:
   - title: "First Patient"
     file: "images/funny3.jpeg"
     subreddit: "funny"
-  - title: "Laughing GIF"
-    file: "videos/funny_laugh.gif"
-    subreddit: "funny"
 
 wholesome:
   - title: "RiskyJokes"
@@ -18,9 +15,6 @@ wholesome:
     subreddit: "wholesome"
   - title: "Finding a job"
     file: "images/wholesome2.jpeg"
-    subreddit: "wholesome"
-  - title: "Feel Good Moment"
-    file: "videos/wholesome_moment.webm"
     subreddit: "wholesome"
   - title: "Happy Dance GIF"
     file: "videos/wholesome_dance.gif"
@@ -33,9 +27,6 @@ dank:
   - title: "AWS-East-1"
     file: "images/dank2.jpeg"
     subreddit: "dankmemes"
-  - title: "Confused GIF"
-    file: "videos/dank_confused.gif"
-    subreddit: "dankmemes"
 
 selfcare:
   - title: "stop crying"
@@ -47,7 +38,5 @@ selfcare:
   - title: "I'm cooked already"
     file: "images/selfcare3.jpeg"
     subreddit: "selfcare"
-  - title: "Zen Moment GIF"
-    file: "videos/selfcare_zen.gif"
-    subreddit: "selfcare"
+
 

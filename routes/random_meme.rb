@@ -73,7 +73,7 @@ module Routes
         erb :random
       end
       
-      # JSON API endpoint for random memes
+      # JSON API endpoint for random memes with validation
       app.get "/random.json" do
         puts "🔄 [/random.json] Request received"
         
@@ -85,6 +85,10 @@ module Routes
         
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
+        # Validate memes before serving - skip broken images
+        max_validation_attempts = 5
+        validated_meme = nil
+        
         # CDN caching - 1 hour for meme data
         headers "Cache-Control" => "public, max-age=3600"
         headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
@@ -94,7 +98,7 @@ module Routes
         session[:last_subreddit] ||= nil
         last_meme_url = session[:meme_history].last
         
-        # Find a new meme that's different from last shown
+        # Find a new meme that's different from last shown AND has valid image
         @meme = nil
         attempts = 0
         max_attempts = [memes.size, 30].min
@@ -103,15 +107,27 @@ module Routes
           candidate = memes.sample
           candidate_id = candidate["url"] || candidate["file"]
           
+          # Check if different from last shown
           if candidate_id && candidate_id != last_meme_url
-            @meme = candidate
-            break
+            # Validate image URL before serving
+            if ImageValidationService.validate(candidate_id)
+              @meme = candidate
+              puts "✅ [/random.json] Found valid meme with working image: #{@meme['title']}"
+              break
+            else
+              puts "⚠️ [/random.json] Skipping meme with broken image: #{candidate_id}"
+            end
           end
           attempts += 1
         end
         
+        # If validation is too slow or all fail, serve anyway (fallback to client-side handling)
+        if @meme.nil? && attempts >= max_attempts
+          @meme = memes.sample
+          puts "⚠️ [/random.json] Using non-validated meme after #{attempts} attempts"
+        end
+        
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
-        puts "✅ [/random.json] Found valid meme: #{@meme['title']}"
         
         # Track in session history
         meme_identifier = @meme["url"] || @meme["file"]
@@ -148,8 +164,7 @@ module Routes
           ) rescue nil
         end
         
-        # Extract preview images for client-side fallback chain
-        preview_images = extract_preview_images(@meme)
+        # No more client-side fallback chains - backend validation ensures working images
         media_type = detect_media_type(image_url)
         
         response_data = {
@@ -159,12 +174,11 @@ module Routes
           url: image_url,
           reddit_path: reddit_path,
           likes: get_meme_likes(image_url),
-          preview_images: preview_images,
           media_type: media_type
         }
         
         content_type :json
-        puts "✅ [/random.json] Returning response with #{preview_images.size} preview images..."
+        puts "✅ [/random.json] Returning validated meme response"
         response_data.to_json
       end
     end

@@ -15,7 +15,7 @@
               Your browser does not support the video tag.
             </video>
           <% else %>
-            <img src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="handleImageError(this, '<%= @image_src %>')" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="showPlaceholder()" style="max-width: 100%; max-height: 100%; object-fit: contain;">
           <% end %>
         <% else %>
           <div class="meme-loading">
@@ -165,98 +165,41 @@
     return promise;
   }
   
-  // Enhanced error handling with intelligent fallback chain
-  // Tries: preview images → category-based fallback → Tattoo Annie (last resort)
-  let fallbackAttempts = new Map(); // Track attempts per image element
-  
-  function handleImageError(img, url) {
-    if (!img || !img.parentElement) return; // Prevent orphaned error handlers
-
-    const imgId = img.id || 'default';
-    const attempts = fallbackAttempts.get(imgId) || { tried: [], index: 0 };
+  // Simple, elegant fallback - show CSS placeholder with skip button
+  function showPlaceholder() {
+    const img = document.getElementById('meme-image');
+    const displayContent = document.querySelector('.meme-display-content');
     
-    console.warn(`⚠️ [IMAGE ERROR] Failed to load: ${url}`);
-
-    // Get preview images from current meme if available
-    const previewImages = currentMeme.preview_images || [];
-    const subreddit = currentMeme.subreddit || 'funny';
+    if (!img || !displayContent) return;
     
-    // Build comprehensive fallback chain
-    const fallbackChain = [
-      ...previewImages.filter(u => !attempts.tried.includes(u)),  // Reddit preview images
-      ...getCategoryFallbacks(subreddit).filter(u => !attempts.tried.includes(u)),  // Category-based
-      '/images/tattoo-annie-placeholder.jpg'  // Last resort
-    ];
+    // Hide broken image
+    img.style.display = 'none';
     
-    // Mark current URL as tried
-    if (!attempts.tried.includes(url)) {
-      attempts.tried.push(url);
-    }
+    // Create placeholder
+    const placeholder = document.createElement('div');
+    placeholder.className = 'meme-placeholder';
+    placeholder.innerHTML = `
+      <div class="placeholder-shimmer"></div>
+      <div class="placeholder-content">
+        <div class="placeholder-icon">🎭</div>
+        <h3>Content Unavailable</h3>
+        <p>This meme couldn't be loaded from the source</p>
+        <button onclick="loadNextMeme()" class="skip-btn">
+          Skip to Next Meme →
+        </button>
+      </div>
+    `;
     
-    // Try next fallback
-    if (attempts.index < fallbackChain.length) {
-      const nextUrl = fallbackChain[attempts.index];
-      attempts.index++;
-      fallbackAttempts.set(imgId, attempts);
-      
-      console.log(`🔄 [FALLBACK ${attempts.index}/${fallbackChain.length}] Trying: ${nextUrl.substring(0, 50)}...`);
-      
-      img.src = nextUrl;
-      img.style.opacity = attempts.index === fallbackChain.length ? '0.7' : '1';
-      img.title = attempts.index === fallbackChain.length ? 'Content unavailable - showing placeholder' : 'Loading alternative...';
-    } else {
-      console.error('❌ [FALLBACK] All fallbacks exhausted');
-      img.style.opacity = '0.5';
-      img.title = 'Content unavailable';
-    }
-
-    // Report broken image to backend (fire-and-forget, only once)
-    if (attempts.index === 1) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-      fetch('/report-broken-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `url=${encodeURIComponent(url)}`,
-        signal: controller.signal
-      })
-      .then(r => {
-        clearTimeout(timeoutId);
-        console.log('✅ [REPORT] Broken image reported');
-      })
-      .catch(e => {
-        clearTimeout(timeoutId);
-        if (e.name !== 'AbortError') {
-          console.log('📊 [REPORT] Reporting skipped:', e.message);
-        }
-      });
-    }
+    displayContent.appendChild(placeholder);
+    
+    console.log('ℹ️ Showing placeholder for failed image');
   }
   
-  // Get category-appropriate fallback images (varied, not always the same)
-  function getCategoryFallbacks(subreddit) {
-    const sub = (subreddit || '').toLowerCase();
-    
-    // Match subreddit to category and return varied fallbacks
-    if (sub.match(/wholesome|aww|mademesmile|heartwarming/)) {
-      return ['/images/wholesome1.jpeg', '/images/wholesome2.jpeg', '/images/wholesome3.jpeg'];
-    } else if (sub.match(/selfcare|health|fitness|wellness|meditation/)) {
-      return ['/images/selfcare1.jpeg', '/images/selfcare2.jpeg', '/images/selfcare3.jpeg'];
-    } else if (sub.match(/dank/)) {
-      return ['/images/dank1.jpeg', '/images/dank2.jpeg'];
-    } else {
-      // Funny/general - rotate through all
-      return ['/images/funny1.jpeg', '/images/funny2.jpeg', '/images/funny3.jpeg'];
-    }
-  }
-  
-  // Initialize current meme with preview images for fallback chain
+  // Initialize current meme - no more preview images needed (backend handles validation)
   let currentMeme = {
     url: <%= @image_src.to_json %>,
     subreddit: <%= (@meme&.dig("subreddit") || "reddit").to_json %>,
     title: <%= (@meme&.dig("title") || "Unknown").to_json %>,
-    preview_images: <%= (extract_preview_images(@meme) rescue []).to_json %>,
     media_type: <%= (detect_media_type(@image_src) rescue 'image').to_json %>
   };
   
@@ -471,7 +414,8 @@
       let img = memeDisplay.querySelector('img');
       if (!img) {
         img = document.createElement('img');
-        img.onerror = function() { handleImageError(this, memeData.url); };
+        img.id = 'meme-image';
+        img.onerror = showPlaceholder;
         const displayContent = memeDisplay.querySelector('.meme-display-content');
         if (displayContent) {
           displayContent.appendChild(img);

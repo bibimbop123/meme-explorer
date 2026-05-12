@@ -26,7 +26,11 @@
             <img src="<%= image_url %>" 
                  alt="<%= meme['title'] %>"
                  style="width: 100%; height: 100%; object-fit: cover;"
-                 onerror="this.src='<%= get_category_fallback(result) %>';">
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div class="placeholder-minimal" style="display:none;">
+        <div class="placeholder-icon">🖼️</div>
+        <p>Image unavailable</p>
+      </div>
             
             <!-- Source Badge -->
             <div style="position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background: <%= meme['source'] == 'reddit' ? '#FF4500' : '#4caf50' %>; color: white;">
