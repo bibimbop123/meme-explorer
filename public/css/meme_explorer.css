@@ -595,7 +595,7 @@ html.dark-mode .search-form input[type="search"]:focus {
 }
 
 html.dark-mode .meme-title {
-  color: #e0e0e0;
+  color: #444;
 }
 
 html.dark-mode .meme-subtitle {
