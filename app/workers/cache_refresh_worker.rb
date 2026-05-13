@@ -101,7 +101,7 @@ class CacheRefreshWorker
     token = client.client_credentials.get_token(scope: "read")
     subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
     
-    MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+    MemeExplorer::App.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
   rescue => e
     puts "⚠️ OAuth fetch failed: #{e.message}"
     nil
@@ -109,7 +109,7 @@ class CacheRefreshWorker
   
   def fetch_without_auth
     subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-    MemeExplorer.fetch_reddit_memes_static(subreddits, 30)
+    MemeExplorer::App.fetch_reddit_memes_static(subreddits, 30)
   rescue => e
     puts "⚠️ Unauthenticated fetch failed: #{e.message}"
     []

@@ -223,7 +223,7 @@ module MemeExplorer
           
           token = client.client_credentials.get_token(scope: "read")
           subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-          api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+          api_memes = App.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
           puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes"
         rescue => e
           puts "⚠️ [STARTUP PRELOAD] OAuth fetch failed: #{e.message}"
@@ -234,7 +234,7 @@ module MemeExplorer
       if api_memes.empty?
         begin
           subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-          api_memes = MemeExplorer.fetch_reddit_memes_static(subreddits, 30)
+          api_memes = App.fetch_reddit_memes_static(subreddits, 30)
           puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes (unauthenticated)"
         rescue => e
           puts "⚠️ [STARTUP PRELOAD] Unauthenticated fetch failed: #{e.message}"
