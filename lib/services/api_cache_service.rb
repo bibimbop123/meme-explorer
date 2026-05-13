@@ -294,8 +294,11 @@ class ApiCacheService
                   (response.parsed_response.dig('data', 'children') || []).each do |post|
                     post_data = post['data']
                     
-                    # Skip crossposts - we want original content only
-                    next if post_data['is_crosspost'] || post_data['crosspost_parent']
+                    # CROSSPOST FILTER: Skip all crosspost variations
+                    next if post_data['is_crosspost'] == true
+                    next if post_data['crosspost_parent'].present?
+                    next if post_data['crosspost_parent_list']&.any?
+                    next if post_data['num_crossposts'].to_i > 0
                     
                     # LINK POST FILTER: Skip text/self posts
                     next if post_data['is_self'] == true
@@ -418,8 +421,11 @@ class ApiCacheService
               (data.dig('data', 'children') || []).each do |post|
                 post_data = post['data']
                 
-                # Skip crossposts - we want original content only
-                next if post_data['is_crosspost'] || post_data['crosspost_parent']
+                # CROSSPOST FILTER: Skip all crosspost variations
+                next if post_data['is_crosspost'] == true
+                next if post_data['crosspost_parent'].present?
+                next if post_data['crosspost_parent_list']&.any?
+                next if post_data['num_crossposts'].to_i > 0
                 
                 # LINK POST FILTER: Skip text/self posts
                 next if post_data['is_self'] == true
