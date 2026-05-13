@@ -35,6 +35,7 @@ require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/services/seo_service"
+require_relative './routes/enhanced_random'
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
