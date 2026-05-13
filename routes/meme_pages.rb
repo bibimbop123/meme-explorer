@@ -2,10 +2,6 @@
 # Each popular meme gets its own page for search ranking
 
 class MemeExplorer < Sinatra::Base
-  # CRITICAL FIX: Set views directory explicitly for production
-  # This prevents Sinatra from looking in routes/views/ instead of views/
-  set :views, Proc.new { File.join(root, "views") }
-  
   # Individual meme page (SEO landing page)
   get '/memes/:meme_id' do
     @meme_id = params[:meme_id]
