@@ -22,5 +22,5 @@ end
 
 # Mount main application
 map '/' do
-  run MemeExplorer
+  run MemeExplorer::App
 end

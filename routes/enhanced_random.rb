@@ -3,10 +3,12 @@ require 'sinatra/base'
 require_relative '../lib/services/enhanced_random_selector'
 require_relative '../lib/services/meme_service'
 
-class MemeExplorer < Sinatra::Base
-  
-  # NEW: Enhanced random endpoint with iFunny-inspired features
-    get '/api/random/enhanced' do
+module Routes
+  module EnhancedRandom
+    def self.registered(app)
+      
+      # NEW: Enhanced random endpoint with iFunny-inspired features
+      app.get '/api/random/enhanced' do
       content_type :json
       
       begin
@@ -64,7 +66,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Track user interactions for learning
-    post '/api/random/track' do
+    app.post '/api/random/track' do
       content_type :json
       
       begin
@@ -107,7 +109,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Get user profile (for debugging/analytics)
-    get '/api/random/profile' do
+    app.get '/api/random/profile' do
       content_type :json
       
       user_id = session[:user_id]
@@ -137,7 +139,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Get collaborative recommendations
-    get '/api/random/recommendations' do
+    app.get '/api/random/recommendations' do
       content_type :json
       
       user_id = session[:user_id]
@@ -168,7 +170,7 @@ class MemeExplorer < Sinatra::Base
     end
     
     # Analytics endpoint - compare algorithms
-    get '/api/random/analytics' do
+    app.get '/api/random/analytics' do
       content_type :json
       
       # Admin only
@@ -217,5 +219,7 @@ class MemeExplorer < Sinatra::Base
           error: e.message
         }.to_json
       end
-  end
-end
+    end
+    end  # End of self.registered
+  end  # End of EnhancedRandom module
+end  # End of Routes module

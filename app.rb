@@ -81,9 +81,11 @@ $VERBOSE = nil # suppress warnings
 $start_time = Time.now
 
 # -----------------------
-# Main App
+# Module Wrapper for Services
 # -----------------------
-class MemeExplorer < Sinatra::Base
+module MemeExplorer
+  # Main Sinatra Application
+  class App < Sinatra::Base
   # -----------------------
   # Redis & DB
   # -----------------------
@@ -2644,10 +2646,12 @@ class MemeExplorer < Sinatra::Base
   register Routes::BehavioralTracking
   register Routes::AlgorithmMetrics
   register Routes::Seo
+  register Routes::EnhancedRandom
   
   # -----------------------
 
   # Start server
   # -----------------------
   run! if app_file == $0
-end
+  end  # End of App class
+end  # End of MemeExplorer module
