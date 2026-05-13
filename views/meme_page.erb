@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= @page_title %></title>
+  <meta name="description" content="<%= @page_description %>">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="<%= @page_title %>">
+  <meta property="og:description" content="<%= @page_description %>">
+  <% if @og_image %>
+  <meta property="og:image" content="<%= @og_image %>">
+  <% end %>
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= @page_title %>">
+  <meta name="twitter:description" content="<%= @page_description %>">
+  <% if @og_image %>
+  <meta name="twitter:image" content="<%= @og_image %>">
+  <% end %>
+  
+  <link rel="stylesheet" href="/css/meme_explorer.css">
+  
+  <!-- Schema.org markup for Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ImageObject",
+    "name": "<%= @meme ? @meme['title'] : 'Meme' %>",
+    "contentUrl": "<%= @meme ? @meme['url'] : '' %>",
+    "description": "<%= @page_description %>",
+    "interactionStatistic": [
+      {
+        "@type": "InteractionCounter",
+        "interactionType": "https://schema.org/LikeAction",
+        "userInteractionCount": <%= @meme ? @meme['likes'] : 0 %>
+      },
+      {
+        "@type": "InteractionCounter",
+        "interactionType": "https://schema.org/ViewAction",
+        "userInteractionCount": <%= @meme ? @meme['views'] : 0 %>
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><a href="/">Meme Explorer</a></h1>
+      <nav>
+        <a href="/random">Random</a>
+        <a href="/trending">Trending</a>
+        <a href="/search">Search</a>
+      </nav>
+    </header>
+    
+    <% if @meme %>
+      <article class="meme-detail">
+        <h2><%= @meme['title'] %></h2>
+        
+        <div class="meme-image">
+          <img src="<%= @meme['url'] %>" alt="<%= @meme['title'] %>" loading="lazy">
+        </div>
+        
+        <div class="meme-meta">
+          <span class="subreddit">r/<%= @meme['subreddit'] %></span>
+          <span class="stats">
+            👍 <%= @meme['likes'] %> likes • 
+            👁️ <%= @meme['views'] %> views
+          </span>
+        </div>
+        
+        <div class="meme-actions">
+          <a href="/random" class="btn">More Random Memes</a>
+          <a href="/memes/category/<%= @meme['subreddit'].downcase %>" class="btn">More <%= @meme['subreddit'] %> Memes</a>
+        </div>
+      </article>
+      
+      <% if @related_memes && @related_memes.any? %>
+        <section class="related-memes">
+          <h3>Related Memes from r/<%= @meme['subreddit'] %></h3>
+          <div class="meme-grid">
+            <% @related_memes.each do |related| %>
+              <div class="meme-card">
+                <a href="/memes/<%= Digest::MD5.hexdigest(related['url'])[0..7] %>">
+                  <img src="<%= related['url'] %>" alt="<%= related['title'] %>" loading="lazy">
+                  <p><%= related['title'] %></p>
+                </a>
+              </div>
+            <% end %>
+          </div>
+        </section>
+      <% end %>
+    <% else %>
+      <div class="not-found">
+        <h2>Meme not found</h2>
+        <p><a href="/random">Explore random memes</a> or <a href="/trending">see what's trending</a></p>
+      </div>
+    <% end %>
+    
+    <footer>
+      <p>&copy; 2026 Meme Explorer | <a href="/sitemap">Sitemap</a></p>
+    </footer>
+  </div>
+</body>
+</html>

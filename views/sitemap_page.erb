@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sitemap | Meme Explorer</title>
+  <meta name="description" content="Browse all pages on Meme Explorer - your destination for the funniest memes on the internet">
+  <meta name="robots" content="index, follow">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      color: #3b82f6;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 40px;
+    }
+    .page-list {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .page-item {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .page-item:last-child {
+      border-bottom: none;
+    }
+    .page-item h2 {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+    }
+    .page-item a {
+      color: #3b82f6;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .page-item a:hover {
+      text-decoration: underline;
+    }
+    .page-item p {
+      margin: 8px 0 0 0;
+      color: #666;
+      font-size: 14px;
+    }
+    .xml-link {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 2px solid #eee;
+    }
+    .xml-link a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>📍 Sitemap</h1>
+  <p class="subtitle">Browse all pages on Meme Explorer</p>
+  
+  <div class="page-list">
+    <% @pages.each do |page| %>
+      <div class="page-item">
+        <h2><a href="<%= page[:url] %>"><%= page[:name] %></a></h2>
+        <p><%= page[:description] %></p>
+      </div>
+    <% end %>
+  </div>
+  
+  <div class="xml-link">
+    <p><a href="/sitemap.xml">View XML Sitemap</a> (for search engines)</p>
+  </div>
+</body>
+</html>
