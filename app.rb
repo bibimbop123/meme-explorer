@@ -410,15 +410,41 @@ class MemeExplorer < Sinatra::Base
           
           data["data"]["children"].each do |post|
             post_data = post["data"]
-            next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
+            next if post_data["is_self"]
+            
+            # Check if gallery post
+            is_gallery = post_data["is_gallery"] == true
+            gallery_images = nil
+            
+            if is_gallery
+              gallery_images = extract_gallery_images_static(post_data)
+            end
+            
+            # Skip videos unless they're galleries
+            next if post_data["is_video"] && !is_gallery
+            
+            image_url = if gallery_images && gallery_images.any?
+                          gallery_images.first["url"]
+                        else
+                          post_data["url"]
+                        end
+            
+            next unless image_url
             
             meme = {
               "title" => post_data["title"],
-              "url" => post_data["url"],
+              "url" => image_url,
               "subreddit" => post_data["subreddit"],
               "likes" => post_data["ups"] || 0,
               "permalink" => post_data["permalink"]
             }
+            
+            # Add gallery data if present
+            if is_gallery && gallery_images && gallery_images.any?
+              meme["is_gallery"] = true
+              meme["gallery_images"] = gallery_images
+            end
+            
             memes << meme
           end
         end
@@ -458,14 +484,40 @@ class MemeExplorer < Sinatra::Base
           data = JSON.parse(response.body)
           data["data"]["children"].each do |post|
             post_data = post["data"]
-            next if post_data["is_video"] || post_data["is_self"] || !post_data["url"]
+            next if post_data["is_self"]
+            
+            # Check if gallery post
+            is_gallery = post_data["is_gallery"] == true
+            gallery_images = nil
+            
+            if is_gallery
+              gallery_images = extract_gallery_images_static(post_data)
+            end
+            
+            # Skip videos unless they're galleries
+            next if post_data["is_video"] && !is_gallery
+            
+            image_url = if gallery_images && gallery_images.any?
+                          gallery_images.first["url"]
+                        else
+                          post_data["url"]
+                        end
+            
+            next unless image_url
             
             meme = {
               "title" => post_data["title"],
-              "url" => post_data["url"],
+              "url" => image_url,
               "subreddit" => post_data["subreddit"],
               "likes" => post_data["ups"] || 0
             }
+            
+            # Add gallery data if present
+            if is_gallery && gallery_images && gallery_images.any?
+              meme["is_gallery"] = true
+              meme["gallery_images"] = gallery_images
+            end
+            
             memes << meme
           end
         end
@@ -490,6 +542,41 @@ class MemeExplorer < Sinatra::Base
     if post_data["preview"]&.dig("images", 0, "source", "url")
       url = post_data["preview"]["images"][0]["source"]["url"]
       return url.gsub("&amp;", "&") if url
+    end
+
+    nil
+  end
+
+  def self.extract_gallery_images_static(post_data)
+    return nil unless post_data
+
+    if post_data["is_gallery"] && post_data["gallery_data"] && post_data["media_metadata"]
+      gallery_items = post_data["gallery_data"]["items"] || []
+      media_metadata = post_data["media_metadata"] || {}
+
+      images = []
+      gallery_items.each do |item|
+        media_id = item["media_id"]
+        next unless media_id
+
+        media_info = media_metadata[media_id]
+        next unless media_info
+
+        # Get the highest quality image
+        image_url = media_info.dig("s", "u") || media_info.dig("s", "gif") || media_info.dig("s", "mp4")
+        next unless image_url
+
+        # Clean up URL encoding
+        image_url = image_url.gsub('&amp;', '&')
+
+        images << {
+          "url" => image_url,
+          "caption" => item["caption"] || "",
+          "media_id" => media_id
+        }
+      end
+
+      return images if images.any?
     end
 
     nil
