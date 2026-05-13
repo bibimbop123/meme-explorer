@@ -54,8 +54,8 @@ require "digest"
 
 # Load SEO routes (for growth!)
 # TEMPORARILY DISABLED - FIXING VIEW PATHS FOR PRODUCTION
-# require_relative "./routes/sitemap"
-# require_relative "./routes/meme_pages"
+require_relative "./routes/sitemap"
+require_relative "./routes/meme_pages"
 
 # Load Sidekiq and workers
 begin
