@@ -40,6 +40,15 @@ module Routes
           # Get progress to next milestone
           @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
           
+          # PHASE 3: Check for near-miss tease
+          if defined?(MemeExplorer::NearMissService)
+            pool = app.class::MEME_CACHE[:memes] || []
+            if MemeExplorer::NearMissService.should_show_tease?(pool, session[:user_id])
+              @tease = MemeExplorer::NearMissService.generate_tease(pool, session[:user_id])
+              MemeExplorer::NearMissService.track_tease_shown(@tease, session[:user_id]) if @tease
+            end
+          end
+          
           # Check for surprise rewards (10% chance)
           if rand < 0.10
             @surprise_reward = {

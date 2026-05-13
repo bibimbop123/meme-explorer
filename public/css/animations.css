@@ -5,6 +5,105 @@
    ========================= */
 
 /* =========================
+   PHASE 3: NEAR-MISS TEASE STYLING
+   ========================= */
+
+/* Near-Miss Tease Banner */
+.near-miss-tease {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 30px;
+  border-radius: 50px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  z-index: 1000;
+  animation: pulse 2s infinite;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 90vw;
+}
+
+.near-miss-tease.urgency-high {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  animation: shake 0.5s infinite;
+}
+
+.near-miss-tease.urgency-medium {
+  background: linear-gradient(135deg, #ff8a00 0%, #e52e71 100%);
+  animation: pulse 1.5s infinite;
+}
+
+.tease-icon {
+  font-size: 24px;
+  margin-right: 5px;
+  animation: bounce 1s infinite;
+}
+
+.tease-message {
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25% { transform: translateX(-50%) rotate(-2deg); }
+  75% { transform: translateX(-50%) rotate(2deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Auto-hide tease after 5 seconds */
+.near-miss-tease {
+  animation: slideInFadeOut 5s ease-in-out forwards;
+}
+
+@keyframes slideInFadeOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  10%, 90% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+    pointer-events: none;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .near-miss-tease {
+    top: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+  
+  .tease-icon {
+    font-size: 20px;
+  }
+  
+  .tease-message {
+    font-size: 14px;
+  }
+}
+
+/* =========================
    CORE ANIMATIONS
    ========================= */
 

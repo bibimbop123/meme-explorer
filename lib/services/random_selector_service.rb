@@ -415,7 +415,7 @@ module MemeExplorer
         1.0
       end
 
-      # Variety bonus to prevent showing same type repeatedly
+      # Variety bonus to prevent showing same type repeatedly (PHASE 2: Config-driven)
       def calculate_variety_bonus(meme, session_id)
         return 1.0 unless session_id
         
@@ -428,14 +428,8 @@ module MemeExplorer
         last_5 = recent_types.last(5)
         same_type_count = last_5.count(current_humor)
 
-        # Penalize repetition
-        case same_type_count
-        when 0 then 1.5  # New type = bonus!
-        when 1 then 1.0  # Normal
-        when 2 then 0.7  # Starting to repeat
-        when 3 then 0.4  # Too much repetition
-        else 0.2         # Way too much
-        end
+        # PHASE 2: Use config service for variety bonuses
+        AlgorithmConfigService.variety_bonus(same_type_count)
       end
 
       def detect_primary_humor_type(meme)
@@ -453,23 +447,15 @@ module MemeExplorer
         'funny'
       end
 
-      # IMPROVED: Aggressive freshness multiplier for better content discovery
+      # IMPROVED: Aggressive freshness multiplier (PHASE 2: Config-driven)
       def calculate_freshness_multiplier(meme)
         created_at = meme['created_at']
         return 1.0 unless created_at
 
         age_hours = (Time.now - Time.parse(created_at.to_s)).to_i / 3600
         
-        case age_hours
-        when 0..2 then 2.5       # BRAND NEW (0-2 hours) - HUGE boost!
-        when 3..6 then 2.0       # Ultra fresh (3-6 hours)
-        when 7..12 then 1.7      # Very fresh (7-12 hours)
-        when 13..24 then 1.4     # Today (13-24 hours)
-        when 25..48 then 1.2     # Yesterday
-        when 49..168 then 1.1    # This week
-        when 169..720 then 1.0   # This month
-        else 0.85                # Old content - slight penalty
-        end
+        # PHASE 2: Use config service for freshness multipliers
+        AlgorithmConfigService.freshness_multiplier(age_hours)
       rescue
         1.0
       end
@@ -798,7 +784,7 @@ module MemeExplorer
         0.5 + (engagement_rate * 1.5)
       end
 
-      # NEW: Hot streak detection and bonus
+      # NEW: Hot streak detection and bonus (PHASE 2: Config-driven)
       def calculate_streak_bonus(session_id)
         return 1.0 unless session_id
         
@@ -815,15 +801,8 @@ module MemeExplorer
           end
         end
         
-        # Apply streak bonus
-        case consecutive_likes
-        when 0..1 then 1.0
-        when 2 then 1.15      # Warming up
-        when 3..4 then 1.30   # Hot streak
-        when 5..9 then 1.50   # On fire!
-        when 10..Float::INFINITY then 1.75  # Legendary
-        else 1.0
-        end
+        # PHASE 2: Use config service for streak bonuses
+        AlgorithmConfigService.streak_bonus(consecutive_likes)
       end
     end
   end

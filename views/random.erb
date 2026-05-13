@@ -91,6 +91,14 @@
     <% end %>
   </div>
 
+  <!-- PHASE 3: Near-Miss Tease -->
+  <% if @tease %>
+    <div class="near-miss-tease urgency-<%= @tease[:urgency] %>" id="near-miss-tease">
+      <span class="tease-icon"><%= @tease[:icon] %></span>
+      <span class="tease-message"><%= @tease[:message] %></span>
+    </div>
+  <% end %>
+
   <!-- GAMIFICATION: Milestone Celebration -->
   <% if @milestone %>
     <div class="milestone-celebration" id="milestone-celebration">
