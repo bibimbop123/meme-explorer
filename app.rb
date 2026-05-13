@@ -52,11 +52,6 @@ require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
-# Load SEO routes (for growth!)
-# TEMPORARILY DISABLED - FIXING VIEW PATHS FOR PRODUCTION
-require_relative "./routes/sitemap"
-require_relative "./routes/meme_pages"
-
 # Load Sidekiq and workers
 begin
   require_relative "./config/initializers/sidekiq"
