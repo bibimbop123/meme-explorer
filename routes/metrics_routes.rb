@@ -7,7 +7,7 @@ module Routes
       # Metrics JSON API
       app.get "/metrics.json" do
         total_memes = app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
-        total_likes = app.class::DB.get_first_value("SELECT SUM(likes) FROM meme_stats") || 0
+        total_likes = app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0
         total_views = app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
 
         avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
