@@ -179,7 +179,7 @@ main {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   display: block;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .meme-title {
@@ -293,7 +293,7 @@ main {
   width: 100%;
   height: auto;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
   aspect-ratio: 16 / 9;
 }
 
@@ -423,6 +423,7 @@ footer p {
   .meme-grid-item img,
   .meme-list-item img {
     aspect-ratio: 1 / 1;
+    object-fit: contain;
   }
 
   .nav-buttons {
@@ -497,6 +498,7 @@ footer p {
   .meme-grid-item img,
   .meme-list-item img {
     aspect-ratio: 1 / 1;
+    object-fit: contain;
   }
 
   .nav-buttons {
