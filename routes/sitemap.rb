@@ -2,6 +2,9 @@
 # Generates XML sitemap for search engines
 
 class MemeExplorer < Sinatra::Base
+  # CRITICAL FIX: Set views directory explicitly for production
+  # This prevents Sinatra from looking in routes/views/ instead of views/
+  set :views, Proc.new { File.join(root, "views") }
   
   # XML Sitemap for Google
   get '/sitemap.xml' do
