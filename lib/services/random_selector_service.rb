@@ -84,13 +84,17 @@ module MemeExplorer
         filtered_memes = filter_high_quality_media(memes)
         return nil if filtered_memes.empty?
 
-        # STEP 2: Content safety filtering
-        filtered_memes = filter_excluded_content(filtered_memes, preferences)
-        return nil if filtered_memes.empty?
+      # STEP 2: Skip crossposts (safety filter - should already be filtered at API level)
+      filtered_memes = filter_crossposts(filtered_memes)
+      return nil if filtered_memes.empty?
 
-        # STEP 3: Anti-repetition filtering (session-aware)
-        if session_id
-          filtered_memes = filter_recent_and_similar(filtered_memes, session_id)
+      # STEP 3: Content safety filtering
+      filtered_memes = filter_excluded_content(filtered_memes, preferences)
+      return nil if filtered_memes.empty?
+
+      # STEP 4: Anti-repetition filtering (session-aware)
+      if session_id
+        filtered_memes = filter_recent_and_similar(filtered_memes, session_id)
           # If too aggressive, relax constraints
           filtered_memes = filter_recent_memes(memes, session_id) if filtered_memes.empty?
         end
@@ -658,6 +662,13 @@ module MemeExplorer
       rescue => e
         puts "⚠️  Storage error: #{e.message}"
         # Site still works even if storage fails
+      end
+
+      # Filter crossposts - keep only original content
+      def filter_crossposts(memes)
+        memes.reject do |meme|
+          meme['is_crosspost'] || meme['crosspost_parent'] || meme['crosspost_parent_list']
+        end
       end
 
       # Helper methods

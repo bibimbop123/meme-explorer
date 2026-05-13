@@ -291,18 +291,21 @@ class ApiCacheService
           end
           
           if response.success?
-            (response.parsed_response.dig('data', 'children') || []).each do |post|
-              post_data = post['data']
-              
-              # Quality filtering
-              upvotes = post_data['ups'] || 0
-              next if upvotes < MIN_UPVOTES
-              
-              upvote_ratio = post_data['upvote_ratio'] || 0
-              next if upvote_ratio < MIN_UPVOTE_RATIO
-              
-              num_comments = post_data['num_comments'] || 0
-              next if num_comments < MIN_COMMENTS
+              (response.parsed_response.dig('data', 'children') || []).each do |post|
+                post_data = post['data']
+                
+                # Skip crossposts - we want original content only
+                next if post_data['is_crosspost'] || post_data['crosspost_parent']
+                
+                # Quality filtering
+                upvotes = post_data['ups'] || 0
+                next if upvotes < MIN_UPVOTES
+                
+                upvote_ratio = post_data['upvote_ratio'] || 0
+                next if upvote_ratio < MIN_UPVOTE_RATIO
+                
+                num_comments = post_data['num_comments'] || 0
+                next if num_comments < MIN_COMMENTS
 
               # Support videos (reddit hosted only)
               is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
@@ -384,6 +387,9 @@ class ApiCacheService
               data = JSON.parse(response.body)
               (data.dig('data', 'children') || []).each do |post|
                 post_data = post['data']
+                
+                # Skip crossposts - we want original content only
+                next if post_data['is_crosspost'] || post_data['crosspost_parent']
                 
                 # Quality filtering
                 upvotes = post_data['ups'] || 0
