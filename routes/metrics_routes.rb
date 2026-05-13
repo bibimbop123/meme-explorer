@@ -58,11 +58,11 @@ module Routes
             @memes_with_no_views = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} views = 0") || 0).to_i
 
             # Calculate averages
-            @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0
-            @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0
+            @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0.0
+            @avg_views = @total_memes > 0 ? (@total_views.to_f / @total_memes).round(2) : 0.0
             
-            # Calculate engagement rate
-            @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0
+            # Calculate engagement rate (ensure float)
+            @engagement_rate = @total_views > 0 ? ((@total_likes.to_f / @total_views) * 100).round(2) : 0.0
             
             # Get chart data based on selected period
             @chart_dates = []
