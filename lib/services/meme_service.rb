@@ -271,10 +271,36 @@ class MemeService
         # Liking - increment counter
         db.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
         puts "✅ [LIKE] Incremented likes for: #{url}"
+        
+        # Log like event to activity log for accurate time-based metrics
+        begin
+          user_id = session[:user_id] rescue nil
+          session_id = session.id rescue nil
+          db.execute(
+            "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'like', ?, ?)",
+            [url, user_id, session_id]
+          )
+        rescue => e
+          # Fail gracefully if activity log doesn't exist yet
+          puts "  ⚠️  Activity log insert skipped: #{e.message}" if e.message !~ /no such table/
+        end
       else
         # Unliking - decrement counter
         db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
         puts "✅ [UNLIKE] Decremented likes for: #{url}"
+        
+        # Log unlike event to activity log
+        begin
+          user_id = session[:user_id] rescue nil
+          session_id = session.id rescue nil
+          db.execute(
+            "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'unlike', ?, ?)",
+            [url, user_id, session_id]
+          )
+        rescue => e
+          # Fail gracefully if activity log doesn't exist yet
+          puts "  ⚠️  Activity log insert skipped: #{e.message}" if e.message !~ /no such table/
+        end
       end
       
       get_likes(url, db)
