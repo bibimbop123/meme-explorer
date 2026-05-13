@@ -1498,15 +1498,16 @@ module MemeExplorer
       url = meme["url"] || meme["file"]
       return false unless url.is_a?(String) && !url.strip.empty?
       
-      # Local files: check existence
-      if url.start_with?('/')
-        return File.exist?(File.join(settings.public_folder, url))
+      # Local files: check existence (handles both relative and absolute paths)
+      unless url.match?(/^https?:\/\//)
+        # Normalize path (add leading slash if not present)
+        normalized_path = url.start_with?('/') ? url : "/#{url}"
+        return File.exist?(File.join(settings.public_folder, normalized_path))
       end
       
       # Remote URLs: Accept all valid HTTP/HTTPS URLs
       # The CacheRefreshWorker and MemeService already validate quality
       # We just need to ensure it's a valid URL and not a Reddit post link
-      return false unless url.match?(/^https?:\/\//)
       
       # Reject Reddit comment/post URLs (these would show fallback images)
       return false if url.include?('/r/') && url.include?('/comments/')
