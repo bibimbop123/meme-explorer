@@ -290,22 +290,34 @@ class ApiCacheService
             next
           end
           
-          if response.success?
-              (response.parsed_response.dig('data', 'children') || []).each do |post|
-                post_data = post['data']
-                
-                # Skip crossposts - we want original content only
-                next if post_data['is_crosspost'] || post_data['crosspost_parent']
-                
-                # Quality filtering
-                upvotes = post_data['ups'] || 0
-                next if upvotes < MIN_UPVOTES
-                
-                upvote_ratio = post_data['upvote_ratio'] || 0
-                next if upvote_ratio < MIN_UPVOTE_RATIO
-                
-                num_comments = post_data['num_comments'] || 0
-                next if num_comments < MIN_COMMENTS
+              if response.success?
+                  (response.parsed_response.dig('data', 'children') || []).each do |post|
+                    post_data = post['data']
+                    
+                    # Skip crossposts - we want original content only
+                    next if post_data['is_crosspost'] || post_data['crosspost_parent']
+                    
+                    # LINK POST FILTER: Skip text/self posts
+                    next if post_data['is_self'] == true
+                    
+                    # LINK POST FILTER: Only accept image/video content
+                    post_hint = post_data['post_hint']
+                    next unless ['image', 'hosted:video', 'rich:video'].include?(post_hint)
+                    
+                    # LINK POST FILTER: Verify domain is a media host
+                    domain = post_data['domain']
+                    trusted_domains = ['i.redd.it', 'i.imgur.com', 'imgur.com', 'gfycat.com', 'v.redd.it', 'redgifs.com']
+                    next unless trusted_domains.any? { |d| domain&.include?(d) }
+                    
+                    # Quality filtering
+                    upvotes = post_data['ups'] || 0
+                    next if upvotes < MIN_UPVOTES
+                    
+                    upvote_ratio = post_data['upvote_ratio'] || 0
+                    next if upvote_ratio < MIN_UPVOTE_RATIO
+                    
+                    num_comments = post_data['num_comments'] || 0
+                    next if num_comments < MIN_COMMENTS
 
               # Check if gallery post first
               is_gallery = post_data['is_gallery'] == true
@@ -408,6 +420,18 @@ class ApiCacheService
                 
                 # Skip crossposts - we want original content only
                 next if post_data['is_crosspost'] || post_data['crosspost_parent']
+                
+                # LINK POST FILTER: Skip text/self posts
+                next if post_data['is_self'] == true
+                
+                # LINK POST FILTER: Only accept image/video content
+                post_hint = post_data['post_hint']
+                next unless ['image', 'hosted:video', 'rich:video'].include?(post_hint)
+                
+                # LINK POST FILTER: Verify domain is a media host
+                domain = post_data['domain']
+                trusted_domains = ['i.redd.it', 'i.imgur.com', 'imgur.com', 'gfycat.com', 'v.redd.it', 'redgifs.com']
+                next unless trusted_domains.any? { |d| domain&.include?(d) }
                 
                 # Quality filtering
                 upvotes = post_data['ups'] || 0
