@@ -239,7 +239,7 @@ module Routes
               total: results.size
             }.to_json
           else
-            @results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
+            @results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
             @query = query
             erb :search
           end
@@ -247,7 +247,7 @@ module Routes
 
         app.get "/api/search.json" do
           query = params[:q]
-          results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
+          results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
 
           content_type :json
           {
