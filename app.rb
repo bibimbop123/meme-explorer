@@ -35,7 +35,6 @@ require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/services/seo_service"
-require_relative './routes/enhanced_random'
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
@@ -2626,6 +2625,7 @@ class MemeExplorer < Sinatra::Base
   require_relative './routes/behavioral_tracking'
   require_relative './routes/algorithm_metrics'
   require_relative './routes/seo_routes'
+  require_relative './routes/enhanced_random'
   
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
