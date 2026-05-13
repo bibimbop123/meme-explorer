@@ -7,15 +7,42 @@ module Routes
       # Render random meme page
       app.get "/random" do
         begin
-          # FAST: Serve from pre-warmed cache (instant)
-          # If cache is empty or only has local memes, fallback to fresh pool
-          if app.class::MEME_CACHE[:memes].is_a?(Array) && !app.class::MEME_CACHE[:memes].empty?
-            @meme = app.class::MEME_CACHE[:memes].sample
+          # Initialize session history
+          session[:meme_history] ||= []
+          
+          # Get meme pool
+          meme_pool = if app.class::MEME_CACHE[:memes].is_a?(Array) && !app.class::MEME_CACHE[:memes].empty?
+            app.class::MEME_CACHE[:memes]
           else
-            # Cache empty or invalid - rebuild from scratch
-            @meme = random_memes_pool.sample
+            random_memes_pool
           end
+          
+          # Find a meme that's different from recently shown ones
+          @meme = nil
+          attempts = 0
+          max_attempts = [meme_pool.size, 50].min
+          
+          while attempts < max_attempts && @meme.nil?
+            candidate = meme_pool.sample
+            candidate_id = candidate["url"] || candidate["file"]
+            
+            # Check if not in recent history (last 50 memes)
+            if candidate_id && !session[:meme_history].last(50).include?(candidate_id)
+              @meme = candidate
+            end
+            attempts += 1
+          end
+          
+          # If we couldn't find a fresh meme, just use a random one (pool exhausted)
+          @meme ||= meme_pool.sample
           @meme ||= fallback_meme
+          
+          # Track in session history
+          if @meme
+            meme_identifier = @meme["url"] || @meme["file"]
+            session[:meme_history] << meme_identifier if meme_identifier
+            session[:meme_history] = session[:meme_history].last(100) # Keep last 100
+          end
         rescue => e
           puts "Error in /random route: #{e.class}: #{e.message}"
           @meme = fallback_meme
