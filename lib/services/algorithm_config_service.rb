@@ -2,8 +2,7 @@
 # Loads and manages algorithm parameters from YAML config
 # Phase 2: Enables data-driven optimization without code deploys
 
-module MemeExplorer
-  class AlgorithmConfigService
+class AlgorithmConfigService
     @config = nil
     @config_mtime = nil
     
@@ -160,5 +159,4 @@ module MemeExplorer
         config
       end
     end
-  end
 end
