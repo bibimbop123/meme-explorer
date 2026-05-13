@@ -307,18 +307,28 @@ class ApiCacheService
                 num_comments = post_data['num_comments'] || 0
                 next if num_comments < MIN_COMMENTS
 
+              # Check if gallery post first
+              is_gallery = post_data['is_gallery'] == true
+              gallery_images = nil
+              
+              if is_gallery
+                gallery_images = extract_gallery_images(post_data)
+              end
+
               # Support videos (reddit hosted only)
               is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
               
               image_url = if is_reddit_video
                             post_data.dig('media', 'reddit_video', 'fallback_url')
+                          elsif gallery_images && gallery_images.any?
+                            gallery_images.first['url']  # Use first image as primary
                           else
                             extract_image_url(post_data)
                           end
                           
               next unless image_url
 
-              memes << {
+              meme_data = {
                 'title' => post_data['title'],
                 'url' => image_url,
                 'subreddit' => post_data['subreddit'],
@@ -328,6 +338,14 @@ class ApiCacheService
                 'is_video' => is_reddit_video ? true : false,
                 'quality_score' => calculate_quality_score(upvotes, num_comments, upvote_ratio)
               }
+
+              # Add gallery data if present
+              if is_gallery && gallery_images && gallery_images.any?
+                meme_data['is_gallery'] = true
+                meme_data['gallery_images'] = gallery_images
+              end
+
+              memes << meme_data
             end
           end
         rescue => e
@@ -401,18 +419,28 @@ class ApiCacheService
                 num_comments = post_data['num_comments'] || 0
                 next if num_comments < MIN_COMMENTS
 
+                # Check if gallery post first
+                is_gallery = post_data['is_gallery'] == true
+                gallery_images = nil
+                
+                if is_gallery
+                  gallery_images = extract_gallery_images(post_data)
+                end
+
                 # Support reddit videos
                 is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
                 
                 image_url = if is_reddit_video
                               post_data.dig('media', 'reddit_video', 'fallback_url')
+                            elsif gallery_images && gallery_images.any?
+                              gallery_images.first['url']  # Use first image as primary
                             else
                               extract_image_url(post_data)
                             end
                             
                 next unless image_url
 
-                memes << {
+                meme_data = {
                   'title' => post_data['title'],
                   'url' => image_url,
                   'subreddit' => post_data['subreddit'],
@@ -422,6 +450,14 @@ class ApiCacheService
                   'is_video' => is_reddit_video ? true : false,
                   'quality_score' => calculate_quality_score(upvotes, num_comments, upvote_ratio)
                 }
+
+                # Add gallery data if present
+                if is_gallery && gallery_images && gallery_images.any?
+                  meme_data['is_gallery'] = true
+                  meme_data['gallery_images'] = gallery_images
+                end
+
+                memes << meme_data
               end
               success = true
             else
@@ -462,6 +498,45 @@ class ApiCacheService
         cleaned = preview.gsub('&amp;', '&')
         return nil if cleaned.match?(/^\/r\/[^\/]+\/?$/)
         return cleaned
+      end
+
+      nil
+    end
+
+    def extract_gallery_images(post_data)
+      return nil unless post_data
+
+      # Check for Reddit gallery
+      if post_data["is_gallery"] && post_data["gallery_data"] && post_data["media_metadata"]
+        gallery_items = post_data["gallery_data"]["items"] || []
+        media_metadata = post_data["media_metadata"] || {}
+
+        images = []
+        gallery_items.each do |item|
+          media_id = item["media_id"]
+          next unless media_id
+
+          media_info = media_metadata[media_id]
+          next unless media_info
+
+          # Get the highest quality image
+          image_url = media_info.dig("s", "u") || media_info.dig("s", "gif") || media_info.dig("s", "mp4")
+          next unless image_url
+
+          # Clean up URL encoding
+          image_url = image_url.gsub('&amp;', '&')
+
+          # Get caption if available
+          caption = item["caption"] || ""
+
+          images << {
+            'url' => image_url,
+            'caption' => caption,
+            'media_id' => media_id
+          }
+        end
+
+        return images if images.any?
       end
 
       nil

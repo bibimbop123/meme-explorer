@@ -251,9 +251,16 @@ module Routes
           likes: get_meme_likes(image_url),
           media_type: media_type
         }
+
+        # Add gallery data if present
+        if @meme["is_gallery"] && @meme["gallery_images"]
+          response_data[:is_gallery] = true
+          response_data[:gallery_images] = @meme["gallery_images"]
+          response_data[:total_images] = @meme["gallery_images"].size
+        end
         
         content_type :json
-        puts "✅ [/random.json] Returning validated meme response"
+        puts "✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}"
         response_data.to_json
       end
     end

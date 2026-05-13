@@ -405,15 +405,17 @@
         url: data.url,
         title: data.title,
         subreddit: data.subreddit,
-        preview_count: (data.preview_images || []).length
+        is_gallery: data.is_gallery || false,
+        gallery_images_count: (data.gallery_images || []).length
       });
       
-      // Update current meme object WITH preview_images and media_type
+      // Update current meme object WITH gallery_images and media_type
       currentMeme = {
         url: data.url,
         subreddit: data.subreddit || 'REDDIT',
         title: data.title || 'Unknown',
-        preview_images: data.preview_images || [],
+        is_gallery: data.is_gallery || false,
+        gallery_images: data.gallery_images || [],
         media_type: data.media_type || 'image'
       };
       
@@ -700,11 +702,21 @@
   
   // Initialize carousel from JSON data
   function initializeCarousel(data) {
-    carouselState.images = data.images || [];
-    carouselState.currentIndex = data.current_index || 0;
-    carouselState.totalImages = data.total_images || 1;
-    
-    console.log(`🎠 [CAROUSEL] Initialized with ${carouselState.totalImages} image(s)`);
+    // Check if this is a gallery post with multiple images
+    if (data.is_gallery && data.gallery_images && data.gallery_images.length > 0) {
+      carouselState.images = data.gallery_images.map(img => img.url);
+      carouselState.currentIndex = 0;
+      carouselState.totalImages = data.gallery_images.length;
+      
+      console.log(`🎠 [CAROUSEL] Gallery post with ${carouselState.totalImages} images`);
+    } else {
+      // Single image - reset carousel
+      carouselState.images = [data.url];
+      carouselState.currentIndex = 0;
+      carouselState.totalImages = 1;
+      
+      console.log(`🎠 [CAROUSEL] Single image post`);
+    }
     
     // Show/hide carousel controls based on image count
     const showArrows = carouselState.totalImages > 1;
