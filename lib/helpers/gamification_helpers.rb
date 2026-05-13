@@ -486,4 +486,71 @@ module GamificationHelpers
       [week_num, user_id]
     ).first
   end
+  
+  # ============================================
+  # SIMPLE UTILITY METHODS (for testing/UI)
+  # ============================================
+  
+  # Calculate points for a specific action
+  def calculate_points(action:)
+    action_sym = action.to_sym
+    case action_sym
+    when :like, :like_meme
+      10
+    when :share, :share_meme
+      20
+    when :save, :save_meme
+      15
+    when :view, :view_meme
+      5
+    else
+      0
+    end
+  end
+  
+  # Get level based on total points
+  def get_level(points:)
+    return 1 if points <= 0
+    
+    # Calculate level using reverse of xp_for_level formula
+    # xp_for_level(level) = 100 * (level ** 1.5)
+    # Solving for level: level = (points / 100) ** (1 / 1.5)
+    level = ((points / 100.0) ** (1.0 / 1.5)).floor
+    [level, 1].max # Minimum level is 1
+  end
+  
+  # Get badge/title based on total points
+  def get_badge(points:)
+    level = get_level(points: points)
+    
+    case level
+    when 1..5
+      "Beginner"
+    when 6..10
+      "Casual Browser"
+    when 11..20
+      "Meme Enthusiast"
+    when 21..35
+      "Dank Specialist"
+    when 36..50
+      "Meme Connoisseur"
+    when 51..75
+      "Viral Legend"
+    else
+      "Meme God"
+    end
+  end
+  
+  # Format points with K/M suffixes
+  def format_points(number)
+    return '0' if number.nil? || number == 0
+    
+    if number >= 1_000_000
+      "#{(number / 1_000_000.0).round(1)}M"
+    elsif number >= 1_000
+      "#{(number / 1_000.0).round(1)}K"
+    else
+      number.to_s
+    end
+  end
 end

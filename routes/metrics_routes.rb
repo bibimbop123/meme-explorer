@@ -103,8 +103,8 @@ module Routes
               when '24h'
                 # Show last 24 hours (hourly) - from activity log
                 23.downto(0) do |hours_ago|
-                  time = Time.now - (hours_ago * 3600)
-                  date = time.strftime('%I %p')
+                  time = Time.now.utc - (hours_ago * 3600)
+                  date = (Time.now - (hours_ago * 3600)).strftime('%I %p')  # Display in local time
                   date_start = time.strftime('%Y-%m-%d %H:00:00')
                   date_end = time.strftime('%Y-%m-%d %H:59:59')
                   
@@ -126,8 +126,8 @@ module Routes
                 # Show last 7 days (daily) - from activity log
                 6.downto(0) do |days_ago|
                   date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
-                  date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
-                  date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                  date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                  date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
                   daily_views = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND created_at BETWEEN ? AND ?",
@@ -147,8 +147,8 @@ module Routes
                 # Show last 30 days (daily) - from activity log
                 29.downto(0) do |days_ago|
                   date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
-                  date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
-                  date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                  date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                  date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
                   daily_views = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND created_at BETWEEN ? AND ?",
@@ -170,8 +170,8 @@ module Routes
               case period
               when '24h'
                 23.downto(0) do |hours_ago|
-                  time = Time.now - (hours_ago * 3600)
-                  date = time.strftime('%I %p')
+                  time = Time.now.utc - (hours_ago * 3600)
+                  date = (Time.now - (hours_ago * 3600)).strftime('%I %p')  # Display in local time
                   date_start = time.strftime('%Y-%m-%d %H:00:00')
                   date_end = time.strftime('%Y-%m-%d %H:59:59')
                   
@@ -192,8 +192,8 @@ module Routes
               when '7d'
                 6.downto(0) do |days_ago|
                   date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
-                  date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
-                  date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                  date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                  date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
                   daily_views = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
@@ -212,8 +212,8 @@ module Routes
               when '30d', 'all'
                 29.downto(0) do |days_ago|
                   date = (Time.now - (days_ago * 86400)).strftime('%m/%d')
-                  date_start = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
-                  date_end = (Time.now - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
+                  date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
+                  date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
                   daily_views = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",

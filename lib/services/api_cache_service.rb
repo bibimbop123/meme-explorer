@@ -54,6 +54,140 @@ class ApiCacheService
       @@memory_lock
     end
 
+    # Generic cache methods for testing
+    def set(key, data, ttl: CACHE_TTL)
+      return false if data.nil?
+      
+      cache_key = "cache:#{key}"
+      
+      if redis
+        begin
+          if ttl
+            redis.setex(cache_key, ttl, data.to_json)
+          else
+            redis.set(cache_key, data.to_json)
+          end
+          return true
+        rescue => e
+          # Fall through to memory cache
+        end
+      end
+      
+      # Memory cache fallback
+      memory_lock.synchronize do
+        memory_cache[cache_key] = data
+      end
+      true
+    end
+
+    def get(key)
+      cache_key = "cache:#{key}"
+      
+      begin
+        if redis
+          cached = redis.get(cache_key)
+          if cached
+            parsed = JSON.parse(cached, symbolize_names: true)
+            return parsed
+          end
+        end
+      rescue Redis::BaseError, Redis::CannotConnectError => e
+        # Fall through to memory cache on Redis errors
+      rescue => e
+        # Fall through to memory cache on other errors
+      end
+      
+      # Memory cache fallback
+      memory_lock.synchronize do
+        memory_cache[cache_key]
+      end
+    end
+
+    def delete(key)
+      cache_key = "cache:#{key}"
+      
+      if redis
+        begin
+          redis.del(cache_key)
+        rescue => e
+          # Continue to memory
+        end
+      end
+      
+      memory_lock.synchronize do
+        memory_cache.delete(cache_key)
+      end
+      true
+    end
+
+    def exists?(key)
+      cache_key = "cache:#{key}"
+      
+      if redis
+        begin
+          return redis.exists?(cache_key)
+        rescue => e
+          # Fall through
+        end
+      end
+      
+      memory_lock.synchronize do
+        memory_cache.key?(cache_key)
+      end
+    end
+
+    def increment(key, by: 1)
+      cache_key = "cache:#{key}"
+      
+      if redis
+        begin
+          return redis.incrby(cache_key, by)
+        rescue => e
+          # Fall through
+        end
+      end
+      
+      memory_lock.synchronize do
+        memory_cache[cache_key] ||= 0
+        memory_cache[cache_key] += by
+        memory_cache[cache_key]
+      end
+    end
+
+    def clear_pattern(pattern)
+      count = 0
+      cache_pattern = "cache:#{pattern}"
+      
+      if redis
+        begin
+          keys = redis.keys(cache_pattern)
+          count = keys.size
+          redis.del(*keys) if keys.any?
+          return count
+        rescue => e
+          # Fall through
+        end
+      end
+      
+      memory_lock.synchronize do
+        keys_to_delete = memory_cache.keys.select { |k| k.to_s.match?(/^#{Regexp.escape(cache_pattern.gsub('*', ''))}/) }
+        count = keys_to_delete.size
+        keys_to_delete.each { |k| memory_cache.delete(k) }
+      end
+      count
+    end
+
+    def cache_or_fetch(key, ttl: CACHE_TTL, &block)
+      # Try to get from cache first
+      cached = get(key)
+      return cached if cached
+      
+      # Execute block and cache result
+      result = block.call
+      set(key, result, ttl: ttl) if result
+      result
+    end
+
     # Rate limiting: ensure we don't exceed Reddit's limits
     def rate_limit_delay
       memory_lock.synchronize do

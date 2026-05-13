@@ -47,6 +47,8 @@ group :development, :test do
   gem "rspec", "~> 3.12"
   gem "rack-test", "~> 2.1"
   gem "database_cleaner-sequel", "~> 1.8"
+  gem "webmock", "~> 3.19"  # Mock HTTP requests in tests
+  gem "simplecov", "~> 0.22", require: false  # Code coverage
 end
 
 group :development do

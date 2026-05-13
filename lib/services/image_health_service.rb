@@ -8,12 +8,147 @@ require 'timeout'
 
 class ImageHealthService
   # Blacklist thresholds
-  TEMP_BLACKLIST_FAILURES = 1    # 1 failure = temporary blacklist
-  PERM_BLACKLIST_FAILURES = 3    # 3+ failures = permanent blacklist
-  TEMP_BLACKLIST_DURATION = 3600 # 1 hour in seconds
-  PERM_BLACKLIST_DURATION = 604800 # 7 days in seconds
+  TEMP_BLACKLIST_FAILURES = 1
+  PERM_BLACKLIST_FAILURES = 3
+  TEMP_BLACKLIST_DURATION = 3600
+  PERM_BLACKLIST_DURATION = 604800
+  
+  # Instance methods delegate to class methods
+  def validate_image(url)
+    self.class.validate_image(url)
+  end
+  
+  def mark_as_broken(url)
+    self.class.mark_as_broken(url)
+  end
+  
+  def is_broken?(url)
+    self.class.is_broken?(url)
+  end
+  
+  def get_broken_count
+    self.class.get_broken_count
+  end
+  
+  def get_broken_images(limit = 100)
+    self.class.get_broken_images(limit)
+  end
+  
+  def remove_from_blacklist(url)
+    self.class.remove_from_blacklist(url)
+  end
+  
+  def cleanup_old_entries(days = 30)
+    self.class.cleanup_old_entries(days)
+  end
+  
+  def get_statistics
+    self.class.get_statistics
+  end
   
   class << self
+    # ===== TEST-COMPATIBLE PUBLIC API =====
+    # These methods match the test specifications
+    
+    # Validate image URL format and domain
+    # @param url [String] URL to validate
+    # @return [Boolean] true if valid image URL
+    def validate_image(url)
+      return false if url.nil? || url.to_s.strip.empty?
+      
+      url_str = url.to_s.strip
+      
+      # Reject reddit post URLs
+      return false if url_str.match?(%r{reddit\.com/r/[^/]+/?$})
+      return false if url_str.match?(%r{^/r/[^/]+/?$})
+      
+      # Must have valid image extension or be from trusted domain
+      has_image_ext = url_str.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+      trusted_domain = url_str.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it|v\.redd\.it)/i)
+      
+      has_image_ext || trusted_domain
+    end
+    
+    # Mark URL as broken (alias for record_failure)
+    # @param url [String] URL to mark as broken
+    def mark_as_broken(url)
+      record_failure(url, reason: "Marked as broken")
+    end
+    
+    # Check if URL is broken/blacklisted (alias for blacklisted?)
+    # @param url [String] URL to check
+    # @return [Boolean] true if broken
+    def is_broken?(url)
+      blacklisted?(url)
+    end
+    
+    # Get total count of broken images
+    # @return [Integer] count
+    def get_broken_count
+      begin
+        DB.execute("SELECT COUNT(*) FROM broken_images").first[0]
+      rescue => e
+        AppLogger.error("Error getting broken count: #{e.message}")
+        0
+      end
+    end
+    
+    # Get list of broken image URLs
+    # @param limit [Integer] maximum number to return
+    # @return [Array<String>] array of URLs
+    def get_broken_images(limit = 100)
+      begin
+        DB.execute(
+          "SELECT url FROM broken_images ORDER BY failure_count DESC LIMIT ?",
+          [limit]
+        ).map { |row| row[0] }
+      rescue => e
+        AppLogger.error("Error getting broken images: #{e.message}")
+        []
+      end
+    end
+    
+    # Remove URL from blacklist (makes private method public)
+    # @param url [String] URL to remove
+    def remove_from_blacklist(url)
+      begin
+        DB.execute("DELETE FROM broken_images WHERE url = ?", [url])
+        AppLogger.info("✅ [IMAGE HEALTH] Removed from blacklist: #{url}")
+        true
+      rescue => e
+        AppLogger.warn("Error removing from blacklist #{url}: #{e.message}")
+        false
+      end
+    end
+    
+    # Cleanup old entries with configurable days
+    # @param days [Integer] age threshold in days (default 30)
+    # @return [Integer] number of deleted records
+    def cleanup_old_entries(days = 30)
+      begin
+        result = DB.execute(
+          "DELETE FROM broken_images 
+           WHERE is_blacklisted = 0 
+           AND last_failed_at < datetime('now', '-#{days} days')"
+        )
+        
+        count = DB.changes
+        AppLogger.info("🧹 [IMAGE HEALTH] Cleaned up #{count} old records (>#{days} days)") if count > 0
+        count
+      rescue => e
+        AppLogger.error("Error cleaning up broken_images: #{e.message}")
+        0
+      end
+    end
+    
+    # Get health statistics (alias for stats)
+    # @return [Hash] statistics
+    def get_statistics
+      stats
+    end
+    
+    # ===== ORIGINAL PUBLIC API =====
+    
     # Check if URL is blacklisted
     # @param url [String] URL to check
     # @return [Boolean] true if blacklisted
