@@ -3,10 +3,9 @@ require 'sinatra/base'
 require_relative '../lib/services/enhanced_random_selector'
 require_relative '../lib/services/meme_service'
 
-module MemeExplorer
-  class App < Sinatra::Base
-    
-    # NEW: Enhanced random endpoint with iFunny-inspired features
+class MemeExplorer < Sinatra::Base
+  
+  # NEW: Enhanced random endpoint with iFunny-inspired features
     get '/api/random/enhanced' do
       content_type :json
       
@@ -218,6 +217,5 @@ module MemeExplorer
           error: e.message
         }.to_json
       end
-    end
   end
 end
