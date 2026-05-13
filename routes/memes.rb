@@ -92,18 +92,44 @@ module Routes
           url = params[:url]
           halt 400, { error: "No URL provided" }.to_json unless url
 
-          session[:liked_memes] ||= []
+          # For anonymous users: use session (temporary)
+          unless session[:user_id]
+            session[:liked_memes] ||= []
+            liked_now = if session[:liked_memes].include?(url)
+              session[:liked_memes].delete(url)
+              false
+            else
+              session[:liked_memes] << url
+              true
+            end
+            
+            likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
+            return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
+          end
 
-          # Toggle like state in session
-          liked_now = if session[:liked_memes].include?(url)
-                        session[:liked_memes].delete(url)
-                        false
-                      else
-                        session[:liked_memes] << url
-                        true
-                      end
-
-          # Update global like counter - access DB through ::DB constant
+          # For logged-in users: use database (persistent!)
+          user_id = session[:user_id]
+          
+          # Check if already liked in new user_liked_memes table
+          existing = ::DB.execute(
+            "SELECT id FROM user_liked_memes WHERE user_id = ? AND meme_url = ?",
+            [user_id, url]
+          ).first
+          
+          if existing
+            # Unlike - remove from database
+            ::DB.execute("DELETE FROM user_liked_memes WHERE id = ?", [existing['id']])
+            liked_now = false
+          else
+            # Like - add to database
+            ::DB.execute(
+              "INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)",
+              [user_id, url]
+            )
+            liked_now = true
+          end
+          
+          # Update global like counter
           likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
 
           # IMPROVEMENT: Track user-specific likes for logged-in users (if table exists)
