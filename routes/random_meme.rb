@@ -40,6 +40,13 @@ module Routes
           # Get progress to next milestone
           @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
           
+          # PHASE 6: Track daily streak for retention
+          if session[:user_id] && defined?(MemeExplorer::RetentionService)
+            current_streak = MemeExplorer::RetentionService.track_daily_streak(session[:user_id]) rescue nil
+            @streak_status = MemeExplorer::RetentionService.get_streak_status(session[:user_id]) rescue nil
+            @social_proof = MemeExplorer::RetentionService.get_social_proof rescue nil
+          end
+          
           # PHASE 3: Check for near-miss tease
           if defined?(MemeExplorer::NearMissService)
             pool = app.class::MEME_CACHE[:memes] || []

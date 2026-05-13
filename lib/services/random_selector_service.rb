@@ -12,6 +12,11 @@ require_relative './surprise_mechanics_service' rescue nil
 require_relative './near_miss_service' rescue nil
 require_relative './milestone_service' rescue nil
 
+# Phase 4-6: Load quality, humor, and retention services
+require_relative './quality_control_service' rescue nil
+require_relative './humor_optimizer_service' rescue nil
+require_relative './retention_service' rescue nil
+
 module MemeExplorer
   class RandomSelectorService
     # Excluded categories (safety filters)
@@ -90,6 +95,18 @@ module MemeExplorer
           filtered_memes = filter_recent_memes(memes, session_id) if filtered_memes.empty?
         end
 
+        # PHASE 4: Quality Control filtering - Never show a bad meme
+        if defined?(MemeExplorer::QualityControlService)
+          filtered_memes = MemeExplorer::QualityControlService.filter_quality_pool(filtered_memes)
+          # Fallback if quality filter too aggressive
+          filtered_memes = filter_high_quality_media(memes) if filtered_memes.empty?
+        end
+
+        # PHASE 5: Humor Optimization - Comedy sequencing
+        if session_id && defined?(MemeExplorer::HumorOptimizerService)
+          filtered_memes = MemeExplorer::HumorOptimizerService.optimize_humor_sequence(filtered_memes, session_id)
+        end
+
         # STEP 4: Variety algorithm - prevent same type repeatedly
         filtered_memes = apply_variety_filter(filtered_memes, session_id) if session_id
 
@@ -105,6 +122,12 @@ module MemeExplorer
         
         # STEP 8: Track for future selections
         track_selection(enhanced, session_id) if session_id
+
+        # PHASE 5: Track humor type and themes for comedy optimization
+        if session_id && defined?(MemeExplorer::HumorOptimizerService)
+          MemeExplorer::HumorOptimizerService.track_humor_type(session_id, enhanced)
+          MemeExplorer::HumorOptimizerService.track_theme(session_id, enhanced)
+        end
 
         # PHASE 1 FIX #2: Log selection metadata for observability
         log_selection_metadata(enhanced, {
