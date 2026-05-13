@@ -7,6 +7,7 @@ class UserService
       existing = DB[:users].where(reddit_id: reddit_id).select(:id).first
       return existing[:id] if existing
 
+      # Insert and return the new ID
       DB[:users].insert(
         reddit_id: reddit_id,
         reddit_username: reddit_username,
@@ -36,18 +37,20 @@ class UserService
           password_hash: hashed
         )
       rescue Sequel::UniqueConstraintViolation
-        nil
+        return nil
       end
     else
       # SQLite3
-      DB.execute(
-        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-        [email, hashed]
-      )
-      DB.last_insert_row_id
+      begin
+        DB.execute(
+          "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+          [email, hashed]
+        )
+        DB.last_insert_row_id
+      rescue SQLite3::ConstraintException
+        return nil
+      end
     end
-  rescue SQLite3::ConstraintException
-    nil
   end
 
   def self.find_by_email(email)
