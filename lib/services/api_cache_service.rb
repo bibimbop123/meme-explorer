@@ -304,8 +304,9 @@ class ApiCacheService
                     next if post_data['is_self'] == true
                     
                     # LINK POST FILTER: Only accept image/video content
+                    # EMBEDDED POST FILTER: Exclude rich:video (YouTube, Twitter embeds, etc.)
                     post_hint = post_data['post_hint']
-                    next unless ['image', 'hosted:video', 'rich:video'].include?(post_hint)
+                    next unless ['image', 'hosted:video'].include?(post_hint)
                     
                     # LINK POST FILTER: Verify domain is a media host
                     domain = post_data['domain']
@@ -431,8 +432,9 @@ class ApiCacheService
                 next if post_data['is_self'] == true
                 
                 # LINK POST FILTER: Only accept image/video content
+                # EMBEDDED POST FILTER: Exclude rich:video (YouTube, Twitter embeds, etc.)
                 post_hint = post_data['post_hint']
-                next unless ['image', 'hosted:video', 'rich:video'].include?(post_hint)
+                next unless ['image', 'hosted:video'].include?(post_hint)
                 
                 # LINK POST FILTER: Verify domain is a media host
                 domain = post_data['domain']

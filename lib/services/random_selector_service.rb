@@ -671,6 +671,24 @@ module MemeExplorer
         end
       end
 
+      # Filter embedded posts - keep only direct media (defensive layer)
+      def filter_embedded_posts(memes)
+        memes.reject do |meme|
+          # Check if post_hint indicates embedded content
+          post_hint = meme['post_hint']
+          next true if post_hint == 'rich:video'
+          
+          # Check URL patterns for embedded content (YouTube, Twitter, etc.)
+          url = meme['url'] || meme['media_url'] || meme['link']
+          next true if url&.include?('youtube.com')
+          next true if url&.include?('youtu.be')
+          next true if url&.include?('twitter.com')
+          next true if url&.include?('x.com')
+          
+          false
+        end
+      end
+
       # Helper methods
       def filter_excluded_content(memes, preferences = {})
         excluded = preferences[:excluded_categories] || EXCLUDED_CATEGORIES
