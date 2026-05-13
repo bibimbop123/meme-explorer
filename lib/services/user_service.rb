@@ -7,12 +7,13 @@ class UserService
       existing = DB[:users].where(reddit_id: reddit_id).select(:id).first
       return existing[:id] if existing
 
-      # Insert and return the new ID
+      # Insert and return the new ID (Sequel automatically returns the new ID)
       DB[:users].insert(
         reddit_id: reddit_id,
         reddit_username: reddit_username,
         reddit_email: reddit_email
       )
+      # ✅ Returns the new user ID automatically from insert()
     else
       # SQLite3
       existing = DB.execute("SELECT id FROM users WHERE reddit_id = ?", [reddit_id]).first
@@ -32,10 +33,12 @@ class UserService
     if defined?(Sequel) && DB.is_a?(Sequel::Database)
       # Sequel/PostgreSQL
       begin
+        # Insert and return the new ID (Sequel automatically returns the new ID)
         DB[:users].insert(
           email: email,
           password_hash: hashed
         )
+        # ✅ Returns the new user ID automatically from insert()
       rescue Sequel::UniqueConstraintViolation
         return nil
       end

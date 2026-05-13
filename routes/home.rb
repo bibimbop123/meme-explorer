@@ -17,7 +17,7 @@ module Routes
         @image_src = meme_image_src(@meme)
         @likes = 0  # Will be loaded by JS
         
-        # FIXED: Track analytics synchronously with proper error handling
+        # FIXED: Track analytics synchronously with proper error handling + activity log
         begin
           user_id = session[:user_id] rescue nil
           meme_identifier = @meme["url"] || @meme["file"]
@@ -25,9 +25,15 @@ module Routes
           if meme_identifier
             # Track view in main thread with proper logging
             app.class::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+              "INSERT INTO meme_stats (url, title, subreddit, views, likes, created_at) VALUES (?, ?, ?, 1, 0, CURRENT_TIMESTAMP) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
               [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
             )
+            
+            # Log view event to activity log for accurate time-based metrics
+            app.class::DB.execute(
+              "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'view', ?, ?)",
+              [meme_identifier, user_id, session.id]
+            ) rescue nil # Fail gracefully if activity log doesn't exist yet
             
             # Track exposure for spaced repetition
             if user_id

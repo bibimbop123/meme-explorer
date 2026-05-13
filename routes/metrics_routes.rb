@@ -42,16 +42,44 @@ module Routes
           if defined?(app.class::DB) && app.class::DB
             # Get time period filter
             period = params[:period] || 'all'
-            where_clause = case period
-                          when '24h' then "WHERE updated_at >= datetime('now', '-1 day')"
-                          when '7d' then "WHERE updated_at >= datetime('now', '-7 days')"
-                          when '30d' then "WHERE updated_at >= datetime('now', '-30 days')"
-                          else ""
-                          end
-            # Get meme stats with period filter
-            @total_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0).to_i
-            @total_likes = (app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0).to_i
-            @total_views = (app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0).to_i
+            
+            # Check if activity log table exists for accurate time-based filtering
+            has_activity_log = app.class::DB.get_first_value(
+              "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'meme_activity_log'"
+            ).to_i > 0 rescue false
+            
+            if has_activity_log && period != 'all'
+              # Use activity log for accurate time-based metrics
+              time_filter = case period
+                           when '24h' then "WHERE created_at >= NOW() - INTERVAL '1 day'"
+                           when '7d' then "WHERE created_at >= NOW() - INTERVAL '7 days'"
+                           when '30d' then "WHERE created_at >= NOW() - INTERVAL '30 days'"
+                           else ""
+                           end
+              
+              @total_views = (app.class::DB.get_first_value(
+                "SELECT COUNT(*) FROM meme_activity_log #{time_filter} AND activity_type = 'view'"
+              ) || 0).to_i
+              
+              @total_likes = (app.class::DB.get_first_value(
+                "SELECT COUNT(*) FROM meme_activity_log #{time_filter} AND activity_type = 'like'"
+              ) || 0).to_i
+              
+              @total_memes = (app.class::DB.get_first_value(
+                "SELECT COUNT(DISTINCT meme_url) FROM meme_activity_log #{time_filter}"
+              ) || 0).to_i
+            else
+              # Fallback to meme_stats (all-time or if activity log doesn't exist)
+              where_clause = case period
+                            when '24h' then "WHERE updated_at >= datetime('now', '-1 day')"
+                            when '7d' then "WHERE updated_at >= datetime('now', '-7 days')"
+                            when '30d' then "WHERE updated_at >= datetime('now', '-30 days')"
+                            else ""
+                            end
+              @total_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0).to_i
+              @total_likes = (app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0).to_i
+              @total_views = (app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0).to_i
+            end
             @total_users = (app.class::DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
             @total_saved_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
             @memes_with_no_likes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} likes = 0") || 0).to_i
