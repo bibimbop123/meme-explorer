@@ -17,24 +17,20 @@ module Routes
             random_memes_pool
           end
           
-          # Find a meme that's different from recently shown ones
-          @meme = nil
-          attempts = 0
-          max_attempts = [meme_pool.size, 50].min
+          # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
+          require_relative '../lib/services/diversity_engine_service'
           
-          while attempts < max_attempts && @meme.nil?
-            candidate = meme_pool.sample
-            candidate_id = candidate["url"] || candidate["file"]
-            
-            # Check if not in recent history (last 50 memes)
-            if candidate_id && !session[:meme_history].last(50).include?(candidate_id)
-              @meme = candidate
-            end
-            attempts += 1
-          end
+          session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
+          user_prefs = {}
           
-          # If we couldn't find a fresh meme, just use a random one (pool exhausted)
-          @meme ||= meme_pool.sample
+          # Use sophisticated diversity system
+          @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+            meme_pool,
+            session_id: session_id,
+            preferences: user_prefs
+          )
+          
+          # Fallback if something goes wrong
           @meme ||= fallback_meme
           
           # Track in session history
@@ -42,9 +38,18 @@ module Routes
             meme_identifier = @meme["url"] || @meme["file"]
             session[:meme_history] << meme_identifier if meme_identifier
             session[:meme_history] = session[:meme_history].last(100) # Keep last 100
+            
+            # Track subreddit for diversity tracking
+            if defined?(REDIS) && REDIS && @meme["subreddit"]
+              key = "recent_subreddits:#{session_id}"
+              recent_subs = (JSON.parse(REDIS.get(key) || '[]') rescue [])
+              recent_subs << @meme["subreddit"].downcase
+              REDIS.setex(key, 3600, recent_subs.last(20).to_json)
+            end
           end
         rescue => e
           puts "Error in /random route: #{e.class}: #{e.message}"
+          puts e.backtrace.first(5).join("\n")
           @meme = fallback_meme
         end
         
@@ -153,56 +158,32 @@ module Routes
         puts "🔄 [/random.json] Request received"
         
         # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
-        # This fixes the OAuth issue where new users only saw local memes
         puts "🔄 [/random.json] Calling random_memes_pool..."
         memes = random_memes_pool
         puts "✅ [/random.json] Got #{memes.size} memes from pool"
         
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
-        # Validate memes before serving - skip broken images
-        max_validation_attempts = 5
-        validated_meme = nil
-        
         # CDN caching - 1 hour for meme data
         headers "Cache-Control" => "public, max-age=3600"
         headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
         
-        # Track in session history and pick from pool
-        session[:meme_history] ||= []
-        session[:last_subreddit] ||= nil
-        last_meme_url = session[:meme_history].last
+        # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
+        require_relative '../lib/services/diversity_engine_service'
         
-        # Find a new meme that's different from last shown AND has valid image
-        @meme = nil
-        attempts = 0
-        max_attempts = [memes.size, 30].min
+        session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
+        user_prefs = {}
         
-        while attempts < max_attempts
-          candidate = memes.sample
-          candidate_id = candidate["url"] || candidate["file"]
-          
-          # Check if different from last shown
-          if candidate_id && candidate_id != last_meme_url
-            # Validate image URL before serving
-            if ImageValidationService.validate(candidate_id)
-              @meme = candidate
-              puts "✅ [/random.json] Found valid meme with working image: #{@meme['title']}"
-              break
-            else
-              puts "⚠️ [/random.json] Skipping meme with broken image: #{candidate_id}"
-            end
-          end
-          attempts += 1
-        end
-        
-        # If validation is too slow or all fail, serve anyway (fallback to client-side handling)
-        if @meme.nil? && attempts >= max_attempts
-          @meme = memes.sample
-          puts "⚠️ [/random.json] Using non-validated meme after #{attempts} attempts"
-        end
+        # Use sophisticated diversity system
+        @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+          memes,
+          session_id: session_id,
+          preferences: user_prefs
+        )
         
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
+        
+        puts "✅ [/random.json] Selected meme via Diversity Engine: #{@meme['title']} (Pool: #{@meme['diversity_pool']})"
         
         # Track in session history
         meme_identifier = @meme["url"] || @meme["file"]
