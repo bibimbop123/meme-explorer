@@ -3,6 +3,25 @@
 # Default: Every 12 memes (configurable via ENV)
 
 module AdHelpers
+  # ADSENSE POLICY COMPLIANCE: Pages that should never show ads
+  # Per Google's policy, ads cannot appear on:
+  # - Authentication/behavioral pages
+  # - API endpoints
+  # - Pages without substantial content
+  PAGES_WITHOUT_ADS = [
+    '/login',
+    '/signup',
+    '/auth/reddit',
+    '/auth/reddit/callback',
+    '/logout',
+    '/api/',
+    '.json'
+  ].freeze
+  
+  # Minimum number of content items before showing ads
+  # Ensures pages have "substantial publisher content" per AdSense policy
+  MIN_ITEMS_FOR_ADS = 6
+  
   # Get ad frequency from environment or use default
   def ad_frequency
     ENV['AD_FREQUENCY']&.to_i || 12
@@ -12,6 +31,15 @@ module AdHelpers
   def should_show_ads?
     # Check if ads are globally disabled
     return false if ENV['DISABLE_ADS'] == 'true'
+    
+    # ADSENSE COMPLIANCE: Check if current page should not have ads
+    begin
+      current_path = request.path_info
+      return false if PAGES_WITHOUT_ADS.any? { |path| current_path.start_with?(path) || current_path.include?(path) }
+    rescue
+      # If unable to get path, default to safe behavior (no ads)
+      return false
+    end
     
     # Check if current user is premium (if logged in)
     if session && session[:user_id]
@@ -23,6 +51,15 @@ module AdHelpers
       end
     end
     
+    true
+  end
+  
+  # Check if ads should be shown for specific content
+  # ADSENSE COMPLIANCE: Only show ads when sufficient content exists
+  def should_show_ads_for_content?(items)
+    return false unless should_show_ads?
+    return false if items.nil? || items.empty?
+    return false if items.size < MIN_ITEMS_FOR_ADS
     true
   end
   
@@ -105,6 +142,9 @@ module AdHelpers
   # @param items [Array] Array of memes or other content
   # @return [Array] Items with ads inserted at appropriate positions
   def insert_ads_into_array(items)
+    # ADSENSE COMPLIANCE: No ads on empty or low-content pages
+    return items if items.nil? || items.empty?
+    return items if items.size < MIN_ITEMS_FOR_ADS
     return items unless should_show_ads?
     
     result = []

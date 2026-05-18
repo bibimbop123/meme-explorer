@@ -312,6 +312,37 @@ Configure credentials to show real ads.
 
 ---
 
+## 🔒 AdSense Policy Compliance
+
+### ✅ Built-In Compliance (May 2026)
+
+Your ad system now automatically complies with Google AdSense policies:
+
+**Pages WITHOUT ads (Policy Compliant)**:
+- `/login` - Authentication page
+- `/signup` - Registration page  
+- `/auth/reddit` - OAuth flow
+- `/logout` - Session termination
+- All `/api/*` endpoints
+- All `.json` responses
+
+**Minimum Content Threshold**:
+- Ads only appear when **6+ memes** are present
+- Ensures "substantial publisher content" requirement
+
+**Empty State Protection**:
+- Search with 0 results: **No ads**
+- Profile with no saved memes: **No ads**
+- Any page with <6 items: **No ads**
+
+### 📋 Compliance Documentation
+
+See these files for full details:
+- `ADSENSE_POLICY_COMPLIANCE_2026.md` - Complete compliance guide
+- `ADSENSE_TESTING_CHECKLIST.md` - Testing procedures
+
+---
+
 ## 💡 Best Practices
 
 ### DO:
@@ -321,6 +352,8 @@ Configure credentials to show real ads.
 ✅ Offer premium ad-free option
 ✅ Track revenue in admin dashboard
 ✅ Use lazy loading (already implemented)
+✅ **Maintain minimum 6-item content threshold**
+✅ **Review AdSense dashboard for policy warnings**
 
 ### DON'T:
 ❌ Set frequency too low (< 6 memes)
@@ -329,6 +362,8 @@ Configure credentials to show real ads.
 ❌ Violate AdSense policies
 ❌ Use deceptive placements
 ❌ Click your own ads (ban risk!)
+❌ **Show ads on authentication/navigation pages**
+❌ **Show ads on pages with insufficient content**
 
 ---
 

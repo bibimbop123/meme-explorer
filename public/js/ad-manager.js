@@ -15,16 +15,27 @@ class AdManager {
     this.adsDisabled = options.disabled || false;
     this.adCount = 0;
     this.impressions = [];
+    this.minItemsForAds = 6; // AdSense compliance: minimum content threshold
     
     console.log('📢 [AD MANAGER] Initialized:', {
       frequency: this.frequency,
       enabled: this.shouldShowAds(),
-      client: this.adSenseClient ? '✓' : '✗'
+      client: this.adSenseClient ? '✓' : '✗',
+      minItems: this.minItemsForAds
     });
   }
   
   // Check if ads should be shown
   shouldShowAds() {
+    // ADSENSE COMPLIANCE: No ads on auth/API pages
+    const currentPath = window.location.pathname;
+    const excludedPaths = ['/login', '/signup', '/auth/', '/api/', '/logout'];
+    
+    if (excludedPaths.some(path => currentPath.includes(path))) {
+      console.log('📢 [AD MANAGER] Ads disabled for this page:', currentPath);
+      return false;
+    }
+    
     return !this.userIsPremium && !this.adsDisabled;
   }
   
@@ -126,6 +137,13 @@ class AdManager {
     if (!this.shouldShowAds()) return;
     
     const items = Array.from(container.querySelectorAll(itemSelector));
+    
+    // ADSENSE COMPLIANCE: Only insert ads if sufficient content exists
+    if (items.length < this.minItemsForAds) {
+      console.log(`📢 [AD MANAGER] Insufficient content (${items.length} < ${this.minItemsForAds}), no ads inserted`);
+      return;
+    }
+    
     let insertedCount = 0;
     
     items.forEach((item, index) => {
