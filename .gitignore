@@ -56,3 +56,9 @@ __pycache__/
 # Private data
 /data/private
 secrets.yml
+
+# Backup files (keep in git history only)
+*_BACKUP.rb
+*_v2.rb
+*_old.rb
+*.bak

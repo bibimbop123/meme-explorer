@@ -1,0 +1,87 @@
+# Rubocop Configuration for Meme Explorer
+# Generated: May 19, 2026
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  Exclude:
+    - 'vendor/**/*'
+    - 'db/**/*'
+    - 'bin/**/*'
+    - 'node_modules/**/*'
+    - 'tmp/**/*'
+    - 'spec/factories/**/*'
+
+# Metrics - Gradually tighten these
+Metrics/MethodLength:
+  Max: 50  # Start lenient, reduce to 20 over time
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ClassLength:
+  Max: 300  # Start lenient, reduce to 200
+  Exclude:
+    - 'spec/**/*'
+    - 'app.rb'  # Will refactor this separately
+
+Metrics/ModuleLength:
+  Max: 300
+
+Metrics/BlockLength:
+  Max: 50
+  Exclude:
+    - 'spec/**/*'
+    - 'config/**/*'
+    - 'db/setup.rb'
+
+Metrics/AbcSize:
+  Max: 30  # Gradually reduce
+
+# Layout
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - 'spec/**/*'
+
+# Style preferences
+Style/Documentation:
+  Enabled: false  # Enable after refactoring
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/FrozenStringLiteralComment:
+  Enabled: false  # Enable after refactoring
+
+Style/GlobalVars:
+  AllowedVariables:
+    - $start_time
+    - $VERBOSE
+
+# Allow rescue StandardError => e
+Style/RescueStandardError:
+  EnforcedStyle: implicit
+
+# Thread safety - IMPORTANT
+ThreadSafety/InstanceVariableInClassMethod:
+  Enabled: true
+
+ThreadSafety/ClassAndModuleAttributes:
+  Enabled: true
+
+# Performance
+Performance/Casecmp:
+  Enabled: true
+
+Performance/StringInclude:
+  Enabled: true
+
+# Security - CRITICAL
+Security/Eval:
+  Enabled: true
+
+Security/YAMLLoad:
+  Enabled: true
+
+Security/Open:
+  Enabled: true

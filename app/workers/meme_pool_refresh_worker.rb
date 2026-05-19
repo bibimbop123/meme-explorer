@@ -1,0 +1,141 @@
+# Meme Pool Refresh Worker
+# Replaces inline Thread.new with proper background job
+# Generated: May 19, 2026
+
+class MemePoolRefreshWorker
+  include Sidekiq::Worker
+  
+  sidekiq_options queue: :default, retry: 3
+  
+  def perform(force_refresh = false)
+    logger.info "🔄 Starting meme pool refresh (force: #{force_refresh})"
+    
+    start_time = Time.now
+    
+    begin
+      # Check if refresh is needed
+      unless force_refresh || refresh_needed?
+        logger.info "✅ Pool refresh not needed"
+        return
+      end
+      
+      # Get Reddit access token
+      access_token = get_reddit_token
+      
+      # Fetch memes using RedditFetcherService
+      subreddits = load_subreddits
+      fetcher = RedditFetcherService.new(
+        auth_strategy: access_token ? :oauth : :static,
+        access_token: access_token
+      )
+      
+      api_memes = fetcher.fetch_memes(subreddits, limit: 50)
+      logger.info "📥 Fetched #{api_memes.size} memes from Reddit"
+      
+      # Get database memes
+      db_memes = fetch_db_memes(1000)
+      logger.info "📊 Loaded #{db_memes.size} memes from database"
+      
+      # Combine and deduplicate
+      all_memes = (api_memes + db_memes).uniq { |m| m["url"] }
+      
+      # Update cache
+      MEME_CACHE.set(:memes, all_memes)
+      MEME_CACHE.set(:last_refresh, Time.now)
+      MEME_CACHE.set(:refreshing, false)
+      
+      duration = (Time.now - start_time).round(2)
+      logger.info "✅ Pool refreshed: #{all_memes.size} memes in #{duration}s"
+      
+      # Track metrics
+      track_refresh_metrics(all_memes.size, duration)
+      
+    rescue => e
+      logger.error "❌ Pool refresh failed: #{e.message}"
+      logger.error e.backtrace.first(5).join("\n")
+      
+      MEME_CACHE.set(:refreshing, false)
+      
+      # Report to Sentry
+      Sentry.capture_exception(e) if defined?(Sentry)
+      
+      raise # Re-raise for Sidekiq retry
+    end
+  end
+  
+  private
+  
+  def refresh_needed?
+    last_refresh = MEME_CACHE.get(:last_refresh)
+    return true unless last_refresh
+    
+    pool = MEME_CACHE.get(:memes)
+    return true unless pool
+    return true if pool.size < 10
+    
+    age_minutes = (Time.now - last_refresh) / 60
+    age_minutes > 60 # Refresh if older than 1 hour
+  end
+  
+  def get_reddit_token
+    # Try to get OAuth token
+    token_data = MEME_CACHE.get(:reddit_token)
+    return token_data["access_token"] if token_data && token_data["access_token"]
+    
+    # Try to fetch new token
+    begin
+      response = HTTParty.post(
+        "https://www.reddit.com/api/v1/access_token",
+        basic_auth: {
+          username: ENV['REDDIT_CLIENT_ID'],
+          password: ENV['REDDIT_CLIENT_SECRET']
+        },
+        body: { grant_type: 'client_credentials' },
+        headers: { 'User-Agent' => 'MemeExplorer/1.0' }
+      )
+      
+      if response.success?
+        MEME_CACHE.set(:reddit_token, response.parsed_response)
+        return response.parsed_response["access_token"]
+      end
+    rescue => e
+      logger.warn "Could not get OAuth token: #{e.message}"
+    end
+    
+    nil # Fall back to static fetch
+  end
+  
+  def load_subreddits
+    # Load from YAML or use defaults
+    if File.exist?('data/subreddits.yml')
+      YAML.load_file('data/subreddits.yml')['subreddits'] || []
+    else
+      %w[memes dankmemes me_irl funny wholesomememes]
+    end
+  end
+  
+  def fetch_db_memes(limit)
+    query = "
+      SELECT url, title, subreddit, likes, views
+      FROM meme_stats
+      WHERE (failure_count IS NULL OR failure_count < 3)
+        AND updated_at >= datetime('now', '-7 days')
+      ORDER BY likes DESC, views DESC
+      LIMIT ?
+    "
+    
+    DB.execute(query, [limit])
+  end
+  
+  def track_refresh_metrics(meme_count, duration)
+    # Store metrics for monitoring
+    metrics = {
+      timestamp: Time.now.to_i,
+      meme_count: meme_count,
+      duration_seconds: duration,
+      success: true
+    }
+    
+    MEME_CACHE.set(:last_refresh_metrics, metrics)
+  end
+end

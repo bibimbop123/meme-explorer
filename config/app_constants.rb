@@ -1,96 +1,122 @@
 # Application Constants
-# Extracted from magic numbers throughout codebase
-# Created: May 11, 2026 (Senior Engineer Audit)
+# Centralized constants for better maintainability
+# Generated: May 19, 2026
 
 module AppConstants
   # Cache Configuration
-  CACHE_SUBREDDIT_SAMPLE_SIZE = 50
-  CACHE_REFRESH_INTERVAL_SECONDS = 600  # 10 minutes
-  CACHE_STARTUP_DELAY_SECONDS = 5
+  module Cache
+    MINIMUM_POOL_SIZE = 3
+    MAXIMUM_POOL_SIZE = 1000
+    DEFAULT_TTL = 3600 # 1 hour
+    MEME_POOL_TTL = 1800 # 30 minutes
+    MAX_CACHE_SIZE_MB = 500
+  end
   
-  # Reddit API Configuration
-  REDDIT_API_DELAY_SECONDS = 1
-  REDDIT_API_REQUEST_LIMIT = 60  # per minute
-  REDDIT_SUBREDDIT_FETCH_LIMIT = 8
-  REDDIT_POSTS_PER_SUBREDDIT = 30
-  REDDIT_MAX_SUBREDDIT_SAMPLE = 25
+  # API Configuration
+  module API
+    THROTTLE_DELAY = 1.5 # seconds
+    REQUEST_TIMEOUT = 15 # seconds
+    MAX_RETRY_ATTEMPTS = 3
+    DEFAULT_LIMIT = 50
+    MAX_SUBREDDITS_PER_REQUEST = 40
+  end
+  
+  # Pagination
+  module Pagination
+    DEFAULT_PAGE = 1
+    DEFAULT_LIMIT = 20
+    MAX_LIMIT = 100
+  end
+  
+  # User Limits
+  module UserLimits
+    MAX_SAVED_MEMES = 1000
+    MAX_SEARCH_HISTORY = 50
+    SESSION_DURATION = 2_592_000 # 30 days
+  end
+  
+  # Gamification
+  module Gamification
+    XP_PER_LIKE = 10
+    XP_PER_SAVE = 5
+    XP_PER_VIEW = 1
+    LEVEL_UP_THRESHOLD = 100
+    STREAK_BONUS_MULTIPLIER = 1.5
+  end
+  
+  # Validation
+  module Validation
+    MAX_SEARCH_LENGTH = 100
+    MAX_URL_LENGTH = 2000
+    MAX_USERNAME_LENGTH = 50
+    MAX_TITLE_LENGTH = 300
+    MIN_PASSWORD_LENGTH = 8
+    SESSION_SECRET_MIN_LENGTH = 64
+  end
+  
+  # Rate Limiting
+  module RateLimit
+    REQUESTS_PER_MINUTE = 60
+    LIKES_PER_MINUTE = 10
+    SEARCHES_PER_MINUTE = 30
+    SIGNUPS_PER_HOUR = 5
+  end
+  
+  # Image Processing
+  module Images
+    MAX_FILE_SIZE_MB = 10
+    ALLOWED_EXTENSIONS = %w[.jpg .jpeg .png .gif .webp].freeze
+    THUMBNAIL_SIZE = 300
+    PREVIEW_SIZE = 600
+  end
   
   # Meme Pool Configuration
-  TRENDING_POOL_PERCENTAGE = 0.7   # 70%
-  FRESH_POOL_PERCENTAGE = 0.2      # 20%
-  EXPLORATION_POOL_PERCENTAGE = 0.1 # 10%
+  module MemePool
+    TRENDING_RATIO = 0.7 # 70%
+    FRESH_RATIO = 0.2    # 20%
+    EXPLORATION_RATIO = 0.1 # 10%
+    FRESH_HOURS_THRESHOLD = 48
+    MIN_ENGAGEMENT_SCORE = 5
+  end
   
-  # Peak Hours Pool Distribution
-  PEAK_HOURS_TRENDING = 0.8
-  PEAK_HOURS_FRESH = 0.15
-  PEAK_HOURS_EXPLORATION = 0.05
+  # Reddit API
+  module Reddit
+    TOP_TIER_SUBS = %w[
+      memes dankmemes me_irl meirl 2meirl4meirl
+      comedyheaven holup okbuddyretard adviceanimals
+    ].freeze
+    
+    MID_TIER_SUBS = %w[
+      funny wholesomememes mademesmile murderedbywords
+      rareinsults facepalm instant_regret
+    ].freeze
+    
+    USER_AGENTS = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+    ].freeze
+  end
   
-  # Off Hours Pool Distribution
-  OFF_HOURS_TRENDING = 0.6
-  OFF_HOURS_FRESH = 0.3
-  OFF_HOURS_EXPLORATION = 0.1
+  # Health Check
+  module Health
+    CACHE_STALE_THRESHOLD_MINUTES = 60
+    DATABASE_TIMEOUT_SECONDS = 5
+    REDIS_TIMEOUT_SECONDS = 2
+    MIN_MEME_POOL_SIZE = 10
+  end
   
-  # User Preferences
-  PREFERRED_MEMES_RATIO = 0.6      # 60% preferred
-  NEUTRAL_MEMES_RATIO = 0.4        # 40% neutral
-  
-  # Session and History
-  MEME_HISTORY_LIMIT = 100
-  MEME_HISTORY_SHORT_LIMIT = 30
-  MAX_MEME_SELECTION_ATTEMPTS = 30
-  
-  # New User Threshold
-  NEW_USER_EXPOSURE_THRESHOLD = 10
-  
-  # Spaced Repetition
-  SPACED_REPETITION_BASE = 4  # hours_to_wait = 4^(shown_count - 1)
-  SPACED_REPETITION_FORGIVING_BASE = 2  # More forgiving alternative
-  
-  # Database Cleanup
-  DB_CLEANUP_INTERVAL_SECONDS = 3600  # 1 hour
-  BROKEN_IMAGE_FAILURE_THRESHOLD = 5
-  BROKEN_IMAGE_RETENTION_DAYS = 1
-  UNUSED_MEME_RETENTION_DAYS = 7
-  
-  # Leaderboard
-  LEADERBOARD_DEFAULT_LIMIT = 25
-  LEADERBOARD_NEARBY_RANGE = 5
-  LEADERBOARD_TOP_RANK_THRESHOLD = 10
-  
-  # XP and Gamification
-  XP_VIEW_MEME = 5
-  XP_LIKE_MEME = 10
-  XP_SAVE_MEME = 15
-  XP_SHARE_MEME = 20
-  XP_DAILY_STREAK = 25
-  XP_FIRST_LOGIN = 30
-  
-  # Trending and Scoring
-  TRENDING_MEME_COUNT = 20
-  TRENDING_LIKE_WEIGHT = 2
-  TRENDING_VIEW_WEIGHT = 1
-  
-  # Image Validation
-  IMAGE_VALIDATION_TIMEOUT = 5
-  BROKEN_IMAGE_REPORT_THRESHOLD = 2
-  
-  # API Caching
-  API_CACHE_DURATION_SECONDS = 300  # 5 minutes
-  CDN_CACHE_DURATION_SECONDS = 3600 # 1 hour
-  
-  # Retry Configuration
-  REDDIT_FETCH_MAX_RETRIES = 3
-  REDDIT_FETCH_RETRY_DELAY = 2
-  
-  # Fresh Pool Configuration
-  FRESH_POOL_HOURS = 48
-  FRESH_POOL_DEFAULT_LIMIT = 30
-  
-  # Exploration Pool
-  EXPLORATION_POOL_DEFAULT_LIMIT = 20
-  
-  # Peak Hours (for time-based distribution)
-  PEAK_HOURS_MORNING = (9..11)
-  PEAK_HOURS_EVENING = (18..21)
-  OFF_HOURS = (0..6)
+  # HTTP Status Codes (for reference)
+  module HTTP
+    OK = 200
+    CREATED = 201
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    UNPROCESSABLE = 422
+    TOO_MANY_REQUESTS = 429
+    INTERNAL_ERROR = 500
+    SERVICE_UNAVAILABLE = 503
+  end
 end
