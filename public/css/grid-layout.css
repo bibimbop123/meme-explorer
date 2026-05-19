@@ -42,19 +42,19 @@
 .meme-container .meme-display {
   grid-area: meme;
   width: 100% !important;
-  height: calc(100vh - 180px) !important; /* Full viewport minus header and controls */
-  max-height: unset !important;
+  min-height: calc(100vh - 200px) !important;
+  max-height: calc(100vh - 180px) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   position: relative !important;
   background: #000;
   border-radius: 0 !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   box-shadow: none !important;
   z-index: 1;
   margin: 0 !important;
-  padding: 0 !important;
+  padding: 1rem !important;
 }
 
 .meme-container .meme-display-content {
@@ -71,11 +71,13 @@
 .meme-container .meme-display img,
 .meme-container .meme-display video {
   max-width: 100% !important;
-  max-height: calc(100vh - 180px) !important;
+  max-height: 100% !important;
   width: auto !important;
   height: auto !important;
   object-fit: contain !important;
+  object-position: center !important;
   display: block !important;
+  margin: auto !important;
 }
 
 /* Ad Grid Areas - Positioned as overlays, NOT in grid flow */
