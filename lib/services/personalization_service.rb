@@ -374,10 +374,3 @@ class PersonalizationService
   def humanize_collection(slug)
     {
       'absurdist' => 'The Absurdist\'s Corner',
-      'programmer' => 'The Programmer\'s Codex',
-      'gentle' => 'The Gentle Archives',
-      'philosophical' => 'The Philosophical Salon',
-      'nostalgic' => 'The Nostalgia Vault'
-    }[slug] || slug.capitalize
-  end
-end
