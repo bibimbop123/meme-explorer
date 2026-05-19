@@ -128,10 +128,10 @@ module CacheStrategy
   # Cache statistics
   def cache_stats
     {
-      size: MEME_CACHE.size rescue 0,
-      meme_pool_size: MEME_CACHE.get(:memes)&.size || 0,
+      size: (MEME_CACHE.size rescue 0),
+      meme_pool_size: (MEME_CACHE.get(:memes)&.size || 0),
       last_refresh: MEME_CACHE.get(:last_refresh),
-      refreshing: MEME_CACHE.get(:refreshing) || false
+      refreshing: (MEME_CACHE.get(:refreshing) || false)
     }
   end
 end
