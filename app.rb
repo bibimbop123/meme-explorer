@@ -594,7 +594,36 @@ module MemeExplorer
   helpers AdHelpers
   helpers SeoHelpers
   helpers RefinedMemeHelper
-  
+
+  # -----------------------
+  # Curated Collections Helper Wrappers
+  # Bridge between view calls and helper module class methods
+  # -----------------------
+  helpers do
+    # Wrapper for collection_name_for_subreddit (views expect this method name)
+    def collection_name_for_subreddit(subreddit)
+      CuratedCollectionsHelper.collection_name_for(subreddit)
+    end
+    
+    # Wrapper for calculate_rarity (used in views/random.erb)
+    def calculate_rarity(meme)
+      rarity = refined_rarity_badge(meme)
+      return rarity if rarity
+      
+      # Default rarity for common memes
+      { label: 'Common', icon: '•' }
+    end
+    
+    # Wrapper for generate_curation_signal (used in views/random.erb and layout.erb)
+    def generate_curation_signal(meme)
+      signal = refined_curation_signal(meme, session[:user_id])
+      return signal if signal
+      
+      # Default curation signal
+      { type: 'default', icon: '✨', message: 'Curated for you' }
+    end
+  end
+
   # Include personality content methods
   helpers do
     include PersonalityContent
