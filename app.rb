@@ -616,7 +616,9 @@ module MemeExplorer
     
     # Wrapper for generate_curation_signal (used in views/random.erb and layout.erb)
     def generate_curation_signal(meme)
-      signal = refined_curation_signal(meme, session[:user_id])
+      # Pass nil for user since we don't have user hash/object loaded
+      # The service handles nil gracefully and will skip personalized signals
+      signal = refined_curation_signal(meme, nil)
       return signal if signal
       
       # Default curation signal
