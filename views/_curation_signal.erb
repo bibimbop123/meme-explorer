@@ -1,0 +1,12 @@
+<% 
+  # Curation Signal Partial
+  # Displays a single curation signal with refined styling
+  # Usage: <%= erb :_curation_signal, locals: { signal: "Your signal here" } %>
+%>
+
+<% if defined?(signal) && signal %>
+  <div class="curation-signal">
+    <span class="curation-signal-icon">✦</span>
+    <span><%= signal %></span>
+  </div>
+<% end %>

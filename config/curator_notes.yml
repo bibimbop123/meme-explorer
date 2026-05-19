@@ -1,0 +1,130 @@
+# ============================================
+# PHASE 4: CURATOR NOTES
+# ============================================
+# Expert commentary explaining why specific memes matter
+# Adds social validation and cultural context
+
+curator_notes:
+  # High-performing memes get curator notes
+  triggers:
+    - likes_threshold: 50
+    - views_threshold: 200
+    - engagement_ratio: 0.25  # 25% like rate
+  
+  # Curator personas
+  curators:
+    - id: "literary_curator"
+      name: "The Literary Curator"
+      avatar: "📚"
+      specialty: ["meirl", "2meirl4meirl"]
+      tone: "thoughtful"
+    
+    - id: "absurdist_curator"
+      name: "The Absurdist"
+      avatar: "🎭"
+      specialty: ["surrealmemes", "deepfriedmemes"]
+      tone: "playful"
+    
+    - id: "tech_curator"
+      name: "The Code Whisperer"
+      avatar: "💻"
+      specialty: ["ProgrammerHumor", "programminghorror"]
+      tone: "technical"
+    
+    - id: "wholesome_curator"
+      name: "The Heart Collector"
+      avatar: "💝"
+      specialty: ["wholesomememes", "MadeMeSmile"]
+      tone: "warm"
+    
+    - id: "meta_curator"
+      name: "The Meta Analyst"
+      avatar: "🔍"
+      specialty: ["dankmemes", "memes"]
+      tone: "analytical"
+
+  # Note templates by collection
+  templates:
+    absurdist:
+      - "This captures the essence of absurdist humor—meaning through meaninglessness."
+      - "A perfect example of surrealism in meme form. Notice the deliberate randomness."
+      - "The juxtaposition here is chef's kiss. This is what the collection is all about."
+      - "Rare to see this level of chaotic energy. Worth saving."
+    
+    gentle:
+      - "This embodies the gentle aesthetic we curate—warmth without saccharine."
+      - "A moment of genuine human connection, perfectly captured."
+      - "This is what wholesome content should be: authentic and uplifting."
+      - "The kind of meme that restores faith in internet culture."
+    
+    programmer:
+      - "Every developer has lived this moment. The universal experience is what makes it legendary."
+      - "Technical accuracy + humor = perfection. This is textbook programmer meme."
+      - "This will resonate with anyone who's debugged at 3am. Instant classic."
+      - "The code speaks for itself, but the pain speaks louder."
+    
+    philosophical:
+      - "This touches on something deeper than surface-level humor. Worth pondering."
+      - "Existential dread, but make it funny. This is the collection's signature style."
+      - "Philosophy majors will feel this one. The rest of us just laugh nervously."
+      - "When memes become meditation. This is why we curate."
+    
+    nostalgic:
+      - "Time capsule material. Future generations will study this as cultural artifact."
+      - "The collective memory this evokes is powerful. Pure nostalgia."
+      - "Remember when? This meme does. Perfectly preserved moment in time."
+      - "Cultural touchstone. This one belongs in the archives."
+    
+    meta:
+      - "Self-aware meme culture at its finest. The layers here are impressive."
+      - "When memes become commentary on memes. This is peak meta."
+      - "The internet eating itself, in the best way possible."
+      - "Fourth-wall breaking done right. This is what we live for."
+    
+    default:
+      - "This exemplifies what makes the collection special."
+      - "A standout example of the collection's aesthetic."
+      - "Curated for its exceptional quality and resonance."
+      - "This is why we maintain this collection."
+
+  # Social proof phrases
+  social_proof:
+    - "{count} members of the community have saved this"
+    - "Trending in {collection} with {engagement}% engagement"
+    - "Top 5% of content in this collection"
+    - "Curator's Pick: Exceptional specimen"
+    - "Community favorite: {likes} appreciations"
+    - "Rising star: {growth}% increase in saves today"
+
+  # Why This Matters explanations
+  why_matters:
+    high_engagement:
+      - "Strong community resonance suggests universal appeal"
+      - "The engagement metrics indicate this hits different"
+      - "When numbers meet quality—this is that intersection"
+    
+    cultural_moment:
+      - "Captures a specific cultural moment worth preserving"
+      - "Time-sensitive relevance makes this a cultural artifact"
+      - "This is how we'll remember this moment"
+    
+    technical_excellence:
+      - "The craft here is exceptional—notice the composition"
+      - "Technical execution elevates this above the noise"
+      - "Masterclass in meme construction"
+    
+    emotional_impact:
+      - "The emotional authenticity here is what makes it memorable"
+      - "Hits the feeling button perfectly"
+      - "This will stick with you—that's intentional"
+
+  # Rarity indicators (already implemented, but adding context)
+  rarity_context:
+    legendary:
+      note: "Fewer than 1% of memes achieve this status. This is internet history."
+    rare:
+      note: "Exceptional quality puts this in the top 5% of content."
+    uncommon:
+      note: "Above-average specimen. Worth your attention."
+    common:
+      note: "Solid content that exemplifies the collection."

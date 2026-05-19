@@ -14,6 +14,11 @@
     <p>❤️ <strong><%= @liked_count %></strong> memes liked (all-time)</p>
   </div>
 
+  <!-- 🎬 CRITERION COLLECTION: Taste Profile -->
+  <% if session[:user_id] %>
+    <%= render_taste_profile(session[:user_id]) %>
+  <% end %>
+
   <h2>My Liked Memes</h2>
   
   <% if @liked_memes.empty? %>

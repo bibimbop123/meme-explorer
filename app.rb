@@ -34,6 +34,8 @@ require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
+require_relative "./lib/helpers/curated_collections_helper"
+require_relative "./lib/helpers/refined_meme_helper"
 require_relative "./lib/services/seo_service"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
@@ -591,6 +593,7 @@ module MemeExplorer
   helpers GalleryHelpers
   helpers AdHelpers
   helpers SeoHelpers
+  helpers RefinedMemeHelper
   
   # Include personality content methods
   helpers do

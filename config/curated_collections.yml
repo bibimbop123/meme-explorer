@@ -1,0 +1,244 @@
+# 🎨 CURATED COLLECTIONS
+# Literary, evocative collection names that elevate the browsing experience
+# Maps to existing subreddit infrastructure while adding refined curation layer
+
+collections:
+  # Philosophical & Absurdist
+  absurdist_corner:
+    name: "The Absurdist's Corner"
+    description: "For those who find meaning in meaninglessness"
+    tagline: "Where logic takes a holiday"
+    subreddits:
+      - surrealmemes
+      - hmmm
+      - me_irl
+      - 2meirl4meirl
+    tone: philosophical
+    mood: contemplative
+    color: "#7B68BB"
+    
+  late_night_philosophy:
+    name: "Late Night Philosophy"
+    description: "Deep thoughts, deeper memes"
+    tagline: "3am realizations, internet edition"
+    subreddits:
+      - Showerthoughts
+      - meirl
+      - 2meirl4meirl
+      - im14andthisisdeep
+    tone: introspective
+    mood: thoughtful
+    color: "#2D3142"
+    
+  # Wholesome & Uplifting
+  tender_moments:
+    name: "Tender Moments"
+    description: "Wholesome without being saccharine"
+    tagline: "For when you need a gentle smile"
+    subreddits:
+      - wholesomememes
+      - MadeMeSmile
+      - Eyebleach
+      - aww
+    tone: warm
+    mood: uplifting
+    color: "#F4B942"
+    
+  monday_medicine:
+    name: "Monday Morning Medicine"
+    description: "The antidote to the work week"
+    tagline: "Start your day with perspective"
+    subreddits:
+      - GetMotivated
+      - wholesomememes
+      - funny
+      - comics
+    tone: energizing
+    mood: hopeful
+    color: "#F77F00"
+    
+  # Dark & Edgy
+  the_abyss_stares_back:
+    name: "The Abyss Stares Back"
+    description: "Dark humor for dark times"
+    tagline: "When you can only laugh or cry"
+    subreddits:
+      - dark_humor
+      - ImGoingToHellForThis
+      - cursedimages
+      - TIHI
+    tone: dark
+    mood: cathartic
+    color: "#1A1A1A"
+    
+  post_ironic_despair:
+    name: "Post-Ironic Despair"
+    description: "Too real to laugh, too absurd to cry"
+    tagline: "Millennial/Gen-Z existentialism"
+    subreddits:
+      - 2meirl4meirl
+      - 2meirl42meirl4meirl
+      - meirl
+      - depression_memes
+    tone: cynical
+    mood: relatable
+    color: "#4A5568"
+    
+  # Highbrow & Cultural
+  cultural_commentary:
+    name: "Cultural Commentary"
+    description: "Memes as social criticism"
+    tagline: "The internet's op-ed section"
+    subreddits:
+      - PoliticalHumor
+      - HistoryMemes
+      - trippinthroughtime
+      - ClassicalArtMemes
+    tone: intellectual
+    mood: satirical
+    color: "#8B5A3C"
+    
+  art_gallery:
+    name: "The Digital Gallery"
+    description: "When memes become art"
+    tagline: "Museum-quality absurdity"
+    subreddits:
+      - HighQualityGifs
+      - PerfectTiming
+      - oddlysatisfying
+      - DesignPorn
+    tone: aesthetic
+    mood: appreciative
+    color: "#E63946"
+    
+  # Niche & Specific
+  vintage_collection:
+    name: "The Vintage Collection"
+    description: "Classic memes from the early internet"
+    tagline: "When memes were still called image macros"
+    subreddits:
+      - AdviceAnimals
+      - fffffffuuuuuuuuuuuu
+      - ClassicRageMemes
+      - vintageobscura
+    tone: nostalgic
+    mood: retrospective
+    color: "#A8DADC"
+    
+  niche_humor:
+    name: "The Connoisseur's Selection"
+    description: "For refined and esoteric tastes"
+    tagline: "If you know, you know"
+    subreddits:
+      - surrealmemes
+      - bonehurtingjuice
+      - antimeme
+      - speedoflobsters
+    tone: sophisticated
+    mood: exclusive
+    color: "#6A4C93"
+    
+  # Relatable & Life
+  working_professional:
+    name: "The Office Hours"
+    description: "Corporate existence, memefied"
+    tagline: "Monday through Friday, visualized"
+    subreddits:
+      - programmerhumor
+      - WorkReform
+      - antiwork
+      - corporatehumor
+    tone: relatable
+    mood: commiserating
+    color: "#457B9D"
+    
+  domestic_life:
+    name: "Domestic Chronicles"
+    description: "The comedy of everyday existence"
+    tagline: "Life, but make it funny"
+    subreddits:
+      - meirl
+      - adulthood
+      - relationship_memes
+      - BikiniBottomTwitter
+    tone: familiar
+    mood: comforting
+    color: "#90BE6D"
+    
+  # Pure Entertainment
+  pure_joy:
+    name: "Pure Dopamine"
+    description: "No thoughts, just vibes"
+    tagline: "Maximum entertainment, minimum effort"
+    subreddits:
+      - funny
+      - memes
+      - dankmemes
+      - BikiniBottomTwitter
+    tone: playful
+    mood: energetic
+    color: "#F72585"
+    
+  chaos_energy:
+    name: "Chaotic Neutral"
+    description: "Unpredictable, unhinged, unforgettable"
+    tagline: "Embrace the chaos"
+    subreddits:
+      - AbruptChaos
+      - AAAAAAAAAAAAAAAAA
+      - perfectlycutscreams
+      - ChaosTheory
+    tone: wild
+    mood: manic
+    color: "#FF006E"
+
+# Collection Groups (for navigation)
+collection_groups:
+  contemplative:
+    label: "For Thought"
+    collections:
+      - absurdist_corner
+      - late_night_philosophy
+      - cultural_commentary
+      
+  uplifting:
+    label: "For Comfort"
+    collections:
+      - tender_moments
+      - monday_medicine
+      - domestic_life
+      
+  edge:
+    label: "For The Bold"
+    collections:
+      - the_abyss_stares_back
+      - post_ironic_despair
+      - chaos_energy
+      
+  refined:
+    label: "For Connoisseurs"
+    collections:
+      - art_gallery
+      - vintage_collection
+      - niche_humor
+      
+  entertainment:
+    label: "For Fun"
+    collections:
+      - pure_joy
+      - working_professional
+      - chaos_energy
+
+# Mapping configuration
+mapping:
+  # How to map existing subreddit-based routing to collections
+  use_primary_subreddit: true
+  fallback_to_general: true
+  allow_multi_collection: true
+  
+# Display configuration
+display:
+  show_collection_descriptions: true
+  show_taglines_on_hover: true
+  use_collection_colors: true
+  animate_transitions: true

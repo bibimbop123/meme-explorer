@@ -1,0 +1,19 @@
+<% 
+  # Collection Header Partial
+  # Displays refined collection title and description
+  # Usage: <%= erb :_collection_header, locals: { collection_name: "...", description: "...", tagline: "..." } %>
+%>
+
+<% if defined?(collection_name) %>
+  <div class="collection-header">
+    <h1 class="collection-title"><%= collection_name %></h1>
+    
+    <% if defined?(description) && description %>
+      <p class="collection-description"><%= description %></p>
+    <% end %>
+    
+    <% if defined?(tagline) && tagline %>
+      <p class="collection-tagline"><%= tagline %></p>
+    <% end %>
+  </div>
+<% end %>

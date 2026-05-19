@@ -1,0 +1,198 @@
+<div class="collection-page">
+  <%= erb :'_collection_header', locals: { collection: @collection } %>
+
+  <div class="collection-stats">
+    <div class="stat-card">
+      <div class="stat-value"><%= @stats[:total_memes] %></div>
+      <div class="stat-label">Curated Memes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= @stats[:total_likes] %></div>
+      <div class="stat-label">Total Likes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= @stats[:avg_score] %></div>
+      <div class="stat-label">Avg. Score</div>
+    </div>
+  </div>
+
+  <% if @trending && @trending.any? %>
+    <section class="trending-section">
+      <h2 class="section-title">🔥 Trending in <%= @collection['name'] %></h2>
+      <div class="meme-grid">
+        <% @trending.take(6).each do |meme| %>
+          <a href="/random?subreddit=<%= meme['subreddit'] %>" class="meme-card">
+            <img src="<%= meme['url'] %>" alt="<%= meme['title'] %>" loading="lazy">
+            <div class="meme-card-overlay">
+              <div class="meme-card-title"><%= meme['title'] %></div>
+              <div class="meme-card-likes">❤️ <%= meme['likes'] %></div>
+            </div>
+          </a>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <section class="all-memes-section">
+    <h2 class="section-title">All Memes from <%= @collection['name'] %></h2>
+    <div class="meme-grid">
+      <% @memes.take(12).each do |meme| %>
+        <a href="/random?url=<%= ERB::Util.url_encode(meme['url']) %>" class="meme-card">
+          <img src="<%= meme['url'] %>" alt="<%= meme['title'] %>" loading="lazy">
+          <div class="meme-card-overlay">
+            <div class="meme-card-title"><%= meme['title'] %></div>
+            <div class="meme-card-likes">❤️ <%= meme['likes'] %></div>
+          </div>
+        </a>
+      <% end %>
+    </div>
+  </section>
+
+  <div class="collection-cta">
+    <a href="/random?subreddit=<%= @collection['subreddits'].first %>" class="cta-button">
+      Explore This Collection →
+    </a>
+  </div>
+</div>
+
+<style>
+  .collection-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .collection-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .stat-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+  }
+
+  .trending-section,
+  .all-memes-section {
+    margin: 3rem 0;
+  }
+
+  .section-title {
+    font-size: 1.8rem;
+    margin: 0 0 1.5rem 0;
+    color: #1a1a1a;
+  }
+
+  .meme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .meme-card {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: white;
+  }
+
+  .meme-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .meme-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .meme-card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    padding: 1.5rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .meme-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .meme-card-likes {
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+
+  .collection-cta {
+    text-align: center;
+    margin: 3rem 0;
+  }
+
+  .cta-button {
+    display: inline-block;
+    padding: 1rem 3rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  @media (max-width: 768px) {
+    .collection-page {
+      padding: 1rem;
+    }
+
+    .meme-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+    }
+  }
+</style>

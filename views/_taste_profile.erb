@@ -1,0 +1,30 @@
+<% 
+  # Taste Profile Partial
+  # Displays user's refined taste profile
+  # Usage: <%= erb :_taste_profile, locals: { profile: taste_profile_hash } %>
+%>
+
+<% if defined?(profile) && profile %>
+  <div class="taste-profile">
+    <h2 class="taste-profile-heading">Your Taste Profile</h2>
+    
+    <div class="taste-profile-trait">
+      <div class="taste-profile-label">Aesthetic</div>
+      <div class="taste-profile-value"><%= profile[:aesthetic] %></div>
+    </div>
+    
+    <div class="taste-profile-trait">
+      <div class="taste-profile-label">Appreciation Style</div>
+      <div class="taste-profile-value"><%= profile[:appreciation] %></div>
+    </div>
+    
+    <div class="taste-profile-trait">
+      <div class="taste-profile-label">Sensibility</div>
+      <div class="taste-profile-value"><%= profile[:sensibility] %></div>
+    </div>
+    
+    <div class="taste-profile-summary">
+      <%= profile[:summary] %>
+    </div>
+  </div>
+<% end %>

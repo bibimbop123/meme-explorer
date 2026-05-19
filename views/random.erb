@@ -46,13 +46,35 @@
         <span class="toggle-icon"></span>
       </button>
     </div>
+    
+    <!-- 🎬 CRITERION COLLECTION: Curated collection name instead of raw subreddit -->
+    <% if @meme %>
+      <% collection_name = collection_name_for_subreddit(@meme['subreddit']) %>
+      <% rarity_data = calculate_rarity(@meme) %>
+      
+      <div class="refined-collection-badge">
+        <%= collection_name %>
+        <% if rarity_data[:label] != 'Common' %>
+          <span class="rarity-indicator rarity-<%= rarity_data[:label].downcase %>">
+            <%= rarity_data[:icon] %> <%= rarity_data[:label] %>
+          </span>
+        <% end %>
+      </div>
+      
+      <!-- Curation signal - why this meme is being shown -->
+      <% signal = generate_curation_signal(@meme) %>
+      <div class="curation-signal curation-signal-<%= signal[:type] %>">
+        <span class="signal-icon"><%= signal[:icon] %></span>
+        <span class="signal-text"><%= signal[:message] %></span>
+      </div>
+    <% end %>
+    
     <div class="meme-meta-wrapper">
       <div class="meme-meta">
-      <span class="meme-subreddit"><%= @meme&.dig('subreddit')&.upcase || 'MEME' %></span>
       <% if @reddit_path || @meme&.dig('permalink') %>
         <a href="https://reddit.com<%= @reddit_path || @meme&.dig('permalink') %>" 
-           target="_blank" rel="noopener" class="reddit-link" title="View original post on Reddit">
-          🔗 Reddit
+           target="_blank" rel="noopener" class="reddit-link refined-source-link" title="View original post on Reddit">
+          Source →
         </a>
       <% end %>
       </div>
@@ -74,6 +96,16 @@
       📤
       <span class="control-count">Share</span>
     </button>
+    
+    <!-- 🎬 QUICK WIN: More Like This button -->
+    <% if @meme %>
+      <button class="control-btn more-like-this-btn" id="more-like-this-btn" 
+              data-subreddit="<%= @meme['subreddit'] %>"
+              title="More from <%= collection_name_for_subreddit(@meme['subreddit']) %>">
+        ✨
+        <span class="control-count">More Like This</span>
+      </button>
+    <% end %>
     
     <button class="control-btn" id="next-btn" title="Next meme (Space or swipe)">
       ➡️
@@ -153,7 +185,7 @@
   <div class="lightbox-close" id="lightbox-close">✕</div>
   <div class="lightbox-content">
     <img id="lightbox-image" src="" alt="">
-  </div>
+  </img>
 </div>
 
 <script>
@@ -800,6 +832,69 @@
   nextBtn.addEventListener('click', () => {
     if (debounceNav()) loadNextMeme();
   });
+  
+  // ============================================
+  // QUICK WIN: "MORE LIKE THIS" FUNCTIONALITY
+  // ============================================
+  const moreLikeThisBtn = document.getElementById('more-like-this-btn');
+  if (moreLikeThisBtn) {
+    moreLikeThisBtn.addEventListener('click', async () => {
+      const subreddit = moreLikeThisBtn.dataset.subreddit;
+      if (!subreddit) return;
+      
+      console.log(`✨ [MORE LIKE THIS] Loading from ${subreddit}...`);
+      
+      // Show loading state
+      const originalText = moreLikeThisBtn.querySelector('.control-count').textContent;
+      moreLikeThisBtn.querySelector('.control-count').textContent = 'Loading...';
+      moreLikeThisBtn.disabled = true;
+      
+      try {
+        // Fetch from same subreddit
+        const response = await fetch(`/random.json?subreddit=${encodeURIComponent(subreddit)}`);
+        const data = await response.json();
+        
+        // Update current meme
+        currentMeme = {
+          url: data.url,
+          subreddit: data.subreddit || subreddit,
+          title: data.title || 'Unknown',
+          is_gallery: data.is_gallery || false,
+          gallery_images: data.gallery_images || [],
+          media_type: data.media_type || 'image'
+        };
+        
+        // Reset tracking
+        viewStartTime = Date.now();
+        memeViewData = { viewed: true, liked: false, saved: false, shared: false };
+        
+        // Update display
+        updateMemeDisplay(data);
+        memeTitle.textContent = data.title || 'Loading...';
+        likeCount.textContent = data.likes;
+        
+        // Reset like state
+        isLiked = false;
+        updateLikeUI();
+        
+        // Re-initialize carousel
+        initializeCarousel(data);
+        
+        // Multi-sensory feedback
+        if (window.soundSystem) window.soundSystem.play('next');
+        if (window.hapticSystem) window.hapticSystem.trigger('success');
+        
+        console.log(`✅ [MORE LIKE THIS] Loaded from ${subreddit}`);
+      } catch (error) {
+        console.error('❌ [MORE LIKE THIS] Error:', error);
+        // Fallback to regular next
+        loadNextMeme();
+      } finally {
+        moreLikeThisBtn.querySelector('.control-count').textContent = originalText;
+        moreLikeThisBtn.disabled = false;
+      }
+    });
+  }
   
   // ============================================
   // PERFORMANCE: Prefetch next meme AFTER current media loads

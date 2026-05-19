@@ -1,0 +1,11 @@
+<% 
+  # Rarity Badge Partial
+  # Displays vintage/rare/quality badges
+  # Usage: <%= erb :_rarity_badge, locals: { badge: { type: 'vintage', label: 'Vintage: 2012' } } %>
+%>
+
+<% if defined?(badge) && badge %>
+  <span class="rarity-badge rarity-badge-<%= badge[:type] %>">
+    <%= badge[:label] %>
+  </span>
+<% end %>

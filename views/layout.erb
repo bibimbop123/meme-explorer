@@ -14,9 +14,18 @@
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="<%= request.base_url %>">
-  <meta property="og:title" content="Meme Explorer 😎 - Discover the Best Memes from Reddit">
-  <meta property="og:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from top Reddit communities.">
-  <meta property="og:image" content="<%= request.base_url %>/images/tattoo-annie-placeholder.jpg">
+  <% if @meme && @meme['title'] %>
+    <!-- 🎬 CRITERION COLLECTION: Enhanced sharing for specific memes -->
+    <% collection = collection_name_for_subreddit(@meme['subreddit']) rescue "Meme Explorer" %>
+    <% signal = generate_curation_signal(@meme) rescue {message: "A curated selection"} %>
+    <meta property="og:title" content="From <%= collection %> | Meme Explorer">
+    <meta property="og:description" content="<%= signal[:message] %>: <%= @meme['title'].gsub('"', "'")[0..150] %>">
+    <meta property="og:image" content="<%= @meme['url'] || @image_src %>">
+  <% else %>
+    <meta property="og:title" content="Meme Explorer 😎 - Discover the Best Memes from Reddit">
+    <meta property="og:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from top Reddit communities.">
+    <meta property="og:image" content="<%= request.base_url %>/images/tattoo-annie-placeholder.jpg">
+  <% end %>
   <meta property="og:image:secure_url" content="<%= request.base_url.gsub('http:', 'https:') %>/images/tattoo-annie-placeholder.jpg">
   <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="195">
@@ -48,6 +57,8 @@
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/meme_explorer.css">
   <link rel="stylesheet" href="/css/animations.css">
+  <!-- Refined Aesthetic CSS - Criterion Collection Style -->
+  <link rel="stylesheet" href="/css/refined-aesthetic.css">
   <link rel="stylesheet" href="/css/ads.css">
   <link rel="stylesheet" href="/css/grid-layout-v3.css">
   <link rel="stylesheet" href="/css/placeholder.css">
