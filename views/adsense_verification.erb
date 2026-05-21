@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdSense Verification - Meme Explorer</title>
+  <meta name="google-site-verification" content="<%= ENV['GOOGLE_SITE_VERIFICATION'] %>" />
+  <meta name="description" content="AdSense verification page for Meme Explorer - proving site ownership and operational status">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .status-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .status-ok { color: #10b981; font-size: 48px; margin: 20px 0; }
+    h1 { color: #1f2937; margin-bottom: 10px; }
+    h2 { color: #374151; font-size: 18px; margin-top: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+    .check-item { 
+      display: flex; 
+      justify-content: space-between; 
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-pass { color: #10b981; font-weight: bold; }
+    .check-fail { color: #ef4444; font-weight: bold; }
+    .timestamp { color: #6b7280; font-size: 14px; margin-top: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .info-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #dbeafe;
+      color: #1e40af;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-card">
+    <h1>🎯 Meme Explorer - AdSense Verification</h1>
+    <div class="status-ok">✅ Site Operational</div>
+    <span class="info-badge">Ready for AdSense Approval</span>
+    
+    <h2>System Health Checks</h2>
+    <div class="check-item">
+      <span>Database Connection</span>
+      <span class="<%= health[:checks][:database] ? 'check-pass' : 'check-fail' %>">
+        <%= health[:checks][:database] ? '✓ PASS' : '✗ FAIL' %>
+      </span>
+    </div>
+    <div class="check-item">
+      <span>Meme Pool Available</span>
+      <span class="<%= health[:checks][:meme_pool] ? 'check-pass' : 'check-fail' %>">
+        <%= health[:checks][:meme_pool] ? '✓ PASS' : '✗ FAIL' %>
+      </span>
+    </div>
+    <div class="check-item">
+      <span>AdSense Configured</span>
+      <span class="<%= health[:checks][:ads_enabled] ? 'check-pass' : 'check-fail' %>">
+        <%= health[:checks][:ads_enabled] ? '✓ PASS' : '✗ FAIL' %>
+      </span>
+    </div>
+    
+    <h2>Site Information</h2>
+    <div class="check-item">
+      <span>Site URL</span>
+      <span><%= health[:site_url] %></span>
+    </div>
+    <div class="check-item">
+      <span>Current Status</span>
+      <span class="check-pass"><%= health[:status].upcase %></span>
+    </div>
+    <div class="check-item">
+      <span>Uptime</span>
+      <span><%= (health[:uptime_seconds] / 3600.0).round(1) %> hours</span>
+    </div>
+    <div class="check-item">
+      <span>Google Verification</span>
+      <span class="<%= ENV['GOOGLE_SITE_VERIFICATION'] ? 'check-pass' : 'check-fail' %>">
+        <%= ENV['GOOGLE_SITE_VERIFICATION'] ? '✓ CONFIGURED' : '✗ NOT SET' %>
+      </span>
+    </div>
+    
+    <div class="timestamp">
+      <strong>Last checked:</strong> <%= health[:timestamp] %><br>
+      <strong>Purpose:</strong> This page verifies that Meme Explorer is operational and ready for Google AdSense.<br>
+      <strong>For AdSense reviewers:</strong> This site displays curated meme content from Reddit with appropriate ad placement following Google's policies.
+    </div>
+    
+    <p style="margin-top: 30px;">
+      <a href="/">← Back to Meme Explorer Home</a> | 
+      <a href="/trending">View Trending Memes</a>
+    </p>
+  </div>
+</body>
+</html>

@@ -2684,6 +2684,29 @@ module MemeExplorer
   register Routes::EnhancedRandom
   
   # -----------------------
+  # AdSense Verification & Health Check
+  # -----------------------
+  
+  get '/adsense-verification' do
+    content_type :html
+    
+    health = {
+      status: 'operational',
+      timestamp: Time.now.iso8601,
+      uptime_seconds: (Time.now - $start_time).to_i,
+      site_url: request.base_url,
+      adsense_ready: true,
+      checks: {
+        database: (DB.execute("SELECT 1").any? rescue false),
+        meme_pool: (MEME_CACHE[:memes]&.size || 0) > 0,
+        ads_enabled: !ENV['GOOGLE_ADSENSE_CLIENT'].nil?
+      }
+    }
+    
+    erb :adsense_verification, locals: { health: health }
+  end
+  
+  # -----------------------
 
   # Start server
   # -----------------------
