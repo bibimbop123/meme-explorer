@@ -1,122 +1,61 @@
-# Application Constants
-# Centralized constants for better maintainability
-# Generated: May 19, 2026
+# frozen_string_literal: true
 
-module AppConstants
+# Application-wide constants for Meme Explorer
+# Extracted from app.rb for better organization
+
+module MemeExplorerConstants
+  # Reddit API Configuration
+  REDDIT_REQUEST_DELAY = 1.5  # Seconds between Reddit API requests
+  DEFAULT_MEME_LIMIT = 45      # Optimal pool size for meme fetching
+  MAX_SUBREDDIT_SAMPLE = 40    # Maximum subreddits to sample at once
+  
+  # Pool Distribution Ratios
+  TRENDING_RATIO = 0.7    # 70% trending content
+  FRESH_RATIO = 0.2       # 20% fresh content
+  EXPLORATION_RATIO = 0.1 # 10% exploration content
+  
   # Cache Configuration
-  module Cache
-    MINIMUM_POOL_SIZE = 3
-    MAXIMUM_POOL_SIZE = 1000
-    DEFAULT_TTL = 3600 # 1 hour
-    MEME_POOL_TTL = 1800 # 30 minutes
-    MAX_CACHE_SIZE_MB = 500
-  end
+  CACHE_TTL_MEMES = 300        # 5 minutes
+  CACHE_TTL_USER_DATA = 300    # 5 minutes
+  MAX_CACHE_SIZE = 100 * 1024 * 1024  # 100MB
   
-  # API Configuration
-  module API
-    THROTTLE_DELAY = 1.5 # seconds
-    REQUEST_TIMEOUT = 15 # seconds
-    MAX_RETRY_ATTEMPTS = 3
-    DEFAULT_LIMIT = 50
-    MAX_SUBREDDITS_PER_REQUEST = 40
-  end
+  # Pagination Defaults
+  DEFAULT_PAGE_SIZE = 10
+  MAX_PAGE_SIZE = 100
   
-  # Pagination
-  module Pagination
-    DEFAULT_PAGE = 1
-    DEFAULT_LIMIT = 20
-    MAX_LIMIT = 100
-  end
+  # Session Configuration
+  MAX_MEME_HISTORY = 100      # Keep last 100 memes in session
+  MAX_SEEN_MEMES_COOKIE = 30  # Keep last 30 in cookie
   
-  # User Limits
-  module UserLimits
-    MAX_SAVED_MEMES = 1000
-    MAX_SEARCH_HISTORY = 50
-    SESSION_DURATION = 2_592_000 # 30 days
-  end
+  # User Engagement
+  NEW_USER_THRESHOLD = 10     # Views before user is "established"
+  MAX_SELECTION_ATTEMPTS = 30 # Max attempts to find valid meme
   
-  # Gamification
-  module Gamification
-    XP_PER_LIKE = 10
-    XP_PER_SAVE = 5
-    XP_PER_VIEW = 1
-    LEVEL_UP_THRESHOLD = 100
-    STREAK_BONUS_MULTIPLIER = 1.5
-  end
-  
-  # Validation
-  module Validation
-    MAX_SEARCH_LENGTH = 100
-    MAX_URL_LENGTH = 2000
-    MAX_USERNAME_LENGTH = 50
-    MAX_TITLE_LENGTH = 300
-    MIN_PASSWORD_LENGTH = 8
-    SESSION_SECRET_MIN_LENGTH = 64
-  end
+  # Spaced Repetition
+  SPACED_REPETITION_BASE = 4  # Hours multiplier (4^n)
   
   # Rate Limiting
-  module RateLimit
-    REQUESTS_PER_MINUTE = 60
-    LIKES_PER_MINUTE = 10
-    SEARCHES_PER_MINUTE = 30
-    SIGNUPS_PER_HOUR = 5
-  end
+  REQUESTS_PER_MINUTE = 60
+  RATE_LIMIT_WINDOW = 60  # seconds
   
-  # Image Processing
-  module Images
-    MAX_FILE_SIZE_MB = 10
-    ALLOWED_EXTENSIONS = %w[.jpg .jpeg .png .gif .webp].freeze
-    THUMBNAIL_SIZE = 300
-    PREVIEW_SIZE = 600
-  end
+  # Image Validation
+  MAX_IMAGE_FAILURES = 5
+  IMAGE_TIMEOUT = 5  # seconds
   
-  # Meme Pool Configuration
-  module MemePool
-    TRENDING_RATIO = 0.7 # 70%
-    FRESH_RATIO = 0.2    # 20%
-    EXPLORATION_RATIO = 0.1 # 10%
-    FRESH_HOURS_THRESHOLD = 48
-    MIN_ENGAGEMENT_SCORE = 5
-  end
+  # User Agents for Reddit API
+  USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
+  ].freeze
   
-  # Reddit API
-  module Reddit
-    TOP_TIER_SUBS = %w[
-      memes dankmemes me_irl meirl 2meirl4meirl
-      comedyheaven holup okbuddyretard adviceanimals
-    ].freeze
-    
-    MID_TIER_SUBS = %w[
-      funny wholesomememes mademesmile murderedbywords
-      rareinsults facepalm instant_regret
-    ].freeze
-    
-    USER_AGENTS = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-    ].freeze
-  end
+  # Fallback Images
+  FALLBACK_IMAGES = {
+    funny: ['/images/funny1.jpeg', '/images/funny2.jpeg', '/images/funny3.jpeg'],
+    wholesome: ['/images/wholesome1.jpeg', '/images/wholesome2.jpeg', '/images/wholesome3.jpeg'],
+    selfcare: ['/images/selfcare1.jpeg', '/images/selfcare2.jpeg', '/images/selfcare3.jpeg']
+  }.freeze
   
-  # Health Check
-  module Health
-    CACHE_STALE_THRESHOLD_MINUTES = 60
-    DATABASE_TIMEOUT_SECONDS = 5
-    REDIS_TIMEOUT_SECONDS = 2
-    MIN_MEME_POOL_SIZE = 10
-  end
-  
-  # HTTP Status Codes (for reference)
-  module HTTP
-    OK = 200
-    CREATED = 201
-    BAD_REQUEST = 400
-    UNAUTHORIZED = 401
-    FORBIDDEN = 403
-    NOT_FOUND = 404
-    UNPROCESSABLE = 422
-    TOO_MANY_REQUESTS = 429
-    INTERNAL_ERROR = 500
-    SERVICE_UNAVAILABLE = 503
-  end
+  DEFAULT_FALLBACK = '/images/funny1.jpeg'
 end

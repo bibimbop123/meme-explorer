@@ -8,6 +8,10 @@
 
 # Scheduled jobs configuration
 :schedule:
+  cache_preload:
+    cron: '@reboot'  # Run on application startup
+    class: CachePreloadWorker
+    description: 'Warm cache with memes on startup'
   cache_refresh:
     cron: '*/30 * * * *'  # Every 30 minutes (reduced API calls)
     class: CacheRefreshWorker

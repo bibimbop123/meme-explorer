@@ -26,6 +26,7 @@ require_relative "./db/setup"
 require_relative "./lib/error_handler"
 require_relative "./config/application"
 require_relative "./config/constants"
+require_relative "./config/app_constants"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/meme_helpers"
@@ -183,93 +184,18 @@ module MemeExplorer
   TIER_WEIGHTS = MemeExplorerConfig::TIER_WEIGHTS
   TOTAL_TIER_WEIGHT = MemeExplorerConfig::TOTAL_TIER_WEIGHT
 
-  # Pre-warm cache IMMEDIATELY on startup (non-blocking)
-  @startup_thread = Thread.new do
-    Thread.current.name = "StartupPreloadThread"
-    begin
-      puts "🔥 [STARTUP PRELOAD] Starting cache preload..."
-      
-      # Load local memes first (fast)
-      local_memes = begin
-        yaml_data = YAML.load_file("data/memes.yml")
-        if yaml_data.is_a?(Hash)
-          yaml_data.values.flatten.compact
-        else
-          yaml_data || []
-        end
-      rescue => e
-        puts "❌ [STARTUP PRELOAD] Failed to load local memes: #{e.class}"
-        []
-      end
-      
-      # Set local memes immediately so server can start serving
-      MEME_CACHE.set(:memes, local_memes.shuffle)
-      puts "✅ [STARTUP PRELOAD] Cache ready with #{local_memes.size} local memes"
-      
-      # Now fetch API memes in background
-      puts "🔄 [STARTUP PRELOAD] Fetching API memes..."
-      api_memes = []
-      client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
-      client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
-      
-      if !client_id.empty? && !client_secret.empty?
-        begin
-          require 'oauth2'
-          client = OAuth2::Client.new(
-            client_id,
-            client_secret,
-            site: "https://www.reddit.com",
-            authorize_url: "/api/v1/authorize",
-            token_url: "/api/v1/access_token"
-          )
-          
-          token = client.client_credentials.get_token(scope: "read")
-          subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-          api_memes = MemeExplorer::App.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
-          puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes"
-        rescue => e
-          puts "⚠️ [STARTUP PRELOAD] OAuth fetch failed: #{e.message}"
-        end
-      end
-      
-      # Fallback to unauthenticated if OAuth failed
-      if api_memes.empty?
-        begin
-          subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-          api_memes = MemeExplorer::App.fetch_reddit_memes_static(subreddits, 30)
-          puts "✅ [STARTUP PRELOAD] Fetched #{api_memes.size} API memes (unauthenticated)"
-        rescue => e
-          puts "⚠️ [STARTUP PRELOAD] Unauthenticated fetch failed: #{e.message}"
-        end
-      end
-      
-      # Update cache with combined memes
-      if api_memes.any?
-        all_memes = (api_memes + local_memes).uniq { |m| m["url"] || m["file"] }
-        MEME_CACHE.set(:memes, all_memes.shuffle)
-        MEME_CACHE.set(:last_refresh, Time.now)
-        puts "🎉 [STARTUP PRELOAD] Cache updated: #{api_memes.size} API + #{local_memes.size} local = #{all_memes.size} total"
-      else
-        puts "⚠️ [STARTUP PRELOAD] No API memes fetched, using local memes only"
-      end
-      
-    rescue => e
-      puts "⚠️ [STARTUP PRELOAD] Unexpected error: #{e.class}: #{e.message}"
-      # Log to error tracking
-      begin
-        Sentry.capture_exception(e) if defined?(Sentry)
-      rescue
-        # Ignore Sentry errors in startup thread
-      end
-    end
-  end
-
-  # Background cache refresh - DISABLED: Now handled by Sidekiq CacheRefreshWorker
-  # The old thread-based system caused duplicate API calls and rate limiting issues
-  # Cache refresh now runs via Sidekiq every 30 minutes
-  # See: app/workers/cache_refresh_worker.rb and config/sidekiq.yml
+  # ✅ REFACTORING: Cache preload now handled by Sidekiq CachePreloadWorker
+  # See: app/workers/cache_preload_worker.rb and config/sidekiq.yml
+  # Runs on @reboot with proper error handling, retry logic, and monitoring
+  puts "ℹ️  [CACHE] Cache preload handled by CachePreloadWorker (Sidekiq @reboot)"
+  puts "ℹ️  [CACHE] Cache refresh handled by CacheRefreshWorker (every 30 minutes)"
   
-  puts "ℹ️  [CACHE] Using Sidekiq worker for cache refresh (every 30 minutes)"
+  # Trigger cache preload worker immediately (non-blocking)
+  begin
+    CachePreloadWorker.perform_async if defined?(CachePreloadWorker)
+  rescue => e
+    puts "⚠️  Could not trigger CachePreloadWorker: #{e.message}"
+  end
 
   # Hourly database cleanup (non-blocking)
   @db_cleanup_thread = Thread.new do

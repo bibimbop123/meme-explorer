@@ -1,0 +1,383 @@
+/* ============================================
+   MOBILE OPTIMIZATIONS - High Impact
+   ============================================
+   Implements touch-friendly UI and responsive design
+   Expected impact: +30% mobile engagement
+   Based on WHATS_NEXT_PRIORITIES #1
+*/
+
+/* ============================================
+   1. BASE MOBILE STYLES
+   ============================================ */
+
+/* Prevent text size adjustment on iOS */
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Touch-friendly tap targets (minimum 44x44px) */
+button, .btn, a.btn, input[type="submit"], input[type="button"] {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 12px 20px;
+  font-size: 16px; /* Prevents zoom on iOS */
+  cursor: pointer;
+}
+
+/* Touch-friendly links */
+a {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Prevent double-tap zoom */
+a, button {
+  touch-action: manipulation;
+}
+
+/* ============================================
+   2. SHARE BUTTONS (VIRAL FEATURE)
+   ============================================ */
+
+.share-bar {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.share-btn:hover, .share-btn:active {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.share-btn.whatsapp {
+  border-color: #25D366;
+  color: #25D366;
+}
+
+.share-btn.whatsapp:hover {
+  background: #25D366;
+  color: white;
+}
+
+.share-btn.twitter {
+  border-color: #1DA1F2;
+  color: #1DA1F2;
+}
+
+.share-btn.twitter:hover {
+  background: #1DA1F2;
+  color: white;
+}
+
+.share-btn.copy {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.share-btn.copy:hover {
+  background: #6c757d;
+  color: white;
+}
+
+/* Copy success toast */
+.copy-toast {
+  position: fixed;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #28a745;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: bottom 0.3s ease;
+  z-index: 10000;
+}
+
+.copy-toast.show {
+  bottom: 24px;
+}
+
+/* ============================================
+   3. RESPONSIVE IMAGES
+   ============================================ */
+
+.meme-image, .meme-card img, img {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  display: block;
+}
+
+/* Progressive image loading */
+img[data-src] {
+  filter: blur(10px);
+  transition: filter 0.3s ease;
+}
+
+img[data-src].loaded {
+  filter: blur(0);
+}
+
+/* Lazy loading placeholder */
+img[loading="lazy"] {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   4. MOBILE BREAKPOINTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Typography adjustments */
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  h1 {
+    font-size: 24px;
+  }
+  
+  h2 {
+    font-size: 20px;
+  }
+  
+  h3 {
+    font-size: 18px;
+  }
+  
+  /* Container spacing */
+  .container {
+    padding: 16px;
+  }
+  
+  /* Navigation */
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  nav a {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  /* Meme grid responsive */
+  .meme-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  /* Meme cards */
+  .meme-card {
+    margin-bottom: 20px;
+  }
+  
+  /* Form inputs */
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"],
+  textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Share bar mobile layout */
+  .share-bar {
+    flex-direction: column;
+  }
+  
+  .share-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Stats and meta info */
+  .meme-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  /* Actions bar */
+  .meme-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .meme-actions .btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Small phones */
+@media (max-width: 375px) {
+  .container {
+    padding: 12px;
+  }
+  
+  .share-btn {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+}
+
+/* Tablet landscape */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .meme-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .meme-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  
+  .share-bar {
+    justify-content: flex-start;
+  }
+}
+
+/* ============================================
+   5. PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .share-btn {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #fff;
+  }
+  
+  .share-btn:hover {
+    background: #3d3d3d;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* ============================================
+   6. SWIPE GESTURES (FUTURE ENHANCEMENT)
+   ============================================ */
+
+.swipe-container {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.swipe-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.swipe-indicator.show {
+  opacity: 1;
+}
+
+/* ============================================
+   7. ACCESSIBILITY
+   ============================================ */
+
+/* Focus states for keyboard navigation */
+button:focus, a:focus, input:focus {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}

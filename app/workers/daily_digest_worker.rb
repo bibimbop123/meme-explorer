@@ -1,0 +1,35 @@
+# frozen_string_literal: true
+
+require 'sidekiq'
+
+# ============================================
+# PHASE 5: DAILY DIGEST WORKER
+# ============================================
+# Sidekiq worker for automated daily digest emails
+# Runs every morning to send personalized digests
+
+class DailyDigestWorker
+  include Sidekiq::Worker
+  
+  sidekiq_options queue: :mailers, retry: 3
+  
+  def perform
+    puts "#{Time.now}: Starting daily digest send..."
+    
+    db = SQLite3::Database.new(ENV['DATABASE_URL'] || 'memes.db')
+    db.results_as_hash = true
+    
+    digest_service = DailyDigestService.new(db)
+    sent_count = digest_service.send_all_digests
+    
+    puts "#{Time.now}: Sent #{sent_count} digests"
+    
+    db.close
+    
+    sent_count
+  rescue => e
+    puts "Error in DailyDigestWorker: #{e.message}"
+    puts e.backtrace.join("\n")
+    raise e
+  end
+end
