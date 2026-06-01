@@ -153,6 +153,106 @@ module Routes
         erb :random
       end
       
+      # JSON API endpoint for similar memes (more like this)
+      app.get "/similar.json" do
+        content_type :json
+        puts "✨ [/similar.json] Request received"
+        
+        begin
+          # Require subreddit parameter
+          subreddit = params[:subreddit]&.strip&.downcase
+          halt 400, { error: "Subreddit parameter required" }.to_json if subreddit.nil? || subreddit.empty?
+          
+          # Get meme pool
+          meme_pool = if app.class::MEME_CACHE[:memes].is_a?(Array) && !app.class::MEME_CACHE[:memes].empty?
+            app.class::MEME_CACHE[:memes]
+          else
+            random_memes_pool
+          end
+          
+          halt 404, { error: "No memes available" }.to_json if meme_pool.empty?
+          
+          # Load Similar Meme Service
+          require_relative '../lib/services/similar_meme_service'
+          
+          # Create source meme representation
+          source_meme = { 'subreddit' => subreddit }
+          session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
+          
+          # Find similar meme
+          @meme = MemeExplorer::SimilarMemeService.find_similar(
+            source_meme,
+            meme_pool,
+            session_id: session_id
+          )
+          
+          halt 404, { error: "No similar memes found for #{subreddit}" }.to_json if @meme.nil?
+          
+          # Track the request for learning
+          MemeExplorer::SimilarMemeService.track_similar_request(subreddit, session_id)
+          
+          # Track in session history
+          meme_identifier = @meme["url"] || @meme["file"]
+          session[:meme_history] ||= []
+          session[:meme_history] << meme_identifier
+          session[:meme_history] = session[:meme_history].last(100)
+          
+          image_url = @meme["url"] || @meme["file"]
+          
+          # Get reddit path
+          reddit_path = nil
+          if @meme["reddit_post_urls"]&.is_a?(Array)
+            post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
+            reddit_path = post_url
+          end
+          
+          if !reddit_path && @meme["permalink"].to_s.strip != ""
+            reddit_path = @meme["permalink"]
+          end
+          
+          if reddit_path&.start_with?("http")
+            uri = URI.parse(reddit_path)
+            reddit_path = uri.path
+          end
+          
+          # Track view
+          if !image_url.start_with?("/")
+            meme_title = @meme["title"] || "Unknown"
+            meme_subreddit = @meme["subreddit"] || "reddit"
+            app.class::DB.execute(
+              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+              [image_url, meme_title, meme_subreddit]
+            ) rescue nil
+          end
+          
+          media_type = detect_media_type(image_url)
+          
+          response_data = {
+            title: @meme["title"],
+            subreddit: @meme["subreddit"],
+            file: @meme["file"],
+            url: image_url,
+            reddit_path: reddit_path,
+            likes: get_meme_likes(image_url),
+            media_type: media_type
+          }
+          
+          # Add gallery data if present
+          if @meme["is_gallery"] && @meme["gallery_images"]
+            response_data[:is_gallery] = true
+            response_data[:gallery_images] = @meme["gallery_images"]
+            response_data[:total_images] = @meme["gallery_images"].size
+          end
+          
+          puts "✅ [/similar.json] Returning meme from #{@meme['subreddit']}"
+          response_data.to_json
+        rescue => e
+          puts "❌ [/similar.json] Error: #{e.class}: #{e.message}"
+          puts e.backtrace.first(5).join("\n")
+          halt 500, { error: "Internal server error", message: e.message }.to_json
+        end
+      end
+      
       # JSON API endpoint for random memes with validation
       app.get "/random.json" do
         puts "🔄 [/random.json] Request received"

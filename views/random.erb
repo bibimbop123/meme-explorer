@@ -834,27 +834,73 @@
   });
   
   // ============================================
-  // QUICK WIN: "MORE LIKE THIS" FUNCTIONALITY
+  // IMPROVED: "MORE LIKE THIS" FUNCTIONALITY
+  // Senior Engineer Implementation with proper error handling and UX
   // ============================================
   const moreLikeThisBtn = document.getElementById('more-like-this-btn');
   if (moreLikeThisBtn) {
+    let lastClickTime = 0;
+    const DEBOUNCE_MS = 500;
+    
     moreLikeThisBtn.addEventListener('click', async () => {
+      // Debounce to prevent rapid clicks
+      const now = Date.now();
+      if (now - lastClickTime < DEBOUNCE_MS) {
+        console.log('⏳ [MORE LIKE THIS] Debounced - too soon');
+        return;
+      }
+      lastClickTime = now;
+      
       const subreddit = moreLikeThisBtn.dataset.subreddit;
-      if (!subreddit) return;
+      if (!subreddit) {
+        console.error('❌ [MORE LIKE THIS] No subreddit data attribute');
+        return;
+      }
       
-      console.log(`✨ [MORE LIKE THIS] Loading from ${subreddit}...`);
+      console.log(`✨ [MORE LIKE THIS] Requesting similar content from r/${subreddit}`);
       
-      // Show loading state
-      const originalText = moreLikeThisBtn.querySelector('.control-count').textContent;
-      moreLikeThisBtn.querySelector('.control-count').textContent = 'Loading...';
+      // Store original state for restoration
+      const countEl = moreLikeThisBtn.querySelector('.control-count');
+      const originalText = countEl.textContent;
+      const originalDisabled = moreLikeThisBtn.disabled;
+      
+      // Show loading state with visual feedback
+      countEl.textContent = 'Finding...';
       moreLikeThisBtn.disabled = true;
+      moreLikeThisBtn.style.opacity = '0.6';
+      moreLikeThisBtn.style.cursor = 'wait';
       
       try {
-        // Fetch from same subreddit
-        const response = await fetch(`/random.json?subreddit=${encodeURIComponent(subreddit)}`);
+        // Use dedicated similar endpoint with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        const response = await fetch(`/similar.json?subreddit=${encodeURIComponent(subreddit)}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Handle HTTP errors
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
-        // Update current meme
+        // Validate response data
+        if (!data || !data.url) {
+          throw new Error('Invalid response data');
+        }
+        
+        console.log(`✅ [MORE LIKE THIS] Found: "${data.title}" from r/${data.subreddit}`);
+        
+        // Track skip action before loading new meme
+        const viewDuration = (Date.now() - viewStartTime) / 1000;
+        trackBehavioralAction('more_like_this', viewDuration);
+        
+        // Update current meme state
         currentMeme = {
           url: data.url,
           subreddit: data.subreddit || subreddit,
@@ -864,34 +910,79 @@
           media_type: data.media_type || 'image'
         };
         
-        // Reset tracking
+        // Reset tracking for new meme
         viewStartTime = Date.now();
         memeViewData = { viewed: true, liked: false, saved: false, shared: false };
         
-        // Update display
+        // Update DOM elements
         updateMemeDisplay(data);
         memeTitle.textContent = data.title || 'Loading...';
-        likeCount.textContent = data.likes;
+        likeCount.textContent = data.likes || 0;
+        
+        // Update subreddit badge if exists
+        const subredditBadge = document.querySelector('.refined-collection-badge');
+        if (subredditBadge && data.subreddit) {
+          // This will be updated on next page load, but we can update the button
+          moreLikeThisBtn.dataset.subreddit = data.subreddit;
+        }
+        
+        // Update Reddit link if available
+        const redditLink = document.querySelector('.reddit-link');
+        if (redditLink && data.reddit_path) {
+          redditLink.href = `https://reddit.com${data.reddit_path}`;
+        }
         
         // Reset like state
         isLiked = false;
         updateLikeUI();
         
-        // Re-initialize carousel
+        // Re-initialize carousel with new meme data
         initializeCarousel(data);
         
-        // Multi-sensory feedback
+        // Reset prefetch state
+        mediaLoadComplete = false;
+        triggerPrefetchAfterMediaLoad();
+        
+        // Enhanced multi-sensory feedback for successful discovery
         if (window.soundSystem) window.soundSystem.play('next');
         if (window.hapticSystem) window.hapticSystem.trigger('success');
         
-        console.log(`✅ [MORE LIKE THIS] Loaded from ${subreddit}`);
+        // Show brief success indicator
+        countEl.textContent = '✓ Found!';
+        setTimeout(() => {
+          countEl.textContent = originalText;
+        }, 1500);
+        
       } catch (error) {
         console.error('❌ [MORE LIKE THIS] Error:', error);
-        // Fallback to regular next
-        loadNextMeme();
+        
+        // User-friendly error handling
+        if (error.name === 'AbortError') {
+          console.warn('⏱️ [MORE LIKE THIS] Request timed out');
+          countEl.textContent = 'Timeout';
+        } else if (error.message.includes('No similar memes')) {
+          console.warn('ℹ️ [MORE LIKE THIS] No similar content found');
+          countEl.textContent = 'None found';
+        } else {
+          countEl.textContent = 'Error';
+        }
+        
+        // Fallback to regular next meme after brief delay
+        setTimeout(() => {
+          console.log('🔄 [MORE LIKE THIS] Falling back to random meme');
+          loadNextMeme();
+        }, 800);
+        
       } finally {
-        moreLikeThisBtn.querySelector('.control-count').textContent = originalText;
-        moreLikeThisBtn.disabled = false;
+        // Restore button state
+        setTimeout(() => {
+          moreLikeThisBtn.disabled = originalDisabled;
+          moreLikeThisBtn.style.opacity = '';
+          moreLikeThisBtn.style.cursor = '';
+          if (countEl.textContent !== originalText && !countEl.textContent.includes('✓')) {
+            countEl.textContent = originalText;
+          }
+        }, 1500);
       }
     });
   }
