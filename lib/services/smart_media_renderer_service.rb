@@ -167,8 +167,8 @@ class SmartMediaRendererService
                   const placeholder = document.createElement('div');
                   placeholder.className = 'media-unavailable-placeholder';
                   placeholder.innerHTML = `
-                    <img src="/images/tattoo-annie-placeholder.jpg" 
-                         alt="Tattoo Annie - Content Unavailable" 
+                    <img src="https://picsum.photos/600/600?random" 
+                         alt="Placeholder - Content Unavailable"
                          class="placeholder-fallback-image"
                          style="max-width: 300px; border-radius: 8px; margin-bottom: 16px;" />
                     <div class="placeholder-message">#{placeholder_message}</div>

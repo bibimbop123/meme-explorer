@@ -19,12 +19,12 @@ class PlaceholderImageService
     seo_rating: 'family-friendly'
   }.freeze
   
-  # Legacy placeholder (kept for compatibility)
-  LEGACY_PLACEHOLDER = {
-    url: '/images/tattoo-annie-placeholder.jpg',
-    alt: 'Tattoo Annie from The Simpsons - Meme Explorer Placeholder',
-    width: 195,
-    height: 258,
+  # API-based placeholder for dynamic content
+  API_PLACEHOLDER = {
+    url: 'https://picsum.photos/600/600?random',
+    alt: 'Random placeholder image from Lorem Picsum',
+    width: 600,
+    height: 600,
     format: 'jpeg'
   }.freeze
 

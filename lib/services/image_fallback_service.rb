@@ -6,9 +6,9 @@
 class ImageFallbackService
   # Primary placeholder - Modern SVG (SEO-optimized, instant loading, no bandwidth)
   PRIMARY_PLACEHOLDER = '/images/meme-placeholder.svg'.freeze
-  
-  # Legacy placeholder (kept for backwards compatibility)
-  LEGACY_PLACEHOLDER = '/images/tattoo-annie-placeholder.jpg'.freeze
+
+  # API-based placeholder for dynamic, always-available images
+  API_PLACEHOLDER = 'https://picsum.photos/600/600?random'.freeze
 
   # Category-aware fallback images (secondary fallbacks)
   CATEGORY_FALLBACKS = {

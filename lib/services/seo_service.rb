@@ -10,7 +10,7 @@ module SeoService
     # Core configuration
     SITE_NAME = "Meme Explorer"
     SITE_URL = ENV.fetch('BASE_URL', 'https://meme-explorer.com')
-    DEFAULT_IMAGE = "#{SITE_URL}/images/tattoo-annie-placeholder.jpg"
+    DEFAULT_IMAGE = "#{SITE_URL}/images/meme-placeholder.svg"
     TWITTER_HANDLE = "@MemeExplorer"
     FAVICON_PATH = "/images/favicon.png"
     
