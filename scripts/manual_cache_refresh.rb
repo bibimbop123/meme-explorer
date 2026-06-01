@@ -59,7 +59,7 @@ if !client_id.empty? && !client_secret.empty?
     puts "   Fetching memes from popular subreddits..."
     subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
     
-    api_memes = MemeExplorer.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+    api_memes = MemeExplorer::App.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
     puts "   ✅ Fetched #{api_memes.size} memes from Reddit API (OAuth)"
     
   rescue => e
@@ -73,7 +73,7 @@ if api_memes.empty?
   puts "\n4️⃣ Attempting unauthenticated API fetch..."
   begin
     subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-    api_memes = MemeExplorer.fetch_reddit_memes_static(subreddits, 30)
+    api_memes = MemeExplorer::App.fetch_reddit_memes_static(subreddits, 30)
     puts "✅ Fetched #{api_memes.size} memes from Reddit API (unauthenticated)"
   rescue => e
     puts "❌ Unauthenticated fetch failed: #{e.message}"
@@ -85,19 +85,19 @@ end
 puts "\n5️⃣ Updating MEME_CACHE..."
 if api_memes.empty?
   puts "⚠️ No API memes fetched - using local memes only"
-  MemeExplorer::MEME_CACHE.set(:memes, local_memes.shuffle)
+  MemeExplorer::App::MEME_CACHE.set(:memes, local_memes.shuffle)
   puts "✅ Cache updated with #{local_memes.size} local memes"
 else
   all_memes = (api_memes + local_memes).uniq { |m| m["url"] || m["file"] }
-  MemeExplorer::MEME_CACHE.set(:memes, all_memes.shuffle)
+  MemeExplorer::App::MEME_CACHE.set(:memes, all_memes.shuffle)
   puts "✅ Cache updated with #{api_memes.size} API + #{local_memes.size} local = #{all_memes.size} total memes"
 end
 
-MemeExplorer::MEME_CACHE.set(:last_refresh, Time.now)
+MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)
 
 # Step 6: Verify cache
 puts "\n6️⃣ Verifying cache contents..."
-cached_memes = MemeExplorer::MEME_CACHE.get(:memes) || []
+cached_memes = MemeExplorer::App::MEME_CACHE.get(:memes) || []
 api_count = cached_memes.count { |m| m["url"] && !m["url"].start_with?("/") }
 local_count = cached_memes.count { |m| m["file"] || (m["url"] && m["url"].start_with?("/")) }
 
