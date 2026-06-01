@@ -4,31 +4,34 @@
 # Updated to use Tattoo Annie as primary placeholder
 
 class ImageFallbackService
-  # Primary placeholder - Tattoo Annie (SEO-optimized)
-  PRIMARY_PLACEHOLDER = '/images/tattoo-annie-placeholder.jpg'.freeze
+  # Primary placeholder - Modern SVG (SEO-optimized, instant loading, no bandwidth)
+  PRIMARY_PLACEHOLDER = '/images/meme-placeholder.svg'.freeze
+  
+  # Legacy placeholder (kept for backwards compatibility)
+  LEGACY_PLACEHOLDER = '/images/tattoo-annie-placeholder.jpg'.freeze
 
   # Category-aware fallback images (secondary fallbacks)
   CATEGORY_FALLBACKS = {
     'funny' => [
-      PRIMARY_PLACEHOLDER,
+      PRIMARY_PLACEHOLDER,  # Modern SVG - instant load
       '/images/funny1.jpeg',
       '/images/funny2.jpeg',
       '/images/funny3.jpeg'
     ],
     'wholesome' => [
-      PRIMARY_PLACEHOLDER,
+      PRIMARY_PLACEHOLDER,  # Modern SVG - instant load
       '/images/wholesome1.jpeg',
       '/images/wholesome2.jpeg',
       '/images/wholesome3.jpeg'
     ],
     'selfcare' => [
-      PRIMARY_PLACEHOLDER,
+      PRIMARY_PLACEHOLDER,  # Modern SVG - instant load
       '/images/selfcare1.jpeg',
       '/images/selfcare2.jpeg',
       '/images/selfcare3.jpeg'
     ],
     'dank' => [
-      PRIMARY_PLACEHOLDER,
+      PRIMARY_PLACEHOLDER,  # Modern SVG - instant load
       '/images/dank1.jpeg',
       '/images/dank2.jpeg'
     ]

@@ -1,0 +1,40 @@
+<svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4facfe;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:0.3" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#grad1)"/>
+  <circle cx="150" cy="150" r="80" fill="url(#grad2)" opacity="0.5"/>
+  <circle cx="450" cy="450" r="100" fill="url(#grad2)" opacity="0.4"/>
+  <circle cx="500" cy="100" r="60" fill="url(#grad2)" opacity="0.6"/>
+  <g transform="translate(300, 250)">
+    <circle cx="0" cy="0" r="100" fill="#FFD93D" stroke="#FFB800" stroke-width="6"/>
+    <g>
+      <path d="M -40,-20 Q -40,-40 -20,-40 Q 0,-40 0,-20 Q 0,0 -20,0 Q -40,0 -40,-20 Z" fill="#4A4A4A"/>
+      <circle cx="-25" cy="-25" r="8" fill="#FFFFFF"/>
+      <path d="M 20,-20 Q 20,-40 40,-40 Q 60,-40 60,-20 Q 60,0 40,0 Q 20,0 20,-20 Z" fill="#4A4A4A"/>
+      <circle cx="35" cy="-25" r="8" fill="#FFFFFF"/>
+    </g>
+    <path d="M -50,20 Q 0,70 50,20" fill="none" stroke="#4A4A4A" stroke-width="6" stroke-linecap="round"/>
+    <path d="M -50,20 Q 0,60 50,20 L 50,25 Q 0,70 -50,25 Z" fill="#4A4A4A"/>
+    <rect x="-35" y="20" width="14" height="15" fill="#FFFFFF" rx="2"/>
+    <rect x="-18" y="25" width="14" height="15" fill="#FFFFFF" rx="2"/>
+    <rect x="-1" y="28" width="14" height="15" fill="#FFFFFF" rx="2"/>
+    <rect x="16" y="25" width="14" height="15" fill="#FFFFFF" rx="2"/>
+  </g>
+  <text x="300" y="420" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#FFFFFF" text-anchor="middle" style="text-shadow: 0 2px 8px rgba(0,0,0,0.3);">Meme Loading...</text>
+  <text x="300" y="460" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.9)" text-anchor="middle">Finding the perfect meme for you</text>
+  <g>
+    <circle cx="250" cy="490" r="4" fill="#FFFFFF"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0s"/></circle>
+    <circle cx="280" cy="490" r="4" fill="#FFFFFF"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.3s"/></circle>
+    <circle cx="310" cy="490" r="4" fill="#FFFFFF"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.6s"/></circle>
+    <circle cx="340" cy="490" r="4" fill="#FFFFFF"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.9s"/></circle>
+  </g>
+</svg>

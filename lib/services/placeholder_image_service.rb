@@ -3,20 +3,29 @@
 # SEO-optimized with comprehensive metadata and accessibility features
 
 class PlaceholderImageService
-  # Primary placeholder image - Tattoo Annie from The Simpsons
-  # Represents meme culture and adds personality to the app
+  # Primary placeholder image - Modern animated SVG
+  # Professional, lightweight, instant loading with animated elements
   PLACEHOLDER_IMAGE = {
-    url: '/images/tattoo-annie-placeholder.jpg',
-    alt: 'Tattoo Annie from The Simpsons - Meme Explorer Placeholder',
+    url: '/images/meme-placeholder.svg',
+    alt: 'Meme Explorer - Loading meme content with animated placeholder',
     title: 'Loading Meme Content',
-    width: 195,
-    height: 258,
-    format: 'jpeg',
-    description: 'Tattoo Annie character from The Simpsons, featuring her iconic tattooed appearance and quirky personality. This placeholder represents the fun and cultural nature of memes while content loads.',
+    width: 600,
+    height: 600,
+    format: 'svg+xml',
+    description: 'Modern animated placeholder for Meme Explorer featuring a laughing emoji design with gradient background. This instant-loading SVG represents the fun and entertaining nature of meme culture.',
     schema_type: 'ImageObject',
-    keywords: ['simpsons', 'tattoo annie', 'meme', 'placeholder', 'cartoon', 'pop culture'],
+    keywords: ['meme', 'placeholder', 'loading', 'animated', 'emoji', 'reddit memes'],
     content_category: 'Entertainment',
     seo_rating: 'family-friendly'
+  }.freeze
+  
+  # Legacy placeholder (kept for compatibility)
+  LEGACY_PLACEHOLDER = {
+    url: '/images/tattoo-annie-placeholder.jpg',
+    alt: 'Tattoo Annie from The Simpsons - Meme Explorer Placeholder',
+    width: 195,
+    height: 258,
+    format: 'jpeg'
   }.freeze
 
   # Blurhash for progressive loading (generated from the actual image)

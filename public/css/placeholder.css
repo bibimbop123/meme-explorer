@@ -1,8 +1,30 @@
 /* 
  * Modern CSS Placeholder System
- * Beautiful, animated placeholders that replace image fallback chains
- * Zero external images needed - pure CSS/HTML
+ * Beautiful, animated placeholders for Meme Explorer
+ * Supports both SVG placeholders and CSS-only fallbacks
+ * Zero bandwidth needed - instant loading
  */
+
+/* SVG Placeholder Styling */
+.svg-placeholder {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.svg-placeholder-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 
 /* Main placeholder container */
 .meme-placeholder {
