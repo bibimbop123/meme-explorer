@@ -17,6 +17,71 @@ module Routes
         erb :admin
       end
 
+      # Refresh meme cache manually
+      app.post "/admin/refresh-cache" do
+        begin
+          # Load local memes as fallback
+          local_memes = begin
+            yaml_data = YAML.load_file("data/memes.yml")
+            if yaml_data.is_a?(Hash)
+              yaml_data.values.flatten.compact
+            else
+              yaml_data || []
+            end
+          rescue => e
+            []
+          end
+
+          # Try to fetch from Reddit API
+          api_memes = []
+          client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
+          client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+          
+          if !client_id.empty? && !client_secret.empty?
+            begin
+              require 'oauth2'
+              client = OAuth2::Client.new(
+                client_id,
+                client_secret,
+                site: "https://www.reddit.com",
+                authorize_url: "/api/v1/authorize",
+                token_url: "/api/v1/access_token"
+              )
+              token = client.client_credentials.get_token(scope: "read")
+              subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+              api_memes = app.class.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+            rescue => e
+              # Fall back to unauthenticated if OAuth fails
+              subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+              api_memes = app.class.fetch_reddit_memes_static(subreddits, 30) rescue []
+            end
+          end
+
+          # Update cache
+          all_memes = (api_memes + local_memes).uniq { |m| m["url"] || m["file"] }
+          app.class::MEME_CACHE.set(:memes, all_memes.shuffle)
+          app.class::MEME_CACHE.set(:last_refresh, Time.now)
+
+          # Count memes by type
+          api_count = all_memes.count { |m| m["url"] && !m["url"].start_with?("/") }
+          local_count = all_memes.count { |m| m["file"] || (m["url"] && m["url"].start_with?("/")) }
+
+          content_type :json
+          {
+            success: true,
+            message: "Cache refreshed successfully",
+            total: all_memes.size,
+            api_count: api_count,
+            local_count: local_count,
+            timestamp: Time.now.iso8601
+          }.to_json
+        rescue => e
+          status 500
+          content_type :json
+          { success: false, error: e.message }.to_json
+        end
+      end
+
       # Delete a meme from the system
       app.delete "/admin/meme/:url" do
         halt 403, "Forbidden" unless is_admin?
