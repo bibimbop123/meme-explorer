@@ -561,6 +561,27 @@ module MemeExplorer
       # Default curation signal
       { type: 'default', icon: '✨', message: 'Curated for you' }
     end
+    
+    # Wrapper for rendering taste profile (used in views/profile.erb)
+    def render_taste_profile(user_id)
+      return '' unless user_id
+      
+      begin
+        # Fetch user data
+        user = get_user(user_id)
+        return '' unless user
+        
+        # Generate taste profile using TasteProfileService
+        profile = TasteProfileService.generate_profile(user)
+        
+        # Render the partial with profile data
+        erb :_taste_profile, locals: { profile: profile }
+      rescue => e
+        puts "⚠️ Error rendering taste profile: #{e.class} - #{e.message}"
+        puts e.backtrace.first(3).join("\n") if e.backtrace
+        ''  # Return empty string on error to prevent page crash
+      end
+    end
   end
 
   # Include personality content methods
