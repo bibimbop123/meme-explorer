@@ -59,8 +59,8 @@ module Routes
 
           # Update cache
           all_memes = (api_memes + local_memes).uniq { |m| m["url"] || m["file"] }
-          app.class::MEME_CACHE.set(:memes, all_memes.shuffle)
-          app.class::MEME_CACHE.set(:last_refresh, Time.now)
+          MemeExplorer::App::MEME_CACHE.set(:memes, all_memes.shuffle)
+          MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)
 
           # Count memes by type
           api_count = all_memes.count { |m| m["url"] && !m["url"].start_with?("/") }
