@@ -86,10 +86,29 @@ module Routes
         begin
           subreddits_file = File.join(settings.root, "data", "subreddits.yml")
           if File.exist?(subreddits_file)
-            subreddits = YAML.load_file(subreddits_file)
-            top_subreddits = subreddits.first(10) # Top 10 subreddits
+            subreddits_data = YAML.load_file(subreddits_file)
+            
+            # Extract subreddits from nested structure (tier_1, tier_2, etc.)
+            top_subreddits = []
+            if subreddits_data.is_a?(Hash)
+              # Get from 'popular' key if it exists, or flatten all tiers
+              if subreddits_data['popular']
+                top_subreddits = subreddits_data['popular'].first(10)
+              else
+                # Flatten all tiers
+                subreddits_data.each do |key, value|
+                  if value.is_a?(Array)
+                    top_subreddits.concat(value)
+                  end
+                end
+                top_subreddits = top_subreddits.first(10)
+              end
+            elsif subreddits_data.is_a?(Array)
+              top_subreddits = subreddits_data.first(10)
+            end
             
             top_subreddits.each do |sub|
+              next unless sub.is_a?(String)
               pages << {
                 path: "/category/#{sub.downcase}",
                 priority: "0.6",

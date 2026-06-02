@@ -2602,6 +2602,7 @@ module MemeExplorer
   require_relative './routes/algorithm_metrics'
   require_relative './routes/seo_routes'
   require_relative './routes/enhanced_random'
+  require_relative './routes/session_metrics'
   
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
@@ -2621,6 +2622,7 @@ module MemeExplorer
   register Routes::AlgorithmMetrics
   register Routes::Seo
   register Routes::EnhancedRandom
+  register Routes::SessionMetrics
   
   # -----------------------
   # AdSense Verification & Health Check
