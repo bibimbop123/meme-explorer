@@ -54,7 +54,7 @@ end
 
 # Check 3: Check current cache
 puts "\n3️⃣ Checking current meme cache..."
-cache_memes = MemeExplorer::MEME_CACHE.get(:memes) || []
+cache_memes = MemeExplorer::App::MEME_CACHE.get(:memes) || []
 puts "   Total memes in cache: #{cache_memes.size}"
 
 api_count = cache_memes.count { |m| m["url"] && !m["url"].start_with?("/") }
@@ -70,7 +70,7 @@ end
 
 # Check 4: Last refresh time
 puts "\n4️⃣ Checking last cache refresh..."
-last_refresh = MemeExplorer::MEME_CACHE.get(:last_refresh)
+last_refresh = MemeExplorer::App::MEME_CACHE.get(:last_refresh)
 if last_refresh
   puts "   Last refresh: #{last_refresh}"
   age = (Time.now - last_refresh).to_i
