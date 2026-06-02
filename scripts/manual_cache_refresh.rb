@@ -36,9 +36,10 @@ rescue => e
 end
 puts "✅ Loaded #{local_memes.size} local memes"
 
-# Step 3: Try OAuth fetch
-puts "\n3️⃣ Attempting OAuth API fetch..."
+# Step 3: Use RedditFetcherService (OPTIMIZED for maximum memes!)
+puts "\n3️⃣ Attempting Reddit API fetch with RedditFetcherService..."
 api_memes = []
+all_subreddits = YAML.load_file("data/subreddits.yml")["popular"]
 
 if !client_id.empty? && !client_secret.empty?
   begin
@@ -56,10 +57,9 @@ if !client_id.empty? && !client_secret.empty?
     token = client.client_credentials.get_token(scope: "read")
     puts "   ✅ Got access token"
     
-    puts "   Fetching memes from popular subreddits..."
-    subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-    
-    api_memes = MemeExplorer::App.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+    puts "   Fetching memes using RedditFetcherService (OAuth - 12 subreddits × 50 posts)..."
+    fetcher = RedditFetcherService.new(auth_strategy: :oauth, access_token: token.token)
+    api_memes = fetcher.fetch_memes(all_subreddits, limit: 50)
     puts "   ✅ Fetched #{api_memes.size} memes from Reddit API (OAuth)"
     
   rescue => e
@@ -70,10 +70,11 @@ end
 
 # Step 4: Try unauthenticated fetch if OAuth failed
 if api_memes.empty?
-  puts "\n4️⃣ Attempting unauthenticated API fetch..."
+  puts "\n4️⃣ Attempting unauthenticated API fetch with RedditFetcherService..."
   begin
-    subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-    api_memes = MemeExplorer::App.fetch_reddit_memes_static(subreddits, 30)
+    puts "   Fetching memes (Static - 25 subreddits × 50 posts)..."
+    fetcher = RedditFetcherService.new(auth_strategy: :static)
+    api_memes = fetcher.fetch_memes(all_subreddits, limit: 50)
     puts "✅ Fetched #{api_memes.size} memes from Reddit API (unauthenticated)"
   rescue => e
     puts "❌ Unauthenticated fetch failed: #{e.message}"

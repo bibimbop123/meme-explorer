@@ -32,10 +32,11 @@ module Routes
             []
           end
 
-          # Try to fetch from Reddit API
+          # Use RedditFetcherService (OPTIMIZED for maximum memes!)
           api_memes = []
           client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
           client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+          all_subreddits = YAML.load_file("data/subreddits.yml")["popular"]
           
           if !client_id.empty? && !client_secret.empty?
             begin
@@ -48,12 +49,14 @@ module Routes
                 token_url: "/api/v1/access_token"
               )
               token = client.client_credentials.get_token(scope: "read")
-              subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-              api_memes = app.class.fetch_reddit_memes_authenticated(token.token, subreddits, 30)
+              
+              # Use RedditFetcherService with OAuth (12 subreddits × 50 posts = 600 memes!)
+              fetcher = RedditFetcherService.new(auth_strategy: :oauth, access_token: token.token)
+              api_memes = fetcher.fetch_memes(all_subreddits, limit: 50)
             rescue => e
-              # Fall back to unauthenticated if OAuth fails
-              subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
-              api_memes = app.class.fetch_reddit_memes_static(subreddits, 30) rescue []
+              # Fall back to unauthenticated if OAuth fails (25 subreddits × 50 = 1,250 memes!)
+              fetcher = RedditFetcherService.new(auth_strategy: :static)
+              api_memes = fetcher.fetch_memes(all_subreddits, limit: 50) rescue []
             end
           end
 
