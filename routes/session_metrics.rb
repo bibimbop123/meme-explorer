@@ -101,8 +101,8 @@ module Routes
         content_type :json
         
         begin
-          # Get session ID
-          session_id = session[:session_id]
+          # Get session ID and convert to string
+          session_id = (session[:session_id] ||= SecureRandom.uuid).to_s
           
           if session_id
             # Update heartbeat
