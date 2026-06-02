@@ -15,8 +15,8 @@ body {
   font-family: 'Comic Neue', cursive, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
-  background: #fefefe;
-  color: #333;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-size: clamp(14px, 2.5vw, 16px);
   line-height: 1.5;
   display: flex;
@@ -597,7 +597,7 @@ html.dark-mode .search-form input[type="search"]:focus {
 }
 
 html.dark-mode .meme-title {
-  color: #444;
+  color: #e0e0e0;
 }
 
 html.dark-mode .meme-subtitle {
@@ -609,58 +609,6 @@ html.dark-mode nav button:not(:hover) {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Dark mode via system preference */
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #1a1a1a;
-    color: #e0e0e0;
-  }
-
-  header {
-    background: linear-gradient(90deg, #d67700, #c12a5f);
-  }
-
-  footer {
-    background: #0a0a0a;
-  }
-
-  .meme-grid-item,
-  .meme-list-item {
-    background: #2a2a2a;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  }
-
-  .meme-grid-item:hover,
-  .meme-list-item:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
-  }
-
-  .search-form input[type="text"],
-  .search-form input[type="search"] {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border-color: #444;
-  }
-
-  .search-form input[type="text"]:focus,
-  .search-form input[type="search"]:focus {
-    border-color: #e52e71;
-    background: #333;
-  }
-
-  .meme-title {
-    color: #e0e0e0;
-  }
-
-  .meme-subtitle {
-    color: #aaa;
-  }
-
-  nav a:not(:hover),
-  nav button:not(:hover) {
-    background: rgba(255, 255, 255, 0.15);
-  }
-}
 
 /* =========================
    TATTOO ANNIE PLACEHOLDER (SEO-OPTIMIZED)
