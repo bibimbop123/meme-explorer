@@ -20,8 +20,8 @@ module Validators
     pattern = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/
     raise ValidationError, "Email format invalid" unless email.match?(pattern)
     
-    # Reject common SQL injection attempts
-    raise ValidationError, "Email contains invalid characters" if email.match?(/['";-]/)
+    # Reject common SQL injection attempts (but allow hyphens which are valid in emails)
+    raise ValidationError, "Email contains invalid characters" if email.match?(/['";]/)
     
     email
   end

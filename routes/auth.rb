@@ -95,9 +95,13 @@ class AuthRoutes
               optional_keys: []
             )
 
+            # Handle both symbol and string keys from FormData
+            email_param = safe_params[:email] || safe_params['email']
+            password_param = safe_params[:password] || safe_params['password']
+            
             # Validate email format (sanitize but don't be too strict on password field itself)
-            email = Validators.validate_email(safe_params[:email])
-            password = safe_params[:password]
+            email = Validators.validate_email(email_param)
+            password = password_param
             
             if password.to_s.strip.empty?
               return { success: false, error: "Password required" }.to_json
@@ -121,7 +125,7 @@ class AuthRoutes
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json
           rescue => e
-            ErrorHandler::Logger.log(e, { email: safe_params.to_s }, :error) rescue nil
+            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error) rescue nil
             return { success: false, error: "Login failed. Please try again." }.to_json
           end
         end
@@ -140,10 +144,15 @@ class AuthRoutes
               optional_keys: [:username]
             )
 
+            # Handle both symbol and string keys from FormData
+            email_param = safe_params[:email] || safe_params['email']
+            password_param = safe_params[:password] || safe_params['password']
+            password_confirm_param = safe_params[:password_confirm] || safe_params['password_confirm']
+
             # Validate each field
-            email = Validators.validate_email(safe_params[:email])
-            password = Validators.validate_password(safe_params[:password])
-            password_confirm = safe_params[:password_confirm]
+            email = Validators.validate_email(email_param)
+            password = Validators.validate_password(password_param)
+            password_confirm = password_confirm_param
 
             # Verify passwords match
             if password != password_confirm
@@ -163,7 +172,7 @@ class AuthRoutes
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json
           rescue => e
-            ErrorHandler::Logger.log(e, { email: safe_params.to_s }, :error) rescue nil
+            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error) rescue nil
             return { success: false, error: "Registration failed. Please try again." }.to_json
           end
         end
