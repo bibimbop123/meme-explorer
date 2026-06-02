@@ -1,69 +1,79 @@
+require_relative '../../lib/concerns/distributed_lock'
+
 class CacheRefreshWorker
   include Sidekiq::Worker
+  include DistributedLock
   
   sidekiq_options queue: :default, retry: 3, backtrace: true
   
   def perform
     puts "🔄 [CACHE WORKER] Starting cache refresh at #{Time.now}"
     
-    # Get MEME_CACHE from MemeExplorer namespace
-    cache = get_cache
-    return unless cache
-    
-    # Load local memes as fallback
-    local_memes = load_local_memes
-    puts "✅ [CACHE WORKER] Loaded #{local_memes.size} local memes"
-    
-    # Use RedditFetcherService for fetching
-    api_memes = fetch_with_reddit_service
-    puts "✅ [CACHE WORKER] Fetched #{api_memes.size} API memes"
-    
-    # PREVENTION: Filter out blacklisted URLs and validate before caching
-    validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
-    
-    # Remove blacklisted memes (instant check)
-    if defined?(ImageHealthService)
-      before_blacklist = validated.size
-      validated = ImageHealthService.filter_blacklisted(validated)
-      blacklisted_count = before_blacklist - validated.size
-      puts "🚫 [CACHE WORKER] Filtered #{blacklisted_count} blacklisted memes" if blacklisted_count > 0
-    end
-    
-    # Validate remaining memes (prevent broken content from entering cache)
-    if defined?(ImageValidationService) && validated.size > 0
-      puts "🔍 [CACHE WORKER] Validating #{validated.size} memes..."
-      validation_start = Time.now
+    # Use distributed lock to prevent concurrent cache updates (RACE CONDITION FIX)
+    acquired = with_redis_lock("cache_refresh", ttl: 300) do
+      # Get MEME_CACHE from MemeExplorer namespace
+      cache = get_cache
+      return unless cache
       
-      validated_memes = validated.select.with_index do |meme, index|
-        url = meme["url"]
-        is_valid = ImageValidationService.validate(url)
-        
-        # Log progress every 20 memes
-        if (index + 1) % 20 == 0
-          puts "   Progress: #{index + 1}/#{validated.size} validated"
-        end
-        
-        is_valid
+      # Load local memes as fallback
+      local_memes = load_local_memes
+      puts "✅ [CACHE WORKER] Loaded #{local_memes.size} local memes"
+      
+      # Use RedditFetcherService for fetching
+      api_memes = fetch_with_reddit_service
+      puts "✅ [CACHE WORKER] Fetched #{api_memes.size} API memes"
+      
+      # PREVENTION: Filter out blacklisted URLs and validate before caching
+      validated = api_memes.select { |m| m["url"] && m["url"].to_s.strip.length > 0 }
+      
+      # Remove blacklisted memes (instant check)
+      if defined?(ImageHealthService)
+        before_blacklist = validated.size
+        validated = ImageHealthService.filter_blacklisted(validated)
+        blacklisted_count = before_blacklist - validated.size
+        puts "🚫 [CACHE WORKER] Filtered #{blacklisted_count} blacklisted memes" if blacklisted_count > 0
       end
       
-      validation_duration = (Time.now - validation_start).round(2)
-      rejected = validated.size - validated_memes.size
-      validated = validated_memes
+      # Validate remaining memes (prevent broken content from entering cache)
+      if defined?(ImageValidationService) && validated.size > 0
+        puts "🔍 [CACHE WORKER] Validating #{validated.size} memes..."
+        validation_start = Time.now
+        
+        validated_memes = validated.select.with_index do |meme, index|
+          url = meme["url"]
+          is_valid = ImageValidationService.validate(url)
+          
+          # Log progress every 20 memes
+          if (index + 1) % 20 == 0
+            puts "   Progress: #{index + 1}/#{validated.size} validated"
+          end
+          
+          is_valid
+        end
+        
+        validation_duration = (Time.now - validation_start).round(2)
+        rejected = validated.size - validated_memes.size
+        validated = validated_memes
+        
+        puts "✅ [CACHE WORKER] Validation complete in #{validation_duration}s: #{validated.size} valid, #{rejected} rejected"
+      end
       
-      puts "✅ [CACHE WORKER] Validation complete in #{validation_duration}s: #{validated.size} valid, #{rejected} rejected"
+      if validated.empty?
+        cache.set(:memes, local_memes.shuffle)
+        puts "⚠️ [CACHE WORKER] No valid API memes - using local only"
+      else
+        all_memes = (validated + local_memes).uniq { |m| m["url"] || m["file"] }
+        cache.set(:memes, all_memes.shuffle)
+        puts "✅ [CACHE WORKER] Cache updated: #{validated.size} API + #{local_memes.size} local = #{all_memes.size} total"
+      end
+      
+      cache.set(:last_refresh, Time.now)
+      puts "✅ [CACHE WORKER] Cache refresh complete"
     end
     
-    if validated.empty?
-      cache.set(:memes, local_memes.shuffle)
-      puts "⚠️ [CACHE WORKER] No valid API memes - using local only"
-    else
-      all_memes = (validated + local_memes).uniq { |m| m["url"] || m["file"] }
-      cache.set(:memes, all_memes.shuffle)
-      puts "✅ [CACHE WORKER] Cache updated: #{validated.size} API + #{local_memes.size} local = #{all_memes.size} total"
+    unless acquired
+      puts "⚠️ [CACHE WORKER] Could not acquire lock - another worker is already refreshing cache"
     end
-    
-    cache.set(:last_refresh, Time.now)
-    puts "✅ [CACHE WORKER] Cache refresh complete"
     
   rescue => e
     puts "❌ [CACHE WORKER] Error: #{e.message}"

@@ -70,6 +70,9 @@ rescue LoadError => e
   puts "⚠️  Sidekiq not available: #{e.message}"
 end
 
+# Load thread pool for analytics (MEMORY LEAK FIX)
+require_relative "./config/initializers/thread_pool"
+
 # Sentry Error Tracking (if configured)
 begin
   require 'sentry-ruby'
@@ -1518,8 +1521,8 @@ module MemeExplorer
     @image_src = meme_image_src(@meme)
     @likes = 0  # Will be loaded by JS
     
-    # ASYNC: Track analytics in background (non-blocking)
-    Thread.new do
+    # ASYNC: Track analytics in background (non-blocking) - MEMORY LEAK FIX: Use thread pool
+    ANALYTICS_POOL.post do
       begin
         user_id = session[:user_id] rescue nil
         meme_identifier = @meme["url"] || @meme["file"]
@@ -1761,11 +1764,12 @@ module MemeExplorer
   # Smart Hybrid Search helper method - KEPT for use by route modules
   def search_memes(query)
     return [] unless query
-    query_lower = query.downcase.strip
-    return [] if query_lower.empty?
     
-    # FIX: Escape SQL wildcards to prevent injection
-    escaped_query = query_lower.gsub(/[%_]/, '\\\\\0')
+    # SECURITY FIX: Use InputSanitizer to prevent SQL injection
+    sanitized_query = InputSanitizer.sanitize_search_query(query)
+    return [] if sanitized_query.empty?
+    
+    query_lower = sanitized_query.downcase
     
     # Tier 1: Search in-memory cache (instant, fresh Reddit memes)
     cache_results = (MEME_CACHE[:memes] || []).select do |m|
@@ -1783,9 +1787,12 @@ module MemeExplorer
     end
     
     # Tier 3: Fall back to DB + YAML if still empty
-    # FIX: Use escaped query for SQL LIKE to prevent injection
+    # SECURITY FIX: Proper parameterized query with ESCAPE clause
     if cache_results.empty?
-      db_results = (DB.execute("SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE", ["%#{escaped_query}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
+      db_results = (DB.execute(
+        "SELECT * FROM meme_stats WHERE title LIKE '%' || ? || '%' ESCAPE '\\' COLLATE NOCASE LIMIT 100",
+        [sanitized_query]
+      ) rescue []).map { |r| r.transform_keys(&:to_s) }
       yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end
