@@ -197,6 +197,7 @@ DEPENDENCIES
   activesupport (~> 7.1)
   bcrypt (~> 3.1)
   colorize
+  connection_pool (~> 2.4)
   database_cleaner-sequel (~> 1.8)
   dotenv
   httparty

@@ -22,6 +22,7 @@ gem "dotenv"
 gem "redis"
 gem "rack-attack"
 gem "pg", "~> 1.5"  # PostgreSQL adapter
+gem "connection_pool", "~> 2.4"  # Connection pooling for PostgreSQL
 
 # Authentication
 gem "oauth2", "~> 2.0"
