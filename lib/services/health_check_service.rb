@@ -234,8 +234,8 @@ class HealthCheckService
       if defined?(ANALYTICS_POOL)
         {
           configured: true,
-          max_threads: ANALYTICS_POOL.max_length rescue 'unknown',
-          max_queue: ANALYTICS_POOL.max_queue rescue 'unknown'
+          max_threads: (ANALYTICS_POOL.max_length rescue 'unknown'),
+          max_queue: (ANALYTICS_POOL.max_queue rescue 'unknown')
         }
       else
         {
