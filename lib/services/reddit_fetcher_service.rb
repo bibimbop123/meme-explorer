@@ -24,8 +24,12 @@ class RedditFetcherService
   end
   
   # Main entry point - fetches memes using appropriate strategy
+  # OPTIMIZED: Fetch from MORE subreddits for maximum meme collection
   def fetch_memes(subreddits, limit: DEFAULT_LIMIT)
-    subreddits = Array(subreddits).sample(8) if subreddits&.size.to_i > 8
+    # For OAuth: sample 12 subreddits (increased from 8)
+    # For Static: sample 25 subreddits (for better diversity without hitting rate limits)
+    max_subreddits = @auth_strategy == :oauth ? 12 : 25
+    subreddits = Array(subreddits).sample(max_subreddits) if subreddits&.size.to_i > max_subreddits
     
     case @auth_strategy
     when :oauth

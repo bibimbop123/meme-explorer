@@ -52,6 +52,7 @@ require_relative "./lib/services/trending_service"
 require_relative "./lib/services/meme_service"
 require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
+require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/middleware/request_timer"
 require "digest"
 
