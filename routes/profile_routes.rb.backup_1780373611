@@ -23,7 +23,7 @@ module Routes
           
           # Get user's liked memes from user_meme_stats
           @liked_memes = begin
-            results = MemeExplorer::App::DB.execute(
+            results = app.class::DB.execute(
               "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
               [user_id]
             ) || []
@@ -82,7 +82,7 @@ module Routes
         halt 401, "Not logged in" unless session[:user_id]
         
         saved_id = params[:id].to_i
-        saved_meme = MemeExplorer::App::DB.execute(
+        saved_meme = app.class::DB.execute(
           "SELECT * FROM saved_memes WHERE id = ? AND user_id = ?", 
           [saved_id, session[:user_id]]
         ).first

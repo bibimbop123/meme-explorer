@@ -7,7 +7,7 @@ module Routes
       app.get "/" do
         begin
           # FAST: Serve from pre-warmed cache (instant)
-          @meme = MemeExplorer::App::MEME_CACHE[:memes].sample rescue nil
+          @meme = app.class::MEME_CACHE[:memes].sample rescue nil
           @meme ||= fallback_meme
         rescue => e
           puts "Error in root route: #{e.class}: #{e.message}"
@@ -24,20 +24,20 @@ module Routes
           
           if meme_identifier
             # Track view in main thread with proper logging
-            MemeExplorer::App::DB.execute(
+            app.class::DB.execute(
               "INSERT INTO meme_stats (url, title, subreddit, views, likes, created_at) VALUES (?, ?, ?, 1, 0, CURRENT_TIMESTAMP) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
               [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
             )
             
             # Log view event to activity log for accurate time-based metrics
-            MemeExplorer::App::DB.execute(
+            app.class::DB.execute(
               "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'view', ?, ?)",
               [meme_identifier, user_id, session.id]
             ) rescue nil # Fail gracefully if activity log doesn't exist yet
             
             # Track exposure for spaced repetition
             if user_id
-              MemeExplorer::App::DB.execute(
+              app.class::DB.execute(
                 "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
                 [user_id, meme_identifier]
               )

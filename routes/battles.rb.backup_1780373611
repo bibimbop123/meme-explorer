@@ -10,7 +10,7 @@ class BattlesRoutes
         app.get '/battles/new' do
           begin
             # Get memes with valid images
-            memes = MemeExplorer::App::MEME_CACHE[:memes] || []
+            memes = app.class::MEME_CACHE[:memes] || []
             memes = memes.select { |m| m['url'] || m['file'] }
             
             halt 404, "Not enough memes for battle" if memes.size < 2

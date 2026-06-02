@@ -57,8 +57,8 @@ module MemeExplorer
             status: "ok",
             timestamp: Time.now.iso8601,
             uptime_seconds: (Time.now - $start_time).to_i,
-            requests: MemeExplorer::App::METRICS[:total_requests],
-            avg_response_time_ms: MemeExplorer::App::METRICS[:avg_request_time_ms].round(2),
+            requests: app.class::METRICS[:total_requests],
+            avg_response_time_ms: app.class::METRICS[:avg_request_time_ms].round(2),
             error_rate_5m: ErrorHandler::Logger.error_rate(300)
           }.to_json
         end

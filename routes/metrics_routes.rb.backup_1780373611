@@ -6,9 +6,9 @@ module Routes
     def self.registered(app)
       # Metrics JSON API
       app.get "/metrics.json" do
-        total_memes = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
-        total_likes = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0
-        total_views = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
+        total_memes = app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
+        total_likes = app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0
+        total_views = app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
 
         avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
         avg_views = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
@@ -39,12 +39,12 @@ module Routes
         @top_subreddits      = []
 
         begin
-          if defined?(MemeExplorer::App::DB) && MemeExplorer::App::DB
+          if defined?(app.class::DB) && app.class::DB
             # Get time period filter
             period = params[:period] || 'all'
             
             # Check if activity log table exists for accurate time-based filtering (SQLite)
-            has_activity_log = MemeExplorer::App::DB.get_first_value(
+            has_activity_log = app.class::DB.get_first_value(
               "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='meme_activity_log'"
             ).to_i > 0 rescue false
             
@@ -57,15 +57,15 @@ module Routes
                            else ""
                            end
               
-              @total_views = (MemeExplorer::App::DB.get_first_value(
+              @total_views = (app.class::DB.get_first_value(
                 "SELECT COUNT(*) FROM meme_activity_log #{time_filter} AND activity_type = 'view'"
               ) || 0).to_i
               
-              @total_likes = (MemeExplorer::App::DB.get_first_value(
+              @total_likes = (app.class::DB.get_first_value(
                 "SELECT COUNT(*) FROM meme_activity_log #{time_filter} AND activity_type = 'like'"
               ) || 0).to_i
               
-              @total_memes = (MemeExplorer::App::DB.get_first_value(
+              @total_memes = (app.class::DB.get_first_value(
                 "SELECT COUNT(DISTINCT meme_url) FROM meme_activity_log #{time_filter}"
               ) || 0).to_i
             else
@@ -76,14 +76,14 @@ module Routes
                             when '30d' then "WHERE updated_at >= datetime('now', '-30 days')"
                             else ""
                             end
-              @total_memes = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0).to_i
-              @total_likes = (MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0).to_i
-              @total_views = (MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0).to_i
+              @total_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0).to_i
+              @total_likes = (app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0).to_i
+              @total_views = (app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0).to_i
             end
-            @total_users = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
-            @total_saved_memes = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
-            @memes_with_no_likes = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} likes = 0") || 0).to_i
-            @memes_with_no_views = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} views = 0") || 0).to_i
+            @total_users = (app.class::DB.get_first_value("SELECT COUNT(*) FROM users") || 0).to_i
+            @total_saved_memes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM saved_memes") || 0).to_i
+            @memes_with_no_likes = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} likes = 0") || 0).to_i
+            @memes_with_no_views = (app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause.empty? ? 'WHERE' : where_clause + ' AND'} views = 0") || 0).to_i
 
             # Calculate averages
             @avg_likes = @total_memes > 0 ? (@total_likes.to_f / @total_memes).round(2) : 0.0
@@ -108,12 +108,12 @@ module Routes
                   date_start = time.strftime('%Y-%m-%d %H:00:00')
                   date_end = time.strftime('%Y-%m-%d %H:59:59')
                   
-                  hourly_views = MemeExplorer::App::DB.get_first_value(
+                  hourly_views = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  hourly_likes = MemeExplorer::App::DB.get_first_value(
+                  hourly_likes = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'like' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -129,12 +129,12 @@ module Routes
                   date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
                   date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
-                  daily_views = MemeExplorer::App::DB.get_first_value(
+                  daily_views = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  daily_likes = MemeExplorer::App::DB.get_first_value(
+                  daily_likes = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'like' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -150,12 +150,12 @@ module Routes
                   date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
                   date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
-                  daily_views = MemeExplorer::App::DB.get_first_value(
+                  daily_views = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  daily_likes = MemeExplorer::App::DB.get_first_value(
+                  daily_likes = app.class::DB.get_first_value(
                     "SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'like' AND created_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -175,12 +175,12 @@ module Routes
                   date_start = time.strftime('%Y-%m-%d %H:00:00')
                   date_end = time.strftime('%Y-%m-%d %H:59:59')
                   
-                  hourly_views = MemeExplorer::App::DB.get_first_value(
+                  hourly_views = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  hourly_likes = MemeExplorer::App::DB.get_first_value(
+                  hourly_likes = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -195,12 +195,12 @@ module Routes
                   date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
                   date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
-                  daily_views = MemeExplorer::App::DB.get_first_value(
+                  daily_views = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  daily_likes = MemeExplorer::App::DB.get_first_value(
+                  daily_likes = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -215,12 +215,12 @@ module Routes
                   date_start = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 00:00:00')
                   date_end = (Time.now.utc - (days_ago * 86400)).strftime('%Y-%m-%d 23:59:59')
                   
-                  daily_views = MemeExplorer::App::DB.get_first_value(
+                  daily_views = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(views), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
                   
-                  daily_likes = MemeExplorer::App::DB.get_first_value(
+                  daily_likes = app.class::DB.get_first_value(
                     "SELECT COALESCE(SUM(likes), 0) FROM meme_stats WHERE updated_at BETWEEN ? AND ?",
                     [date_start, date_end]
                   ).to_i
@@ -238,7 +238,7 @@ module Routes
             # Top memes (DB already returns hashes with results_as_hash = true)
             # FIXED: Only show real Reddit memes with external URLs (not local YAML fallbacks)
             top_memes_where = where_clause.empty? ? "WHERE" : where_clause + " AND"
-            @top_memes = MemeExplorer::App::DB.execute("
+            @top_memes = app.class::DB.execute("
               SELECT title, subreddit, url, likes, views
               FROM meme_stats
               #{top_memes_where} (url LIKE 'https://i.redd.it/%'
@@ -257,7 +257,7 @@ module Routes
             # Top subreddits
             # FIXED: Exclude 'local' fallback subreddit
             subreddit_where = where_clause.empty? ? "WHERE" : where_clause + " AND"
-            @top_subreddits = MemeExplorer::App::DB.execute("
+            @top_subreddits = app.class::DB.execute("
               SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count
               FROM meme_stats
               #{subreddit_where} subreddit IS NOT NULL
@@ -295,9 +295,9 @@ module Routes
                       end
         
         # Get metrics
-        total_memes = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0
-        total_likes = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0
-        total_views = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0
+        total_memes = app.class::DB.get_first_value("SELECT COUNT(*) FROM meme_stats #{where_clause}") || 0
+        total_likes = app.class::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats #{where_clause}") || 0
+        total_views = app.class::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats #{where_clause}") || 0
         
         # Generate CSV
         csv_data = CSV.generate do |csv|

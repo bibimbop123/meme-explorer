@@ -54,7 +54,7 @@ module Routes
         halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
       
         # Filter valid memes
-        local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
+        local_memes = app.class::MEMES.is_a?(Hash) ? app.class::MEMES[category_name.to_s] || [] : []
         api_memes = (fetch_fresh_memes(batch_size: 50) rescue []).select { |m| subreddits.include?(m["subreddit"]) }
       
         @memes = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }
@@ -76,7 +76,7 @@ module Routes
         category_name = params[:name].to_sym
         subreddits = @categories[category_name] || []
       
-        local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
+        local_memes = app.class::MEMES.is_a?(Hash) ? app.class::MEMES[category_name.to_s] || [] : []
         api_memes = (fetch_fresh_memes(batch_size: 50) rescue []).select { |m| subreddits.include?(m["subreddit"]) }
       
         combined = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }

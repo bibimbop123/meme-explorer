@@ -11,8 +11,8 @@ module Routes
           session[:meme_history] ||= []
           
           # Get meme pool
-          meme_pool = if app.class::MEME_CACHE[:memes].is_a?(Array) && !app.class::MEME_CACHE[:memes].empty?
-            app.class::MEME_CACHE[:memes]
+          meme_pool = if MemeExplorer::App::MEME_CACHE[:memes].is_a?(Array) && !MemeExplorer::App::MEME_CACHE[:memes].empty?
+            MemeExplorer::App::MEME_CACHE[:memes]
           else
             random_memes_pool
           end
@@ -81,7 +81,7 @@ module Routes
           
           # PHASE 3: Check for near-miss tease
           if defined?(MemeExplorer::NearMissService)
-            pool = app.class::MEME_CACHE[:memes] || []
+            pool = MemeExplorer::App::MEME_CACHE[:memes] || []
             if MemeExplorer::NearMissService.should_show_tease?(pool, session[:user_id])
               @tease = MemeExplorer::NearMissService.generate_tease(pool, session[:user_id])
               MemeExplorer::NearMissService.track_tease_shown(@tease, session[:user_id]) if @tease
@@ -133,14 +133,14 @@ module Routes
             return unless meme_identifier
             
             # Track view
-            app.class::DB.execute(
+            MemeExplorer::App::DB.execute(
               "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
               [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
             ) rescue nil
             
             # Track exposure for spaced repetition
             if user_id
-              app.class::DB.execute(
+              MemeExplorer::App::DB.execute(
                 "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
                 [user_id, meme_identifier]
               ) rescue nil
@@ -164,8 +164,8 @@ module Routes
           halt 400, { error: "Subreddit parameter required" }.to_json if subreddit.nil? || subreddit.empty?
           
           # Get meme pool
-          meme_pool = if app.class::MEME_CACHE[:memes].is_a?(Array) && !app.class::MEME_CACHE[:memes].empty?
-            app.class::MEME_CACHE[:memes]
+          meme_pool = if MemeExplorer::App::MEME_CACHE[:memes].is_a?(Array) && !MemeExplorer::App::MEME_CACHE[:memes].empty?
+            MemeExplorer::App::MEME_CACHE[:memes]
           else
             random_memes_pool
           end
@@ -219,7 +219,7 @@ module Routes
           if !image_url.start_with?("/")
             meme_title = @meme["title"] || "Unknown"
             meme_subreddit = @meme["subreddit"] || "reddit"
-            app.class::DB.execute(
+            MemeExplorer::App::DB.execute(
               "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
               [image_url, meme_title, meme_subreddit]
             ) rescue nil
@@ -314,7 +314,7 @@ module Routes
         if !image_url.start_with?("/")
           meme_title = @meme["title"] || "Unknown"
           meme_subreddit = @meme["subreddit"] || "reddit"
-          app.class::DB.execute(
+          MemeExplorer::App::DB.execute(
             "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
             [image_url, meme_title, meme_subreddit]
           ) rescue nil

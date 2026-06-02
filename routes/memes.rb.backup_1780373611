@@ -16,9 +16,9 @@ module Routes
             puts "🔍 [TRENDING CLICK] Looking for URL: #{trending_url}"
             
             # Get memes from cache
-            memes = ApiCacheService.fetch_and_cache_memes(MemeExplorer::App::POPULAR_SUBREDDITS)
-            memes = MemeExplorer::App::MEME_CACHE[:memes] || [] if memes.empty?
-            memes = MemeExplorer::App::MEMES.values.flatten if memes.empty?
+            memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+            memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+            memes = app.class::MEMES.values.flatten if memes.empty?
             
             # Find exact URL match (most reliable for trending)
             @meme = memes.find { |m| 
@@ -45,13 +45,13 @@ module Routes
           # If no specific meme requested or not found, pick a random one
           if @meme.nil?
             # Try to get fresh memes from API cache first
-            memes = ApiCacheService.fetch_and_cache_memes(MemeExplorer::App::POPULAR_SUBREDDITS)
+            memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
             
             # Fallback to MEME_CACHE if API returns empty
-            memes = MemeExplorer::App::MEME_CACHE[:memes] || [] if memes.empty?
+            memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
             
             # Final fallback to local memes
-            memes = MemeExplorer::App::MEMES.values.flatten if memes.empty?
+            memes = app.class::MEMES.values.flatten if memes.empty?
             
             halt 404, "No memes available" if memes.empty?
 
@@ -183,9 +183,9 @@ module Routes
         end
 
         app.get "/random.json" do
-          memes = ApiCacheService.fetch_and_cache_memes(MemeExplorer::App::POPULAR_SUBREDDITS)
-          memes = MemeExplorer::App::MEME_CACHE[:memes] || [] if memes.empty?
-          memes = MemeExplorer::App::MEMES.values.flatten if memes.empty?
+          memes = ApiCacheService.fetch_and_cache_memes(app.class::POPULAR_SUBREDDITS)
+          memes = app.class::MEME_CACHE[:memes] || [] if memes.empty?
+          memes = app.class::MEMES.values.flatten if memes.empty?
           halt 404, { error: "No memes available" }.to_json if memes.empty?
 
           # Use weighted random selector with consistent session tracking
@@ -231,7 +231,7 @@ module Routes
           query = params[:q]
 
           if request.accept.include?("application/json")
-            results = SearchService.search(query, MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+            results = SearchService.search(query, MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
             content_type :json
             {
               query: query,
@@ -239,7 +239,7 @@ module Routes
               total: results.size
             }.to_json
           else
-            @results = ::SearchService.search(query, ::MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+            @results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
             @query = query
             erb :search
           end
@@ -247,7 +247,7 @@ module Routes
 
         app.get "/api/search.json" do
           query = params[:q]
-          results = ::SearchService.search(query, ::MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+          results = ::SearchService.search(query, ::MemeService.cached_memes, app.class::POPULAR_SUBREDDITS)
 
           content_type :json
           {
@@ -271,7 +271,7 @@ module Routes
           subreddits = categories[category_name]
           halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
 
-          local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
+          local_memes = app.class::MEMES.is_a?(Hash) ? app.class::MEMES[category_name.to_s] || [] : []
           @memes = local_memes.empty? ? [app.helpers.fallback_meme.merge("subreddit" => category_name.to_s)] : local_memes
 
           if request.accept.include?("application/json")
