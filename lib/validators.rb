@@ -45,21 +45,29 @@ module Validators
     username
   end
 
-  # Password validation: strong requirements
+  # Password validation: reasonable security requirements
   # Returns password or raises ValidationError
   def self.validate_password(password)
     password = password.to_s
     
     raise ValidationError, "Password cannot be empty" if password.empty?
-    raise ValidationError, "Password minimum 8 characters required" if password.length < 8
+    raise ValidationError, "Password must be at least 8 characters" if password.length < 8
     raise ValidationError, "Password maximum 128 characters allowed" if password.length > 128
-    raise ValidationError, "Password must contain uppercase letter" unless password.match?(/[A-Z]/)
-    raise ValidationError, "Password must contain lowercase letter" unless password.match?(/[a-z]/)
-    raise ValidationError, "Password must contain number" unless password.match?(/[0-9]/)
     
-    # Allow special characters (!, @, #, $, %, ^, &, *)
-    has_special = password.match?(/[!@#$%^&*]/)
-    raise ValidationError, "Password must contain uppercase, lowercase, number, and special character" if password.length < 12 && !has_special
+    # Count character type diversity (require at least 3 of 4 types for 8-11 char passwords)
+    # For 12+ chars, only require 2 types for usability
+    has_uppercase = password.match?(/[A-Z]/)
+    has_lowercase = password.match?(/[a-z]/)
+    has_number = password.match?(/[0-9]/)
+    has_special = password.match?(/[!@#$%^&*()_+=\[\]{};:'",.<>?\/\\|`~-]/)
+    
+    diversity = [has_uppercase, has_lowercase, has_number, has_special].count(true)
+    
+    if password.length < 12 && diversity < 3
+      raise ValidationError, "Password must contain at least 3 of: uppercase, lowercase, number, special character"
+    elsif diversity < 2
+      raise ValidationError, "Password must contain at least 2 different character types"
+    end
     
     password
   end

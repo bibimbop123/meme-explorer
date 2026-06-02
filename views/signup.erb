@@ -41,7 +41,9 @@
       </div>
 
       <!-- Email/Password Form (Secondary) -->
-      <form method="post" action="/signup" class="auth-form">
+      <form method="post" action="/signup" class="auth-form" id="signup-form">
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        
         <div class="form-group">
           <label for="email" class="form-label">Email Address</label>
           <input type="email" id="email" name="email" placeholder="you@example.com" required 
@@ -65,7 +67,7 @@
                  class="form-input">
         </div>
 
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary" id="signup-btn">
           Create Account
         </button>
       </form>
@@ -117,6 +119,51 @@
     strengthText.textContent = strengthLabel;
     strengthText.style.color = strengthColor;
   }
+
+  // Handle form submission with AJAX
+  document.getElementById('signup-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const errorMsg = document.getElementById('error-message');
+    const submitBtn = document.getElementById('signup-btn');
+    const originalBtnText = submitBtn.textContent;
+    
+    // Clear previous errors
+    errorMsg.style.display = 'none';
+    errorMsg.textContent = '';
+    
+    // Disable button and show loading state
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating Account...';
+    
+    const formData = new FormData(this);
+    
+    try {
+      const response = await fetch('/signup', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Redirect on success
+        window.location.href = data.redirect || '/profile';
+      } else {
+        // Show error
+        errorMsg.textContent = data.error || 'Signup failed. Please try again.';
+        errorMsg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      errorMsg.textContent = 'Network error. Please check your connection and try again.';
+      errorMsg.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
+  });
 </script>
 
 <style>
@@ -341,6 +388,29 @@
     font-size: 12px;
     color: #999;
     margin-top: 6px;
+  }
+
+  .error-message {
+    background: #fee;
+    border: 2px solid #f44336;
+    color: #c62828;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    animation: shake 0.4s ease;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
   }
 
   .auth-footer {

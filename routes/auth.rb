@@ -66,6 +66,7 @@ class AuthRoutes
         end
 
         app.post "/login" do
+          content_type :json
           begin
             # Whitelist and validate parameters
             safe_params = Validators.whitelist_params(params,
@@ -77,25 +78,30 @@ class AuthRoutes
             email = Validators.validate_email(safe_params[:email])
             password = safe_params[:password]
             
-            halt 422, { success: false, error: "Password required" }.to_json if password.to_s.strip.empty?
+            if password.to_s.strip.empty?
+              return { success: false, error: "Password required" }.to_json
+            end
 
             # Authenticate using service
             user_id = AuthService.authenticate_email(email, password)
             
             if user_id
               session[:user_id] = user_id
-              redirect "/profile"
+              { success: true, redirect: "/profile" }.to_json
             else
               ErrorHandler::Logger.log(
                 StandardError.new("Failed login attempt"),
                 { email: email },
                 :warning
               )
-              halt 401, { success: false, error: "Invalid email or password" }.to_json
+              { success: false, error: "Invalid email or password" }.to_json
             end
 
           rescue Validators::ValidationError => e
-            halt 422, { success: false, error: e.message }.to_json
+            { success: false, error: e.message }.to_json
+          rescue => e
+            ErrorHandler::Logger.log(e, { email: safe_params[:email] }, :error)
+            { success: false, error: "Login failed. Please try again." }.to_json
           end
         end
 
@@ -104,32 +110,39 @@ class AuthRoutes
         end
 
         app.post "/signup" do
+          content_type :json
           begin
-            # Whitelist and validate parameters
+            # Whitelist and validate parameters (username is optional/not used)
             safe_params = Validators.whitelist_params(params,
-              allowed_keys: [:email, :username, :password, :password_confirm],
-              optional_keys: []
+              allowed_keys: [:email, :password, :password_confirm],
+              optional_keys: [:username]
             )
 
             # Validate each field
             email = Validators.validate_email(safe_params[:email])
-            username = Validators.validate_username(safe_params[:username])
             password = Validators.validate_password(safe_params[:password])
             password_confirm = safe_params[:password_confirm]
 
             # Verify passwords match
-            halt 422, { success: false, error: "Passwords do not match" }.to_json if password != password_confirm
+            if password != password_confirm
+              return { success: false, error: "Passwords do not match" }.to_json
+            end
 
             # Create user with validated data
             user_id = UserService.create_email_user(email, password)
-            halt 409, { success: false, error: "Email already in use" }.to_json unless user_id
+            unless user_id
+              return { success: false, error: "Email already in use" }.to_json
+            end
 
             session[:user_id] = user_id
             session[:email] = email
-            redirect "/profile"
+            { success: true, redirect: "/profile" }.to_json
 
           rescue Validators::ValidationError => e
-            halt 422, { success: false, error: e.message }.to_json
+            { success: false, error: e.message }.to_json
+          rescue => e
+            ErrorHandler::Logger.log(e, { email: safe_params[:email] }, :error)
+            { success: false, error: "Registration failed. Please try again." }.to_json
           end
         end
 
