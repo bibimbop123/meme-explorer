@@ -140,7 +140,17 @@
   
   // Track session metrics
   function trackSessionMetrics() {
-    // Send session stats every 30 seconds
+    // Send heartbeat every 30 seconds to indicate user is still active
+    setInterval(() => {
+      fetch('/api/session/heartbeat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).catch(err => console.warn('Session heartbeat failed:', err));
+    }, 30000);
+    
+    // Send full session stats every 60 seconds
     setInterval(() => {
       const sessionDuration = Math.round((Date.now() - sessionStartTime) / 1000);
       
@@ -155,7 +165,7 @@
           avg_time_per_meme: sessionDuration / Math.max(memesViewedThisSession, 1)
         })
       }).catch(err => console.warn('Session metrics tracking failed:', err));
-    }, 30000);
+    }, 60000);
     
     // Track session end on page unload
     window.addEventListener('beforeunload', () => {

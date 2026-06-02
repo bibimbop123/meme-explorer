@@ -70,6 +70,7 @@ begin
   require_relative "./app/workers/database_cleanup_worker"
   require_relative "./app/workers/activity_aggregation_worker"
   require_relative "./app/workers/streak_reminder_worker"
+  require_relative "./app/workers/session_cleanup_worker"
   puts "✅ Sidekiq workers loaded"
 rescue LoadError => e
   puts "⚠️  Sidekiq not available: #{e.message}"
