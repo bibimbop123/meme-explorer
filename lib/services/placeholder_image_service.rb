@@ -1,5 +1,5 @@
 # Placeholder Image Service
-# Centralized management for the Tattoo Annie placeholder image
+# Centralized management for meme placeholder images
 # SEO-optimized with comprehensive metadata and accessibility features
 
 class PlaceholderImageService
@@ -57,7 +57,7 @@ class PlaceholderImageService
     # @param additional_info [String] Additional contextual information
     # @return [String] SEO-optimized alt text
     def generate_alt_text(context: 'meme', additional_info: nil)
-      base = "Tattoo Annie from The Simpsons"
+      base = "Meme Explorer loading"
       
       context_text = case context
                      when 'meme'
@@ -74,7 +74,7 @@ class PlaceholderImageService
                        "placeholder image"
                      end
       
-      "#{base} - #{context_text}. A colorful character from the iconic animated series, representing the fun and entertaining nature of meme culture."
+      "#{base} - #{context_text}. An animated placeholder representing the fun and entertaining nature of meme culture."
     end
 
     # Generate Schema.org ImageObject markup for SEO
@@ -106,14 +106,7 @@ class PlaceholderImageService
         "genre": "Entertainment",
         "keywords": PLACEHOLDER_IMAGE[:keywords].join(', '),
         "isFamilyFriendly": true,
-        "copyrightNotice": "The Simpsons © 20th Century Fox",
-        "creditText": "Character from The Simpsons animated series",
-        "creator": {
-          "@type": "Organization",
-          "name": "20th Century Fox / Disney"
-        },
-        "representativeOfPage": false,
-        "license": "Fair Use - Educational/Commentary Purpose"
+        "representativeOfPage": false
       }
     end
 
@@ -134,7 +127,7 @@ class PlaceholderImageService
       end
       
       # Progressive image wrapper
-      html << %(<div class="tattoo-annie-placeholder-wrapper" role="img" aria-label="#{config[:alt]}">)
+      html << %(<div class="meme-placeholder-wrapper" role="img" aria-label="#{config[:alt]}">)
       
       # Blurhash placeholder for progressive loading
       if options[:progressive_loading]
@@ -160,12 +153,12 @@ class PlaceholderImageService
       end
       
       # Add data attributes for analytics and tracking
-      html << %(    data-placeholder-type="tattoo-annie")
+      html << %(    data-placeholder-type="meme-placeholder")
       html << %(    data-content-category="#{PLACEHOLDER_IMAGE[:content_category]}")
       html << %(    data-seo-optimized="true")
       
       # Accessibility and SEO classes
-      html << %(    class="placeholder-image tattoo-annie #{options[:class]}")
+      html << %(    class="placeholder-image meme-placeholder #{options[:class]}")
       
       # ARIA attributes for accessibility
       html << %(    role="img")
@@ -188,8 +181,8 @@ class PlaceholderImageService
     # @return [String] CSS styles
     def generate_styles
       <<~CSS
-        /* Tattoo Annie Placeholder Styles - SEO Optimized */
-        .tattoo-annie-placeholder-wrapper {
+        /* Meme Placeholder Styles - SEO Optimized */
+        .meme-placeholder-wrapper {
           position: relative;
           width: 100%;
           max-width: 600px;
@@ -201,7 +194,7 @@ class PlaceholderImageService
           aspect-ratio: 3 / 4;
         }
 
-        .placeholder-image.tattoo-annie {
+        .placeholder-image.meme-placeholder {
           display: block;
           width: 100%;
           height: 100%;
@@ -211,13 +204,13 @@ class PlaceholderImageService
           transition: transform 0.3s ease, filter 0.3s ease;
         }
 
-        .placeholder-image.tattoo-annie:hover {
+        .placeholder-image.meme-placeholder:hover {
           transform: scale(1.02);
           filter: brightness(1.05);
         }
 
         /* Progressive loading animation */
-        .tattoo-annie-placeholder-wrapper.loading .placeholder-image {
+        .meme-placeholder-wrapper.loading .placeholder-image {
           animation: placeholder-shimmer 2s infinite;
         }
 
@@ -229,7 +222,7 @@ class PlaceholderImageService
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
-          .tattoo-annie-placeholder-wrapper {
+          .meme-placeholder-wrapper {
             max-width: 100%;
             border-radius: 8px;
           }
@@ -259,7 +252,7 @@ class PlaceholderImageService
 
         /* Print styles */
         @media print {
-          .tattoo-annie-placeholder-wrapper {
+          .meme-placeholder-wrapper {
             box-shadow: none;
             border: 1px solid #ccc;
           }
@@ -267,14 +260,14 @@ class PlaceholderImageService
 
         /* High contrast mode support */
         @media (prefers-contrast: high) {
-          .tattoo-annie-placeholder-wrapper {
+          .meme-placeholder-wrapper {
             border: 2px solid currentColor;
           }
         }
 
         /* Reduced motion support */
         @media (prefers-reduced-motion: reduce) {
-          .placeholder-image.tattoo-annie,
+          .placeholder-image.meme-placeholder,
           .placeholder-blur {
             animation: none !important;
             transition: none !important;

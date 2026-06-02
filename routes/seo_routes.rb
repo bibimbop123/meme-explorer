@@ -235,9 +235,9 @@ module Routes
           dir: "ltr",
           screenshots: [
             {
-              src: "#{base_url}/images/tattoo-annie-placeholder.jpg",
-              sizes: "195x258",
-              type: "image/jpeg"
+              src: "#{base_url}/images/meme-placeholder.svg",
+              sizes: "600x600",
+              type: "image/svg+xml"
             }
           ]
         }

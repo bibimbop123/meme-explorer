@@ -1357,30 +1357,38 @@ module MemeExplorer
       SmartMediaRendererService.placeholder_styles
     end
 
-    # Tattoo Annie Placeholder helpers (SEO-optimized)
-    def tattoo_annie_placeholder
+    # Meme Placeholder helpers (SEO-optimized)
+    def meme_placeholder
       PlaceholderImageService.get_placeholder
     end
 
-    def render_tattoo_annie(options = {})
+    def render_meme_placeholder(options = {})
       PlaceholderImageService.render_html(options)
     end
 
-    def tattoo_annie_alt_text(context: 'meme', additional_info: nil)
+    def meme_placeholder_alt_text(context: 'meme', additional_info: nil)
       PlaceholderImageService.generate_alt_text(context: context, additional_info: additional_info)
     end
 
-    def tattoo_annie_og_tags(page_context = {})
+    def meme_placeholder_og_tags(page_context = {})
       PlaceholderImageService.generate_og_meta_tags(page_context)
     end
 
-    def tattoo_annie_styles
+    def meme_placeholder_styles
       PlaceholderImageService.generate_styles
     end
 
-    def tattoo_annie_preload_tag
+    def meme_placeholder_preload_tag
       PlaceholderImageService.generate_preload_tag
     end
+    
+    # Legacy aliases for backward compatibility
+    alias_method :tattoo_annie_placeholder, :meme_placeholder
+    alias_method :render_tattoo_annie, :render_meme_placeholder
+    alias_method :tattoo_annie_alt_text, :meme_placeholder_alt_text
+    alias_method :tattoo_annie_og_tags, :meme_placeholder_og_tags
+    alias_method :tattoo_annie_styles, :meme_placeholder_styles
+    alias_method :tattoo_annie_preload_tag, :meme_placeholder_preload_tag
     
     # Extract preview images from Reddit post data for fallback chain
     def extract_preview_images(meme)
