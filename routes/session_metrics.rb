@@ -23,7 +23,7 @@ module Routes
           avg_time_per_meme = data['avg_time_per_meme'].to_f
           
           # Get session ID from cookie or generate one
-          session_id = session[:session_id] ||= SecureRandom.uuid
+          session_id = (session[:session_id] ||= SecureRandom.uuid).to_s
           user_id = session[:user_id]
           
           # Log the metrics (can be expanded to store in DB)
@@ -67,7 +67,7 @@ module Routes
           memes_viewed = params['memes_viewed'].to_i
           
           # Get session ID
-          session_id = session[:session_id] ||= SecureRandom.uuid
+          session_id = (session[:session_id] ||= SecureRandom.uuid).to_s
           user_id = session[:user_id]
           
           # Log the session end
