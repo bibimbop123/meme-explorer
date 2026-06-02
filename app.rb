@@ -54,6 +54,11 @@ require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/middleware/request_timer"
+require_relative 'lib/helpers/cdn_helpers'
+require_relative 'lib/concerns/http_caching'
+require_relative 'lib/concerns/performance_profiler'
+require_relative 'lib/services/health_check_service'
+
 require "digest"
 
 # Load Sidekiq and workers
@@ -524,6 +529,8 @@ module MemeExplorer
   helpers AdHelpers
   helpers SeoHelpers
   helpers RefinedMemeHelper
+  helpers CDNHelpers
+  helpers HTTPCaching
 
   # -----------------------
   # Curated Collections Helper Wrappers
@@ -2369,112 +2376,27 @@ module MemeExplorer
   end
 
   # -----------------------
-  # Monitoring Routes
+  # Monitoring Routes (Phase 3)
   # -----------------------
+  
+  # Quick health check for load balancers
   get "/health" do
     content_type :json
-    
-    begin
-      cache_age = nil
-      cache_freshness = "NO_DATA"
-      last_refresh_str = nil
-      uptime_seconds = 0
-      total_memes = 0
-      
-      # Safely get cache refresh time and calculate age - ABSOLUTE PROTECTION
-      begin
-        refresh_time = MEME_CACHE.get(:last_refresh) rescue nil
-        
-        if refresh_time.is_a?(Time) && !refresh_time.nil?
-          current_time = Time.now
-          if current_time.is_a?(Time) && !current_time.nil?
-            begin
-              ct_int = current_time.to_i
-              rt_int = refresh_time.to_i
-              
-              if ct_int.is_a?(Integer) && rt_int.is_a?(Integer)
-                seconds_ago = ct_int - rt_int
-                cache_age = [seconds_ago, 0].max
-                cache_freshness = if cache_age < 60
-                                    "FRESH"
-                                  elsif cache_age < 300
-                                    "STALE"
-                                  else
-                                    "OFFLINE"
-                                  end
-                last_refresh_str = refresh_time.iso8601
-              end
-            rescue => e
-              puts "Health: cache age calc: #{e.class}"
-              cache_freshness = "ERROR"
-            end
-          end
-        end
-      rescue => e
-        puts "Health: refresh time check: #{e.class}"
-      end
-      
-      # Safely calculate uptime - USE INTEGERS ONLY
-      begin
-        if $start_time.is_a?(Time) && !$start_time.nil?
-          current_time = Time.now
-          if current_time.is_a?(Time) && !current_time.nil?
-            begin
-              ct_int = current_time.to_i
-              st_int = $start_time.to_i
-              
-              if ct_int.is_a?(Integer) && st_int.is_a?(Integer)
-                uptime_seconds = [ct_int - st_int, 0].max
-              end
-            rescue => e
-              puts "Health: uptime calc: #{e.class}"
-            end
-          end
-        end
-      rescue => e
-        puts "Health: uptime check: #{e.class}"
-      end
-      
-      # Safely get total memes
-      begin
-        meme_list = MEME_CACHE.get(:memes)
-        total_memes = meme_list.size if meme_list.is_a?(Array)
-      rescue => e
-        puts "Health: memes count: #{e.class}"
-        nil
-      end
-      
-      {
-        status: "ok",
-        timestamp: Time.now.iso8601,
-        uptime_seconds: uptime_seconds,
-        requests: METRICS[:total_requests],
-        avg_response_time_ms: METRICS[:avg_request_time_ms].round(2),
-        error_rate_5m: begin
-          ErrorHandler::Logger.error_rate(300)
-        rescue
-          0
-        end,
-        cache_status: {
-          total_memes: total_memes,
-          last_refresh: last_refresh_str,
-          cache_age_seconds: cache_age,
-          cache_freshness: cache_freshness,
-          refresh_interval_seconds: 30,
-          reddit_credentials: {
-            client_id_set: !ENV.fetch("REDDIT_CLIENT_ID", "").to_s.strip.empty?,
-            client_secret_set: !ENV.fetch("REDDIT_CLIENT_SECRET", "").to_s.strip.empty?
-          }
-        },
-        thread_pool: {
-          configured_threads: Integer(ENV.fetch("RAILS_MAX_THREADS", 32)),
-          workers: Integer(ENV.fetch("WEB_CONCURRENCY", 0))
-        }
-      }.to_json
-    rescue => e
-      puts "Health endpoint error: #{e.class}: #{e.message}"
-      { status: "error", message: e.message, timestamp: Time.now.iso8601 }.to_json
-    end
+    HealthCheckService.quick_check.to_json
+  end
+  
+  # Detailed health check (admin only)
+  get "/health/detailed" do
+    halt 403, { error: "Forbidden" }.to_json unless is_admin?
+    content_type :json
+    HealthCheckService.check.to_json
+  end
+  
+  # Performance metrics (admin only)
+  get "/metrics/performance" do
+    halt 403, { error: "Forbidden" }.to_json unless is_admin?
+    content_type :json
+    PerformanceProfiler.summary.to_json
   end
 
   get "/errors" do
