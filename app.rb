@@ -127,7 +127,8 @@ module MemeExplorer
   # -----------------------
   # CSRF Protection
   # -----------------------
-  use Rack::CSRF, raise: true, on: [:post, :put, :delete, :patch]
+  # Skip CSRF for OAuth callbacks and API endpoints
+  use Rack::CSRF, raise: true, skip: ['POST:/login', 'POST:/signup', 'GET:/auth/reddit/callback']
 
   # -----------------------
   # Request Timing Middleware (P2: Monitoring)
@@ -1974,44 +1975,8 @@ module MemeExplorer
   # -----------------------
   # Authentication Routes
   # -----------------------
-  get "/login" do
-    erb :login
-  end
-
-  post '/login' do
-    user = User.find_by(email: params[:email])
-    if user && user.authenticate(params[:password])
-      session[:user_id] = user.id
-      redirect '/profile'
-    else
-      redirect '/login'
-    end
-  end
-
-  get "/signup" do
-    erb :signup
-  end
-
-  post "/signup" do
-    email = params[:email]
-    password = params[:password]
-    password_confirm = params[:password_confirm]
-
-    halt 400, "Passwords do not match" if password != password_confirm
-    halt 400, "Email and password required" if email.to_s.strip.empty? || password.to_s.strip.empty?
-
-    user_id = create_email_user(email, password)
-    halt 400, "Email already in use" unless user_id
-
-    session[:user_id] = user_id
-    session[:email] = email
-    redirect "/profile"
-  end
-
-  get "/logout" do
-    session.clear
-    redirect "/"
-  end
+  # Auth routes are now handled by routes/auth.rb
+  # This eliminates duplicate routes and uses proper validation
 
   # -----------------------
   # Gamification Routes
