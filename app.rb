@@ -977,18 +977,22 @@ module MemeExplorer
       end
     end
 
-    # Get memes from cache or MEMES (thread-safe)
+    # Get memes from cache or MEMES (thread-safe) - MIGRATED TO RedisService (Phase 3 Week 1)
     def get_cached_memes
-      cached = REDIS&.get("memes:latest")
-      memes = cached ? JSON.parse(cached) : MEME_CACHE.get(:memes) || MEMES
+      # Use RedisService.fetch with automatic fallback to memory cache
+      memes = RedisService.fetch("memes:latest", ttl: 300) do
+        # Fallback: get from memory cache or static data
+        MEME_CACHE.get(:memes) || MEMES
+      end
 
+      # Filter out invalid memes
       memes.reject! do |m|
         file_missing = m["file"] && !File.exist?(File.join(settings.public_folder, m["file"]))
         url_invalid  = m["url"] && !m["url"].match?(/^https?:\/\//)
         file_missing || url_invalid
       end
 
-      REDIS&.setex("memes:latest", 300, memes.to_json) rescue nil
+      # Update memory cache
       MEME_CACHE.set(:memes, memes)
       memes
     rescue => e
@@ -1275,16 +1279,16 @@ module MemeExplorer
       valid_local_memes
     end
 
-    # Get likes safely
+    # Get likes safely - MIGRATED TO RedisService (Phase 3 Week 1)
     def get_meme_likes(url)
       return 0 unless url
-      likes = REDIS&.get("meme:likes:#{url}")&.to_i
-      return likes if likes
-
-      row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
-      likes = row ? row["likes"].to_i : 0
-      REDIS&.set("meme:likes:#{url}", likes)
-      likes
+      
+      # Use RedisService.fetch with automatic DB fallback
+      RedisService.fetch("meme:likes:#{url}", ttl: 300) do
+        # Fallback: query database if Redis unavailable or cache miss
+        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
+        row ? row["likes"].to_i : 0
+      end
     end
 
     # Toggle like for meme (only count once per session)
@@ -1338,7 +1342,7 @@ module MemeExplorer
       end
 
       likes = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first&.dig("likes").to_i
-      REDIS&.set("meme:likes:#{url}", likes)
+      RedisService.set("meme:likes:#{url}", likes, ttl: 300)  # MIGRATED: 5 min cache (Phase 3 Week 1)
       likes
     end
 
