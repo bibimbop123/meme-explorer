@@ -3,20 +3,21 @@ source "https://rubygems.org"
 ruby "3.2.1"
 
 # Core web stack
-gem "sinatra"
-gem "sinatra-contrib" # includes sinatra/reloader
-gem "puma"
-gem "rackup"
+gem "sinatra", "~> 4.0"
+gem "sinatra-contrib", "~> 4.0" # includes sinatra/reloader
+gem "puma", "~> 6.0"
+gem "rackup", "~> 2.1"
 gem "activesupport", "~> 7.1"
 
+# Security
+gem "rack-protection", "~> 4.0"
+gem "rack-csrf", "~> 2.7"
 
 # Data and HTTP
-gem "yaml"
-gem "json"
-gem "net-http"
-gem "httparty"
-gem "colorize"  # 👈 for readable logs
-gem "dotenv"
+# Note: yaml, json, net-http are built into Ruby stdlib - removed from dependencies
+gem "httparty", "~> 0.21"
+gem "colorize", "~> 1.1"
+gem "dotenv", "~> 2.8"
 
 # Caching and persistence
 gem "redis"

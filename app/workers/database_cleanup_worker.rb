@@ -13,25 +13,28 @@ class DatabaseCleanupWorker
     }
     
     # Remove old broken images (failure_count >= 5 and > 1 day old)
-    cleanup_stats[:broken_images] = DB.execute(
+    result = DB.execute(
       "DELETE FROM broken_images 
        WHERE failure_count >= 5 
-       AND datetime(first_failed_at) < datetime('now', '-1 day')"
-    ).changes
+       AND #{DbHelpers.date_ago('first_failed_at', days: 1)}"
+    )
+    cleanup_stats[:broken_images] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
     
     # Remove old meme stats (no engagement and > 7 days old)
-    cleanup_stats[:old_meme_stats] = DB.execute(
+    result = DB.execute(
       "DELETE FROM meme_stats 
        WHERE likes = 0 
        AND views = 0 
-       AND datetime(updated_at) < datetime('now', '-7 days')"
-    ).changes
+       AND #{DbHelpers.date_ago('updated_at', days: 7)}"
+    )
+    cleanup_stats[:old_meme_stats] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
     
     # Clean up old experiment assignments (> 30 days)
-    cleanup_stats[:expired_experiments] = DB.execute(
+    result = DB.execute(
       "DELETE FROM experiment_assignments 
-       WHERE datetime(assigned_at) < datetime('now', '-30 days')"
-    ).changes
+       WHERE #{DbHelpers.date_ago('assigned_at', days: 30)}"
+    )
+    cleanup_stats[:expired_experiments] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
     
     puts "✅ [CLEANUP WORKER] Cleaned up:"
     puts "   - #{cleanup_stats[:broken_images]} broken images"

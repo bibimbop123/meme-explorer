@@ -31,7 +31,7 @@
     description: "Calculate leaderboard scores for all users"
     
   database_cleanup:
-    cron: '0 2 * * *'  # Daily at 2 AM
+    cron: '0 * * * *'  # Every hour (recommended for production stability)
     class: DatabaseCleanupWorker
     queue: low
     description: "Remove old broken images and stale data"

@@ -223,27 +223,8 @@ module MemeExplorer
     puts "⚠️  Could not trigger CachePreloadWorker: #{e.message}"
   end
 
-  # Hourly database cleanup (non-blocking)
-  @db_cleanup_thread = Thread.new do
-    Thread.current.name = "DBCleanupThread"
-    sleep 3600  # Wait 1 hour before first cleanup
-    loop do
-      begin
-        DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND #{DbHelpers.date_ago('first_failed_at', days: 1)}")
-        DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND #{DbHelpers.date_ago('updated_at', days: 7)}")
-        puts "✅ [DB CLEANUP] Old records removed"
-      rescue => e
-        puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
-        # Log to error tracking
-        begin
-          Sentry.capture_exception(e) if defined?(Sentry)
-        rescue
-          # Ignore Sentry errors in cleanup thread
-        end
-      end
-      sleep 3600
-    end
-  end
+  # Database cleanup now handled by DatabaseCleanupWorker via Sidekiq scheduler
+  # See config/sidekiq.yml for schedule configuration
 
   # -----------------------
   # Request Lifecycle
