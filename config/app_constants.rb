@@ -31,8 +31,7 @@ module MemeExplorerConstants
   NEW_USER_THRESHOLD = 10     # Views before user is "established"
   MAX_SELECTION_ATTEMPTS = 30 # Max attempts to find valid meme
   
-  # Spaced Repetition
-  SPACED_REPETITION_BASE = 4  # Hours multiplier (4^n)
+  # Spaced Repetition (defined in constants.rb to avoid duplication)
   
   # Rate Limiting
   REQUESTS_PER_MINUTE = 60

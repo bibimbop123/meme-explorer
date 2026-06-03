@@ -222,6 +222,8 @@ class TasteProfileService
   # @param liked_subs [Array] List of liked subreddits
   # @return [Array<Symbol>] Secondary categories
   def self.determine_secondary_categories(liked_subs)
+    return [] if liked_subs.nil? || liked_subs.empty?
+    
     category_counts = Hash.new(0)
     
     liked_subs.each do |sub|
@@ -230,7 +232,9 @@ class TasteProfileService
     end
     
     # Return top 2-3, excluding primary
-    category_counts.sort_by { |_k, v| -v }[1..2].map(&:first)
+    sorted = category_counts.sort_by { |_k, v| -v }[1..2]
+    return [] if sorted.nil?
+    sorted.map(&:first).compact
   end
 
   ##
