@@ -71,9 +71,10 @@ class MemePoolManager
         # Trigger background expansion to 5K (non-blocking)
         trigger_background_expansion
         
+        # Return memes directly from bootstrap (avoid Redis re-fetch)
         return {
           success: true,
-          memes: get_current_pool,
+          memes: bootstrap_result[:memes],
           pool_size: bootstrap_result[:size],
           error: nil
         }
@@ -110,10 +111,11 @@ class MemePoolManager
       
       puts "📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}"
       
-      { success: stored > 0, size: stored, error: stored == 0 ? "No memes passed validation" : nil }
+      # Return memes directly (don't re-fetch from Redis)
+      { success: stored > 0, size: stored, memes: validated, error: stored == 0 ? "No memes passed validation" : nil }
     rescue => e
       log_error("Bootstrap error", e)
-      { success: false, size: 0, error: e.message }
+      { success: false, size: 0, memes: [], error: e.message }
     end
     
     # Trigger background expansion to full 5K pool
