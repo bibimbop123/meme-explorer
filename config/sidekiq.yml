@@ -13,10 +13,16 @@
     class: CachePreloadWorker
     description: 'Warm cache with memes on startup'
   cache_refresh:
-    cron: '*/30 * * * *'  # Every 30 minutes (reduced API calls)
+    cron: '*/10 * * * *'  # PHASE 1: Every 10 minutes (increased from 30 for 2000+ pool)
     class: CacheRefreshWorker
     queue: default
     description: "Refresh meme cache from Reddit API"
+    
+  similar_meme_prefetch:
+    cron: '*/10 * * * *'  # PHASE 1: Every 10 minutes for instant "More Like This"
+    class: SimilarMemePrefetchWorker
+    queue: default
+    description: "Prefetch similar memes for popular subreddits (<100ms response)"
     
   image_health_check:
     cron: '*/30 * * * *'  # Every 30 minutes (proactive validation)

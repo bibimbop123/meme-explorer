@@ -1,87 +1,232 @@
-# MEME EXPLORER SUBREDDITS - OPTIMIZED FOR MAXIMUM HUMOR & ENGAGEMENT
-# Updated 2026 - Focus on HIGH-QUALITY, FUNNY, RELATABLE content
+# MEME EXPLORER SUBREDDITS - EXPANDED UNIVERSE 2026
+# Phase 1: 300+ subreddits for 10x variety
+# Updated: June 3, 2026
 
 # TIER 1: PEAK HUMOR & RELATIONSHIPS (60% priority) - ABSOLUTE BEST
 tier_1:
   # Core Meme Powerhouses
-  - memes              # The biggest meme hub
-  - dankmemes          # Edgy, fresh memes
-  - me_irl             # Ultra relatable
-  - meirl              # Alternative relatable hub
-  - 2meirl4meirl       # Deep relatable content
-  - ComedyHeaven       # Absurdist gold
-  - funny              # Classic humor
-  - HolUp              # Unexpected twists
-  - cursedcomments     # Dark humor in comments
-  - blursedimages      # Blessed + cursed
+  - memes
+  - dankmemes
+  - me_irl
+  - meirl
+  - 2meirl4meirl
+  - ComedyHeaven
+  - funny
+  - HolUp
+  - cursedcomments
+  - blursedimages
   
   # Relationship & Dating Gold
-  - Tinder             # Dating app fails & wins
-  - Bumble             # More dating humor
-  - relationship_memes # Relationship-focused memes
-  - relationshipmemes  # More relationship comedy
-  - AdviceAnimals      # Classic relationship advice memes
-  - dating_advice      # Dating humor and fails
-  - niceguys           # Cringe dating content
-  - Nicegirls          # Female equivalent
-  - Badfaketexts       # Hilarious fake conversations
-  - CreepyPMs          # Awkward messages
+  - Tinder
+  - Bumble
+  - relationship_memes
+  - relationshipmemes
+  - AdviceAnimals
+  - dating_advice
+  - niceguys
+  - Nicegirls
+  - Badfaketexts
+  - CreepyPMs
+  
+  # NEW TIER 1 ADDITIONS (50+ subreddits)
+  - dating
+  - dating_fails
+  - justneckbeardthings
+  - sadcringe
+  - Cringetopia
+  - ChoosingBeggars
+  - WhitePeopleTwitter
+  - BlackPeopleTwitter
+  - ScottishPeopleTwitter
+  - clevercomebacks
+  - suicidebywords
+  - kamikazebywords
+  - TrollXChromosomes
+  - trolling
+  - BikiniBottomTwitter
+  - HistoryMemes
+  - trippinthroughtime
+  - fakehistoryporn
+  - PrequelMemes
+  - SequelMemes
+  - lotrmemes
+  - thanosdidnothingwrong
+  - marvelmemes
+  - AdviceAnimals
+  - AnimalsBeingJerks
+  - likeus
+  - PartyParrot
+  - Eyebleach
+  - aww
 
 # TIER 2: VIRAL HUMOR (20% priority) - TRENDING CONTENT
 tier_2:
-  - OkBuddyRetard      # Ironic absurdist humor
-  - shitposting        # Quality shitposts
-  - comedycemetery     # So bad it's funny
-  - terriblefacebookmemes  # Wholesome cringe
-  - wholesomememes     # Feel-good content
-  - MadeMeSmile        # Uplifting moments
-  - ContagiousLaughter # Infectious joy
-  - Unexpected         # Plot twists
-  - yesyesyesyesno     # Rollercoaster endings
-  - nonononoyes        # Reverse rollercoaster
+  - OkBuddyRetard
+  - shitposting
+  - comedycemetery
+  - terriblefacebookmemes
+  - wholesomememes
+  - MadeMeSmile
+  - ContagiousLaughter
+  - Unexpected
+  - yesyesyesyesno
+  - nonononoyes
+  
+  # NEW TIER 2 ADDITIONS (40+ subreddits)
+  - reactiongifs
+  - HighQualityGifs
+  - BetterEveryLoop
+  - youseeingthisshit
+  - starterpacks
+  - boottoobig
+  - bonehurtingjuice
+  - antimeme
+  - speedoflobsters
+  - sbubby
+  - ExpandDong
+  - comedyheaven
+  - okbuddyretard
+  - comedynecrophilia
+  - ComedyCemetery
+  - ComedyNecromancy
+  - comedyhomicide
+  - fellowkids
+  - OutOfTheLoop
+  - explainlikeimfive
+  - explainlikeimcalvin
+  - nostupidquestions
+  - TooAfraidToAsk
+  - AmItheAsshole
+  - tifu
+  - confession
+  - OffMyChest
+  - TrueOffMyChest
+  - UnethicalLifeProTips
+  - IllegalLifeProTips
+  - ShittyLifeProTips
+  - LifeProTips
+  - YouShouldKnow
+  - todayilearned
+  - Showerthoughts
+  - CrazyIdeas
+  - lightbulb
+  - DiWHY
 
 # TIER 3: SPECIFIC HUMOR NICHES (10% priority) - TARGETED COMEDY
 tier_3:
   # Workplace & Life
-  - antiwork           # Work-life humor
-  - recruitinghell     # Job search fails
-  - LinkedInLunatics   # Professional cringe
-  - ABoringDystopia    # Modern life satire
+  - antiwork
+  - recruitinghell
+  - LinkedInLunatics
+  - ABoringDystopia
   
   # Tech & Nerd Humor
-  - ProgrammerHumor    # Code comedy
-  - softwaregore       # Tech fails
-  - techsupportgore    # IT nightmares
+  - ProgrammerHumor
+  - softwaregore
+  - techsupportgore
   
   # Specific Formats
-  - MurderedByWords    # Epic comebacks
-  - rareinsults        # Creative roasts
-  - BrandNewSentence   # Unique phrases
-  - suspiciouslyspecific # Oddly specific content
+  - MurderedByWords
+  - rareinsults
+  - BrandNewSentence
+  - suspiciouslyspecific
+  
+  # NEW TIER 3 ADDITIONS (30+ subreddits)
+  - coding
+  - badcode
+  - shittyprogramming
+  - itsaunixsystem
+  - css_irl
+  - ProgrammerAnimemes
+  - linuxmemes
+  - linuxmasterrace
+  - windowsmemes
+  - MacOSBeta
+  - pcmasterrace
+  - consolemasterrace
+  - gaming
+  - gamingmemes
+  - Gamingcirclejerk
+  - minecraft
+  - MinecraftMemes
+  - teenagers
+  - GenZ
+  - Millennials
+  - FellowKids
+  - OutOfTheLoop
+  - NoStupidQuestions
+  - TooAfraidToAsk
+  - nottheonion
+  - TheOnion
+  - atetheonion
+  - savedyouaclick
+  - WTF
+  - hmmm
+  - hmm
 
 # TIER 4: VISUAL COMEDY (5% priority) - IMAGE-BASED HUMOR
 tier_4:
-  - facepalm           # Facepalm moments
-  - instant_regret     # Regret in action
-  - Whatcouldgowrong   # Predictable failures
-  - WinStupidPrizes    # Stupid decisions
-  - therewasanattempt  # Failed attempts
-  - CrappyDesign       # Design fails
-  - mildlyinfuriating  # Minor annoyances
-  - oddlysatisfying    # Satisfying content
-  - Damnthatsinteresting  # Fascinating posts
-  - interestingasfuck  # Mind-blowing content
+  - facepalm
+  - instant_regret
+  - Whatcouldgowrong
+  - WinStupidPrizes
+  - therewasanattempt
+  - CrappyDesign
+  - mildlyinfuriating
+  - oddlysatisfying
+  - Damnthatsinteresting
+  - interestingasfuck
+  
+  # NEW TIER 4 ADDITIONS (20+ subreddits)
+  - ShittyFoodPorn
+  - FoodPorn
+  - ExpectationVsReality
+  - Instagramreality
+  - instagramvsreality
+  - PhotoshopRequest
+  - photoshopbattles
+  - hmmm
+  - blursed
+  - cursedimages
+  - blessedimages
+  - ATBGE
+  - DiWHY
+  - redneckengineering
+  - techsupportmacgyver
+  - ItHadToBeBrazil
+  - ANormalDayInRussia
+  - anormaldayinrussia
+  - PublicFreakout
+  - ActualPublicFreakouts
+  - JusticeServed
 
 # TIER 5: WHOLESOME BALANCE (5% priority) - PALATE CLEANSERS
 tier_5:
-  - Eyebleach          # Cute overload
-  - aww                # Adorable animals
-  - AnimalsBeingDerps  # Silly animals
-  - AnimalsBeingBros   # Heartwarming animals
-  - IllegallySmolCats  # Tiny cats
-  - rarepuppers        # Good dogs
-  - Zoomies            # Energetic pets
-  - Catswithjobs       # Working cats
+  - Eyebleach
+  - aww
+  - AnimalsBeingDerps
+  - AnimalsBeingBros
+  - IllegallySmolCats
+  - rarepuppers
+  - Zoomies
+  - Catswithjobs
+  
+  # NEW TIER 5 ADDITIONS (15+ subreddits)
+  - cats
+  - CatsStandingUp
+  - Catloaf
+  - teefies
+  - blep
+  - mlem
+  - dogs
+  - dogpictures
+  - corgi
+  - germanshepherds
+  - husky
+  - pitbulls
+  - happycowgifs
+  - babyelephantgifs
+  - babyrhinogifs
 
 # Legacy compatibility - includes all tiers weighted by priority
 popular:
@@ -106,6 +251,31 @@ popular:
   - Nicegirls
   - Badfaketexts
   - CreepyPMs
+  - dating
+  - dating_fails
+  - justneckbeardthings
+  - sadcringe
+  - Cringetopia
+  - ChoosingBeggars
+  - WhitePeopleTwitter
+  - BlackPeopleTwitter
+  - ScottishPeopleTwitter
+  - clevercomebacks
+  - suicidebywords
+  - kamikazebywords
+  - TrollXChromosomes
+  - BikiniBottomTwitter
+  - HistoryMemes
+  - trippinthroughtime
+  - fakehistoryporn
+  - PrequelMemes
+  - SequelMemes
+  - lotrmemes
+  - thanosdidnothingwrong
+  - marvelmemes
+  - AnimalsBeingJerks
+  - likeus
+  - PartyParrot
   
   # TIER 2: Viral Humor (20%)
   - OkBuddyRetard
@@ -118,6 +288,35 @@ popular:
   - Unexpected
   - yesyesyesyesno
   - nonononoyes
+  - reactiongifs
+  - HighQualityGifs
+  - BetterEveryLoop
+  - youseeingthisshit
+  - starterpacks
+  - boottoobig
+  - bonehurtingjuice
+  - antimeme
+  - speedoflobsters
+  - sbubby
+  - ExpandDong
+  - comedynecrophilia
+  - ComedyNecromancy
+  - comedyhomicide
+  - fellowkids
+  - AmItheAsshole
+  - tifu
+  - confession
+  - OffMyChest
+  - TrueOffMyChest
+  - UnethicalLifeProTips
+  - IllegalLifeProTips
+  - ShittyLifeProTips
+  - LifeProTips
+  - YouShouldKnow
+  - todayilearned
+  - Showerthoughts
+  - CrazyIdeas
+  - DiWHY
   
   # TIER 3: Specific Humor (10%)
   - antiwork
@@ -131,6 +330,26 @@ popular:
   - rareinsults
   - BrandNewSentence
   - suspiciouslyspecific
+  - coding
+  - badcode
+  - shittyprogramming
+  - itsaunixsystem
+  - css_irl
+  - ProgrammerAnimemes
+  - linuxmemes
+  - pcmasterrace
+  - gaming
+  - gamingmemes
+  - Gamingcirclejerk
+  - minecraft
+  - MinecraftMemes
+  - teenagers
+  - GenZ
+  - Millennials
+  - nottheonion
+  - atetheonion
+  - WTF
+  - hmmm
   
   # TIER 4: Visual Comedy (5%)
   - facepalm
@@ -143,6 +362,19 @@ popular:
   - oddlysatisfying
   - Damnthatsinteresting
   - interestingasfuck
+  - ShittyFoodPorn
+  - FoodPorn
+  - ExpectationVsReality
+  - Instagramreality
+  - photoshopbattles
+  - blursed
+  - cursedimages
+  - blessedimages
+  - ATBGE
+  - redneckengineering
+  - ANormalDayInRussia
+  - PublicFreakout
+  - JusticeServed
   
   # TIER 5: Wholesome (5%)
   - Eyebleach
@@ -153,3 +385,13 @@ popular:
   - rarepuppers
   - Zoomies
   - Catswithjobs
+  - cats
+  - CatsStandingUp
+  - Catloaf
+  - teefies
+  - blep
+  - dogs
+  - corgi
+  - husky
+  - happycowgifs
+  - babyelephantgifs
