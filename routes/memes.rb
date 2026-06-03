@@ -107,10 +107,10 @@ module Routes
             return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
           end
 
-          # For logged-in users: use database (persistent!)
+          # For logged-in users: use database with FULL INTEGRATION
           user_id = session[:user_id]
           
-          # Check if already liked in new user_liked_memes table
+          # Check if already liked in user_liked_memes table
           existing = ::DB.execute(
             "SELECT id FROM user_liked_memes WHERE user_id = ? AND meme_url = ?",
             [user_id, url]
@@ -123,63 +123,38 @@ module Routes
           else
             # Like - add to database
             ::DB.execute(
-              "INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)",
+              "INSERT INTO user_liked_memes (user_id, meme_url, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
               [user_id, url]
             )
             liked_now = true
           end
           
-          # Update global like counter
-          likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
-
-          # IMPROVEMENT: Track user-specific likes for logged-in users (if table exists)
-          if session[:user_id]
-            begin
-              # Check if user_meme_stats table exists before using it
-              tables = ::DB.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_meme_stats'")
-              if !tables.empty?
-                if liked_now
-                  # User liked - save to user_meme_stats
-                  ::DB.execute(
-                    "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at, updated_at) 
-                     VALUES (?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                     ON CONFLICT(user_id, meme_url) DO UPDATE SET 
-                     liked = 1, liked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
-                    [session[:user_id], url]
-                  )
-                else
-                  # User unliked - update user_meme_stats
-                  ::DB.execute(
-                    "UPDATE user_meme_stats SET liked = 0, unliked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
-                   WHERE user_id = ? AND meme_url = ?",
-                  [session[:user_id], url]
-                )
-                end
-              end
-            rescue => e
-              puts "⚠️ Failed to track user like: #{e.message}"
-            end
-
-            # IMPROVEMENT: Award XP for likes (gamification integration)
-            if liked_now
-              begin
-                # Extract subreddit from meme for tracking
-                meme_data = DB.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [url]).first
-                subreddit = meme_data ? meme_data["subreddit"] : "unknown"
-                
-                ActivityTrackerService.track_action('like', session[:user_id], {
-                  meme_url: url,
-                  subreddit: subreddit
-                })
-                puts "✅ [XP] Awarded 10 XP for like"
-              rescue => e
-                puts "⚠️ Failed to award XP: #{e.message}"
-              end
-            end
+          # Use EngagementService for comprehensive tracking with gamification, leaderboard, and metrics
+          result = ::EngagementService.track_like(
+            user_id: user_id,
+            meme_url: url,
+            liked_now: liked_now,
+            session: session,
+            db: ::DB
+          )
+          
+          response = {
+            success: result[:success],
+            liked: result[:liked],
+            likes: result[:likes],
+            persistent: true
+          }
+          
+          # Include XP and level-up info if available
+          if result[:xp_awarded] && result[:xp_awarded] > 0
+            response[:xp_awarded] = result[:xp_awarded]
+            response[:level_up] = result[:level_up]
+            response[:new_level] = result[:new_level] if result[:level_up]
+            puts "✅ [XP] Awarded #{result[:xp_awarded]} XP for like"
           end
 
           content_type :json
-          { liked: liked_now, likes: likes }.to_json
+          response.to_json
         end
 
         app.get "/random.json" do

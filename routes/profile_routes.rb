@@ -47,33 +47,67 @@ module Routes
         erb :profile
       end
 
-      # Save a meme to user's collection
+      # Save a meme to user's collection with FULL INTEGRATION
       app.post "/api/save-meme" do
         halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
 
         url = params[:url]
-        title = params[:title]
-        subreddit = params[:subreddit]
+        title = params[:title] || 'Unknown'
+        subreddit = params[:subreddit] || 'unknown'
 
         halt 400, { error: "URL required" }.to_json unless url
 
-        save_meme(session[:user_id], url, title, subreddit)
+        # Use EngagementService for comprehensive tracking with gamification, leaderboard, and metrics
+        result = ::EngagementService.track_save(
+          user_id: session[:user_id],
+          meme_url: url,
+          title: title,
+          subreddit: subreddit,
+          saved_now: true,
+          session: session,
+          db: ::DB
+        )
+
+        response = {
+          success: result[:success],
+          saved: true,
+          message: "Meme saved"
+        }
+        
+        # Include XP and level-up info if available
+        if result[:xp_awarded] && result[:xp_awarded] > 0
+          response[:xp_awarded] = result[:xp_awarded]
+          response[:level_up] = result[:level_up]
+          response[:new_level] = result[:new_level] if result[:level_up]
+          puts "✅ [XP] Awarded #{result[:xp_awarded]} XP for save"
+        end
 
         content_type :json
-        { saved: true, message: "Meme saved" }.to_json
+        response.to_json
       end
 
-      # Remove a meme from user's collection
+      # Remove a meme from user's collection with FULL INTEGRATION
       app.post "/api/unsave-meme" do
         halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
 
         url = params[:url]
         halt 400, { error: "URL required" }.to_json unless url
 
-        unsave_meme(session[:user_id], url)
+        # Use EngagementService for comprehensive tracking
+        result = ::EngagementService.track_save(
+          user_id: session[:user_id],
+          meme_url: url,
+          saved_now: false,
+          session: session,
+          db: ::DB
+        )
 
         content_type :json
-        { unsaved: true, message: "Meme unsaved" }.to_json
+        {
+          success: result[:success],
+          unsaved: true,
+          message: "Meme unsaved"
+        }.to_json
       end
 
       # View a specific saved meme
