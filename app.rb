@@ -58,6 +58,7 @@ require_relative 'lib/helpers/cdn_helpers'
 require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
 require_relative 'lib/services/health_check_service'
+require_relative 'lib/db_helpers'
 
 require "digest"
 
@@ -213,8 +214,8 @@ module MemeExplorer
     sleep 3600  # Wait 1 hour before first cleanup
     loop do
       begin
-        DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND datetime(first_failed_at) < datetime('now', '-1 day')")
-        DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND datetime(updated_at) < datetime('now', '-7 days')")
+        DB.execute("DELETE FROM broken_images WHERE failure_count >= 5 AND #{DbHelpers.date_ago('first_failed_at', days: 1)}")
+        DB.execute("DELETE FROM meme_stats WHERE likes = 0 AND views = 0 AND #{DbHelpers.date_ago('updated_at', days: 7)}")
         puts "✅ [DB CLEANUP] Old records removed"
       rescue => e
         puts "⚠️ [DB CLEANUP] Error: #{e.class} - #{e.message}"
