@@ -11,7 +11,7 @@ gem "activesupport", "~> 7.1"
 
 # Security
 gem "rack-protection", "~> 4.0"
-gem "rack-csrf", "~> 2.7"
+gem "rack-csrf", "~> 0.1.0"
 
 # Data and HTTP
 # Note: yaml, json, net-http are built into Ruby stdlib - removed from dependencies

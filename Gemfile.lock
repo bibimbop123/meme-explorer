@@ -33,7 +33,7 @@ GEM
       sequel
     diff-lcs (1.6.2)
     docile (1.4.1)
-    dotenv (3.1.8)
+    dotenv (2.8.1)
     drb (2.2.3)
     et-orbi (1.4.0)
       tzinfo
@@ -87,7 +87,7 @@ GEM
     pg (1.6.2)
     pg (1.6.2-arm64-darwin)
     public_suffix (7.0.5)
-    puma (7.1.0)
+    puma (6.6.1)
       nio4r (~> 2.0)
     raabro (1.4.0)
     rack (3.2.4)
@@ -187,7 +187,6 @@ GEM
       hashdiff (>= 0.4.0, < 2.0.0)
     whenever (1.0.0)
       chronic (>= 0.6.3)
-    yaml (0.4.0)
 
 PLATFORMS
   arm64-darwin-23
@@ -196,21 +195,20 @@ PLATFORMS
 DEPENDENCIES
   activesupport (~> 7.1)
   bcrypt (~> 3.1)
-  colorize
+  colorize (~> 1.1)
   connection_pool (~> 2.4)
   database_cleaner-sequel (~> 1.8)
-  dotenv
-  httparty
-  json
-  net-http
+  dotenv (~> 2.8)
+  httparty (~> 0.21)
   oauth2 (~> 2.0)
   ostruct
   pg (~> 1.5)
-  puma
+  puma (~> 6.0)
   rack-attack
   rack-csrf (~> 0.1.0)
+  rack-protection (~> 4.0)
   rack-test (~> 2.1)
-  rackup
+  rackup (~> 2.1)
   redis
   rerun
   rspec (~> 3.12)
@@ -218,14 +216,13 @@ DEPENDENCIES
   sidekiq
   sidekiq-scheduler
   simplecov (~> 0.22)
-  sinatra
-  sinatra-contrib
+  sinatra (~> 4.0)
+  sinatra-contrib (~> 4.0)
   sqlite3
   thread
   web-push
   webmock (~> 3.19)
   whenever
-  yaml
 
 RUBY VERSION
    ruby 3.2.1p31
