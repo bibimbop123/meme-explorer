@@ -1910,8 +1910,8 @@ module MemeExplorer
     total_likes = DB.get_first_value("SELECT SUM(likes) FROM meme_stats") || 0
     total_views = DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
 
-    avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
-    avg_views = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
+    avg_likes = total_memes.to_i > 0 ? (total_likes.to_f / total_memes.to_i).round(2) : 0
+    avg_views = total_memes.to_i > 0 ? (total_views.to_f / total_memes.to_i).round(2) : 0
 
     content_type :json
     {

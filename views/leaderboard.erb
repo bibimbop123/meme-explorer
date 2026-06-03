@@ -164,9 +164,11 @@
               is_current_user = session[:user_id] && entry['user_id'].to_i == session[:user_id].to_i
               entry_classes = ['leaderboard-entry']
               
-              if rank <= 3
+              # Ensure rank is integer for comparison
+              rank_int = rank.to_i
+              if rank_int <= 3
                 entry_classes << 'leaderboard-entry--podium'
-                entry_classes << "leaderboard-entry--top#{rank}"
+                entry_classes << "leaderboard-entry--top#{rank_int}"
               end
               entry_classes << 'leaderboard-entry--current-user' if is_current_user
             %>
