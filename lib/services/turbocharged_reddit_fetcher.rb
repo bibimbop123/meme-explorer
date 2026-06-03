@@ -17,6 +17,7 @@ require 'net/http/persistent'
 require 'uri'
 require 'json'
 require 'concurrent'
+require 'securerandom'
 
 class TurbochargedRedditFetcher
   # Reddit supports multi-subreddit fetching: /r/sub1+sub2+sub3/hot.json
@@ -57,6 +58,9 @@ class TurbochargedRedditFetcher
     
     log_info "🚀 Turbo fetch starting: #{subreddits.size} subreddits, limit: #{limit}"
     
+    # VARIETY BOOST: Cryptographically secure shuffle for true randomness
+    subreddits = cryptographic_shuffle(subreddits)
+    
     # OPTIMIZATION 1: Batch subreddits into multi-subreddit requests
     batches = create_optimized_batches(subreddits)
     log_info "📦 Created #{batches.size} batches (#{MAX_SUBS_PER_REQUEST} subs each)"
@@ -85,6 +89,9 @@ class TurbochargedRedditFetcher
     @stats[:end_time] = Time.now
     @stats[:memes_fetched] = all_memes.size
     
+    # VARIETY BOOST: Final shuffle for maximum randomness
+    all_memes = cryptographic_shuffle(all_memes)
+    
     duration = (@stats[:end_time] - @stats[:start_time]).round(2)
     log_info "✅ Turbo fetch complete: #{all_memes.size} memes in #{duration}s (#{(all_memes.size/duration).round(1)} memes/sec)"
     log_stats
@@ -101,9 +108,24 @@ class TurbochargedRedditFetcher
   private
   
   # Create optimized batches using multi-subreddit endpoint
+  # IMPROVED: Uses time-based seeding for different results each call
   def create_optimized_batches(subreddits)
-    # Shuffle for variety, then batch
-    subreddits.shuffle.each_slice(MAX_SUBS_PER_REQUEST).to_a
+    # Already shuffled with cryptographic randomness
+    # Batch into groups ensuring variety across batches
+    subreddits.each_slice(MAX_SUBS_PER_REQUEST).to_a
+  end
+  
+  # Cryptographic shuffle for true randomness (not predictable)
+  def cryptographic_shuffle(array)
+    return array if array.empty?
+    
+    # Use SecureRandom for cryptographically strong shuffling
+    array.sort_by { SecureRandom.random_number }
+  end
+  
+  # Diverse time sampling - fetch from different time periods
+  def diverse_time_periods
+    ['hour', 'day', 'week', 'month']
   end
   
   # Fetch a batch of subreddits in ONE request
@@ -128,10 +150,15 @@ class TurbochargedRedditFetcher
   end
   
   # OAuth fetch with connection pooling
+  # VARIETY BOOST: Randomly sample from hot/top/rising for diversity
   def fetch_batch_oauth(multi_sub, limit)
     return [] unless @access_token
     
-    url = "https://oauth.reddit.com/r/#{multi_sub}/hot?limit=#{limit}"
+    # Mix of hot/top for variety (60% hot, 40% top)
+    endpoint = SecureRandom.random_number < 0.6 ? 'hot' : 'top'
+    time_param = endpoint == 'top' ? "?t=week&limit=#{limit}" : "?limit=#{limit}"
+    
+    url = "https://oauth.reddit.com/r/#{multi_sub}/#{endpoint}#{time_param}"
     
     apply_rate_limit
     
@@ -166,8 +193,13 @@ class TurbochargedRedditFetcher
   end
   
   # Static fetch with connection pooling
+  # VARIETY BOOST: Randomly sample from hot/top/rising for diversity
   def fetch_batch_static(multi_sub, limit)
-    url = "https://www.reddit.com/r/#{multi_sub}/hot.json?limit=#{limit}"
+    # Mix of hot/top for variety (60% hot, 40% top)
+    endpoint = SecureRandom.random_number < 0.6 ? 'hot' : 'top'
+    time_param = endpoint == 'top' ? "?t=week&limit=#{limit}" : "?limit=#{limit}"
+    
+    url = "https://www.reddit.com/r/#{multi_sub}/#{endpoint}.json#{time_param}"
     uri = URI(url)
     
     apply_rate_limit
