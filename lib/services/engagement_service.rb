@@ -208,10 +208,12 @@ class EngagementService
     
     private
     
-    # Ensure meme_stats record exists
+    # Ensure meme_stats record exists (PostgreSQL compatible)
     def ensure_meme_stats_exists(meme_url, db)
       db.execute(
-        "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 0, 0)",
+        "INSERT INTO meme_stats (url, title, subreddit, likes, views) 
+         VALUES (?, ?, ?, 0, 0) 
+         ON CONFLICT (url) DO NOTHING",
         [meme_url, 'Unknown', 'unknown']
       )
     end

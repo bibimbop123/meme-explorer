@@ -246,8 +246,10 @@ module MemeExplorer
     # GAMIFICATION: Track streak and level for logged-in users
     if session[:user_id]
       begin
-        @streak_data = update_streak(session[:user_id])
-        @user_level = get_user_level(session[:user_id])
+        # Ensure user_id is an integer for DB queries
+        user_id = session[:user_id].to_i
+        @streak_data = update_streak(user_id)
+        @user_level = get_user_level(user_id)
       rescue => e
         puts "⚠️ Gamification error: #{e.message}"
         @streak_data = nil
