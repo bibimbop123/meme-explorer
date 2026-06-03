@@ -1187,78 +1187,34 @@ module MemeExplorer
       result || []
     end
 
-    # Get meme pool from cache or build fresh - prioritizes API memes with local fallback (thread-safe)
-    # NOW WITH QUALITY FILTERING: Only returns memes with valid media URLs
+    # Get meme pool - NOW USING 5,000-MEME INTELLIGENT POOL (Phase 2)
+    # Uses MemePoolManager with tier-based distribution and quality filtering
     def random_memes_pool
-      # PRIORITY 1: Return cache if it has ANY memes (populated by background thread)
-      cache_memes = MEME_CACHE.get(:memes)
-      if cache_memes.is_a?(Array) && !cache_memes.empty?
-        # FILTER: Only return memes with valid media
-        valid_memes = cache_memes.select { |m| has_valid_media?(m) }
-        puts "✅ [MEME POOL] Returning #{valid_memes.size}/#{cache_memes.size} valid memes from cache"
-        return valid_memes unless valid_memes.empty?
-      end
-
-      puts "⚠️ [MEME POOL] Cache empty, attempting direct Reddit fetch..."
-      
-      # PRIORITY 2: Try to fetch directly from Reddit (synchronous, only on cache miss)
+      # Try new 5,000-meme intelligent pool first
       begin
-        require_relative './lib/services/reddit_fetcher_service'
+        require_relative './lib/services/meme_pool_manager'
         
-        # Try OAuth first (higher rate limits)
-        access_token = begin
-          response = HTTParty.post(
-            "https://www.reddit.com/api/v1/access_token",
-            basic_auth: {
-              username: ENV['REDDIT_CLIENT_ID'],
-              password: ENV['REDDIT_CLIENT_SECRET']
-            },
-            body: { grant_type: 'client_credentials' },
-            headers: { 'User-Agent' => 'MemeExplorer/1.0' },
-            timeout: 10
-          )
-          response.success? ? response.parsed_response["access_token"] : nil
-        rescue => e
-          puts "⚠️ [MEME POOL] OAuth token fetch failed: #{e.message}"
-          nil
-        end
+        pool_result = MemePoolManager.get_pool
         
-        fetcher = RedditFetcherService.new(
-          auth_strategy: access_token ? :oauth : :static,
-          access_token: access_token
-        )
-        
-        subreddits = load_subreddits rescue %w[memes dankmemes me_irl funny wholesomememes]
-        
-        puts "🔄 [MEME POOL] Fetching from #{subreddits.size} subreddits (auth: #{access_token ? 'OAuth' : 'static'})..."
-        api_memes = fetcher.fetch_memes(subreddits, limit: 50)
-        puts "🔄 [MEME POOL] Fetch returned #{api_memes.size} memes"
-        
-        if api_memes && !api_memes.empty?
-          valid_api_memes = api_memes.select { |m| has_valid_media?(m) }
-          if !valid_api_memes.empty?
-            puts "✅ [MEME POOL] Fetched #{valid_api_memes.size} valid Reddit memes directly"
-            MEME_CACHE.set(:memes, valid_api_memes)
-            MEME_CACHE.set(:last_refresh, Time.now)
-            
-            # Queue background refresh for next time
-            MemePoolRefreshWorker.perform_async(false) if defined?(MemePoolRefreshWorker)
-            
-            return valid_api_memes
-          else
-            puts "⚠️ [MEME POOL] No valid memes after filtering (all #{api_memes.size} failed validation)"
-          end
+        if pool_result[:success] && pool_result[:memes]&.any?
+          puts "✅ [POOL] Using MemePoolManager: #{pool_result[:pool_size]} memes (tier-distributed)"
+          return pool_result[:memes]
         else
-          puts "⚠️ [MEME POOL] Fetch returned empty or nil"
+          puts "⚠️  [POOL] MemePoolManager not ready: #{pool_result[:error]}"
         end
       rescue => e
-        puts "❌ [MEME POOL] Direct Reddit fetch failed: #{e.class} - #{e.message}"
-        puts e.backtrace.first(3).join("\n") if e.backtrace
+        puts "⚠️  [POOL] MemePoolManager error: #{e.message}"
       end
-
-      puts "⚠️ [MEME POOL] Falling back to local memes"
       
-      # Always load local memes as guaranteed fallback
+      # Fallback to old cache system (backward compatible)
+      cache_memes = MEME_CACHE.get(:memes)
+      if cache_memes.is_a?(Array) && !cache_memes.empty?
+        valid_memes = cache_memes.select { |m| has_valid_media?(m) }
+        puts "✅ [POOL FALLBACK] Using legacy cache: #{valid_memes.size} memes"
+        return valid_memes unless valid_memes.empty?
+      end
+      
+      # Last resort: local memes
       local_memes = begin
         if MEMES.is_a?(Hash)
           MEMES.values.flatten.compact
@@ -1270,12 +1226,9 @@ module MemeExplorer
       rescue
         []
       end
-
-      # Filter local memes for valid media
+      
       valid_local_memes = local_memes.select { |m| has_valid_media?(m) }
-      puts "✅ [MEME POOL] Filtered to #{valid_local_memes.size}/#{local_memes.size} valid local memes"
-
-      MEME_CACHE.set(:memes, valid_local_memes.shuffle)
+      puts "✅ [POOL FALLBACK] Using local memes: #{valid_local_memes.size} memes"
       valid_local_memes
     end
 
