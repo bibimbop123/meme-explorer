@@ -258,13 +258,6 @@ module MemeExplorer
       []
     end || []
     
-    # Store large session data in Redis to avoid 4KB cookie limit
-    if REDIS && session[:user_id]
-      user_id = session[:user_id]
-      @redis_meme_history_key = "user:#{user_id}:meme_history"
-      @redis_meme_likes_key = "user:#{user_id}:meme_like_counts"
-    end
-    
     # GAMIFICATION: Track streak and level for logged-in users
     if session[:user_id]
       begin
