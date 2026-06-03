@@ -47,43 +47,79 @@ class MemePoolManager
     end
     
     # Get current pool (main entry point for app.rb)
-    # NON-BLOCKING: Returns immediately, triggers background build if needed
+    # HYBRID: Quick bootstrap on first call, then scale via Sidekiq
     def get_pool
       pool = get_current_pool
       size = pool.size
       
-      if size == 0
-        puts "⚠️  [PoolManager] Pool empty, triggering BACKGROUND build"
-        # Trigger background worker (non-blocking)
-        trigger_background_build
+      # If pool exists, return it
+      if size > 0
+        return {
+          success: true,
+          memes: pool,
+          pool_size: size,
+          error: nil
+        }
+      end
+      
+      # Pool empty - bootstrap with small quick fetch
+      puts "⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes..."
+      bootstrap_result = bootstrap_pool
+      
+      if bootstrap_result[:success]
+        puts "✅ [PoolManager] Bootstrap complete: #{bootstrap_result[:size]} memes"
+        # Trigger background expansion to 5K (non-blocking)
+        trigger_background_expansion
         
-        # Return empty immediately - fallback to local memes in app.rb
+        return {
+          success: true,
+          memes: get_current_pool,
+          pool_size: bootstrap_result[:size],
+          error: nil
+        }
+      else
+        puts "⚠️  [PoolManager] Bootstrap failed: #{bootstrap_result[:error]}"
         return {
           success: false,
           memes: [],
           pool_size: 0,
-          error: "Pool building in background, check back in 2-3 minutes"
+          error: "Bootstrap failed, using local fallback"
         }
       end
-      
-      {
-        success: true,
-        memes: pool,
-        pool_size: size,
-        error: nil
-      }
     rescue => e
       log_error("Get pool error", e)
       { success: false, memes: [], pool_size: 0, error: e.message }
     end
     
-    # Trigger background pool build (non-blocking)
-    def trigger_background_build
+    # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
+    def bootstrap_pool
+      puts "🚀 [Bootstrap] Quick fetch from top 2 tiers only..."
+      
+      # Only fetch from tier 1 & 2 for speed (most popular subreddits)
+      tier_1_subs = load_tier_subreddits(:tier_1).first(20)  # Top 20 tier 1
+      tier_2_subs = load_tier_subreddits(:tier_2).first(10)  # Top 10 tier 2
+      
+      all_subs = tier_1_subs + tier_2_subs
+      
+      fetcher = create_fetcher
+      memes = fetcher.fetch_memes(all_subs, limit: 20)  # 20 per subreddit = ~600 total
+      
+      validated = quality_filter(memes)
+      stored = store_in_pool(validated)
+      
+      { success: stored > 0, size: stored, error: stored == 0 ? "No memes fetched" : nil }
+    rescue => e
+      log_error("Bootstrap error", e)
+      { success: false, size: 0, error: e.message }
+    end
+    
+    # Trigger background expansion to full 5K pool
+    def trigger_background_expansion
       if defined?(MemePoolMaintenanceWorker)
         MemePoolMaintenanceWorker.perform_async
-        puts "✅ [PoolManager] Background build triggered via Sidekiq"
+        puts "✅ [PoolManager] Triggered background expansion to 5,000 memes"
       else
-        puts "⚠️  [PoolManager] Sidekiq not available, pool will remain empty"
+        puts "ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size"
       end
     end
     
