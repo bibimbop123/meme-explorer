@@ -24,6 +24,18 @@
     queue: default
     description: "Prefetch similar memes for popular subreddits (<100ms response)"
     
+  meme_pool_maintenance:
+    cron: '*/5 * * * *'  # PHASE 2: Every 5 minutes to maintain 5,000-meme pool
+    class: MemePoolMaintenanceWorker
+    queue: default
+    description: "Intelligent pool management with tier-based distribution"
+    
+  subreddit_discovery:
+    cron: '0 0 * * 0'  # PHASE 2: Weekly on Sunday at midnight
+    class: SubredditDiscoveryWorker
+    queue: low
+    description: "Auto-discover new quality subreddits (50+ per week)"
+    
   image_health_check:
     cron: '*/30 * * * *'  # Every 30 minutes (proactive validation)
     class: ImageHealthWorker

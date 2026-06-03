@@ -1,0 +1,273 @@
+# Meme Pool Manager - Phase 2
+# Intelligent 5,000-meme pool management with tier-based distribution
+# Created: June 3, 2026
+
+require_relative 'reddit_fetcher_service'
+require_relative 'quality_pipeline_service'
+require_relative 'redis_service'
+require 'yaml'
+
+class MemePoolManager
+  TARGET_POOL_SIZE = 5000
+  MIN_POOL_SIZE = 1000
+  
+  # Tier distribution for balanced variety
+  TIER_DISTRIBUTION = {
+    tier_1: 0.60,  # 3,000 memes - Peak Humor & Relationships
+    tier_2: 0.20,  # 1,000 memes - Viral Humor
+    tier_3: 0.10,  # 500 memes - Specific Niches
+    tier_4: 0.05,  # 250 memes - Visual Comedy
+    tier_5: 0.05   # 250 memes - Wholesome
+  }.freeze
+  
+  class << self
+    # Main entry point - maintains pool at target size
+    def maintain_pool!
+      puts "🔄 [PoolManager] Starting pool maintenance..."
+      current_size = get_pool_size
+      
+      if current_size < MIN_POOL_SIZE
+        puts "⚠️  [PoolManager] Pool below minimum (#{current_size} < #{MIN_POOL_SIZE})"
+        fetch_batch(size: 1000, priority: :high)
+      elsif current_size < TARGET_POOL_SIZE
+        needed = TARGET_POOL_SIZE - current_size
+        puts "📊 [PoolManager] Pool at #{current_size}/#{TARGET_POOL_SIZE}, fetching #{needed} memes"
+        fetch_batch(size: needed)
+      else
+        puts "✅ [PoolManager] Pool at target size (#{current_size}), replacing stale content"
+        replace_stale(percentage: 0.2)
+      end
+      
+      final_size = get_pool_size
+      puts "✅ [PoolManager] Maintenance complete: #{final_size} memes in pool"
+      { success: true, pool_size: final_size }
+    rescue => e
+      log_error("Pool maintenance error", e)
+      { success: false, error: e.message }
+    end
+    
+    # Fetch a batch of memes with tier-based distribution
+    def fetch_batch(size:, priority: :normal)
+      puts "📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})"
+      
+      # Calculate tier distribution
+      tier_counts = TIER_DISTRIBUTION.map do |tier, percentage|
+        [tier, (size * percentage).to_i]
+      end.to_h
+      
+      # Parallel fetch from all tiers
+      threads = tier_counts.map do |tier, count|
+        Thread.new { fetch_from_tier(tier, count) }
+      end
+      
+      # Collect all fetched memes
+      all_memes = threads.flat_map(&:value)
+      puts "📦 [PoolManager] Fetched #{all_memes.size} memes total"
+      
+      # Apply quality pipeline
+      validated_memes = quality_filter(all_memes)
+      puts "✅ [PoolManager] #{validated_memes.size} memes passed quality filter"
+      
+      # Store in pool
+      stored_count = store_in_pool(validated_memes)
+      puts "💾 [PoolManager] Stored #{stored_count} memes in pool"
+      
+      { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count }
+    rescue => e
+      log_error("Fetch batch error", e)
+      { fetched: 0, validated: 0, stored: 0, error: e.message }
+    end
+    
+    # Replace stale memes with fresh content
+    def replace_stale(percentage: 0.2)
+      current_pool = get_current_pool
+      stale_count = (current_pool.size * percentage).to_i
+      
+      puts "🔄 [PoolManager] Replacing #{stale_count} stale memes (#{(percentage * 100).to_i}%)"
+      
+      # Find oldest memes
+      stale_urls = find_stale_memes(current_pool, stale_count)
+      
+      # Remove stale memes
+      remove_from_pool(stale_urls)
+      
+      # Fetch fresh replacements
+      fetch_batch(size: stale_count)
+      
+      { replaced: stale_count }
+    rescue => e
+      log_error("Replace stale error", e)
+      { replaced: 0, error: e.message }
+    end
+    
+    private
+    
+    # Fetch memes from a specific tier
+    def fetch_from_tier(tier, count)
+      puts "  📍 [PoolManager] Fetching #{count} memes from #{tier}"
+      
+      subreddits = load_tier_subreddits(tier)
+      return [] if subreddits.empty?
+      
+      # Calculate memes per subreddit
+      memes_per_sub = [count / subreddits.size, 1].max
+      
+      # Use Reddit Fetcher Service
+      fetcher = create_fetcher
+      memes = fetcher.fetch_memes(subreddits, limit: memes_per_sub)
+      
+      puts "  ✅ [PoolManager] Got #{memes.size} memes from #{tier}"
+      memes
+    rescue => e
+      log_error("Fetch from tier #{tier} error", e)
+      []
+    end
+    
+    # Apply quality pipeline to filter memes
+    def quality_filter(memes)
+      return [] if memes.empty?
+      
+      if defined?(QualityPipelineService)
+        memes.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
+      else
+        # Basic filtering if pipeline not available
+        memes.select do |meme|
+          meme["url"] && meme["title"] && meme["subreddit"]
+        end
+      end
+    rescue => e
+      log_error("Quality filter error", e)
+      memes # Return unfiltered on error
+    end
+    
+    # Store memes in Redis pool
+    def store_in_pool(memes)
+      return 0 if memes.empty?
+      
+      # Get current pool
+      current_pool = get_current_pool
+      
+      # Add new memes (avoid duplicates by URL)
+      existing_urls = current_pool.map { |m| m["url"] }.to_set
+      new_memes = memes.reject { |m| existing_urls.include?(m["url"]) }
+      
+      # Update pool
+      updated_pool = current_pool + new_memes
+      
+      # Store in Redis
+      RedisService.set('meme_pool', updated_pool.to_json)
+      RedisService.set('meme_pool:count', updated_pool.size)
+      RedisService.set('meme_pool:updated_at', Time.now.to_s)
+      
+      new_memes.size
+    rescue => e
+      log_error("Store in pool error", e)
+      0
+    end
+    
+    # Get current pool size
+    def get_pool_size
+      cached_count = RedisService.get('meme_pool:count')
+      return cached_count.to_i if cached_count
+      
+      pool = get_current_pool
+      pool.size
+    rescue => e
+      log_error("Get pool size error", e)
+      0
+    end
+    
+    # Get current pool from Redis
+    def get_current_pool
+      cached = RedisService.get('meme_pool')
+      return JSON.parse(cached) if cached
+      
+      []
+    rescue => e
+      log_error("Get current pool error", e)
+      []
+    end
+    
+    # Find stale memes (oldest by timestamp)
+    def find_stale_memes(pool, count)
+      return [] if pool.empty?
+      
+      # Sort by created_at or fetched_at (oldest first)
+      sorted = pool.sort_by do |meme|
+        timestamp = meme["fetched_at"] || meme["created_at"] || Time.now.to_s
+        Time.parse(timestamp) rescue Time.now
+      end
+      
+      # Take oldest N memes
+      sorted.first(count).map { |m| m["url"] }
+    rescue => e
+      log_error("Find stale memes error", e)
+      []
+    end
+    
+    # Remove memes from pool by URL
+    def remove_from_pool(urls)
+      return 0 if urls.empty?
+      
+      pool = get_current_pool
+      original_size = pool.size
+      
+      # Filter out URLs to remove
+      updated_pool = pool.reject { |m| urls.include?(m["url"]) }
+      
+      # Update Redis
+      RedisService.set('meme_pool', updated_pool.to_json)
+      RedisService.set('meme_pool:count', updated_pool.size)
+      
+      original_size - updated_pool.size
+    rescue => e
+      log_error("Remove from pool error", e)
+      0
+    end
+    
+    # Load subreddits for a specific tier
+    def load_tier_subreddits(tier)
+      data = YAML.load_file('data/subreddits.yml')
+      data[tier.to_s] || []
+    rescue => e
+      log_error("Load tier subreddits error for #{tier}", e)
+      []
+    end
+    
+    # Create Reddit fetcher with appropriate auth
+    def create_fetcher
+      client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
+      client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+      
+      if !client_id.empty? && !client_secret.empty?
+        require 'oauth2'
+        
+        client = OAuth2::Client.new(
+          client_id,
+          client_secret,
+          site: "https://www.reddit.com",
+          authorize_url: "/api/v1/authorize",
+          token_url: "/api/v1/access_token"
+        )
+        
+        token = client.client_credentials.get_token(scope: "read")
+        RedditFetcherService.new(auth_strategy: :oauth, access_token: token.token)
+      else
+        RedditFetcherService.new(auth_strategy: :static)
+      end
+    rescue => e
+      log_error("Create fetcher error", e)
+      RedditFetcherService.new(auth_strategy: :static)
+    end
+    
+    # Centralized error logging
+    def log_error(context, error)
+      message = error.is_a?(String) ? error : error.message
+      puts "⚠️  [PoolManager] #{context}: #{message}"
+      
+      if defined?(Sentry) && error.is_a?(Exception)
+        Sentry.capture_exception(error, extra: { context: context })
+      end
+    end
+  end
+end
