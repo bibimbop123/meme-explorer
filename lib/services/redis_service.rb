@@ -151,11 +151,23 @@ class RedisService
         }
       end
     rescue => e
+      pool_size = begin
+        REDIS_POOL.size
+      rescue
+        0
+      end
+      
+      pool_available = begin
+        REDIS_POOL.available
+      rescue
+        0
+      end
+      
       { 
         available: false, 
         error: e.message,
-        pool_size: REDIS_POOL.size rescue 0,
-        pool_available: REDIS_POOL.available rescue 0
+        pool_size: pool_size,
+        pool_available: pool_available
       }
     end
     
