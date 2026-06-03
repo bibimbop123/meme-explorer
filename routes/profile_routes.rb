@@ -4,7 +4,7 @@
 module Routes
   module ProfileRoutes
     def self.registered(app)
-      # User profile page
+      # User profile page with ENHANCED ENGAGEMENT STATS
       app.get "/profile" do
         # Check session safely
         user_id = session[:user_id] rescue nil
@@ -21,10 +21,10 @@ module Routes
           
           @saved_memes = get_user_saved_memes(user_id) || []
           
-          # Get user's liked memes from user_meme_stats
+          # Get user's liked memes from user_liked_memes table (source of truth)
           @liked_memes = begin
             results = MemeExplorer::App::DB.execute(
-              "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC",
+              "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
               [user_id]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
@@ -32,6 +32,12 @@ module Routes
             puts "Error fetching liked memes: #{e.message}"
             []
           end
+          
+          # Get comprehensive engagement stats from EngagementService
+          @engagement_stats = ::EngagementService.user_stats(
+            user_id: user_id,
+            db: ::DB
+          )
       
         rescue => e
           # Log the error and return proper error response
@@ -40,9 +46,15 @@ module Routes
           halt 500, "Error loading profile: #{e.message}"
         end
       
-        # Count stats
+        # Count stats (with fallback to engagement service)
         @saved_count = @saved_memes.size
         @liked_count = @liked_memes.size
+        
+        # Add comprehensive stats for display
+        @total_xp = @engagement_stats[:total_xp] || 0
+        @level = @engagement_stats[:level] || 1
+        @weekly_rank = @engagement_stats[:weekly_rank]
+        @current_streak = @engagement_stats[:current_streak] || 0
       
         erb :profile
       end
