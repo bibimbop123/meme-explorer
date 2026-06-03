@@ -16,6 +16,8 @@ gem "rack-csrf", "~> 0.1.0"
 # Data and HTTP
 # Note: yaml, json, net-http are built into Ruby stdlib - removed from dependencies
 gem "httparty", "~> 0.21"
+gem "net-http-persistent", "~> 4.0"  # HTTP connection pooling for performance
+gem "concurrent-ruby", "~> 1.2"      # Thread pools and concurrent operations
 gem "colorize", "~> 1.1"
 gem "dotenv", "~> 2.8"
 

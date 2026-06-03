@@ -73,6 +73,8 @@ GEM
       ruby2_keywords (~> 0.0.1)
     net-http (0.7.0)
       uri
+    net-http-persistent (4.0.8)
+      connection_pool (>= 2.2.4, < 4)
     nio4r (2.7.4)
     oauth2 (2.0.17)
       faraday (>= 0.17.3, < 4.0)
@@ -196,10 +198,12 @@ DEPENDENCIES
   activesupport (~> 7.1)
   bcrypt (~> 3.1)
   colorize (~> 1.1)
+  concurrent-ruby (~> 1.2)
   connection_pool (~> 2.4)
   database_cleaner-sequel (~> 1.8)
   dotenv (~> 2.8)
   httparty (~> 0.21)
+  net-http-persistent (~> 4.0)
   oauth2 (~> 2.0)
   ostruct
   pg (~> 1.5)

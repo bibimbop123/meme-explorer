@@ -3,6 +3,7 @@
 # Created: June 3, 2026
 
 require_relative 'reddit_fetcher_service'
+require_relative 'turbocharged_reddit_fetcher'
 require_relative 'quality_pipeline_service'
 require_relative 'redis_service'
 require 'yaml'
@@ -323,9 +324,12 @@ class MemePoolManager
     end
     
     # Create Reddit fetcher with appropriate auth
-    def create_fetcher
+    # USE TURBOCHARGED FETCHER FOR 5-10x PERFORMANCE BOOST
+    def create_fetcher(use_turbo: true)
       client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
       client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+      
+      fetcher_class = use_turbo ? TurbochargedRedditFetcher : RedditFetcherService
       
       if !client_id.empty? && !client_secret.empty?
         require 'oauth2'
@@ -339,13 +343,13 @@ class MemePoolManager
         )
         
         token = client.client_credentials.get_token(scope: "read")
-        RedditFetcherService.new(auth_strategy: :oauth, access_token: token.token)
+        fetcher_class.new(auth_strategy: :oauth, access_token: token.token)
       else
-        RedditFetcherService.new(auth_strategy: :static)
+        fetcher_class.new(auth_strategy: :static)
       end
     rescue => e
       log_error("Create fetcher error", e)
-      RedditFetcherService.new(auth_strategy: :static)
+      fetcher_class.new(auth_strategy: :static)
     end
     
     # Centralized error logging
