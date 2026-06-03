@@ -7,7 +7,7 @@ require_relative '../db/setup'
 puts "🔧 Applying Missing Tables Migration..."
 puts "Database: #{ENV['DATABASE_URL'] ? 'PostgreSQL (Production)' : 'SQLite (Development)'}"
 
-migration_sql = File.read(File.join(__DIR__, '../db/migrations/create_missing_tables_postgresql.sql'))
+# Note: __dir__ is lowercase in Ruby, not __DIR__
 
 # PostgreSQL doesn't support CREATE INDEX inside CREATE TABLE
 # So we need to modify the SQL for PostgreSQL
