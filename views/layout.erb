@@ -476,10 +476,17 @@
         // Wait for service worker to be ready
         await navigator.serviceWorker.ready;
         
+        // Check if VAPID key is configured
+        const vapidKey = '<%= ENV["VAPID_PUBLIC_KEY"] %>';
+        if (!vapidKey || vapidKey === '') {
+          console.log('⚠️ Push notifications not configured (missing VAPID_PUBLIC_KEY)');
+          return;
+        }
+        
         // Subscribe to push notifications
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: '<%= ENV["VAPID_PUBLIC_KEY"] %>'
+          applicationServerKey: vapidKey
         });
         
         console.log('🔔 Push subscription obtained, saving to server...');

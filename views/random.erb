@@ -433,13 +433,12 @@
       console.log('🔄 [LOAD MEME] Starting fetch to /random.json...');
       const data = await cachedFetch('/random.json');
       
-      console.log('✅ [LOAD MEME] JSON received:', {
-        url: data.url,
-        title: data.title,
-        subreddit: data.subreddit,
-        is_gallery: data.is_gallery || false,
-        gallery_images_count: (data.gallery_images || []).length
-      });
+      console.log('✅ [LOAD MEME] JSON received:', data);
+      
+      // Validate response data
+      if (!data || !data.url) {
+        throw new Error(`Invalid meme data: ${JSON.stringify(data)}`);
+      }
       
       // Update current meme object WITH gallery_images and media_type
       currentMeme = {
