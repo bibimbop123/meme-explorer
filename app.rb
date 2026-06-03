@@ -202,7 +202,7 @@ module MemeExplorer
     set :reddit_oauth_client_id, REDDIT_OAUTH_CLIENT_ID
     set :reddit_oauth_client_secret, REDDIT_OAUTH_CLIENT_SECRET
     set :reddit_redirect_uri, REDDIT_REDIRECT_URI
-    set :redis, REDIS
+    # Redis now managed by RedisService (Week 1 fix)
   end
 
   # Load tier configuration
