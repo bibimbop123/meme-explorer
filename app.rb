@@ -175,9 +175,10 @@ module MemeExplorer
   
   # SESSION_SECRET: Require explicit value in production (no fallback)
   configure :production do
-    set :session_secret, ENV.fetch("SESSION_SECRET") do
+    secret = ENV.fetch("SESSION_SECRET") do
       raise "SESSION_SECRET environment variable must be set in production!"
     end
+    set :session_secret, secret
   end
   
   configure :development, :test do
