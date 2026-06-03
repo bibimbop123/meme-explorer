@@ -1209,11 +1209,34 @@ module MemeExplorer
       # PRIORITY 2: Try to fetch directly from Reddit (synchronous, only on cache miss)
       begin
         require_relative './lib/services/reddit_fetcher_service'
-        fetcher = RedditFetcherService.new(auth_strategy: :static)
+        
+        # Try OAuth first (higher rate limits)
+        access_token = begin
+          response = HTTParty.post(
+            "https://www.reddit.com/api/v1/access_token",
+            basic_auth: {
+              username: ENV['REDDIT_CLIENT_ID'],
+              password: ENV['REDDIT_CLIENT_SECRET']
+            },
+            body: { grant_type: 'client_credentials' },
+            headers: { 'User-Agent' => 'MemeExplorer/1.0' },
+            timeout: 10
+          )
+          response.success? ? response.parsed_response["access_token"] : nil
+        rescue => e
+          puts "⚠️ [MEME POOL] OAuth token fetch failed: #{e.message}"
+          nil
+        end
+        
+        fetcher = RedditFetcherService.new(
+          auth_strategy: access_token ? :oauth : :static,
+          access_token: access_token
+        )
+        
         subreddits = load_subreddits rescue %w[memes dankmemes me_irl funny wholesomememes]
         
-        puts "🔄 [MEME POOL] Fetching from #{subreddits.size} subreddits..."
-        api_memes = fetcher.fetch_memes(subreddits, limit: 30)
+        puts "🔄 [MEME POOL] Fetching from #{subreddits.size} subreddits (auth: #{access_token ? 'OAuth' : 'static'})..."
+        api_memes = fetcher.fetch_memes(subreddits, limit: 50)
         puts "🔄 [MEME POOL] Fetch returned #{api_memes.size} memes"
         
         if api_memes && !api_memes.empty?
