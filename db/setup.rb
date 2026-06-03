@@ -47,6 +47,14 @@ if DATABASE_URL&.start_with?("postgres")
       result = execute(sql, params)
       result.first&.values&.first
     end
+    
+    def last_insert_row_id
+      # PostgreSQL uses RETURNING clause or currval()
+      # For INSERT statements, we should use RETURNING id
+      # This is a fallback that gets the last value from the sequence
+      result = execute("SELECT lastval() AS id")
+      result.first&.[]("id")
+    end
   end
   
   puts "✅ PostgreSQL connected (pool: 25 connections)"
