@@ -32,9 +32,9 @@ module MemeExplorer
       
       # Redis health
       begin
-        if REDIS
-          REDIS.ping
-          health_status[:checks][:redis] = {
+        if defined?(RedisService)
+          redis_stats = RedisService.stats
+          health_status[:checks][:redis] = redis_stats.merge(
             status: 'healthy',
             connected: true
           }
