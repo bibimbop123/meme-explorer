@@ -27,6 +27,7 @@ module GamificationHelpers
   
   # Update user's daily streak
   def update_streak(user_id)
+    user_id = user_id.to_i if user_id.is_a?(String)  # Type conversion fix
     return nil unless user_id
     
     begin
@@ -162,6 +163,7 @@ module GamificationHelpers
   
   # Add XP to user and check for level ups
   def add_xp(user_id, activity)
+    user_id = user_id.to_i if user_id.is_a?(String)  # Type conversion fix
     return nil unless user_id
     
     xp_amount = xp_rewards[activity] || 0
@@ -247,6 +249,7 @@ module GamificationHelpers
   
   # Get user's level info
   def get_user_level(user_id)
+    user_id = user_id.to_i if user_id.is_a?(String)  # Type conversion fix
     return nil unless user_id
     
     level_data = DB.execute(
