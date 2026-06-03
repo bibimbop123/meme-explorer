@@ -1,5 +1,18 @@
 require './app'
 
+# Initialize meme pool cache on startup
+begin
+  if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
+    puts "🚀 [STARTUP] Triggering initial meme pool refresh..."
+    MemePoolRefreshWorker.perform_async(true)  # Force refresh on startup
+    puts "✅ [STARTUP] Meme pool refresh job queued"
+  else
+    puts "⚠️  [STARTUP] MemePoolRefreshWorker or Sidekiq not available - cache will be empty until first refresh"
+  end
+rescue => e
+  puts "❌ [STARTUP] Failed to queue meme pool refresh: #{e.message}"
+end
+
 # Mount Sidekiq Web UI with authentication (production only)
 if ENV['RACK_ENV'] == 'production'
   begin
