@@ -104,10 +104,13 @@ class MemePoolManager
       fetcher = create_fetcher
       memes = fetcher.fetch_memes(all_subs, limit: 20)  # 20 per subreddit = ~600 total
       
-      validated = quality_filter(memes)
+      # SKIP quality filter on bootstrap for speed (basic validation only)
+      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
       stored = store_in_pool(validated)
       
-      { success: stored > 0, size: stored, error: stored == 0 ? "No memes fetched" : nil }
+      puts "📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}"
+      
+      { success: stored > 0, size: stored, error: stored == 0 ? "No memes passed validation" : nil }
     rescue => e
       log_error("Bootstrap error", e)
       { success: false, size: 0, error: e.message }
