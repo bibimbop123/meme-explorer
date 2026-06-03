@@ -47,26 +47,44 @@ class MemePoolManager
     end
     
     # Get current pool (main entry point for app.rb)
+    # NON-BLOCKING: Returns immediately, triggers background build if needed
     def get_pool
       pool = get_current_pool
       size = pool.size
       
       if size == 0
-        puts "⚠️  [PoolManager] Pool empty, triggering build"
-        build_pool!
-        pool = get_current_pool
-        size = pool.size
+        puts "⚠️  [PoolManager] Pool empty, triggering BACKGROUND build"
+        # Trigger background worker (non-blocking)
+        trigger_background_build
+        
+        # Return empty immediately - fallback to local memes in app.rb
+        return {
+          success: false,
+          memes: [],
+          pool_size: 0,
+          error: "Pool building in background, check back in 2-3 minutes"
+        }
       end
       
       {
-        success: size > 0,
+        success: true,
         memes: pool,
         pool_size: size,
-        error: size == 0 ? "Pool empty" : nil
+        error: nil
       }
     rescue => e
       log_error("Get pool error", e)
       { success: false, memes: [], pool_size: 0, error: e.message }
+    end
+    
+    # Trigger background pool build (non-blocking)
+    def trigger_background_build
+      if defined?(MemePoolMaintenanceWorker)
+        MemePoolMaintenanceWorker.perform_async
+        puts "✅ [PoolManager] Background build triggered via Sidekiq"
+      else
+        puts "⚠️  [PoolManager] Sidekiq not available, pool will remain empty"
+      end
     end
     
     # Build pool from scratch
