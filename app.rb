@@ -1204,7 +1204,34 @@ module MemeExplorer
         return valid_memes unless valid_memes.empty?
       end
 
-      puts "⚠️ [MEME POOL] Cache empty or no valid memes, using local memes fallback"
+      puts "⚠️ [MEME POOL] Cache empty, attempting direct Reddit fetch..."
+      
+      # PRIORITY 2: Try to fetch directly from Reddit (synchronous, only on cache miss)
+      begin
+        require_relative './lib/services/reddit_fetcher_service'
+        fetcher = RedditFetcherService.new(auth_strategy: :static)
+        subreddits = load_subreddits rescue %w[memes dankmemes me_irl funny wholesomememes]
+        
+        api_memes = fetcher.fetch_memes(subreddits, limit: 30)
+        
+        if api_memes && !api_memes.empty?
+          valid_api_memes = api_memes.select { |m| has_valid_media?(m) }
+          if !valid_api_memes.empty?
+            puts "✅ [MEME POOL] Fetched #{valid_api_memes.size} valid Reddit memes directly"
+            MEME_CACHE.set(:memes, valid_api_memes)
+            MEME_CACHE.set(:last_refresh, Time.now)
+            
+            # Queue background refresh for next time
+            MemePoolRefreshWorker.perform_async(false) if defined?(MemePoolRefreshWorker)
+            
+            return valid_api_memes
+          end
+        end
+      rescue => e
+        puts "⚠️ [MEME POOL] Direct Reddit fetch failed: #{e.message}"
+      end
+
+      puts "⚠️ [MEME POOL] Falling back to local memes"
       
       # Always load local memes as guaranteed fallback
       local_memes = begin

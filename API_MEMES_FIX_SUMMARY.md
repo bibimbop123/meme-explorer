@@ -16,20 +16,43 @@ The `MemePoolRefreshWorker` existed and was properly implemented but **was never
 3. No Reddit API memes were ever fetched
 
 ## Solution
-Added startup initialization in `config.ru` to trigger the `MemePoolRefreshWorker` when the application boots:
+Modified `random_memes_pool` function in `app.rb` to fetch Reddit memes synchronously when cache is empty:
+
+**The fix works in 3 priorities:**
+1. **PRIORITY 1**: Check cache (instant if populated)
+2. **PRIORITY 2 (NEW!)**: If cache empty, fetch directly from Reddit synchronously
+3. **PRIORITY 3**: Fall back to local memes only if Reddit fetch fails
 
 ```ruby
-# Initialize meme pool cache on startup
-begin
-  if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
-    puts "🚀 [STARTUP] Triggering initial meme pool refresh..."
-    MemePoolRefreshWorker.perform_async(true)  # Force refresh on startup
-    puts "✅ [STARTUP] Meme pool refresh job queued"
-  else
-    puts "⚠️  [STARTUP] MemePoolRefreshWorker or Sidekiq not available"
+def random_memes_pool
+  # PRIORITY 1: Return cache if populated
+  cache_memes = MEME_CACHE.get(:memes)
+  return cache_memes if cache_memes.is_a?(Array) && !cache_memes.empty?
+
+  # PRIORITY 2: Fetch directly from Reddit (NEW!)
+  puts "⚠️ [MEME POOL] Cache empty, attempting direct Reddit fetch..."
+  begin
+    require_relative './lib/services/reddit_fetcher_service'
+    fetcher = RedditFetcherService.new(auth_strategy: :static)
+    subreddits = load_subreddits rescue %w[memes dankmemes me_irl funny wholesomememes]
+    
+    api_memes = fetcher.fetch_memes(subreddits, limit: 30)
+    
+    if api_memes && !api_memes.empty?
+      valid_api_memes = api_memes.select { |m| has_valid_media?(m) }
+      if !valid_api_memes.empty?
+        puts "✅ [MEME POOL] Fetched #{valid_api_memes.size} valid Reddit memes directly"
+        MEME_CACHE.set(:memes, valid_api_memes)
+        return valid_api_memes
+      end
+    end
+  rescue => e
+    puts "⚠️ [MEME POOL] Direct Reddit fetch failed: #{e.message}"
   end
-rescue => e
-  puts "❌ [STARTUP] Failed to queue meme pool refresh: #{e.message}"
+
+  # PRIORITY 3: Fall back to local memes
+  puts "⚠️ [MEME POOL] Falling back to local memes"
+  # ... local meme loading code ...
 end
 ```
 
