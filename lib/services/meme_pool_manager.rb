@@ -46,6 +46,35 @@ class MemePoolManager
       { success: false, error: e.message }
     end
     
+    # Get current pool (main entry point for app.rb)
+    def get_pool
+      pool = get_current_pool
+      size = pool.size
+      
+      if size == 0
+        puts "⚠️  [PoolManager] Pool empty, triggering build"
+        build_pool!
+        pool = get_current_pool
+        size = pool.size
+      end
+      
+      {
+        success: size > 0,
+        memes: pool,
+        pool_size: size,
+        error: size == 0 ? "Pool empty" : nil
+      }
+    rescue => e
+      log_error("Get pool error", e)
+      { success: false, memes: [], pool_size: 0, error: e.message }
+    end
+    
+    # Build pool from scratch
+    def build_pool!
+      puts "🔨 [PoolManager] Building pool from scratch..."
+      fetch_batch(size: TARGET_POOL_SIZE, priority: :high)
+    end
+    
     # Fetch a batch of memes with tier-based distribution
     def fetch_batch(size:, priority: :normal)
       puts "📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})"
