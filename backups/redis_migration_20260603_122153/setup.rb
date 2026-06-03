@@ -201,32 +201,10 @@ else
   end
 end
 
-# Redis Configuration with Connection Pooling
-# CRITICAL FIX: Use connection pool for thread safety (32 Puma threads)
-# See: SENIOR_DEV_REDIS_AUDIT_2026.md
-
-REDIS_URL = ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')
-
-REDIS_POOL = ConnectionPool.new(size: 40, timeout: 5) do
-  Redis.new(
-    url: REDIS_URL,
-    driver: :ruby,
-    reconnect_attempts: 3,
-    reconnect_delay: 0.5,
-    reconnect_delay_max: 5
-  )
-end
-
-# Legacy REDIS constant for backward compatibility during migration
-# TODO: Gradually migrate all code to use REDIS_POOL.with { |r| r.method }
-REDIS = REDIS_POOL.with { |conn| conn } rescue nil
-
-puts "✅ Redis Pool initialized (size: 40, timeout: 5s, URL: #{REDIS_URL ? 'configured' : 'not set'})"
-
-# Test connection
-begin
-  REDIS_POOL.with { |r| r.ping }
-  puts "✅ Redis connection verified"
+# Redis
+REDIS = begin
+  Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
 rescue => e
-  puts "⚠️  Redis connection warning: #{e.message}"
+  puts "⚠️ Redis connection warning: #{e.message}"
+  nil
 end

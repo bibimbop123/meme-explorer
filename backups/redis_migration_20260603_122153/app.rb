@@ -53,7 +53,7 @@ require_relative "./lib/services/meme_service"
 require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/services/reddit_fetcher_service"
-require_relative "./lib/middleware/request_timer" 
+require_relative "./lib/middleware/request_timer"
 require_relative 'lib/helpers/cdn_helpers'
 require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
@@ -103,8 +103,18 @@ module MemeExplorer
   # -----------------------
   # Redis & DB
   # -----------------------
-  # REDIS initialization moved to db/setup.rb for centralized connection management
-  # This eliminates duplicate connection leak (see SENIOR_DEV_REDIS_AUDIT_2026.md)
+  REDIS_URL = ENV.fetch("REDIS_URL", nil)
+  REDIS = begin
+    if REDIS_URL
+      Redis.new(url: REDIS_URL)
+    else
+      puts "⚠️  WARNING: REDIS_URL not configured. Redis cache disabled."
+      nil
+    end
+  rescue => e
+    puts "❌ Redis connection failed: #{e.class} - #{e.message}"
+    nil
+  end
   DB = ::DB
   
   # Thread safety handled by CacheManager

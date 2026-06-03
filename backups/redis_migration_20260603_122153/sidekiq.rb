@@ -10,10 +10,7 @@ rescue LoadError
 end
 
 Sidekiq.configure_server do |config|
-  config.redis = { 
-    url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
-    namespace: 'sidekiq'  # CRITICAL: Separate Sidekiq data from app cache
-  }
+  config.redis = { url: ENV['REDIS_URL'] || 'redis://localhost:6379/0' }
   
   # Load schedule from config file if scheduler is available
   if $sidekiq_scheduler_available
@@ -32,10 +29,7 @@ Sidekiq.configure_server do |config|
 end
 
 Sidekiq.configure_client do |config|
-  config.redis = { 
-    url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
-    namespace: 'sidekiq'  # CRITICAL: Separate Sidekiq data from app cache
-  }
+  config.redis = { url: ENV['REDIS_URL'] || 'redis://localhost:6379/0' }
 end
 
 puts "✅ Sidekiq configured (Redis: #{ENV['REDIS_URL'] || 'redis://localhost:6379/0'})"
