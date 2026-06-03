@@ -1212,7 +1212,9 @@ module MemeExplorer
         fetcher = RedditFetcherService.new(auth_strategy: :static)
         subreddits = load_subreddits rescue %w[memes dankmemes me_irl funny wholesomememes]
         
+        puts "🔄 [MEME POOL] Fetching from #{subreddits.size} subreddits..."
         api_memes = fetcher.fetch_memes(subreddits, limit: 30)
+        puts "🔄 [MEME POOL] Fetch returned #{api_memes.size} memes"
         
         if api_memes && !api_memes.empty?
           valid_api_memes = api_memes.select { |m| has_valid_media?(m) }
@@ -1225,10 +1227,15 @@ module MemeExplorer
             MemePoolRefreshWorker.perform_async(false) if defined?(MemePoolRefreshWorker)
             
             return valid_api_memes
+          else
+            puts "⚠️ [MEME POOL] No valid memes after filtering (all #{api_memes.size} failed validation)"
           end
+        else
+          puts "⚠️ [MEME POOL] Fetch returned empty or nil"
         end
       rescue => e
-        puts "⚠️ [MEME POOL] Direct Reddit fetch failed: #{e.message}"
+        puts "❌ [MEME POOL] Direct Reddit fetch failed: #{e.class} - #{e.message}"
+        puts e.backtrace.first(3).join("\n") if e.backtrace
       end
 
       puts "⚠️ [MEME POOL] Falling back to local memes"
