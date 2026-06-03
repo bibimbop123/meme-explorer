@@ -43,7 +43,12 @@ meme_explorer.db
 
 # Logs
 log/
+logs/
 *.log
+*.log.*
+production.log
+development.log
+test.log
 
 # Cache
 .cache/

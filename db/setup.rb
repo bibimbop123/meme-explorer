@@ -229,9 +229,10 @@ REDIS_POOL = ConnectionPool.new(size: 40, timeout: 5) do
   )
 end
 
-# Legacy REDIS constant for backward compatibility during migration
-# TODO: Gradually migrate all code to use REDIS_POOL.with { |r| r.method }
-REDIS = REDIS_POOL.with { |conn| conn } rescue nil
+# REDIS constant REMOVED - Week 1 Critical Fix #4 (June 3, 2026)
+# REASON: Single connection shared across threads causes race conditions
+# MIGRATION: Use REDIS_POOL.with { |redis| redis.method } everywhere instead
+# REDIS = REDIS_POOL.with { |conn| conn } rescue nil  # UNSAFE - DO NOT UNCOMMENT
 
 puts "✅ Redis Pool initialized (size: 40, timeout: 5s, URL: #{REDIS_URL ? 'configured' : 'not set'})"
 

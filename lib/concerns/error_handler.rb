@@ -1,6 +1,9 @@
 # Error Handler Concern
 # Improved error handling patterns for controllers
 # Generated: May 19, 2026
+# Updated: June 3, 2026 - Integrated with AppLogger (Week 1 Fix)
+
+require_relative '../app_logger'
 
 module ErrorHandler
   # Custom error classes
@@ -60,18 +63,25 @@ module ErrorHandler
   
   # Log error with appropriate level and context
   def log_error(error, status_code)
-    level = error_level(status_code)
+    level = error_level(status_code).downcase.to_sym
     
-    puts "#{level_emoji(level)} [#{level}] #{error.class}: #{error.message}"
-    puts "  Path: #{request.path}" if defined?(request)
-    puts "  User: #{session[:user_id]}" if defined?(session) && session[:user_id]
+    context = {
+      error_class: error.class.name,
+      status_code: status_code,
+      path: defined?(request) ? request.path : nil,
+      user_id: defined?(session) && session[:user_id] ? session[:user_id] : nil,
+      backtrace: error.backtrace&.first(5)
+    }.compact
+    
+    AppLogger.send(level, error.message, **context)
     
     # Send to Sentry for 500 errors
     if defined?(Sentry) && status_code >= 500
       Sentry.capture_exception(error, extra: {
         path: request&.path,
         user_id: session&.[](:user_id),
-        params: params
+        params: params,
+        request_id: Thread.current[:request_id]
       })
     end
   end
@@ -99,7 +109,12 @@ module ErrorHandler
   def safe_execute(fallback_value = nil, log_context: nil, &block)
     yield
   rescue => e
-    puts "⚠️  Safe execution failed: #{log_context || 'unknown context'}: #{e.message}"
+    AppLogger.warn("Safe execution failed", 
+      context: log_context || 'unknown context', 
+      error: e.message,
+      error_class: e.class.name,
+      backtrace: e.backtrace&.first(3)
+    )
     
     # Only send critical errors to Sentry
     if defined?(Sentry) && e.is_a?(StandardError) && !e.is_a?(ValidationError)

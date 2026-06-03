@@ -24,6 +24,7 @@ require 'rack/csrf'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
+require_relative "./lib/app_logger"
 require_relative "./config/application"
 require_relative "./config/constants"
 require_relative "./config/app_constants"
@@ -37,7 +38,11 @@ require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/helpers/curated_collections_helper"
 require_relative "./lib/helpers/refined_meme_helper"
+require_relative "./lib/helpers/db_transaction_helpers"
+require_relative "./lib/helpers/query_optimization_helpers"
 require_relative "./lib/services/seo_service"
+require_relative "./lib/services/metrics_tracker_service"
+require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
 require_relative "./lib/services/image_validator_service"
@@ -132,6 +137,11 @@ module MemeExplorer
   use Rack::CSRF, raise: true, skip: ['POST:/login', 'POST:/signup', 'GET:/auth/reddit/callback']
 
   # -----------------------
+  # Request ID Middleware (Week 2: Tracing)
+  # -----------------------
+  use RequestIdMiddleware
+  
+  # -----------------------
   # Request Timing Middleware (P2: Monitoring)
   # -----------------------
   use RequestTimer
@@ -151,16 +161,27 @@ module MemeExplorer
   configure do
     set :server, :puma
     enable :sessions
-    set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
     set :session_expire_after, MemeExplorerConfig::SESSION_EXPIRE_AFTER
     set :cookie_options, MemeExplorerConfig::COOKIE_OPTIONS
     
     begin
       MemeExplorerConfig.validate!
     rescue ConfigurationError => e
+      AppLogger.error("Configuration validation failed", error: e.message)
       puts "Fatal: Configuration error: #{e.message}"
       exit 1
     end
+  end
+  
+  # SESSION_SECRET: Require explicit value in production (no fallback)
+  configure :production do
+    set :session_secret, ENV.fetch("SESSION_SECRET") do
+      raise "SESSION_SECRET environment variable must be set in production!"
+    end
+  end
+  
+  configure :development, :test do
+    set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
   end
 
 
@@ -1608,7 +1629,7 @@ module MemeExplorer
     @image_src = meme_image_src(@meme)
     @likes = 0  # Will be loaded by JS
     
-    # ASYNC: Track analytics in background (non-blocking) - MEMORY LEAK FIX: Use thread pool
+    # ASYNC: Track analytics in background (non-blocking) - Use thread pool
     ANALYTICS_POOL.post do
       begin
         user_id = session[:user_id] rescue nil
@@ -1629,7 +1650,7 @@ module MemeExplorer
           ) rescue nil
         end
       rescue => e
-        puts "⚠️ Background analytics error: #{e.message}"
+        AppLogger.error("Background analytics tracking failed", error: e.message, meme: meme_identifier)
       end
     end
     
@@ -1714,8 +1735,8 @@ module MemeExplorer
       puts "⚠️ Reddit path error: #{e.message}"
     end
     
-    # ASYNC: Track analytics in background (non-blocking)
-    Thread.new do
+    # ASYNC: Track analytics in background (non-blocking) - Use thread pool
+    ANALYTICS_POOL.post do
       begin
         user_id = session[:user_id] rescue nil
         meme_identifier = @meme["url"] || @meme["file"]
@@ -1735,7 +1756,7 @@ module MemeExplorer
           ) rescue nil
         end
       rescue => e
-        puts "⚠️ Background analytics error: #{e.message}"
+        AppLogger.error("Background analytics tracking failed", error: e.message, meme: meme_identifier)
       end
     end
 
