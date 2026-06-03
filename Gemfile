@@ -56,5 +56,3 @@ end
 group :development do
   gem "rerun"
 end
-
-gem "rack-csrf", "~> 0.1.0"
