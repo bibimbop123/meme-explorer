@@ -34,10 +34,19 @@ end
 ```
 
 ## How It Works
-1. **On Startup**: `config.ru` triggers `MemePoolRefreshWorker.perform_async(true)`
+1. **On Startup**: `config.ru` triggers `MemePoolRefreshWorker.perform_async(true)` **automatically**
 2. **Worker Execution**: `MemePoolRefreshWorker` fetches memes from Reddit using OAuth2
 3. **Cache Population**: Fetched memes are stored in `MEME_CACHE[:memes]`
 4. **Ongoing Refresh**: `CacheRefreshWorker` continues to refresh every 30 minutes (via Sidekiq schedule)
+
+### Automatic on Every Deployment
+✅ **No manual intervention needed!** Every time you deploy to Render.com:
+- The app restarts
+- `config.ru` runs automatically
+- `MemePoolRefreshWorker` is triggered
+- Cache is populated with fresh Reddit memes
+
+This means **the equivalent of `curl -X POST https://meme-explorer.onrender.com/admin/refresh-cache` runs automatically on every deploy**.
 
 ## Files Modified
 - ✅ `config.ru` - Added startup initialization
