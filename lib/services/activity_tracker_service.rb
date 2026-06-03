@@ -223,7 +223,7 @@ class ActivityTrackerService
     end
     
     def redis_available?
-      defined?(REDIS) && REDIS
+      RedisService.redis_available?
     end
     
     def offline_stats
