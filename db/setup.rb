@@ -20,10 +20,15 @@ if DATABASE_URL&.start_with?("postgres")
   class << DB
     def execute(sql, params = [])
       DB_POOL.with do |conn|
+        # Convert SQLite-style ? placeholders to PostgreSQL-style $1, $2, etc.
+        pg_sql = sql.gsub('?') { |_| "$#{params.index(params[Regexp.last_match.offset(0)[0]]) + 1}" }
+        counter = 0
+        pg_sql = sql.gsub('?') { counter += 1; "$#{counter}" }
+        
         result = if params.empty?
-          conn.exec(sql)
+          conn.exec(pg_sql)
         else
-          conn.exec_params(sql, params)
+          conn.exec_params(pg_sql, params)
         end
         
         # Convert PG::Result to array of hashes (like SQLite)
