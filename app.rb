@@ -1290,7 +1290,8 @@ module MemeExplorer
       # Use RedisService.fetch with automatic DB fallback
       RedisService.fetch("meme:likes:#{url}", ttl: 300) do
         # Fallback: query database if Redis unavailable or cache miss
-        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", url).first
+        # PostgreSQL requires params as an array
+        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
         row ? row["likes"].to_i : 0
       end
     end
