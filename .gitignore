@@ -5,6 +5,9 @@
 .env.production
 .env.backup
 
+# Session secrets (development/test)
+.session_secret
+
 # Ruby
 *.gem
 *.rbc
