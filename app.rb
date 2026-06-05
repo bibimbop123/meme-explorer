@@ -39,6 +39,7 @@ require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/helpers/curated_collections_helper"
 require_relative "./lib/helpers/refined_meme_helper"
+require_relative "./lib/helpers/app_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
 require_relative "./lib/services/seo_service"
@@ -550,103 +551,11 @@ module MemeExplorer
   helpers RefinedMemeHelper
   helpers CDNHelpers
   helpers HTTPCaching
-
-  # -----------------------
-  # Curated Collections Helper Wrappers
-  # Bridge between view calls and helper module class methods
-  # -----------------------
-  helpers do
-    # Wrapper for collection_name_for_subreddit (views expect this method name)
-    def collection_name_for_subreddit(subreddit)
-      CuratedCollectionsHelper.collection_name_for(subreddit)
-    end
-    
-    # Wrapper for calculate_rarity (used in views/random.erb)
-    def calculate_rarity(meme)
-      rarity = refined_rarity_badge(meme)
-      return rarity if rarity
-      
-      # Default rarity for common memes
-      { label: 'Common', icon: '•' }
-    end
-    
-    # Wrapper for generate_curation_signal (used in views/random.erb and layout.erb)
-    def generate_curation_signal(meme)
-      # Pass nil for user since we don't have user hash/object loaded
-      # The service handles nil gracefully and will skip personalized signals
-      signal = refined_curation_signal(meme, nil)
-      return signal if signal
-      
-      # Default curation signal
-      { type: 'default', icon: '✨', message: 'Curated for you' }
-    end
-    
-    # Wrapper for rendering taste profile (used in views/profile.erb)
-    def render_taste_profile(user_id)
-      return '' unless user_id
-      
-      begin
-        # Fetch user data
-        user = get_user(user_id)
-        return '' unless user
-        
-        # Generate taste profile using TasteProfileService
-        profile = TasteProfileService.generate_profile(user)
-        
-        # Render the partial with profile data
-        erb :_taste_profile, locals: { profile: profile }
-      rescue => e
-        puts "⚠️ Error rendering taste profile: #{e.class} - #{e.message}"
-        puts e.backtrace.first(3).join("\n") if e.backtrace
-        ''  # Return empty string on error to prevent page crash
-      end
-    end
-  end
-
+  helpers AppHelpers
+  
   # Include personality content methods
   helpers do
     include PersonalityContent
-  end
-  
-  helpers do
-    # Hash password with bcrypt
-    def hash_password(password)
-      BCrypt::Password.create(password)
-    end
-
-    # Verify password
-    def verify_password(password, hash)
-      BCrypt::Password.new(hash) == password
-    end
-
-    # Create or find user
-    def create_or_find_user(reddit_username, reddit_id, reddit_email)
-      existing = DB.execute("SELECT id FROM users WHERE reddit_id = ?", [reddit_id]).first
-      return existing["id"] if existing
-
-      DB.execute(
-        "INSERT INTO users (reddit_id, reddit_username, reddit_email) VALUES (?, ?, ?)",
-        [reddit_id, reddit_username, reddit_email]
-      )
-      DB.last_insert_row_id
-    end
-
-    # Create email/password user
-    def create_email_user(email, password)
-      hashed = hash_password(password)
-      DB.execute(
-        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-        [email, hashed]
-      )
-      DB.last_insert_row_id
-    rescue SQLite3::ConstraintException
-      nil
-    end
-
-    # Find user by email
-    def find_user_by_email(email)
-      DB.execute("SELECT id, password_hash FROM users WHERE email = ?", [email]).first
-    end
 
     # Get user by ID
     def get_user(user_id)
