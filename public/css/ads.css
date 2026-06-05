@@ -154,3 +154,228 @@
   margin: 1rem auto;
   text-align: center;
 }
+/* Ad Container Styling */
+.ad-container {
+  width: 300px;
+  margin: 1rem auto;
+  padding: 0.75rem;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.ad-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Ad Label */
+.ad-label {
+  font-size: 10px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Ad Placeholder (Development Mode) */
+.ad-placeholder {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border: 2px dashed #cbd5e0;
+}
+
+.ad-demo-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  margin: 0 auto;
+}
+
+.ad-demo-text {
+  text-align: center;
+  color: #4a5568;
+  padding: 1rem;
+}
+
+.ad-demo-text strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 0.25rem;
+  color: #2d3748;
+}
+
+.ad-demo-text small {
+  display: block;
+  font-size: 11px;
+  color: #718096;
+  margin-top: 0.25rem;
+}
+
+/* Responsive Ad Sizing */
+@media (max-width: 768px) {
+  .ad-container {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ad-container {
+    width: calc(100% - 2rem);
+    margin: 1rem;
+  }
+  
+  .ad-demo-content {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 200px;
+  }
+}
+
+/* Ad Loading State */
+.ad-container.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.ad-container.loading::after {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 1rem auto;
+  border: 2px solid #e0e0e0;
+  border-top-color: #4a5568;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Ad in Grid Layouts (e.g., Trending Page) */
+.trending-container .ad-container,
+.search-results .ad-container {
+  grid-column: 1 / -1; /* Span full width of grid */
+  width: 100%;
+  max-width: 728px; /* Standard leaderboard width */
+  margin: 1.5rem auto;
+}
+
+/* Banner Ad Styling */
+.ad-container[data-ad-format="banner"] {
+  width: 100%;
+  max-width: 728px;
+}
+
+/* Native Ad Styling */
+.ad-container[data-ad-format="native"] {
+  width: 100%;
+  max-width: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.ad-container[data-ad-format="native"] .ad-label {
+  text-align: left;
+  margin-left: 0.5rem;
+}
+
+/* AdSense Responsive Fixes */
+.adsbygoogle {
+  display: block !important;
+  text-align: center;
+}
+
+/* Ad Viewability Tracking */
+.ad-container[data-viewable="true"] {
+  border-color: #48bb78;
+}
+
+/* Premium/Ad-Free Badge */
+.ad-free-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 1rem auto;
+  text-align: center;
+}
+
+/* ============================================
+   REVENUE OPTIMIZATION - Added 2026-06-04
+   ============================================ */
+
+/* Sticky Sidebar Ad (Desktop Only) - Highest CTR placement */
+.ad-sidebar-sticky {
+  position: sticky;
+  top: 80px;
+  width: 300px;
+  margin: 1rem 0;
+  z-index: 100;
+}
+
+@media (min-width: 1200px) {
+  .content-with-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .sidebar-ad-container {
+    display: block;
+  }
+}
+
+@media (max-width: 1199px) {
+  .ad-sidebar-sticky {
+    display: none;
+  }
+  
+  .sidebar-ad-container {
+    display: none;
+  }
+}
+
+/* Hero Ad - Premium above-fold position */
+.ad-hero-position {
+  max-width: 728px;
+  margin: 2rem auto;
+  padding: 1rem 0;
+}
+
+/* After Trending Ad */
+.ad-after-trending {
+  margin: 3rem auto;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 2rem;
+}
+
+/* Anchor/Footer Ad - High viewability */
+.ad-anchor-bottom {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  padding: 0.5rem;
+  text-align: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .ad-anchor-bottom {
+    position: fixed;
+  }
+}

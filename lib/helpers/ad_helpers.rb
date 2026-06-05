@@ -203,4 +203,54 @@ module AdHelpers
       </script>
     HTML
   end
+# ============================================
+# REVENUE OPTIMIZATION METHODS - Added 2026-06-04
+# ============================================
+
+# Render sticky sidebar ad (desktop only)
+def render_sidebar_ad
+  return '' unless should_show_ads?
+  
+  <<-HTML
+    <div class="sidebar-ad-container">
+      <div class="ad-sidebar-sticky">
+        #{render_ad_unit(999, format: 'square', position: 'sidebar')}
+      </div>
+    </div>
+  HTML
+end
+
+# Render hero/top ad (premium position)
+def render_hero_ad
+  return '' unless should_show_ads?
+  
+  <<-HTML
+    <div class="ad-hero-position">
+      #{render_ad_unit(1, format: 'banner', position: 'hero')}
+    </div>
+  HTML
+end
+
+# Render after-trending ad
+def render_trending_ad
+  return '' unless should_show_ads?
+  
+  <<-HTML
+    <div class="ad-after-trending">
+      #{render_ad_unit(2, format: 'square', position: 'trending')}
+    </div>
+  HTML
+end
+
+# Render anchor/footer ad
+def render_anchor_ad
+  return '' unless should_show_ads?
+  
+  <<-HTML
+    <div class="ad-anchor-bottom">
+      #{render_ad_unit(998, format: 'banner', position: 'anchor')}
+    </div>
+  HTML
+end
+
 end
