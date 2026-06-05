@@ -40,6 +40,7 @@ require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/helpers/curated_collections_helper"
 require_relative "./lib/helpers/refined_meme_helper"
 require_relative "./lib/helpers/app_helpers"
+require_relative "./lib/helpers/meme_pool_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
 require_relative "./lib/services/seo_service"
@@ -552,75 +553,14 @@ module MemeExplorer
   helpers CDNHelpers
   helpers HTTPCaching
   helpers AppHelpers
+  helpers MemePoolHelpers
   
   # Include personality content methods
   helpers do
     include PersonalityContent
 
-    # Get user by ID
-    def get_user(user_id)
-      DB.execute("SELECT id, reddit_username, email, created_at FROM users WHERE id = ?", [user_id]).first
-    end
-
-    # Check if admin using role-based system
-    def is_admin?
-      return false unless session[:user_id]
-      begin
-        user = DB.execute("SELECT role FROM users WHERE id = ?", [session[:user_id]]).first
-        user && user["role"] == "admin"
-      rescue
-        false
-      end
-    end
-
-    # Get user saved memes with pagination
-    def get_user_saved_memes(user_id, page = 1, limit = 10)
-      offset = (page - 1) * limit
-      DB.execute(
-        "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC LIMIT ? OFFSET ?",
-        [user_id, limit, offset]
-      )
-    end
-
-    # Get total count of user saved memes
-    def get_user_saved_memes_count(user_id)
-      DB.get_first_value("SELECT COUNT(*) FROM saved_memes WHERE user_id = ?", [user_id]) || 0
-    end
-
-    # Save meme for user
-    def save_meme(user_id, meme_url, meme_title, meme_subreddit)
-      DB.execute(
-        "INSERT OR IGNORE INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit) VALUES (?, ?, ?, ?)",
-        [user_id, meme_url, meme_title, meme_subreddit]
-      )
-      
-      # GAMIFICATION: Award XP for saving
-      begin
-        add_xp(user_id, :save_meme)
-      rescue => e
-        puts "⚠️ XP error on save: #{e.message}"
-      end
-    end
-
-    # Unsave meme
-    def unsave_meme(user_id, meme_url)
-      DB.execute("DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ?", [user_id, meme_url])
-    end
-
-    # Check if meme is saved by user
-    def is_meme_saved?(user_id, meme_url)
-      DB.execute("SELECT id FROM saved_memes WHERE user_id = ? AND meme_url = ?", [user_id, meme_url]).first
-    end
-
-    # Get user stats
-    def get_user_stats(user_id)
-      saved_count = DB.get_first_value("SELECT COUNT(*) FROM saved_memes WHERE user_id = ?", [user_id]).to_i
-      liked_count = session[:liked_memes]&.size || 0
-      { saved_count: saved_count, liked_count: liked_count }
-    end
-
   # -----------------------
-  # Helpers (continued)
+  # Helpers
   # -----------------------
     # Safely get meme image - prioritize API URLs over local files
     def meme_image_src(m)
@@ -642,81 +582,6 @@ module MemeExplorer
     def sanitize_subreddit(sub)
       return "local" if sub.nil? || sub.strip.empty?
       sub.downcase
-    end
-
-    # Phase 2: Get pool based on time of day (trending/fresh/exploration split)
-    def get_intelligent_pool(user_id = nil, limit = 100)
-      # 70% Trending, 20% Fresh, 10% Exploration
-      trending = get_trending_pool(limit * 0.7)
-      fresh = get_fresh_pool(limit * 0.2, 48)
-      exploration = get_exploration_pool(limit * 0.1)
-      
-      pool = trending + fresh + exploration
-      pool = pool.uniq { |m| m["url"] }
-      
-      # CRITICAL FIX: If DB is empty, fallback to local memes
-      if pool.empty?
-        local_memes = begin
-          if MEMES.is_a?(Hash)
-            MEMES.values.flatten.compact.map do |m|
-              # Convert file paths: remove leading / so File.join works correctly
-              m_copy = m.dup
-              if m_copy["file"] && m_copy["file"].start_with?("/")
-                m_copy["file"] = m_copy["file"][1..-1]  # Remove leading slash
-              end
-              m_copy
-            end
-          elsif MEMES.is_a?(Array)
-            MEMES.map do |m|
-              m_copy = m.dup
-              if m_copy["file"] && m_copy["file"].start_with?("/")
-                m_copy["file"] = m_copy["file"][1..-1]
-              end
-              m_copy
-            end
-          else
-            []
-          end
-        rescue
-          []
-        end
-        pool = local_memes
-      end
-      
-      # Apply user preferences if logged in
-      if user_id
-        apply_user_preferences(pool, user_id)
-      else
-        pool.shuffle
-      end
-    end
-
-    # Phase 2: Apply user preferences - boost preferred subreddits
-    def apply_user_preferences(pool, user_id)
-      user_prefs = DB.execute(
-        "SELECT subreddit, preference_score FROM user_subreddit_preferences WHERE user_id = ? ORDER BY preference_score DESC",
-        [user_id]
-      )
-      
-      return pool.shuffle if user_prefs.empty?
-      
-      # Separate memes by preference
-      preferred = []
-      neutral = []
-      
-      pool.each do |meme|
-        sub = meme["subreddit"]&.downcase
-        pref = user_prefs.find { |p| p["subreddit"].downcase == sub }
-        if pref && pref["preference_score"] > 1.0
-          preferred << meme
-        else
-          neutral << meme
-        end
-      end
-      
-      # Return 60% preferred + 40% neutral for variety
-      ratio = (preferred.size * 0.6 / [preferred.size, 1].max).to_i
-      (preferred.sample(ratio) + neutral.sample((pool.size - ratio))).compact.shuffle
     end
 
     # Unified Navigation with Intelligent Pool + Spaced Repetition
@@ -873,30 +738,6 @@ module MemeExplorer
         puts "Error in should_exclude_from_exposure: #{e.class}: #{e.message}"
         false
       end
-    end
-
-    # Get time-based pool distribution for personalization
-    def get_time_based_pools(user_id = nil, limit = 100)
-      hour = Time.now.hour
-      
-      if (9..11).include?(hour) || (18..21).include?(hour)
-        # Peak hours: 80% trending, 15% fresh, 5% exploration
-        ratios = { trending: 0.8, fresh: 0.15, exploration: 0.05 }
-      elsif (0..6).include?(hour)
-        # Off-hours: 60% trending, 30% fresh, 10% exploration
-        ratios = { trending: 0.6, fresh: 0.3, exploration: 0.1 }
-      else
-        # Normal hours: 70% trending, 20% fresh, 10% exploration
-        ratios = { trending: 0.7, fresh: 0.2, exploration: 0.1 }
-      end
-      
-      trending = get_trending_pool((limit * ratios[:trending]).to_i)
-      fresh = get_fresh_pool((limit * ratios[:fresh]).to_i, 48)
-      exploration = get_exploration_pool((limit * ratios[:exploration]).to_i)
-      
-      pool = (trending + fresh + exploration).uniq { |m| m["url"] }
-      
-      user_id ? apply_user_preferences(pool, user_id) : pool.shuffle
     end
 
     # Validate meme before display
@@ -1090,81 +931,6 @@ module MemeExplorer
       end
       
       memes.last
-    end
-
-    # Phase 1: Get trending/fresh/exploration pools
-    # P2 OPTIMIZATION: Pre-calculate score in SQL for better performance
-    def get_trending_pool(limit = 50)
-      result = DB.execute(
-        "SELECT *, (likes * 2 + views) AS score 
-         FROM meme_stats 
-         WHERE failure_count IS NULL OR failure_count < 2 
-         ORDER BY score DESC 
-         LIMIT ?",
-        [limit]
-      ) rescue []
-      result || []
-    end
-
-    def get_fresh_pool(limit = 30, hours_ago = 24)
-      result = DB.execute(
-        "SELECT * FROM meme_stats WHERE updated_at > datetime('now', '-#{hours_ago} hours') AND (failure_count IS NULL OR failure_count < 2) ORDER BY updated_at DESC LIMIT ?",
-        [limit]
-      ) rescue []
-      result || []
-    end
-
-    def get_exploration_pool(limit = 20)
-      result = DB.execute(
-        "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY RANDOM() LIMIT ?",
-        [limit]
-      ) rescue []
-      result || []
-    end
-
-    # Get meme pool - NOW USING 5,000-MEME INTELLIGENT POOL (Phase 2)
-    # Uses MemePoolManager with tier-based distribution and quality filtering
-    def random_memes_pool
-      # Try new 5,000-meme intelligent pool first
-      begin
-        require_relative './lib/services/meme_pool_manager'
-        
-        pool_result = MemePoolManager.get_pool
-        
-        if pool_result[:success] && pool_result[:memes]&.any?
-          puts "✅ [POOL] Using MemePoolManager: #{pool_result[:pool_size]} memes (tier-distributed)"
-          return pool_result[:memes]
-        else
-          puts "⚠️  [POOL] MemePoolManager not ready: #{pool_result[:error]}"
-        end
-      rescue => e
-        puts "⚠️  [POOL] MemePoolManager error: #{e.message}"
-      end
-      
-      # Fallback to old cache system (backward compatible)
-      cache_memes = MEME_CACHE.get(:memes)
-      if cache_memes.is_a?(Array) && !cache_memes.empty?
-        valid_memes = cache_memes.select { |m| has_valid_media?(m) }
-        puts "✅ [POOL FALLBACK] Using legacy cache: #{valid_memes.size} memes"
-        return valid_memes unless valid_memes.empty?
-      end
-      
-      # Last resort: local memes
-      local_memes = begin
-        if MEMES.is_a?(Hash)
-          MEMES.values.flatten.compact
-        elsif MEMES.is_a?(Array)
-          MEMES
-        else
-          []
-        end
-      rescue
-        []
-      end
-      
-      valid_local_memes = local_memes.select { |m| has_valid_media?(m) }
-      puts "✅ [POOL FALLBACK] Using local memes: #{valid_local_memes.size} memes"
-      valid_local_memes
     end
 
     # Get likes safely - MIGRATED TO RedisService (Phase 3 Week 1)
