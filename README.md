@@ -247,4 +247,4 @@ This project is proprietary software developed by Discovery Partners Institute.
 
 ---
 
-**Built with ❤️ by Discovery Partners Institute**
+**Built with ❤️ by Brian Kim**
