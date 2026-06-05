@@ -28,7 +28,6 @@ require_relative "./lib/app_logger"
 require_relative "./config/application"
 require_relative "./config/constants"
 require_relative "./config/app_constants"
-require_relative "./config/schema"
 require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/meme_helpers"
@@ -46,6 +45,8 @@ require_relative "./lib/services/metrics_tracker_service"
 require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
 require_relative "./lib/services/placeholder_image_service"
+require_relative "./lib/services/image_validator_service"
+require_relative "./lib/services/image_validation_service"
 require_relative "./lib/services/image_health_service"
 require_relative "./lib/services/activity_tracker_service"
 require_relative "./lib/services/engagement_service"
@@ -59,8 +60,7 @@ require_relative "./lib/services/meme_service"
 require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/services/reddit_fetcher_service"
-require_relative "./lib/middleware/request_timer"
-require_relative "./lib/middleware/security_headers"
+require_relative "./lib/middleware/request_timer" 
 require_relative 'lib/helpers/cdn_helpers'
 require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
@@ -145,11 +145,6 @@ module MemeExplorer
   # Request Timing Middleware (P2: Monitoring)
   # -----------------------
   use RequestTimer
-  
-  # -----------------------
-  # Security Headers Middleware (Phase 0: Security Hardening)
-  # -----------------------
-  use SecurityHeaders
 
   # -----------------------
   # Constants
@@ -164,15 +159,6 @@ module MemeExplorer
   # Configuration
   # -----------------------
   configure do
-    # Validate environment configuration before starting
-    begin
-      ConfigSchema.validate!
-    rescue ConfigurationError => e
-      AppLogger.error("Configuration validation failed", error: e.message)
-      puts "❌ Fatal: #{e.message}"
-      exit 1
-    end
-    
     set :server, :puma
     enable :sessions
     set :session_expire_after, MemeExplorerConfig::SESSION_EXPIRE_AFTER
@@ -196,19 +182,7 @@ module MemeExplorer
   end
   
   configure :development, :test do
-    # Use persistent secret file to maintain sessions across restarts
-    secret_file = File.join(Dir.pwd, '.session_secret')
-    
-    if File.exist?(secret_file)
-      secret = File.read(secret_file).strip
-    else
-      secret = SecureRandom.hex(32)
-      File.write(secret_file, secret)
-      puts "⚠️  Generated persistent session secret in #{secret_file}"
-      puts "    Add .session_secret to .gitignore if not already present"
-    end
-    
-    set :session_secret, ENV.fetch("SESSION_SECRET", secret)
+    set :session_secret, ENV.fetch("SESSION_SECRET", SecureRandom.hex(32))
   end
 
 
@@ -1827,25 +1801,9 @@ module MemeExplorer
   def search_memes(query)
     return [] unless query
     
-    # SECURITY FIX: Use Validators to prevent SQL injection
-
-    
-    begin
-
-    
-      sanitized_query = Validators.validate_search_query(query, min_length: 1, max_length: 200)
-
-    
-    rescue Validators::ValidationError => e
-
-    
-      AppLogger.warn("Invalid search query", query: query, error: e.message)
-
-    
-      return []
-
-    
-    end
+    # SECURITY FIX: Use InputSanitizer to prevent SQL injection
+    sanitized_query = InputSanitizer.sanitize_search_query(query)
+    return [] if sanitized_query.empty?
     
     query_lower = sanitized_query.downcase
     

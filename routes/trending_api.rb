@@ -41,9 +41,9 @@ module Routes
             }.to_json
           end
           
-          # Use simplified service
-          require_relative '../lib/services/trending_service_simple'
-          result = TrendingServiceSimple.trending_memes(
+          # Use main trending service (has cache fallback built-in)
+          require_relative '../lib/services/trending_service'
+          result = TrendingService.trending_memes(
             time_window: time_window,
             sort_by: sort_by,
             limit: limit,
