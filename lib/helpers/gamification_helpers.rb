@@ -61,18 +61,23 @@ module GamificationHelpers
       today_date = Date.today
       days_diff = (today_date - last_visit).to_i
       
+      # Convert database strings to integers to avoid type errors
+      current_streak = streak["current_streak"].to_i
+      longest_streak = streak["longest_streak"].to_i
+      streak_freeze_count = streak["streak_freeze_count"].to_i
+      
       # Same day - just increment view count
       if days_diff == 0
         DB.execute(
           "UPDATE user_streaks SET total_memes_viewed = total_memes_viewed + 1 WHERE user_id = ?",
           [user_id]
         )
-        return { continuing: true, days: streak["current_streak"] }
+        return { continuing: true, days: current_streak }
       
       # Next day - increment streak!
       elsif days_diff == 1
-        new_streak = streak["current_streak"] + 1
-        new_longest = [new_streak, streak["longest_streak"]].max
+        new_streak = current_streak + 1
+        new_longest = [new_streak, longest_streak].max
         
         DB.execute(
           "UPDATE user_streaks 
@@ -105,7 +110,7 @@ module GamificationHelpers
       
       # Streak broken (unless freeze available)
       else
-        if streak["streak_freeze_count"] > 0
+        if streak_freeze_count > 0
           # Use one freeze
           DB.execute(
             "UPDATE user_streaks 
@@ -117,12 +122,12 @@ module GamificationHelpers
           )
           return { 
             streak_frozen: true, 
-            days: streak["current_streak"], 
-            freezes_left: streak["streak_freeze_count"] - 1 
+            days: current_streak, 
+            freezes_left: streak_freeze_count - 1 
           }
         else
           # Streak broken - reset
-          old_streak = streak["current_streak"]
+          old_streak = current_streak
           DB.execute(
             "UPDATE user_streaks 
              SET current_streak = 1, last_visit_date = ?, total_memes_viewed = total_memes_viewed + 1 
@@ -193,9 +198,13 @@ module GamificationHelpers
         }
       end
       
-      new_xp = user_level["current_xp"] + xp_amount
-      new_total_xp = user_level["total_xp"] + xp_amount
-      current_level = user_level["level"]
+      # Convert database strings to integers to avoid type errors
+      current_xp = user_level["current_xp"].to_i
+      total_xp = user_level["total_xp"].to_i
+      current_level = user_level["level"].to_i
+      
+      new_xp = current_xp + xp_amount
+      new_total_xp = total_xp + xp_amount
       xp_needed = xp_for_level(current_level + 1)
       
       leveled_up = false
@@ -259,13 +268,17 @@ module GamificationHelpers
     
     return nil unless level_data
     
-    # Calculate XP progress percentage
-    next_level_xp = xp_for_level(level_data["level"] + 1)
-    xp_progress = (level_data["current_xp"].to_f / next_level_xp * 100).round
+    # Calculate XP progress percentage (ensure integers for calculations)
+    current_level = level_data["level"].to_i
+    current_xp = level_data["current_xp"].to_i
+    next_level_xp = xp_for_level(current_level + 1)
+    xp_progress = (current_xp.to_f / next_level_xp * 100).round
     
     level_data.merge({
       "xp_progress" => xp_progress,
-      "xp_to_next_level" => next_level_xp - level_data["current_xp"]
+      "xp_to_next_level" => next_level_xp - current_xp,
+      "level" => current_level,
+      "current_xp" => current_xp
     })
   end
   
