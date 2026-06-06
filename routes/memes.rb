@@ -78,10 +78,25 @@ module Routes
             puts "   Image src: #{@image_src}"
           end
 
-          # Track meme viewing activity (active tracking is now handled globally in before filter)
-          # Use consistent visitor_id from session, NOT object_id which changes every request!
-          visitor_id = session[:visitor_id] || session[:user_id]
+          # ✅ ACCURATE VIEW TRACKING: Use ViewTrackerService
+          # Tracks with proper deduplication and atomic database operations
+          visitor_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
           client_ip = request.ip
+          user_id = session[:user_id]
+          
+          # Track view with comprehensive deduplication
+          view_result = ViewTrackerService.track_view(
+            @image_src,
+            visitor_id,
+            ip_address: client_ip,
+            user_id: user_id,
+            meme_metadata: {
+              title: @meme['title'],
+              subreddit: @meme['subreddit']
+            }
+          )
+          
+          # Also track as viewing for real-time stats
           ActivityTrackerService.mark_viewing(visitor_id, @image_src, ip_address: client_ip) if visitor_id
 
           erb :random
