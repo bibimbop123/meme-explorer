@@ -232,7 +232,8 @@ module MemeExplorer
     set :reddit_oauth_client_id, REDDIT_OAUTH_CLIENT_ID
     set :reddit_oauth_client_secret, REDDIT_OAUTH_CLIENT_SECRET
     set :reddit_redirect_uri, REDDIT_REDIRECT_URI
-    # Redis now managed by RedisService (Week 1 fix)
+    # Redis connection for OAuth token storage
+    set :redis, RedisService.connection rescue nil
   end
 
   # Load tier configuration

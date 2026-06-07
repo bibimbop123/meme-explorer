@@ -62,20 +62,31 @@ class AuthRoutes
               nil
             )
 
-            AuthService.store_oauth_token(settings.redis, result[:token]) rescue nil
+            # Store token in Redis (non-critical, degrades gracefully if Redis unavailable)
+            AuthService.store_oauth_token(settings.redis, result[:token])
+            
             session[:user_id] = user_id
             session[:reddit_username] = result[:username]
             session[:reddit_token] = result[:token]
 
+            puts "✅ [CALLBACK] Successfully authenticated user: #{result[:username]}"
+            $stdout.flush
+            
             redirect "/profile", 302
             
           rescue => e
-            puts "❌ [CALLBACK] Unexpected error: #{e.message}"
-            puts e.backtrace.first(5).join("\n")
+            puts "❌ [CALLBACK] Unexpected error: #{e.class}: #{e.message}"
+            puts "❌ [CALLBACK] Backtrace: #{e.backtrace.first(10).join("\n")}"
             $stdout.flush
             
-            ErrorHandler::Logger.log(e, { provider: "reddit" }, :error) rescue nil
-            session[:error] = "An unexpected error occurred during Reddit login"
+            ErrorHandler::Logger.log(e, { 
+              provider: "reddit",
+              code_present: !code.nil?,
+              error_param: error,
+              callback_url: request.url
+            }, :error) rescue nil
+            
+            session[:error] = "An unexpected error occurred during Reddit login. Please try again."
             redirect "/login"
           end
         end
