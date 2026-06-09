@@ -17,34 +17,54 @@
   .meme-container {
     display: grid !important;
     grid-template-columns: 300px 1fr 300px !important;
-    grid-template-rows: auto auto auto auto !important;
+    grid-template-rows: auto auto auto auto auto !important;
     grid-template-areas:
       "left-sidebar progress right-sidebar"
       "left-sidebar meme right-sidebar"
       "left-sidebar info right-sidebar"
-      "controls controls controls" !important;
-    gap: 0.5rem !important;
-    row-gap: 0.75rem !important;
+      "left-sidebar controls right-sidebar"
+      "left-sidebar hints right-sidebar" !important;
+    gap: 1rem !important;
+    row-gap: 1rem !important;
     padding: 1.5rem !important;
-    max-width: 2000px !important;
+    max-width: 1800px !important;
     margin: 0 auto !important;
     min-height: calc(100vh - 100px) !important;
   }
 
-  /* Assign grid areas to elements */
+  /* Ad containers - MUST be direct children */
+  .meme-container > .ad-container[data-position="left"] {
+    grid-area: left-sidebar !important;
+    position: sticky !important;
+    top: 100px !important;
+    align-self: start !important;
+    height: fit-content !important;
+  }
+
+  .meme-container > .ad-container[data-position="right"] {
+    grid-area: right-sidebar !important;
+    position: sticky !important;
+    top: 100px !important;
+    align-self: start !important;
+    height: fit-content !important;
+  }
+
+  /* Meme content areas */
   .meme-container > .milestone-progress-bar {
-    grid-area: progress;
+    grid-area: progress !important;
     margin-bottom: 0 !important;
   }
 
   .meme-container > .meme-display {
-    grid-area: meme;
-    min-height: 400px;
-    margin-top: 0 !important;
+    grid-area: meme !important;
+    min-height: 500px !important;
+    max-height: 70vh !important;
+    margin: 0 !important;
   }
 
   .meme-container > .meme-info {
-    grid-area: info;
+    grid-area: info !important;
+    margin: 0 !important;
   }
 
   .meme-container > .meme-controls {
@@ -54,32 +74,19 @@
     justify-content: center !important;
     align-items: center !important;
     gap: 1rem !important;
+    flex-wrap: wrap !important;
   }
 
   .meme-container > .nav-hints-container {
-    display: none; /* Hide hints on desktop to reduce clutter */
+    grid-area: hints !important;
+    display: flex !important;
   }
 
-  /* Ad positioning */
-  .meme-container > .ad-container[data-position="left"],
-  .meme-container > .ad-container:first-of-type {
-    grid-area: left-sidebar;
-    position: sticky;
-    top: 100px;
-    align-self: start;
-  }
-
-  .meme-container > .ad-container[data-position="right"],
-  .meme-container > .ad-container:last-of-type {
-    grid-area: right-sidebar;
-    position: sticky;
-    top: 100px;
-    align-self: start;
-  }
-
-  /* If there's no ad positioning attribute, default positioning */
-  .meme-container > .ad-container:not([data-position]) {
-    grid-area: right-sidebar;
+  /* Handle gamification elements */
+  .meme-container > .near-miss-tease,
+  .meme-container > .milestone-celebration,
+  .meme-container > .surprise-reward {
+    grid-column: 1 / -1 !important;
   }
 }
 

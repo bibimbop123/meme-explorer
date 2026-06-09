@@ -1,13 +1,13 @@
 <div class="page-wrapper">
-  <!-- Left Ad Column -->
-  <% if should_show_ads? %>
-    <aside class="ad-sidebar ad-sidebar-left">
-      <%= render_ad_unit(0, format: 'vertical') %>
-    </aside>
-  <% end %>
-
-  <!-- Center Content Column -->
+  <!-- Center Content Column with Grid Layout -->
   <div class="meme-container">
+    <!-- Left Ad Column (inside grid) -->
+    <% if should_show_ads? %>
+      <div class="ad-container" data-position="left">
+        <%= render_ad_unit(0, format: 'vertical') %>
+      </div>
+    <% end %>
+
     <div class="meme-display" id="meme-display">
     <% if @meme && is_gallery_post?(@meme) && @meme["gallery_images"] %>
       <!-- Multi-image gallery carousel -->
@@ -170,14 +170,13 @@
     </div>
   <% end %>
 
+    <!-- Right Ad Column (inside grid) -->
+    <% if should_show_ads? %>
+      <div class="ad-container" data-position="right">
+        <%= render_ad_unit(1, format: 'vertical') %>
+      </div>
+    <% end %>
   </div>
-
-  <!-- Right Ad Column -->
-  <% if should_show_ads? %>
-    <aside class="ad-sidebar ad-sidebar-right">
-      <%= render_ad_unit(1, format: 'vertical') %>
-    </aside>
-  <% end %>
 </div>
 
 <!-- Fullscreen Lightbox Modal -->
