@@ -5,32 +5,66 @@ class AuthRoutes
   def self.register(app)
         # OAuth Reddit Routes
         app.get "/auth/reddit" do
+          # ✅ SECURITY FIX: Generate and store OAuth state parameter
+          state = SecureRandom.hex(32)
+          session[:oauth_state] = state
+          session[:oauth_state_timestamp] = Time.now.to_i
+          
           redirect AuthService.generate_oauth_url(
             settings.reddit_oauth_client_id,
-            settings.reddit_redirect_uri
+            settings.reddit_redirect_uri,
+            state
           )
         end
 
         app.get "/auth/reddit/callback" do
           begin
-            puts "🔵 [CALLBACK] Reddit callback hit!"
-            $stdout.flush
+            AppLogger.info("Reddit OAuth callback received", {
+              code_present: !params[:code].nil?,
+              state_present: !params[:state].nil?,
+              ip: request.ip
+            })
             
             code = params[:code]
             error = params[:error]
-            
-            puts "🔵 [CALLBACK] Authorization code: #{code ? 'present' : 'missing'}"
-            puts "🔵 [CALLBACK] Error param: #{error}" if error
-            $stdout.flush
+            state = params[:state]
             
             # User cancelled or error from Reddit
             if error || !code
               session[:error] = "Reddit login was cancelled or failed"
               next redirect("/login")
             end
+            
+            # ✅ SECURITY FIX: Validate OAuth state parameter
+            unless state && session[:oauth_state] && state == session[:oauth_state]
+              AppLogger.warn("OAuth state validation failed", {
+                state_present: !state.nil?,
+                session_state_present: !session[:oauth_state].nil?,
+                match: state == session[:oauth_state],
+                ip: request.ip
+              })
+              session[:error] = "Invalid OAuth state - possible CSRF attack"
+              next redirect("/login")
+            end
+            
+            # ✅ SECURITY FIX: Check state timestamp (expire after 10 minutes)
+            if session[:oauth_state_timestamp]
+              elapsed = Time.now.to_i - session[:oauth_state_timestamp].to_i
+              if elapsed > 600
+                AppLogger.warn("OAuth state expired", {
+                  elapsed_seconds: elapsed,
+                  ip: request.ip
+                })
+                session[:error] = "OAuth session expired. Please try again."
+                next redirect("/login")
+              end
+            end
+            
+            # Clear state after validation
+            session.delete(:oauth_state)
+            session.delete(:oauth_state_timestamp)
 
-            puts "🔵 [CALLBACK] Calling AuthService.verify_reddit_oauth..."
-            $stdout.flush
+            AppLogger.info("Exchanging OAuth code for token", { ip: request.ip })
             
             result = AuthService.verify_reddit_oauth(
               code,
@@ -39,12 +73,11 @@ class AuthRoutes
               settings.reddit_redirect_uri
             )
 
-            puts "🔵 [CALLBACK] AuthService result: #{result.inspect}"
-            $stdout.flush
-
             unless result[:success]
-              puts "❌ [CALLBACK] OAuth failed: #{result[:error]}"
-              $stdout.flush
+              AppLogger.error("Reddit OAuth token exchange failed", {
+                error: result[:error],
+                ip: request.ip
+              })
               
               ErrorHandler::Logger.log(
                 StandardError.new("OAuth failed: #{result[:error]}"),
@@ -65,19 +98,34 @@ class AuthRoutes
             # Store token in Redis (non-critical, degrades gracefully if Redis unavailable)
             AuthService.store_oauth_token(settings.redis, result[:token])
             
+            # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
+            old_session = session.dup
+            session.clear
+            
+            # Restore necessary data with new session ID
             session[:user_id] = user_id
             session[:reddit_username] = result[:username]
-            session[:reddit_token] = result[:token]
+            session[:login_timestamp] = Time.now.to_i
+            session[:login_ip] = request.ip
+            # ✅ SECURITY FIX: Remove token from session (stored in Redis instead)
+            # session[:reddit_token] = result[:token] # REMOVED
 
-            puts "✅ [CALLBACK] Successfully authenticated user: #{result[:username]}"
-            $stdout.flush
+            AppLogger.info("Reddit OAuth successful", {
+              username: result[:username],
+              user_id: user_id,
+              ip: request.ip,
+              session_regenerated: true
+            })
             
             redirect "/profile", 302
             
           rescue => e
-            puts "❌ [CALLBACK] Unexpected error: #{e.class}: #{e.message}"
-            puts "❌ [CALLBACK] Backtrace: #{e.backtrace.first(10).join("\n")}"
-            $stdout.flush
+            AppLogger.error("Reddit OAuth callback error", {
+              error_class: e.class.name,
+              error_message: e.message,
+              backtrace: e.backtrace.first(5),
+              ip: request.ip
+            })
             
             ErrorHandler::Logger.log(e, { 
               provider: "reddit",
@@ -118,19 +166,74 @@ class AuthRoutes
               return { success: false, error: "Password required" }.to_json
             end
 
+            # ✅ SECURITY FIX: Check if account is locked due to failed attempts
+            redis = settings.redis rescue nil
+            if AuthService.account_locked?(email, redis)
+              remaining = AuthService.lockout_time_remaining(email, redis)
+              minutes = (remaining / 60.0).ceil
+              
+              AppLogger.warn("Login attempt on locked account", {
+                email: email,
+                ip: request.ip,
+                remaining_seconds: remaining
+              })
+              
+              return { 
+                success: false, 
+                error: "Account temporarily locked due to too many failed attempts. Try again in #{minutes} minute#{minutes != 1 ? 's' : ''}.",
+                locked: true,
+                retry_after: remaining
+              }.to_json
+            end
+
             # Authenticate using service
             user_id = AuthService.authenticate_email(email, password)
             
             if user_id
+              # ✅ SECURITY FIX: Clear failed login attempts on successful login
+              AuthService.clear_failed_logins(email, redis)
+              
+              # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
+              old_session = session.dup
+              session.clear
+              
+              # Restore necessary data with new session ID
               session[:user_id] = user_id
+              session[:login_timestamp] = Time.now.to_i
+              session[:login_ip] = request.ip
+              
+              AppLogger.info("User login successful", {
+                user_id: user_id,
+                email: email,
+                ip: request.ip
+              })
+              
               return { success: true, redirect: "/profile" }.to_json
             else
+              # ✅ SECURITY FIX: Record failed login attempt
+              AuthService.record_failed_login(email, redis)
+              remaining_attempts = AuthService.remaining_attempts(email, redis)
+              
               ErrorHandler::Logger.log(
                 StandardError.new("Failed login attempt"),
-                { email: email },
+                { 
+                  email: email,
+                  remaining_attempts: remaining_attempts,
+                  ip: request.ip
+                },
                 :warning
               ) rescue nil
-              return { success: false, error: "Invalid email or password" }.to_json
+              
+              error_msg = "Invalid email or password"
+              if remaining_attempts <= 2 && remaining_attempts > 0
+                error_msg += ". #{remaining_attempts} attempt#{remaining_attempts != 1 ? 's' : ''} remaining before temporary lockout."
+              end
+              
+              return { 
+                success: false, 
+                error: error_msg,
+                remaining_attempts: remaining_attempts
+              }.to_json
             end
 
           rescue Validators::ValidationError => e
@@ -176,8 +279,22 @@ class AuthRoutes
               return { success: false, error: "Email already in use" }.to_json
             end
 
+            # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
+            old_session = session.dup
+            session.clear
+            
+            # Restore necessary data with new session ID
             session[:user_id] = user_id
             session[:email] = email
+            session[:login_timestamp] = Time.now.to_i
+            session[:login_ip] = request.ip
+            
+            AppLogger.info("User signup successful", {
+              user_id: user_id,
+              email: email,
+              ip: request.ip
+            })
+            
             return { success: true, redirect: "/profile" }.to_json
 
           rescue Validators::ValidationError => e

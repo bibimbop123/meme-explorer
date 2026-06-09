@@ -137,8 +137,8 @@ module MemeExplorer
   # -----------------------
   # CSRF Protection
   # -----------------------
-  # Skip CSRF for OAuth callbacks and API endpoints
-  use Rack::CSRF, raise: true, skip: ['POST:/login', 'POST:/signup', 'GET:/auth/reddit/callback']
+  # ✅ SECURITY FIX: Only skip GET OAuth callback, never skip POST operations
+  use Rack::CSRF, raise: true, skip: ['GET:/auth/reddit/callback']
 
   # -----------------------
   # Request ID Middleware (Week 2: Tracing)
