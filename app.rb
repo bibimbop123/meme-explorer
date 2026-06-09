@@ -2048,6 +2048,7 @@ module MemeExplorer
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
+  LegalRoutes.register(self)
   use Routes::ABTesting
   register Routes::Home
   register Routes::RandomMeme
