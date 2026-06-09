@@ -2043,6 +2043,7 @@ module MemeExplorer
   require_relative './routes/seo_routes'
   require_relative './routes/enhanced_random'
   require_relative './routes/session_metrics'
+  require_relative './routes/legal_routes'
   
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)

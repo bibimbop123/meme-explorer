@@ -237,8 +237,77 @@
 
   <!-- ================= FOOTER ================= -->
   <footer>
-    <p>Built with Sinatra</p>
+    <div class="footer-content">
+      <p>Built with Sinatra | &copy; 2026 Meme Explorer</p>
+      <nav class="footer-links">
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/dmca">DMCA</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <p class="footer-note">Content sourced from <a href="https://www.reddit.com" target="_blank" rel="noopener">Reddit</a> | Not affiliated with Reddit, Inc.</p>
+    </div>
   </footer>
+  
+  <style>
+    footer {
+      background: #2c2c2c;
+      color: #e0e0e0;
+      padding: 2rem 1rem;
+      margin-top: 4rem;
+      text-align: center;
+    }
+    
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+    
+    .footer-links a {
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: #667eea;
+    }
+    
+    .footer-note {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 1rem;
+    }
+    
+    .footer-note a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    
+    .footer-note a:hover {
+      text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+      .footer-links {
+        gap: 1rem;
+      }
+      
+      .footer-links a {
+        font-size: 0.85rem;
+      }
+    }
+  </script>
 
   <!-- ================= SESSION DATA & GAMIFICATION ================= -->
   <script>
