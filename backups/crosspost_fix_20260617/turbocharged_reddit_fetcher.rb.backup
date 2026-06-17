@@ -302,29 +302,14 @@ class TurbochargedRedditFetcher
       next if post_data["is_self"]
       next if post_data["is_video"] && !post_data["is_gallery"]
       
-      # CROSSPOST FIX: Extract data from original post if this is a crosspost
-      if post_data["is_crosspost"] && post_data["crosspost_parent_list"]&.any?
-        original_post = post_data["crosspost_parent_list"].first
-        
-        # Use original post data for media extraction
-        # But keep current post's subreddit/title for context
-        source_data = original_post
-        is_crosspost = true
-        crosspost_subreddit = post_data["subreddit"]
-        original_subreddit = original_post["subreddit"]
-      else
-        source_data = post_data
-        is_crosspost = false
-      end
-      
-      # Get image URL efficiently from the right source
-      is_gallery = source_data["is_gallery"] == true
-      gallery_images = is_gallery ? extract_gallery_images(source_data) : nil
+      # Get image URL efficiently
+      is_gallery = post_data["is_gallery"] == true
+      gallery_images = is_gallery ? extract_gallery_images(post_data) : nil
       
       image_url = if gallery_images && gallery_images.any?
                     gallery_images.first["url"]
                   else
-                    source_data["url"]
+                    post_data["url"]
                   end
       
       next unless image_url
@@ -338,13 +323,6 @@ class TurbochargedRedditFetcher
         "permalink" => post_data["permalink"],
         "created_utc" => post_data["created_utc"]
       }
-      
-      # Add crosspost metadata if this is a crosspost
-      if is_crosspost
-        meme["is_crosspost"] = true
-        meme["original_subreddit"] = original_subreddit
-        meme["crossposted_from"] = "r/#{original_subreddit}"
-      end
       
       # Add gallery data if present
       if is_gallery && gallery_images && gallery_images.any?
