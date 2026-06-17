@@ -53,20 +53,33 @@ class ActivityTracker {
   }
   
   async startTracking() {
-    if (this.isActive) return;
-    
-    this.isActive = true;
-    
-    // Initial fetch
-    await this.updateActivityCount();
-    
-    // Periodic updates
-    setInterval(async () => {
-      if (this.isActive) {
-        await this.updateActivityCount();
-      }
-    }, this.updateInterval);
-  }
+  if (this.isActive) return;
+  
+  this.isActive = true;
+  
+  // Initial fetch
+  await this.updateActivityCount();
+  
+  // Periodic updates - MEMORY LEAK FIX: Store interval reference
+  this.updateInterval_id = setInterval(async () => {
+    if (this.isActive) {
+      await this.updateActivityCount();
+    }
+  }, this.updateInterval);
+  
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => this.cleanup());
+  
+  // Cleanup when tab becomes hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && this.updateInterval_id) {
+      clearInterval(this.updateInterval_id);
+      this.updateInterval_id = null;
+    } else if (!document.hidden && !this.updateInterval_id) {
+      this.startTracking();
+    }
+  });
+}
   
   async updateActivityCount() {
     try {
@@ -130,8 +143,16 @@ class ActivityTracker {
   }
   
   stop() {
-    this.isActive = false;
+  this.isActive = false;
+  this.cleanup();
+}
+
+cleanup() {
+  if (this.updateInterval_id) {
+    clearInterval(this.updateInterval_id);
+    this.updateInterval_id = null;
   }
+}
 }
 
 // Auto-initialize when DOM is ready

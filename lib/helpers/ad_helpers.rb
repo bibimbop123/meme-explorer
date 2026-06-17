@@ -34,21 +34,21 @@ module AdHelpers
     
     # ADSENSE COMPLIANCE: Check if current page should not have ads
     begin
-      current_path = request.path_info
-      return false if PAGES_WITHOUT_ADS.any? { |path| current_path.start_with?(path) || current_path.include?(path) }
-    rescue
-      # If unable to get path, default to safe behavior (no ads)
-      return false
-    end
+  current_path = request.path_info
+  return false if PAGES_WITHOUT_ADS.any? { |path| current_path.start_with?(path) || current_path.include?(path) }
+rescue => e
+  AppLogger.warn("[AdHelpers] Error checking ad eligibility: #{e.message}")
+  return false
+end
     
     # Check if current user is premium (if logged in)
     if session && session[:user_id]
       begin
         user = DB.execute("SELECT subscription_tier FROM users WHERE id = ?", [session[:user_id]]).first
         return false if user && (user['subscription_tier'] == 'premium' || user['subscription_tier'] == 'pro')
-      rescue
-        # If error checking premium status, default to showing ads
-      end
+      rescue => e
+    AppLogger.warn("[AdHelpers] Error checking premium status: #{e.message}")
+  end
     end
     
     true
