@@ -199,8 +199,13 @@
       document.documentElement.classList.add('dark-mode');
     }
   </script>
-</head>
+<!-- Phase 2: Global Error Handler -->
+<script src="/js/error-handler.js"></script>
+    <link rel="stylesheet" href="/css/phase2-improvements.css">
+    </head>
 <body>
+  <!-- Phase 2: Accessibility - Skip to Content -->
+  <a href="#main-content" class="skip-to-content">Skip to content</a>
   <!-- ================= HEADER ================= -->
   <header>
     <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
@@ -232,7 +237,7 @@
 
   <!-- ================= MAIN CONTENT ================= -->
   <main>
-    <%= yield %>
+    <main id="main-content" role="main"><%= yield %></main>
   </main>
 
   <!-- ================= FOOTER ================= -->
@@ -606,5 +611,8 @@
   
   <!-- Content Feedback System (Chunk 4) -->
   <script src="/js/content-feedback.js"></script>
-</body>
+<!-- Phase 2: Lazy Loading -->
+<script src="/js/ad-lazy-load.js" defer></script>
+<script src="/js/image-lazy-load.js" defer></script>
+  </body>
 </html>
