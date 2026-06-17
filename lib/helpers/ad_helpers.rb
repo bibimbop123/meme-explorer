@@ -27,30 +27,21 @@ module AdHelpers
     ENV['AD_FREQUENCY']&.to_i || 12
   end
   
-  # Check if user should see ads (premium users get ad-free experience)
+  # Check if user should see ads
   def should_show_ads?
     # Check if ads are globally disabled
     return false if ENV['DISABLE_ADS'] == 'true'
     
     # ADSENSE COMPLIANCE: Check if current page should not have ads
     begin
-  current_path = request.path_info
-  return false if PAGES_WITHOUT_ADS.any? { |path| current_path.start_with?(path) || current_path.include?(path) }
-rescue => e
-  AppLogger.warn("[AdHelpers] Error checking ad eligibility: #{e.message}")
-  return false
-end
-    
-    # Check if current user is premium (if logged in)
-    if session && session[:user_id]
-      begin
-        user = DB.execute("SELECT subscription_tier FROM users WHERE id = ?", [session[:user_id]]).first
-        return false if user && (user['subscription_tier'] == 'premium' || user['subscription_tier'] == 'pro')
-      rescue => e
-    AppLogger.warn("[AdHelpers] Error checking premium status: #{e.message}")
-  end
+      current_path = request.path_info
+      return false if PAGES_WITHOUT_ADS.any? { |path| current_path.start_with?(path) || current_path.include?(path) }
+    rescue => e
+      AppLogger.warn("[AdHelpers] Error checking ad eligibility: #{e.message}")
+      return false
     end
     
+    # All users see ads (no premium subscription feature)
     true
   end
   
