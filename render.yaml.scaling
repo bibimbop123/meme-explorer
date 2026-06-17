@@ -1,0 +1,90 @@
+# Render.com Deployment Configuration
+# With Horizontal Scaling Support
+# Based on: REFACTORING_ROADMAP Phase 4, Task 6.4
+
+services:
+  # Web Application (Horizontally Scaled)
+  - type: web
+    name: meme-explorer-web
+    runtime: ruby
+    buildCommand: bundle install
+    startCommand: bundle exec puma -C config/puma.rb
+    envVars:
+      - key: RACK_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          name: meme-explorer-redis
+          type: redis
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: meme-explorer-db
+          property: connectionString
+      - key: CDN_DOMAIN
+        value: cdn.meme-explorer.com
+      - key: ASSET_VERSION
+        sync: false
+    
+    # Auto-scaling configuration
+    autoDeploy: true
+    scaling:
+      minInstances: 2          # Always run at least 2 instances
+      maxInstances: 10         # Scale up to 10 instances
+      targetMemoryPercent: 80  # Scale when memory > 80%
+      targetCPUPercent: 70     # Scale when CPU > 70%
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Resources
+    plan: standard
+    region: oregon
+
+  # Background Jobs (Sidekiq)
+  - type: worker
+    name: meme-explorer-worker
+    runtime: ruby
+    buildCommand: bundle install
+    startCommand: bundle exec sidekiq -C config/sidekiq.yml
+    envVars:
+      - key: RACK_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          name: meme-explorer-redis
+          type: redis
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: meme-explorer-db
+          property: connectionString
+    
+    # Worker scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 5
+      targetCPUPercent: 80
+    
+    plan: standard
+    region: oregon
+
+# Database
+databases:
+  - name: meme-explorer-db
+    databaseName: meme_explorer_production
+    user: meme_explorer
+    plan: standard
+    region: oregon
+    
+    # Read replica (optional, for scaling)
+    # readReplicas:
+    #   - name: meme-explorer-db-replica
+    #     region: oregon
+
+# Redis
+redis:
+  - name: meme-explorer-redis
+    plan: standard
+    maxmemoryPolicy: allkeys-lru
+    region: oregon
