@@ -235,7 +235,7 @@ This project is proprietary software developed by Discovery Partners Institute.
 ## 👥 Team
 
 - **Engineering Lead:** Brian
-- **Organization:** Discovery Partners Institute
+- **Organization:** Brain inc.
 - **Started:** 2025
 - **Latest Major Update:** P2 Completion (May 2026)
 
