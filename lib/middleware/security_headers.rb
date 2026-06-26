@@ -75,6 +75,7 @@ class SecurityHeaders
       "img-src 'self' data: https: http:",                 # Allow all images
       "font-src 'self' data:",
       "connect-src 'self' ws: wss:",                       # Allow websockets for hot reload
+      "form-action 'self' https://www.reddit.com",         # Allow Reddit OAuth
       "frame-ancestors 'self'"
     ].join('; ')
   end
@@ -124,8 +125,8 @@ class SecurityHeaders
       # Base URI: prevent base tag hijacking
       "base-uri 'self'",
       
-      # Form action: only allow forms to submit to same origin
-      "form-action 'self'",
+      # Form action: allow Reddit OAuth + same origin
+      "form-action 'self' https://www.reddit.com",
       
       # Upgrade insecure requests in production
       "upgrade-insecure-requests"

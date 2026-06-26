@@ -43,7 +43,7 @@
       <!-- Email/Password Form (Secondary) -->
       <form method="post" action="/login" class="auth-form" id="login-form">
         <!-- ✅ CSRF Token for Rack::CSRF protection -->
-        <input type="hidden" name="authenticity_token" value="<%= Rack::Csrf.token(env) %>">
+        <input type="hidden" name="authenticity_token" value="<%= env['rack.session']['csrf'] %>">
         
         <div id="error-message" class="error-message" style="display: none;"></div>
         
