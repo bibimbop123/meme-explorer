@@ -120,12 +120,12 @@ class AuthRoutes
             redirect "/profile", 302
             
           rescue => e
-            AppLogger.error("Reddit OAuth callback error", {
+            AppLogger.error("Reddit OAuth callback error",
               error_class: e.class.name,
               error_message: e.message,
               backtrace: e.backtrace.first(5),
               ip: request.ip
-            })
+            )
             
             ErrorHandler::Logger.log(e, { 
               provider: "reddit",
