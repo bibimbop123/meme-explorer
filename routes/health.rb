@@ -37,7 +37,7 @@ module MemeExplorer
           health_status[:checks][:redis] = redis_stats.merge(
             status: 'healthy',
             connected: true
-          }
+          )
         else
           health_status[:checks][:redis] = {
             status: 'disabled',
@@ -133,6 +133,168 @@ module MemeExplorer
       content_type :json
       status 200
       { alive: true, timestamp: Time.now.iso8601 }.to_json
+    end
+    
+    # Detailed health check - for monitoring systems
+    get '/health/detailed' do
+      content_type :json
+      
+      health_data = {
+        status: 'healthy',
+        timestamp: Time.now.iso8601,
+        uptime_seconds: (Time.now - $start_time).to_i,
+        checks: {},
+        metrics: {},
+        resources: {}
+      }
+      
+      # Database health with connection pool info
+      begin
+        DB.execute("SELECT 1")
+        pool_info = if defined?(DB_POOL)
+          {
+            size: DB_POOL.size,
+            available: DB_POOL.available
+          }
+        else
+          { info: 'Connection pool not configured' }
+        end
+        
+        health_data[:checks][:database] = {
+          status: 'healthy',
+          response_time_ms: measure_query_time,
+          pool: pool_info
+        }
+      rescue => e
+        health_data[:checks][:database] = {
+          status: 'unhealthy',
+          error: e.message
+        }
+        health_data[:status] = 'degraded'
+      end
+      
+      # Redis health with memory usage
+      begin
+        if defined?(RedisService)
+          redis_info = RedisService.client.with { |conn| conn.info }
+          used_memory_mb = (redis_info['used_memory'].to_i / 1024.0 / 1024.0).round(2)
+          max_memory_mb = (redis_info['maxmemory'].to_i / 1024.0 / 1024.0).round(2)
+          
+          health_data[:checks][:redis] = {
+            status: 'healthy',
+            used_memory_mb: used_memory_mb,
+            max_memory_mb: max_memory_mb,
+            memory_usage_percent: max_memory_mb > 0 ? ((used_memory_mb / max_memory_mb) * 100).round(1) : 0,
+            connected_clients: redis_info['connected_clients'].to_i,
+            uptime_days: (redis_info['uptime_in_seconds'].to_i / 86400.0).round(1)
+          }
+        end
+      rescue => e
+        health_data[:checks][:redis] = {
+          status: 'unhealthy',
+          error: e.message
+        }
+        health_data[:status] = 'degraded'
+      end
+      
+      # Sidekiq health (if available)
+      begin
+        if defined?(Sidekiq)
+          stats = Sidekiq::Stats.new
+          queue_stats = Sidekiq::Queue.all.map { |q| { name: q.name, size: q.size } }
+          
+          health_data[:checks][:sidekiq] = {
+            status: 'healthy',
+            processed: stats.processed,
+            failed: stats.failed,
+            retry_size: stats.retry_size,
+            dead_size: stats.dead_size,
+            queues: queue_stats,
+            workers_size: stats.workers_size
+          }
+          
+          # Warn if queues backing up
+          if queue_stats.any? { |q| q[:size] > 1000 }
+            health_data[:checks][:sidekiq][:status] = 'warning'
+            health_data[:checks][:sidekiq][:message] = 'Queue backlog detected'
+          end
+        end
+      rescue => e
+        health_data[:checks][:sidekiq] = {
+          status: 'unavailable',
+          error: e.message
+        }
+      end
+      
+      # Thread pool utilization
+      begin
+        thread_count = Thread.list.size
+        health_data[:resources][:threads] = {
+          count: thread_count,
+          status: thread_count < 100 ? 'healthy' : 'warning'
+        }
+      rescue => e
+        health_data[:resources][:threads] = {
+          status: 'error',
+          error: e.message
+        }
+      end
+      
+      # Memory usage
+      begin
+        if RUBY_PLATFORM =~ /linux/
+          memory_kb = `ps -o rss= -p #{Process.pid}`.to_i
+          memory_mb = (memory_kb / 1024.0).round(2)
+        else
+          # macOS/BSD
+          memory_bytes = `ps -o rss= -p #{Process.pid}`.to_i * 1024
+          memory_mb = (memory_bytes / 1024.0 / 1024.0).round(2)
+        end
+        
+        health_data[:resources][:memory] = {
+          used_mb: memory_mb,
+          status: memory_mb < 1000 ? 'healthy' : 'warning'
+        }
+      rescue => e
+        health_data[:resources][:memory] = {
+          status: 'unavailable',
+          error: e.message
+        }
+      end
+      
+      # Business metrics
+      begin
+        health_data[:metrics][:meme_pool_size] = MEME_CACHE.get(:memes)&.size || 0
+        health_data[:metrics][:cache_size] = MEME_CACHE.stats[:size]
+        health_data[:metrics][:last_cache_refresh] = MEME_CACHE.get(:last_refresh)&.iso8601
+      rescue => e
+        health_data[:metrics][:error] = e.message
+      end
+      
+      # Set overall status
+      if health_data[:checks].values.any? { |check| check[:status] == 'unhealthy' }
+        health_data[:status] = 'degraded'
+        status 503
+      elsif health_data[:checks].values.any? { |check| check[:status] == 'warning' }
+        health_data[:status] = 'warning'
+        status 200
+      else
+        health_data[:status] = 'healthy'
+        status 200
+      end
+      
+      health_data.to_json
+    end
+    
+    private
+    
+    # Measure database query response time
+    def measure_query_time
+      start_time = Time.now
+      DB.execute("SELECT 1")
+      ((Time.now - start_time) * 1000).round(2)
+    rescue
+      nil
     end
     
   end
