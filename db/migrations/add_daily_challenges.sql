@@ -1,0 +1,2 @@
+-- Daily Challenge tables
+-- To be implemented
