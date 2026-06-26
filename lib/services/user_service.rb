@@ -31,7 +31,7 @@ class UserService
     hashed = BCrypt::Password.create(password)
     
     if defined?(Sequel) && DB.is_a?(Sequel::Database)
-      # Sequel/PostgreSQL
+      # Sequel/PostgreSQL - Use Sequel DSL (not raw SQL)
       begin
         # Insert and return the new ID (Sequel automatically returns the new ID)
         DB[:users].insert(

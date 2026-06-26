@@ -19,11 +19,11 @@ class AuthRoutes
 
         app.get "/auth/reddit/callback" do
           begin
-            AppLogger.info("Reddit OAuth callback received", {
+            AppLogger.info("Reddit OAuth callback received",
               code_present: !params[:code].nil?,
               state_present: !params[:state].nil?,
               ip: request.ip
-            })
+            )
             
             code = params[:code]
             error = params[:error]
