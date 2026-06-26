@@ -1,0 +1,31 @@
+# CDN Configuration
+development:
+  enabled: false
+  provider: local
+
+staging:
+  enabled: true
+  provider: cloudflare
+  zone_id: <%= ENV['CLOUDFLARE_ZONE_ID'] %>
+  api_token: <%= ENV['CLOUDFLARE_API_TOKEN'] %>
+  
+  image_cdn:
+    provider: cloudinary
+    cloud_name: <%= ENV['CLOUDINARY_CLOUD_NAME'] %>
+    api_key: <%= ENV['CLOUDINARY_API_KEY'] %>
+
+production:
+  enabled: true
+  provider: cloudflare
+  zone_id: <%= ENV['CLOUDFLARE_ZONE_ID'] %>
+  api_token: <%= ENV['CLOUDFLARE_API_TOKEN'] %>
+  
+  image_cdn:
+    provider: cloudinary
+    cloud_name: <%= ENV['CLOUDINARY_CLOUD_NAME'] %>
+    api_key: <%= ENV['CLOUDINARY_API_KEY'] %>
+    
+  performance:
+    cache_ttl: 31536000  # 1 year for immutable assets
+    stale_while_revalidate: 86400  # 1 day
+    browser_cache_ttl: 2592000  # 30 days

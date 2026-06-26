@@ -1,0 +1,40 @@
+# Multi-Region Configuration
+regions:
+  us_east:
+    name: "US East"
+    endpoint: <%= ENV['REGION_US_EAST_URL'] %>
+    database: <%= ENV['REGION_US_EAST_DB'] %>
+    redis: <%= ENV['REGION_US_EAST_REDIS'] %>
+    priority: 1
+    
+  us_west:
+    name: "US West"
+    endpoint: <%= ENV['REGION_US_WEST_URL'] %>
+    database: <%= ENV['REGION_US_WEST_DB'] %>
+    redis: <%= ENV['REGION_US_WEST_REDIS'] %>
+    priority: 2
+    
+  eu_west:
+    name: "Europe West"
+    endpoint: <%= ENV['REGION_EU_WEST_URL'] %>
+    database: <%= ENV['REGION_EU_WEST_DB'] %>
+    redis: <%= ENV['REGION_EU_WEST_REDIS'] %>
+    priority: 2
+    
+  ap_southeast:
+    name: "Asia Pacific"
+    endpoint: <%= ENV['REGION_AP_SOUTHEAST_URL'] %>
+    database: <%= ENV['REGION_AP_SOUTHEAST_DB'] %>
+    redis: <%= ENV['REGION_AP_SOUTHEAST_REDIS'] %>
+    priority: 3
+
+replication:
+  strategy: active-active
+  sync_interval: 60  # seconds
+  conflict_resolution: last-write-wins
+  
+failover:
+  enabled: true
+  health_check_interval: 30  # seconds
+  max_failures: 3
+  fallback_region: us_east
