@@ -21,8 +21,38 @@ DB_POOL = ConnectionPool.new(size: 35, timeout: 5) do
   conn
 end
 
-# Convenience method for queries
-DB = DB_POOL
+# DB Wrapper class to make connection pool usage transparent
+class DBWrapper
+  def initialize(pool)
+    @pool = pool
+  end
+  
+  # Execute SQL and return all results
+  def execute(sql, params = [])
+    @pool.with do |conn|
+      result = conn.exec_params(sql, params)
+      # Convert PG::Result to array of hashes (compatible with SQLite3 interface)
+      result.map { |row| row }
+    end
+  end
+  
+  # Execute SQL and return first column of first row (like SQLite3's get_first_value)
+  def get_first_value(sql, params = [])
+    @pool.with do |conn|
+      result = conn.exec_params(sql, params)
+      return nil if result.ntuples == 0
+      result[0].values.first
+    end
+  end
+  
+  # For backwards compatibility with code that checks connection status
+  def closed?
+    false
+  end
+end
+
+# Create wrapped DB instance
+DB = DBWrapper.new(DB_POOL)
 
 # Health check for connection pool
 def self.check_db_health
