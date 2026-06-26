@@ -197,6 +197,20 @@ class RedisService
       false
     end
     
+    # Get raw Redis connection for legacy code compatibility
+    # Returns nil if Redis is unavailable
+    # @return [Redis, nil] Redis connection or nil
+    def connection
+      return nil unless redis_available?
+      
+      # Return a connection that can be used directly
+      # Note: For better patterns, use RedisService methods instead
+      REDIS_POOL.checkout
+    rescue => e
+      handle_error(e, operation: 'connection')
+      nil
+    end
+    
     private
     
     # Serialize value for Redis storage
