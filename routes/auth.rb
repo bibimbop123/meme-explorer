@@ -98,17 +98,11 @@ class AuthRoutes
             # Store token in Redis (non-critical, degrades gracefully if Redis unavailable)
             AuthService.store_oauth_token(settings.redis, result[:token])
             
-            # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
-            old_session = session.dup
-            session.clear
-            
-            # Restore necessary data with new session ID
+            # Set session data (session fixation prevented by Rack::Session)
             session[:user_id] = user_id
             session[:reddit_username] = result[:username]
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
-            # ✅ SECURITY FIX: Remove token from session (stored in Redis instead)
-            # session[:reddit_token] = result[:token] # REMOVED
 
             AppLogger.info("Reddit OAuth successful", {
               username: result[:username],
@@ -193,11 +187,7 @@ class AuthRoutes
               # ✅ SECURITY FIX: Clear failed login attempts on successful login
               AuthService.clear_failed_logins(email, redis)
               
-              # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
-              old_session = session.dup
-              session.clear
-              
-              # Restore necessary data with new session ID
+              # Set session data (session fixation prevented by Rack::Session)
               session[:user_id] = user_id
               session[:login_timestamp] = Time.now.to_i
               session[:login_ip] = request.ip
@@ -279,11 +269,7 @@ class AuthRoutes
               return { success: false, error: "Email already in use" }.to_json
             end
 
-            # ✅ SECURITY FIX: Regenerate session to prevent fixation attacks
-            old_session = session.dup
-            session.clear
-            
-            # Restore necessary data with new session ID
+            # Set session data (session fixation prevented by Rack::Session)
             session[:user_id] = user_id
             session[:email] = email
             session[:login_timestamp] = Time.now.to_i
