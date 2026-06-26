@@ -199,6 +199,20 @@ module AdHelpers
 # ============================================
 
 # Render sticky sidebar ad (desktop only)
+# 
+def render_ad
+  return '' unless should_show_ads?
+  
+  # Track impression
+  RevenueTracker.record_ad_impression(
+    user_id: current_user_id,
+    page: request.path_info
+  )
+  
+  # Render ad
+  erb :_ad, layout: false
+end
+
 def render_sidebar_ad
   return '' unless should_show_ads?
   

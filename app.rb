@@ -70,6 +70,8 @@ require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
 require_relative 'lib/services/health_check_service'
 require_relative 'lib/db_helpers'
+require_relative 'routes/admin_observability'
+
 
 require "digest"
 
