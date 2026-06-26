@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 # Admin routes for observability dashboards
-class MemeExplorer < Sinatra::Base
-  # Performance Dashboard
-  get '/admin/performance' do
+
+# Performance Dashboard
+get '/admin/performance' do
     requires_admin!
     
     @page_title = 'Performance Dashboard'
@@ -73,4 +73,3 @@ class MemeExplorer < Sinatra::Base
       }
     }.to_json
   end
-end
