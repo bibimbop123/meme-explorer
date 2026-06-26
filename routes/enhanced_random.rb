@@ -27,7 +27,7 @@ module Routes
         user_id = session[:user_id] # May be nil for anonymous users
         
         # Use enhanced selector
-        selected = EnhancedRandomSelector.select_meme(
+        selected = ::EnhancedRandomSelector.select_meme(
           all_memes,
           session_id: session_id,
           user_id: user_id,
@@ -36,7 +36,7 @@ module Routes
         
         if selected
           # Store meme metadata for future profile building
-          EnhancedRandomSelector.send(:store_meme_metadata, selected)
+          ::EnhancedRandomSelector.send(:store_meme_metadata, selected)
           
           {
             success: true,
@@ -85,7 +85,7 @@ module Routes
         end
         
         # Track the interaction
-        EnhancedRandomSelector.track_interaction(
+        ::EnhancedRandomSelector.track_interaction(
           meme_id,
           user_id: user_id,
           session_id: session_id,
@@ -122,7 +122,7 @@ module Routes
       end
       
       begin
-        profile = EnhancedRandomSelector.send(:get_user_profile, user_id)
+        profile = ::EnhancedRandomSelector.send(:get_user_profile, user_id)
         
         {
           success: true,
@@ -152,7 +152,7 @@ module Routes
       end
       
       begin
-        recommendations = EnhancedRandomSelector.send(:get_collaborative_recommendations, user_id, limit: 20)
+        recommendations = ::EnhancedRandomSelector.send(:get_collaborative_recommendations, user_id, limit: 20)
         
         {
           success: true,
