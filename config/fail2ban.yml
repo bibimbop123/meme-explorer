@@ -1,0 +1,39 @@
+# Fail2ban Configuration for Meme Explorer
+
+ban_settings:
+  max_retry: 5
+  find_time: 600  # 10 minutes
+  ban_time: 3600  # 1 hour
+  
+jail_configs:
+  http_auth:
+    enabled: true
+    filter: meme-explorer-auth
+    logpath: /var/log/meme-explorer/security.log
+    max_retry: 5
+    
+  http_get_dos:
+    enabled: true
+    filter: meme-explorer-dos
+    logpath: /var/log/meme-explorer/access.log
+    max_retry: 300
+    find_time: 60
+    
+  admin_access:
+    enabled: true
+    filter: meme-explorer-admin
+    logpath: /var/log/meme-explorer/security.log
+    max_retry: 3
+    ban_time: 86400  # 24 hours
+    
+actions:
+  default: iptables-multiport[name=meme-explorer, port="http,https"]
+  notification:
+    email: ENV['SECURITY_EMAIL']
+    slack: ENV['SECURITY_SLACK_WEBHOOK']
+    
+whitelist:
+  - 127.0.0.1
+  - ::1
+  # Add monitoring server IPs
+  # - 10.0.0.0/8

@@ -1,0 +1,51 @@
+# Security Scanning Configuration
+# Automated security scanning for CI/CD pipeline
+
+scan_schedule:
+  frequency: daily
+  time: "02:00"  # 2 AM UTC
+  
+dependency_scanning:
+  enabled: true
+  tools:
+    - bundler-audit
+    - brakeman
+  severity_threshold: medium
+  
+static_analysis:
+  enabled: true
+  tools:
+    - rubocop-security
+    - reek
+  fail_on_warning: false
+  
+secret_scanning:
+  enabled: true
+  patterns:
+    - password
+    - secret
+    - api_key
+    - private_key
+    - access_token
+  exclude_files:
+    - "*.md"
+    - ".env.example"
+    
+vulnerability_database:
+  update_frequency: daily
+  sources:
+    - "https://rubysec.com/advisories"
+    - "https://nvd.nist.gov/feeds"
+    
+notifications:
+  slack_webhook: ENV['SECURITY_SLACK_WEBHOOK']
+  email: ENV['SECURITY_EMAIL']
+  severity_levels:
+    - critical
+    - high
+    
+exemptions:
+  # Known false positives
+  - cve: CVE-2023-XXXXX
+    reason: "Not applicable to our use case"
+    expires_at: "2026-12-31"
