@@ -1,5 +1,5 @@
 -- P1 Additional Performance Indexes
--- Generated: 2026-06-25 23:57:17 -0500
+-- Generated: 2026-06-26 00:01:25 -0500
 
 -- For search queries (case-insensitive title search)
 CREATE INDEX IF NOT EXISTS idx_meme_stats_title_lower 

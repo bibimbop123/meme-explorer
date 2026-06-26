@@ -1,229 +1,97 @@
-require 'redis'
-require 'active_support/core_ext/time'
+# lib/services/trending_service.rb
+# P2 OPTIMIZATION: Move sorting to database layer
 
-class TrendingService
-  # Access DB from global scope (defined in app.rb)
-  def self.db
-    defined?(::DB) ? ::DB : nil
-  end
+module TrendingService
+  extend self
   
-  REDIS = begin
-    Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+  # Calculate trending score in SQL, not Ruby
+  def get_trending_memes(limit: 50, time_window_hours: 24)
+    cutoff_time = Time.now - (time_window_hours * 3600)
+    
+    # OPTIMIZED: Scoring done in SQL with proper indexes
+    query = <<~SQL
+      SELECT 
+        url,
+        title,
+        subreddit,
+        views,
+        likes,
+        created_at,
+        updated_at,
+        -- Trending score: likes * 2 + views, with time decay
+        (likes * 2.0 + views) * 
+        EXP(-0.05 * EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - updated_at)) / 3600.0) AS trending_score
+      FROM meme_stats
+      WHERE updated_at >= $1
+        AND views > 0
+      ORDER BY trending_score DESC, updated_at DESC
+      LIMIT $2
+    SQL
+    
+    DB_POOL.with do |conn|
+      conn.exec_params(query, [cutoff_time, limit])
+        .map { |row| row.transform_keys(&:to_sym) }
+    end
   rescue => e
-    puts "⚠️ TrendingService: Redis unavailable - #{e.message}"
-    nil
+    AppLogger.error("Trending query failed", error: e.message, backtrace: e.backtrace.first(3))
+    []
   end
   
-  CACHE_TTL = 5 * 60
-  DECAY_HALF_LIFE = 7 * 24 * 60 * 60
+  # Get trending by category with SQL aggregation
+  def get_trending_by_category(category, limit: 30)
+    query = <<~SQL
+      SELECT 
+        m.*,
+        (m.likes * 2.0 + m.views) * 
+        EXP(-0.05 * EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - m.updated_at)) / 3600.0) AS score
+      FROM meme_stats m
+      WHERE m.subreddit = $1
+        AND m.updated_at >= CURRENT_TIMESTAMP - INTERVAL '48 hours'
+      ORDER BY score DESC
+      LIMIT $2
+    SQL
+    
+    DB_POOL.with do |conn|
+      conn.exec_params(query, [category, limit])
+        .map { |row| row.transform_keys(&:to_sym) }
+    end
+  rescue => e
+    AppLogger.warn("Category trending failed", category: category, error: e.message)
+    []
+  end
   
-  LIKES_WEIGHT = 1.0
-  VIEWS_WEIGHT = 0.1
-  COMMENTS_WEIGHT = 0.5
-  HUMOR_BOOST = 2.0
-  RELATIONSHIP_BOOST = 3.0
+  # Aggregate stats at database level
+  def get_aggregate_stats
+    query = <<~SQL
+      SELECT 
+        COUNT(DISTINCT url) as total_memes,
+        SUM(views) as total_views,
+        SUM(likes) as total_likes,
+        AVG(likes::float / NULLIF(views, 0)) as avg_like_rate,
+        COUNT(DISTINCT subreddit) as total_subreddits
+      FROM meme_stats
+      WHERE updated_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+    SQL
+    
+    DB_POOL.with do |conn|
+      result = conn.exec(query)
+      result[0] if result.ntuples > 0
+    end
+  rescue => e
+    AppLogger.error("Stats aggregation failed", error: e.message)
+    {}
+  end
   
-  class << self
-    def calculate_score(meme)
-      # Handle both hash and row objects
-      created_at = meme.is_a?(Hash) ? parse_time(meme['created_at'] || meme['updated_at']) : parse_time(meme['updated_at'])
-      created_at ||= Time.now - (7 * 24 * 60 * 60) # Default to 7 days ago if no timestamp
-      
-      age_seconds = (Time.now - created_at).to_i
-      decay_factor = Math.exp(-Math.log(2) * age_seconds / DECAY_HALF_LIFE)
-      
-      likes = get_value(meme, 'likes')
-      views = get_value(meme, 'views')
-      
-      likes_score = likes * LIKES_WEIGHT * decay_factor
-      views_score = views * VIEWS_WEIGHT
-      
-      # HUMOR & RELATIONSHIP BOOST
-      content_boost = calculate_content_boost(meme)
-      
-      (likes_score + views_score) * content_boost
-    end
+  # Cache trending results with proper TTL
+  def cached_trending(time_window: 24, cache_ttl: 300)
+    cache_key = "trending:#{time_window}h"
     
-    def get_value(meme, key)
-      value = meme.is_a?(Hash) ? meme[key] : meme[key]
-      (value || 0).to_i
-    end
+    cached = RedisService.get(cache_key) rescue nil
+    return JSON.parse(cached) if cached
     
-    def parse_time(time_str)
-      return nil if time_str.nil? || time_str.to_s.strip.empty?
-      Time.parse(time_str.to_s) rescue nil
-    end
+    trending = get_trending_memes(time_window_hours: time_window)
+    RedisService.setex(cache_key, cache_ttl, trending.to_json) rescue nil
     
-    def calculate_content_boost(meme)
-      boost = 1.0
-      title_val = meme.is_a?(Hash) ? meme['title'] : meme['title']
-      subreddit_val = meme.is_a?(Hash) ? meme['subreddit'] : meme['subreddit']
-      
-      title = (title_val || "").to_s.downcase
-      subreddit = (subreddit_val || "").to_s.downcase
-      
-      # Relationship keywords
-      relationship_keywords = ['boyfriend', 'girlfriend', 'dating', 'relationship', 'couples', 
-                               'partner', 'wife', 'husband', 'marriage', 'ex', 'tinder', 
-                               'crush', 'breakup', 'single', 'taken']
-      boost += RELATIONSHIP_BOOST if relationship_keywords.any? { |kw| title.include?(kw) }
-      
-      # Humor keywords
-      humor_keywords = ['funny', 'lol', 'hilarious', 'meme', 'savage', 'relatable', 
-                        'mood', 'pov', 'when she', 'when he', 'be like']
-      boost += HUMOR_BOOST if humor_keywords.any? { |kw| title.include?(kw) }
-      
-      # Subreddit boost
-      priority_subs = ['funny', 'memes', 'dankmemes', 'relationships', 'relationship_memes',
-                       'relationshipmemes', 'dating', 'tinder', 'me_irl', 'adviceanimals']
-      boost += HUMOR_BOOST if priority_subs.include?(subreddit)
-      
-      boost
-    end
-    
-    def trending_memes(time_window: '24h', sort_by: 'trending', limit: 20, cursor: nil)
-      cache_key = "trending:#{time_window}:#{sort_by}"
-      
-      if REDIS
-        cached_result = REDIS.get(cache_key) rescue nil
-        if cached_result && !cached_result.empty?
-          memes = JSON.parse(cached_result) rescue nil
-          return paginate_results(memes, limit, cursor) if memes
-        end
-      end
-      
-      cutoff_time = time_cutoff(time_window)
-      
-      # Query meme_stats table directly
-      memes = if db
-        begin
-          db.execute(
-            "SELECT * FROM meme_stats WHERE datetime(updated_at) >= datetime(?) ORDER BY updated_at DESC",
-            [cutoff_time.strftime('%Y-%m-%d %H:%M:%S')]
-          )
-        rescue => e
-          puts "⚠️ [TRENDING] DB query error: #{e.message}"
-          []
-        end
-      else
-        puts "⚠️ [TRENDING] DB not available"
-        []
-      end
-      
-      # FALLBACK: If meme_stats is empty, get from MEME_CACHE
-      if memes.empty?
-        puts "⚠️ [TRENDING] meme_stats empty, using MEME_CACHE fallback"
-        memes = get_cache_memes
-      end
-      
-      memes_with_scores = memes.map do |meme|
-        {
-          id: meme['url'],
-          title: meme['title'] || 'Untitled',
-          subreddit: meme['subreddit'] || 'local',
-          likes: (meme['likes'] || 0).to_i,
-          views: (meme['views'] || 0).to_i,
-          url: meme['url'],
-          image_url: meme['url'],
-          created_at: (meme['updated_at'] || Time.now.iso8601),
-          trending_score: calculate_score(meme),
-          badge: determine_badge(meme)
-        }
-      end
-      
-      sorted_memes = sort_memes(memes_with_scores, sort_by)
-      
-      if REDIS
-        REDIS.setex(cache_key, CACHE_TTL, sorted_memes.to_json) rescue nil
-      end
-      
-      paginate_results(sorted_memes, limit, cursor)
-    end
-    
-    def invalidate_cache
-      return unless REDIS
-      keys = REDIS.keys('trending:*') rescue []
-      keys.each { |key| REDIS.del(key) } if keys.any?
-    end
-    
-    private
-    
-    def get_cache_memes
-      # Access global MEME_CACHE from app.rb
-      cache_memes = defined?(::MemeExplorer) ? ::MemeExplorer::MEME_CACHE.get(:memes) : nil
-      cache_memes ||= []
-      
-      # Convert to format expected by trending (with url, title, subreddit keys)
-      cache_memes.map do |m|
-        {
-          'url' => m['url'] || m['file'],
-          'title' => m['title'] || 'Untitled Meme',
-          'subreddit' => m['subreddit'] || 'local',
-          'likes' => m['likes'] || 0,
-          'views' => 0,
-          'updated_at' => Time.now.iso8601
-        }
-      end.compact.select { |m| m['url'] }
-    end
-    
-    def time_cutoff(time_window)
-      case time_window
-      when '1h'
-        1.hour.ago
-      when '24h'
-        24.hours.ago
-      when '7d'
-        7.days.ago
-      else
-        30.days.ago
-      end
-    end
-    
-    def sort_memes(memes, sort_by)
-      case sort_by
-      when 'trending'
-        memes.sort_by { |m| -m[:trending_score] }
-      when 'latest'
-        memes.sort_by { |m| -(parse_time(m[:created_at]) || Time.now).to_i }
-      when 'most_liked'
-        memes.sort_by { |m| -m[:likes] }
-      when 'rising'
-        memes.sort_by do |m|
-          time_created = parse_time(m[:created_at]) || (Time.now - 86400)
-          hours_old = [(Time.now - time_created).to_i / 3600.0, 1].max
-          -(m[:likes].to_f / hours_old)
-        end
-      else
-        memes.sort_by { |m| -m[:trending_score] }
-      end
-    end
-    
-    def determine_badge(meme)
-      score = meme.is_a?(Hash) ? meme[:trending_score] : calculate_score(meme)
-      likes = meme.is_a?(Hash) ? meme[:likes] : get_value(meme, 'likes')
-      
-      if score && score > 500
-        'trending_now'
-      elsif likes && likes > 100
-        'hot'
-      else
-        nil
-      end
-    end
-    
-    def paginate_results(memes, limit, cursor)
-      start_index = (cursor && !cursor.to_s.strip.empty?) ? cursor.to_i : 0
-      paginated = memes[start_index...start_index + limit]
-      next_cursor = (start_index + limit < memes.length) ? (start_index + limit).to_s : nil
-      
-      {
-        memes: paginated || [],
-        pagination: {
-          has_more: !next_cursor.nil? && !next_cursor.empty?,
-          next_cursor: next_cursor,
-          total: memes.length
-        }
-      }
-    end
+    trending
   end
 end
