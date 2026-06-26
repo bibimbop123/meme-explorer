@@ -1,43 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/</loc>
+    <loc>https://meme-explorer.onrender.com/</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/trending</loc>
+    <loc>https://meme-explorer.onrender.com/trending</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/random</loc>
+    <loc>https://meme-explorer.onrender.com/random</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>always</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/leaderboard</loc>
+    <loc>https://meme-explorer.onrender.com/leaderboard</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/search</loc>
+    <loc>https://meme-explorer.onrender.com/search</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/metrics</loc>
+    <loc>https://meme-explorer.onrender.com/metrics</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://meme-explorer-k56t.onrender.com/collections</loc>
+    <loc>https://meme-explorer.onrender.com/collections</loc>
     <lastmod>2026-06-26</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
