@@ -1,0 +1,61 @@
+# ============================================
+# AD PLACEMENT CONFIGURATION
+# ============================================
+# Strategic ad placement for optimal revenue
+# Based on WHATS_NEXT_PRIORITIES.md recommendations
+
+placements:
+  # Homepage / Browse
+  feed:
+    enabled: true
+    frequency: 5  # Every 5 memes
+    types:
+      - display_300x250  # Medium Rectangle
+      - native_in_feed
+    
+  # Sidebar (Desktop only)
+  sidebar:
+    enabled: true
+    sticky: true
+    types:
+      - display_300x600  # Half Page
+      - display_160x600  # Wide Skyscraper
+    
+  # Between content sections
+  trending_section:
+    enabled: true
+    position: below
+    types:
+      - display_728x90  # Leaderboard
+      - display_970x90  # Large Leaderboard
+    
+  # Mobile specific
+  mobile:
+    enabled: true
+    positions:
+      - after_meme_3
+      - after_meme_8
+    types:
+      - display_320x50   # Mobile Banner
+      - display_300x250  # Medium Rectangle
+
+# Revenue tracking
+tracking:
+  enabled: true
+  events:
+    - ad_impression
+    - ad_click
+    - ad_viewability
+  
+# A/B testing
+experiments:
+  enabled: true
+  variants:
+    - control  # Current setup
+    - high_density  # More ads
+    - strategic  # Fewer but better placed
+
+# Expected Revenue
+# 1,000 visitors/day × 3 ad views × $2 CPM = $6/day = $180/month
+# 10,000 visitors/day = $1,800/month
+# 100,000 visitors/day = $18,000/month

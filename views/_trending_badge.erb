@@ -1,0 +1,79 @@
+<%# ============================================
+    TRENDING BADGE COMPONENT
+    ============================================
+    Shows trending indicators for memes
+    Part of Week 2 Social Validation improvements
+%>
+
+<% 
+  # Calculate trending score
+  hours_old = ((Time.now - Time.parse(meme['created_at'])) / 3600).to_i rescue 24
+  engagement_rate = meme['likes'].to_i / [meme['views'].to_i, 1].max.to_f
+  is_trending = hours_old < 24 && engagement_rate > 0.05
+  is_hot = hours_old < 6 && engagement_rate > 0.1
+%>
+
+<% if is_hot %>
+  <span class="trending-badge hot" title="Hot right now!">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    </svg>
+    🔥 HOT
+  </span>
+<% elsif is_trending %>
+  <span class="trending-badge trending" title="Trending now">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+    </svg>
+    📈 TRENDING
+  </span>
+<% end %>
+
+<style>
+  .trending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  .trending-badge.hot {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+  }
+  
+  .trending-badge.trending {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+  }
+  
+  .trending-badge svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.9;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .trending-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+    }
+  }
+</style>
