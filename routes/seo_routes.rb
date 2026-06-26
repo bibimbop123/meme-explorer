@@ -125,9 +125,7 @@ module Routes
         # Build XML sitemap
         xml = []
         xml << '<?xml version="1.0" encoding="UTF-8"?>'
-        xml << '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-        xml << '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
-        xml << '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">'
+        xml << '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         
         pages.each do |page|
           xml << "  <url>"
