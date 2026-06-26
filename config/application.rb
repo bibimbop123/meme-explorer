@@ -3,9 +3,10 @@ class MemeExplorerConfig
   # Session Configuration
   SESSION_EXPIRE_AFTER = 2_592_000  # 30 days in seconds
   COOKIE_OPTIONS = {
+    path: '/',  # Explicit path for OAuth redirects
     secure: ENV['RACK_ENV'] == 'production',  # Only secure in production
     httponly: true,
-    same_site: :lax,
+    same_site: :lax,  # Allow OAuth redirects from Reddit
     expires: Time.now + SESSION_EXPIRE_AFTER
   }.freeze
 

@@ -814,15 +814,10 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       # Use RedisService.fetch with automatic DB fallback
       RedisService.fetch("meme:likes:#{url}", ttl: 300) do
         # Fallback: query database if Redis unavailable or cache miss
-        if defined?(Sequel) && DB.is_a?(Sequel::Database)
-          # PostgreSQL/Sequel - use DSL
-          row = DB[:meme_stats].where(url: url).select(:likes).first
-          row ? row[:likes].to_i : 0
-        else
-          # SQLite3 - use raw SQL
-          row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
-          row ? row["likes"].to_i : 0
-        end
+        # PostgreSQL uses $1 placeholders, SQLite uses ?
+        placeholder = DB.respond_to?(:adapter_scheme) ? '$1' : '?'
+        row = DB.execute("SELECT likes FROM meme_stats WHERE url = #{placeholder}", [url]).first
+        row ? (row["likes"] || row[:likes] || row.values.first).to_i : 0
       end
     end
 
