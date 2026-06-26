@@ -684,7 +684,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       
       # Update session history
       session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(10)  # Hard cap: 50 (reduced from 100)
+      session[:meme_history] = session[:meme_history].last(50)  # Hard cap: 50 (reduced from 100)
       session[:last_subreddit] = meme_subreddit&.downcase
 
       # Track exposure for analytics and spaced repetition
@@ -1238,7 +1238,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     # Track in session history
     meme_identifier = @meme["url"] || @meme["file"]
     session[:meme_history] << meme_identifier
-    session[:meme_history] = session[:meme_history].last(10)  # Hard cap: 50 (reduced from 100)
+    session[:meme_history] = session[:meme_history].last(50)  # Hard cap: 50 (reduced from 100)
     session[:last_subreddit] = @meme["subreddit"]&.downcase
     
     image_url = @meme["url"] || @meme["file"]
@@ -1948,12 +1948,16 @@ end
 # -----------------------
 # Admin Authorization Filter (P0 Security Fix)
 # -----------------------
-
+before '/admin/*' do
+  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
+end
 
 # -----------------------
 # Admin Authorization Filter (P0 Security Fix)
 # -----------------------
-
+before '/admin/*' do
+  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
+end
 
   # -----------------------
   # Admin Routes
