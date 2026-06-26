@@ -6,10 +6,11 @@ class Rack::Attack
     ["127.0.0.1", "::1"].include?(req.ip)
   end
 
-  # Limit requests per IP to 300 per minute (5 per second - reasonable for browsing)
-  throttle("req/ip", limit: 300, period: 60) do |req|
-    req.ip unless req.path.start_with?("/assets") || req.path.start_with?("/random")
-  end
+  # DISABLED: Rate limiting too aggressive - causing issues with normal browsing
+  # Will re-enable with better configuration later
+  # throttle("req/ip", limit: 300, period: 60) do |req|
+  #   req.ip unless req.path.start_with?("/assets") || req.path.start_with?("/random")
+  # end
 
   # Custom response for throttling
   self.throttled_response = lambda do |env|
