@@ -64,7 +64,7 @@ class AuthRoutes
             session.delete(:oauth_state)
             session.delete(:oauth_state_timestamp)
 
-            AppLogger.info("Exchanging OAuth code for token", { ip: request.ip })
+            AppLogger.info("Exchanging OAuth code for token", ip: request.ip)
             
             result = AuthService.verify_reddit_oauth(
               code,
@@ -74,10 +74,10 @@ class AuthRoutes
             )
 
             unless result[:success]
-              AppLogger.error("Reddit OAuth token exchange failed", {
+              AppLogger.error("Reddit OAuth token exchange failed",
                 error: result[:error],
                 ip: request.ip
-              })
+              )
               
               ErrorHandler::Logger.log(
                 StandardError.new("OAuth failed: #{result[:error]}"),
@@ -104,12 +104,12 @@ class AuthRoutes
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
 
-            AppLogger.info("Reddit OAuth successful", {
+            AppLogger.info("Reddit OAuth successful",
               username: result[:username],
               user_id: user_id,
               ip: request.ip,
               session_regenerated: true
-            })
+            )
             
             redirect "/profile", 302
             
@@ -166,11 +166,11 @@ class AuthRoutes
               remaining = AuthService.lockout_time_remaining(email, redis)
               minutes = (remaining / 60.0).ceil
               
-              AppLogger.warn("Login attempt on locked account", {
+              AppLogger.warn("Login attempt on locked account",
                 email: email,
                 ip: request.ip,
                 remaining_seconds: remaining
-              })
+              )
               
               return { 
                 success: false, 
@@ -192,11 +192,11 @@ class AuthRoutes
               session[:login_timestamp] = Time.now.to_i
               session[:login_ip] = request.ip
               
-              AppLogger.info("User login successful", {
+              AppLogger.info("User login successful",
                 user_id: user_id,
                 email: email,
                 ip: request.ip
-              })
+              )
               
               return { success: true, redirect: "/profile" }.to_json
             else
@@ -275,11 +275,11 @@ class AuthRoutes
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
             
-            AppLogger.info("User signup successful", {
+            AppLogger.info("User signup successful",
               user_id: user_id,
               email: email,
               ip: request.ip
-            })
+            )
             
             return { success: true, redirect: "/profile" }.to_json
 
