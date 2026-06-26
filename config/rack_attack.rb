@@ -6,8 +6,8 @@ class Rack::Attack
     ["127.0.0.1", "::1"].include?(req.ip)
   end
 
-  # Limit requests per IP to 60 per minute (exclude /random for smooth navigation)
-  throttle("req/ip", limit: 60, period: 60) do |req|
+  # Limit requests per IP to 300 per minute (5 per second - reasonable for browsing)
+  throttle("req/ip", limit: 300, period: 60) do |req|
     req.ip unless req.path.start_with?("/assets") || req.path.start_with?("/random")
   end
 
