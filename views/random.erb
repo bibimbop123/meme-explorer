@@ -113,6 +113,30 @@
     </button>
   </div>
 
+  <!-- Reactions Section -->
+  <% if @meme %>
+  <div class="reactions-container" data-reactions-container data-meme-url="<%= @meme['url'] %>">
+    <div class="reactions-label">React:</div>
+    <div class="reactions-buttons">
+      <button class="reaction-btn" data-reaction-btn data-meme-url="<%= @meme['url'] %>" data-reaction-type="hilarious" title="Hilarious">
+        😂 <span class="reaction-count"></span>
+      </button>
+      <button class="reaction-btn" data-reaction-btn data-meme-url="<%= @meme['url'] %>" data-reaction-type="fire" title="Fire">
+        🔥 <span class="reaction-count"></span>
+      </button>
+      <button class="reaction-btn" data-reaction-btn data-meme-url="<%= @meme['url'] %>" data-reaction-type="dead" title="Dead">
+        💀 <span class="reaction-count"></span>
+      </button>
+      <button class="reaction-btn" data-reaction-btn data-meme-url="<%= @meme['url'] %>" data-reaction-type="shocking" title="Shocking">
+        😱 <span class="reaction-count"></span>
+      </button>
+      <button class="reaction-btn" data-reaction-btn data-meme-url="<%= @meme['url'] %>" data-reaction-type="relatable" title="Relatable">
+        🤔 <span class="reaction-count"></span>
+      </button>
+    </div>
+  </div>
+  <% end %>
+
   <div class="nav-hints-container">
     <div class="nav-hint"><%= PersonalityContent.random_nav_hint %></div>
     <div class="nav-hint"><%= PersonalityContent.time_greeting %></div>
@@ -2015,6 +2039,97 @@
     gap: 0.25rem;
     max-width: 100%;
     padding: 0 0.5rem;
+  }
+  
+  /* ========================================
+     REACTIONS STYLING
+     ======================================== */
+  
+  .reactions-container {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
+  }
+  
+  .reactions-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+  }
+  
+  .reactions-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .reaction-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 24px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+  }
+  
+  .reaction-btn:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.4);
+    transform: scale(1.05);
+  }
+  
+  .reaction-btn:active {
+    transform: scale(0.95);
+  }
+  
+  .reaction-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transform: scale(1.1);
+  }
+  
+  .reaction-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    min-width: 20px;
+    text-align: center;
+  }
+  
+  .reaction-btn.active .reaction-count {
+    color: white;
+  }
+  
+  @media (max-width: 768px) {
+    .reactions-container {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.75rem;
+    }
+    
+    .reactions-buttons {
+      width: 100%;
+      justify-content: center;
+    }
+    
+    .reaction-btn {
+      padding: 0.4rem 0.6rem;
+      font-size: 1.1rem;
+    }
   }
   
   /* ========================================

@@ -8,7 +8,9 @@ class ReactionsRoutes
           url = params[:url]
           reaction_type = params[:type]
           user_id = session[:user_id]
-          session_id = session.object_id.to_s
+          # Generate stable session ID
+          session_id = session.id || SecureRandom.uuid
+          session[:session_id] ||= session_id
           
           halt 400, { error: 'Missing URL parameter' }.to_json unless url
           halt 400, { error: 'Missing reaction type' }.to_json unless reaction_type
@@ -96,7 +98,9 @@ class ReactionsRoutes
           
           begin
             user_id = session[:user_id]
-            session_id = session.object_id.to_s
+            # Generate stable session ID
+            session_id = session.id || SecureRandom.uuid
+            session[:session_id] ||= session_id
             
             # Get all reaction counts
             counts = DB.execute(
