@@ -1,0 +1,141 @@
+# Database Read Replica Configuration
+# Phase 2 Performance Optimization
+# 
+# This configuration enables read replica support for scaling read operations.
+# Writes go to primary, reads can be distributed across replicas.
+
+# PostgreSQL Read Replica Setup (Render.com / Heroku / AWS RDS)
+#
+# Benefits:
+# - Offload 70%+ of read queries to replica
+# - Reduce primary database load
+# - Improve response times for read-heavy operations
+# - Better horizontal scaling
+
+# ============================================================================
+# PRODUCTION CONFIGURATION
+# ============================================================================
+
+production:
+  primary:
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("DB_POOL", 10) %>
+    url: <%= ENV['DATABASE_URL'] %>
+    # Connection timeout
+    connect_timeout: 5
+    checkout_timeout: 5
+    # Statement timeout (5 seconds max for any query)
+    variables:
+      statement_timeout: 5000
+  
+  # Read replica configuration
+  replica:
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("DB_REPLICA_POOL", 15) %>
+    url: <%= ENV['DATABASE_REPLICA_URL'] %>
+    replica: true
+    # Allow slightly stale data on replica (eventual consistency)
+    connect_timeout: 3
+    checkout_timeout: 3
+    variables:
+      statement_timeout: 5000
+
+# ============================================================================
+# DEVELOPMENT CONFIGURATION (Simulated Replica)
+# ============================================================================
+
+development:
+  primary:
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://localhost/meme_explorer_development' %>
+  
+  # In development, replica points to same database
+  replica:
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://localhost/meme_explorer_development' %>
+    replica: true
+
+# ============================================================================
+# TEST CONFIGURATION
+# ============================================================================
+
+test:
+  primary:
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
+    url: <%= ENV['TEST_DATABASE_URL'] || 'postgresql://localhost/meme_explorer_test' %>
+  
+  replica:
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
+    url: <%= ENV['TEST_DATABASE_URL'] || 'postgresql://localhost/meme_explorer_test' %>
+    replica: true
+
+# ============================================================================
+# USAGE IN APPLICATION CODE
+# ============================================================================
+#
+# # Automatic routing (recommended)
+# DB[:memes].all  # Automatically uses replica for SELECT
+# DB[:memes].insert(...)  # Automatically uses primary for writes
+#
+# # Manual control (when needed)
+# DB.with_server(:primary) do
+#   # Force primary database
+#   DB[:memes].all
+# end
+#
+# DB.with_server(:replica) do
+#   # Force replica database
+#   DB[:memes].all
+# end
+#
+# ============================================================================
+# SETUP INSTRUCTIONS
+# ============================================================================
+#
+# Render.com:
+# 1. Add read replica in Render dashboard
+# 2. Set DATABASE_REPLICA_URL environment variable
+# 3. Restart application
+#
+# Heroku:
+# 1. Add follower database: heroku addons:create heroku-postgresql:standard-0 --follow DATABASE_URL
+# 2. Promote follower: heroku pg:wait && heroku config:set DATABASE_REPLICA_URL=$(heroku config:get HEROKU_POSTGRESQL_<COLOR>_URL)
+# 3. Restart: heroku restart
+#
+# AWS RDS:
+# 1. Create read replica in RDS console
+# 2. Get connection URL
+# 3. Set DATABASE_REPLICA_URL environment variable
+# 4. Deploy application
+#
+# ============================================================================
+# MONITORING
+# ============================================================================
+#
+# Monitor replica lag:
+# SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) AS replica_lag_seconds;
+#
+# Check if replica is ready:
+# SELECT pg_is_in_recovery();  # Should return true on replica
+#
+# ============================================================================
+# FAILOVER STRATEGY
+# ============================================================================
+#
+# If replica fails, automatically fallback to primary:
+# - Application catches connection errors to replica
+# - Routes read queries to primary temporarily
+# - Logs errors for monitoring/alerting
+# - Retries replica connection periodically
+#
+# Implemented in: lib/concerns/database_failover.rb
