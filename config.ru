@@ -1,5 +1,8 @@
 require './app'
 
+# Enable gzip compression for all responses (60-70% bandwidth savings!)
+use Rack::Deflater
+
 # Initialize meme pool cache on startup
 begin
   if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
