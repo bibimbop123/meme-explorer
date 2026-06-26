@@ -1,0 +1,297 @@
+<%# ============================================
+    TASTE EVOLUTION TIMELINE
+    ============================================
+    Shows user's taste evolution over time
+    Week 3-4: Personalization features (94 → 95/100)
+%>
+
+<div class="taste-evolution-container">
+  <div class="page-header">
+    <h1>Your Taste Evolution</h1>
+    <p class="subtitle">How your meme preferences have matured over time</p>
+  </div>
+
+  <% evolution = @taste_evolution %>
+  <% if evolution %>
+    
+    <!-- Current Taste Profile -->
+    <section class="taste-current">
+      <h2>Current Aesthetic</h2>
+      <div class="taste-card primary">
+        <div class="aesthetic-badge <%= evolution[:current_preferences][:primary_aesthetic] %>">
+          <%= evolution[:current_preferences][:aesthetic_name] %>
+        </div>
+        <p class="description">
+          <%= evolution[:current_preferences][:description] %>
+        </p>
+        <div class="metrics">
+          <span class="metric">
+            <strong><%= evolution[:collections_discovered] %></strong> collections explored
+          </span>
+          <span class="metric">
+            <strong><%= evolution[:taste_maturity] %>%</strong> taste maturity
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Evolution Timeline -->
+    <section class="taste-timeline">
+      <h2>Your Journey</h2>
+      <div class="timeline">
+        <% evolution[:evolution].each_with_index do |period, index| %>
+          <div class="timeline-item <%= 'current' if index == evolution[:evolution].length - 1 %>">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+              <div class="timeline-date"><%= period[:period_name] %></div>
+              <div class="timeline-aesthetic"><%= period[:dominant_aesthetic] %></div>
+              <div class="timeline-stats">
+                <span><%= period[:memes_viewed] %> memes</span>
+                <span><%= period[:collections_active] %> collections</span>
+              </div>
+              <% if period[:notable_change] %>
+                <div class="timeline-insight">
+                  💡 <%= period[:notable_change] %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </section>
+
+    <!-- Trending Toward -->
+    <section class="taste-prediction">
+      <h2>You're Trending Toward</h2>
+      <div class="prediction-cards">
+        <% evolution[:trending_toward].each do |prediction| %>
+          <div class="prediction-card">
+            <div class="prediction-aesthetic"><%= prediction[:aesthetic] %></div>
+            <div class="prediction-confidence">
+              <div class="confidence-bar" style="width: <%= prediction[:confidence] %>%"></div>
+              <%= prediction[:confidence] %>% confidence
+            </div>
+            <p class="prediction-reason"><%= prediction[:reason] %></p>
+          </div>
+        <% end %>
+      </div>
+    </section>
+
+  <% else %>
+    <!-- No data yet -->
+    <div class="empty-state">
+      <h3>Your taste evolution hasn't begun yet</h3>
+      <p>Explore more memes to see how your preferences develop over time!</p>
+      <a href="/" class="btn btn-primary">Start Exploring</a>
+    </div>
+  <% end %>
+</div>
+
+<style>
+  .taste-evolution-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  
+  .page-header h1 {
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text-primary, #1a1a1a);
+  }
+  
+  .subtitle {
+    font-size: 18px;
+    color: var(--text-secondary, #666);
+  }
+  
+  .taste-current {
+    margin-bottom: 60px;
+  }
+  
+  .taste-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  
+  .aesthetic-badge {
+    display: inline-block;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding: 8px 20px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+  }
+  
+  .description {
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  
+  .metrics {
+    display: flex;
+    gap: 40px;
+    font-size: 16px;
+  }
+  
+  .timeline {
+    position: relative;
+    padding-left: 40px;
+  }
+  
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #667eea, #764ba2);
+  }
+  
+  .timeline-item {
+    position: relative;
+    margin-bottom: 40px;
+  }
+  
+  .timeline-marker {
+    position: absolute;
+    left: -34px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 4px solid #667eea;
+  }
+  
+  .timeline-item.current .timeline-marker {
+    background: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  .timeline-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .timeline-date {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+  }
+  
+  .timeline-aesthetic {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+  }
+  
+  .timeline-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 12px;
+  }
+  
+  .timeline-insight {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-style: italic;
+    color: #555;
+  }
+  
+  .prediction-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+  }
+  
+  .prediction-card {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-top: 4px solid #667eea;
+  }
+  
+  .prediction-aesthetic {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  
+  .confidence-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    transition: width 1s ease-out;
+  }
+  
+  .prediction-confidence {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 12px;
+  }
+  
+  .prediction-reason {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+  }
+  
+  .empty-state h3 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: #1a1a1a;
+  }
+  
+  .empty-state p {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 24px;
+  }
+  
+  @media (max-width: 768px) {
+    .page-header h1 {
+      font-size: 32px;
+    }
+    
+    .taste-card {
+      padding: 24px;
+    }
+    
+    .metrics {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .prediction-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
