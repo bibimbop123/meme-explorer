@@ -1,5 +1,25 @@
 require './app'
 
+# Configure session middleware BEFORE mounting the app
+use Rack::Session::Cookie,
+  key: 'meme_explorer.session',
+  path: '/',
+  httponly: true,
+  same_site: :lax,
+  secure: ENV['RACK_ENV'] == 'production',
+  expire_after: 2_592_000, # 30 days
+  secret: (ENV['SESSION_SECRET'] || begin
+    # In development, use persistent secret file
+    secret_file = File.join(Dir.pwd, '.session_secret')
+    if File.exist?(secret_file)
+      File.read(secret_file).strip
+    else
+      secret = SecureRandom.hex(32)
+      File.write(secret_file, secret)
+      secret
+    end
+  end)
+
 # Enable gzip compression for all responses (60-70% bandwidth savings!)
 use Rack::Deflater
 
