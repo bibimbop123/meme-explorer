@@ -37,12 +37,12 @@ class AuthRoutes
             
             # ✅ SECURITY FIX: Validate OAuth state parameter
             unless state && session[:oauth_state] && state == session[:oauth_state]
-              AppLogger.warn("OAuth state validation failed", {
+              AppLogger.warn("OAuth state validation failed",
                 state_present: !state.nil?,
                 session_state_present: !session[:oauth_state].nil?,
                 match: state == session[:oauth_state],
                 ip: request.ip
-              })
+              )
               session[:error] = "Invalid OAuth state - possible CSRF attack"
               next redirect("/login")
             end
@@ -51,10 +51,10 @@ class AuthRoutes
             if session[:oauth_state_timestamp]
               elapsed = Time.now.to_i - session[:oauth_state_timestamp].to_i
               if elapsed > 600
-                AppLogger.warn("OAuth state expired", {
+                AppLogger.warn("OAuth state expired",
                   elapsed_seconds: elapsed,
                   ip: request.ip
-                })
+                )
                 session[:error] = "OAuth session expired. Please try again."
                 next redirect("/login")
               end
