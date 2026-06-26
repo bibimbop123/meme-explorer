@@ -100,7 +100,7 @@ rescue LoadError
 end
 
 
-# REMOVED: Global warning suppression (security risk)
+$VERBOSE = nil # suppress warnings
 
 # Track server start time for /health endpoint
 $start_time = Time.now
@@ -162,12 +162,7 @@ module MemeExplorer
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
     MEME_CACHE = CacheManager.new
     MEMES = YAML.load_file("data/memes.yml") rescue []
-  # Thread-safe metrics using Concurrent::AtomicFixnum
-require 'concurrent'
-METRICS = {
-  total_requests: Concurrent::AtomicFixnum.new(0),
-  total_duration_ms: Concurrent::AtomicFixnum.new(0)
-}
+  METRICS = Hash.new(0).merge(avg_request_time_ms: 0.0)
 
   # -----------------------
   # Configuration
@@ -331,8 +326,10 @@ METRICS = {
     end
     
     begin
-      METRICS[:total_requests].increment
-METRICS[:total_duration_ms].update { |v| v + duration.to_i }
+      METRICS[:total_requests] += 1
+      total = METRICS[:total_requests]
+      avg = METRICS[:avg_request_time_ms]
+      METRICS[:avg_request_time_ms] = ((avg * (total - 1)) + duration) / total.to_f
     rescue => e
       puts "After hook metrics error: #{e.class}"
     end
@@ -684,7 +681,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       
       # Update session history
       session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(50)  # Hard cap: 50 (reduced from 100)
+      session[:meme_history] = session[:meme_history].last(100)
       session[:last_subreddit] = meme_subreddit&.downcase
 
       # Track exposure for analytics and spaced repetition
@@ -1238,7 +1235,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     # Track in session history
     meme_identifier = @meme["url"] || @meme["file"]
     session[:meme_history] << meme_identifier
-    session[:meme_history] = session[:meme_history].last(50)  # Hard cap: 50 (reduced from 100)
+    session[:meme_history] = session[:meme_history].last(100)
     session[:last_subreddit] = @meme["subreddit"]&.downcase
     
     image_url = @meme["url"] || @meme["file"]
@@ -1937,27 +1934,6 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       message: "Your profile is up to date"
     }.to_json
   end
-
-# -----------------------
-# Admin Authorization Filter (P0 Security Fix)
-# -----------------------
-before '/admin/*' do
-  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
-end
-
-# -----------------------
-# Admin Authorization Filter (P0 Security Fix)
-# -----------------------
-before '/admin/*' do
-  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
-end
-
-# -----------------------
-# Admin Authorization Filter (P0 Security Fix)
-# -----------------------
-before '/admin/*' do
-  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
-end
 
   # -----------------------
   # Admin Routes

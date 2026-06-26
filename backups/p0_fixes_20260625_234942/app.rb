@@ -1945,20 +1945,6 @@ before '/admin/*' do
   halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
 end
 
-# -----------------------
-# Admin Authorization Filter (P0 Security Fix)
-# -----------------------
-before '/admin/*' do
-  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
-end
-
-# -----------------------
-# Admin Authorization Filter (P0 Security Fix)
-# -----------------------
-before '/admin/*' do
-  halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
-end
-
   # -----------------------
   # Admin Routes
   # -----------------------

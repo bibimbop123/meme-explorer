@@ -10,7 +10,7 @@ if DATABASE_URL&.start_with?("postgres")
   
   puts "🐘 Connecting to PostgreSQL..."
   
-  DB_POOL = ConnectionPool.new(size: 35, timeout: 5) do
+  DB_POOL = ConnectionPool.new(size: 25, timeout: 5) do
     PG.connect(DATABASE_URL)
   end
   
