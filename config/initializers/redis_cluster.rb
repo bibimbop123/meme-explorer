@@ -61,10 +61,14 @@ class MemoryCache
       @cache[key] = value
       # Schedule expiration if specified
       if ex
-        Thread.new do
+        # Short-lived TTL expiry thread — one per key, lives for `ex` seconds then exits
+        t = Thread.new do
+          Thread.current.name = "cache-ttl-#{key[0..20]}"
+          Thread.current.abort_on_exception = false
           sleep ex
           @mutex.synchronize { @cache.delete(key) }
         end
+        t.abort_on_exception = false
       end
     end
   end

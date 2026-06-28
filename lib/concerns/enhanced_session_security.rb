@@ -132,10 +132,15 @@ module EnhancedSessionSecurity
     def store_session_in_db(session_id, user_id, request)
       db = get_db_connection
       db.execute(
-        'INSERT OR REPLACE INTO active_sessions 
-         (session_id, user_id, ip_address, user_agent, created_at, last_activity) 
-         VALUES (?, ?, ?, ?, ?, ?)',
-        [session_id, user_id, request.ip, request.user_agent, 
+        'INSERT INTO active_sessions
+         (session_id, user_id, ip_address, user_agent, created_at, last_activity)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           user_id       = EXCLUDED.user_id,
+           ip_address    = EXCLUDED.ip_address,
+           user_agent    = EXCLUDED.user_agent,
+           last_activity = EXCLUDED.last_activity',
+        [session_id, user_id, request.ip, request.user_agent,
          Time.now.to_i, Time.now.to_i]
       )
       

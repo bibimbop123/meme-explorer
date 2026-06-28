@@ -146,11 +146,16 @@ module MemeExplorer
         return unless defined?(DB) && DB
         
         DB.execute(
-          "INSERT OR REPLACE INTO user_streaks (user_id, current_streak, last_visit_date, updated_at) VALUES (?, ?, ?, ?)",
+          "INSERT INTO user_streaks (user_id, current_streak, last_visit_date, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id) DO UPDATE SET
+             current_streak   = EXCLUDED.current_streak,
+             last_visit_date  = EXCLUDED.last_visit_date,
+             updated_at       = EXCLUDED.updated_at",
           [user_id, streak, date.to_s, Time.now]
         )
       rescue => e
-        puts "Update streak error: #{e.message}"
+        AppLogger.warn("Update streak error", error: e.message, user_id: user_id)
       end
       
       def reward_user(user_id, type:, bonus:)

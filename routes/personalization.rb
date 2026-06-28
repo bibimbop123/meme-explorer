@@ -43,7 +43,11 @@ post '/api/subscribe' do
   begin
     # Store subscription
     DB.execute(
-      "INSERT OR REPLACE INTO email_subscriptions (email, user_id, subscribed_at) VALUES (?, ?, ?)",
+      "INSERT INTO email_subscriptions (email, user_id, subscribed_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET
+         user_id       = EXCLUDED.user_id,
+         subscribed_at = EXCLUDED.subscribed_at",
       [email, session[:user_id], Time.now.to_i]
     )
     

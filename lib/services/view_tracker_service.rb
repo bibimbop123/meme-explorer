@@ -212,53 +212,23 @@ class ViewTrackerService
       title = metadata[:title] || metadata['title'] || 'Unknown'
       subreddit = metadata[:subreddit] || metadata['subreddit'] || 'unknown'
       
-      # Use database-level atomic increment
-      # PostgreSQL: UPSERT with conflict handling
-      # SQLite: INSERT OR IGNORE + UPDATE
-      if postgresql?
-        record_view_postgres(meme_url, title, subreddit)
-      else
-        record_view_sqlite(meme_url, title, subreddit)
-      end
+      # Atomic UPSERT — PostgreSQL only (SQLite branch removed, app is PG-only)
+      record_view_postgres(meme_url, title, subreddit)
     end
-    
-    # PostgreSQL-specific atomic view recording
+
+    # Atomic view recording with PostgreSQL UPSERT
     def record_view_postgres(meme_url, title, subreddit)
       result = DB.execute(
         "INSERT INTO meme_stats (url, title, subreddit, views, likes, created_at, updated_at)
-         VALUES ($1, $2, $3, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT(url) DO UPDATE SET 
-           views = meme_stats.views + 1,
+         VALUES (?, ?, ?, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(url) DO UPDATE SET
+           views      = meme_stats.views + 1,
            updated_at = CURRENT_TIMESTAMP
          RETURNING views",
         [meme_url, title, subreddit]
       ).first
-      
+
       result ? result['views'].to_i : 1
-    end
-    
-    # SQLite-specific atomic view recording
-    def record_view_sqlite(meme_url, title, subreddit)
-      DB.transaction do
-        # Ensure row exists
-        DB.execute(
-          "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, views, likes, created_at, updated_at)
-           VALUES (?, ?, ?, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-          [meme_url, title, subreddit]
-        )
-        
-        # Atomic increment
-        DB.execute(
-          "UPDATE meme_stats 
-           SET views = views + 1, updated_at = CURRENT_TIMESTAMP 
-           WHERE url = ?",
-          [meme_url]
-        )
-        
-        # Get new count
-        result = DB.execute("SELECT views FROM meme_stats WHERE url = ?", [meme_url]).first
-        result ? result['views'].to_i : 1
-      end
     end
     
     # Track in Redis for real-time metrics

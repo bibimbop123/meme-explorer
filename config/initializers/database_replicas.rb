@@ -25,8 +25,10 @@ else
   AppLogger.info("No database replica configured, using primary for all queries")
 end
 
-# Health check for replica
-Thread.new do
+# Health check for replica — intentional long-lived monitoring thread
+@replica_health_thread = Thread.new do
+  Thread.current.name = 'db-replica-health'
+  Thread.current.abort_on_exception = false
   loop do
     sleep 60 # Check every minute
     

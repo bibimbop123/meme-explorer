@@ -24,7 +24,10 @@ class RedisHealthCheck
   private
 
   def start_background_checker
-    Thread.new do
+    # Intentional long-lived monitoring thread — named for observability
+    @checker_thread = Thread.new do
+      Thread.current.name = 'redis-health-check'
+      Thread.current.abort_on_exception = false
       loop do
         sleep CHECK_INTERVAL
         check_redis_health
