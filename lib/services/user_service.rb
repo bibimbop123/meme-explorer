@@ -49,7 +49,7 @@ class UserService
 
   def self.save_meme(user_id, meme_url, meme_title, meme_subreddit)
     DB.execute(
-      "INSERT OR IGNORE INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit) VALUES (?, ?, ?, ?)",
+      "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, meme_url) DO NOTHING",
       [user_id, meme_url, meme_title, meme_subreddit]
     )
   end

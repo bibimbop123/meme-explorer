@@ -185,10 +185,10 @@ METRICS = {
     end
     
     set :server, :puma
-    enable :sessions
-    set :session_expire_after, MemeExplorerConfig::SESSION_EXPIRE_AFTER
-    set :cookie_options, MemeExplorerConfig::COOKIE_OPTIONS
-    
+    # Session is configured in config.ru via Rack::Session::Cookie
+    # (httponly, same_site: :lax, secure in production, SESSION_SECRET)
+    # DO NOT add enable :sessions here — double session middleware breaks auth.
+
     begin
       MemeExplorerConfig.validate!
     rescue ConfigurationError => e
@@ -833,13 +833,13 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       if liked_now && !was_liked_before
         # First time liking in this session
         # Update global meme_stats
-        DB.execute("INSERT OR IGNORE INTO meme_stats (url, likes) VALUES (?, 0)", [url])
+        DB.execute("INSERT INTO meme_stats (url, likes) VALUES (?, 0) ON CONFLICT(url) DO NOTHING", [url])
         DB.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-        
+
         # Update user-specific meme_stats (if user logged in)
         if user_id
           DB.execute(
-            "INSERT OR IGNORE INTO user_meme_stats (user_id, meme_url, liked, liked_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)",
+            "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(user_id, meme_url) DO NOTHING",
             [user_id, url]
           )
           DB.execute(
@@ -1050,152 +1050,9 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     File.read('ads.txt')
   end
   
-  get "/" do
-    begin
-      # FAST: Serve from pre-warmed cache (instant)
-      @meme = MEME_CACHE[:memes].sample rescue nil
-      @meme ||= fallback_meme
-    rescue => e
-      puts "Error in root route: #{e.class}: #{e.message}"
-      @meme = fallback_meme
-    end
-    
-    @image_src = meme_image_src(@meme)
-    @likes = 0  # Will be loaded by JS
-    
-    # ASYNC: Track analytics in background (non-blocking) - Use thread pool
-    ANALYTICS_POOL.post do
-      begin
-        user_id = session[:user_id] rescue nil
-        meme_identifier = @meme["url"] || @meme["file"]
-        return unless meme_identifier
-        
-        # Track view
-        DB.execute(
-          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-          [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
-        ) rescue nil
-        
-        # Track exposure for spaced repetition
-        if user_id
-          DB.execute(
-            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-            [user_id, meme_identifier]
-          ) rescue nil
-        end
-      rescue => e
-        AppLogger.error("Background analytics tracking failed", error: e.message, meme: meme_identifier)
-      end
-    end
-    
-    erb :random
-  end
+  # GET "/" and GET "/random" live in routes/home.rb and routes/random_meme.rb
+  # (registered via  and )
 
-  # Render random meme page
-  get "/random" do
-    begin
-      # FAST: Serve from pre-warmed cache (instant)
-      # If cache is empty or only has local memes, fallback to fresh pool
-      if MEME_CACHE[:memes].is_a?(Array) && !MEME_CACHE[:memes].empty?
-        @meme = MEME_CACHE[:memes].sample
-      else
-        # Cache empty or invalid - rebuild from scratch
-        @meme = random_memes_pool.sample
-      end
-      @meme ||= fallback_meme
-    rescue => e
-      puts "Error in /random route: #{e.class}: #{e.message}"
-      @meme = fallback_meme
-    end
-    
-    @image_src = meme_image_src(@meme)
-    @likes = 0  # Will be loaded by JS
-    
-    # GAMIFICATION: Track view count and check for milestones/rewards
-    begin
-      require_relative './lib/services/milestone_service'
-      
-      # Increment view count (session-based, works for everyone)
-      session[:view_count] ||= 0
-      session[:view_count] += 1
-      
-      # Check if milestone reached
-      milestone = MilestoneService.check_milestone(session[:view_count])
-      if milestone
-        @milestone = milestone
-        # Award to DB if logged in
-        if session[:user_id]
-          MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
-        end
-      end
-      
-      # Get progress to next milestone
-      @progress = MilestoneService.get_progress(session[:view_count])
-      
-      # Surprise rewards (10% chance)
-      if rand < 0.10
-        @surprise_reward = {
-          icon: ["🎁", "⚡", "🛡️", "🔥", "💎"].sample,
-          title: ["Bonus XP!", "Double XP!", "Streak Freeze!", "Lucky You!", "Jackpot!"].sample,
-          message: ["You earned bonus points!", "Your next meme counts double!", "Your streak is protected!", "Keep the momentum going!", "Fortune favors the bold!"].sample
-        }
-      end
-    rescue => e
-      puts "⚠️ Gamification error: #{e.message}"
-      # Don't break page if gamification fails
-      @milestone = nil
-      @progress = nil
-      @surprise_reward = nil
-    end
-  
-    # Determine reddit_path for this specific image
-    @reddit_path = nil
-    begin
-      if @meme["reddit_post_urls"]&.is_a?(Array)
-        post_url = @meme["reddit_post_urls"].find { |u| u.include?(@image_src) }
-        @reddit_path = post_url
-      end
-    
-      # Fallback to permalink from API meme
-      if !@reddit_path && @meme["permalink"]
-        permalink_str = @meme["permalink"].to_s.strip
-        if permalink_str != ""
-          @reddit_path = permalink_str
-          # Strip domain if full URL
-          @reddit_path = URI.parse(@reddit_path).path if @reddit_path.start_with?("http")
-        end
-      end
-    rescue => e
-      puts "⚠️ Reddit path error: #{e.message}"
-    end
-    
-    # ASYNC: Track analytics in background (non-blocking) - Use thread pool
-    ANALYTICS_POOL.post do
-      begin
-        user_id = session[:user_id] rescue nil
-        meme_identifier = @meme["url"] || @meme["file"]
-        return unless meme_identifier
-        
-        # Track view
-        DB.execute(
-          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-          [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
-        ) rescue nil
-        
-        # Track exposure for spaced repetition
-        if user_id
-          DB.execute(
-            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-            [user_id, meme_identifier]
-          ) rescue nil
-        end
-      rescue => e
-        AppLogger.error("Background analytics tracking failed", error: e.message, meme: meme_identifier)
-      end
-    end
-
-    erb :random
-  end
   
   get "/random.json" do
     puts "🔄 [/random.json] Request received"
@@ -2070,7 +1927,7 @@ end
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   LegalRoutes.register(self)
-  use Routes::ABTesting
+  register Routes::ABTesting
   register Routes::Home
   register Routes::RandomMeme
   register Routes::Memes

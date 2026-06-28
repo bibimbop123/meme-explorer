@@ -261,7 +261,7 @@ class MemeService
       
       # Ensure the record exists before updating (with proper columns)
       db.execute(
-        "INSERT OR IGNORE INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 0, 0)", 
+        "INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 0, 0) ON CONFLICT(url) DO NOTHING",
         [url, 'Unknown', 'unknown']
       )
       

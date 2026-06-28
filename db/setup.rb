@@ -27,14 +27,19 @@ class DBWrapper
     @pool = pool
   end
 
-  # Execute SQL and return all results
+  # Execute SQL and return all results.
+  # If called inside a transaction block, reuses the transaction connection
+  # to avoid pool deadlock.
   def execute(sql, params = [])
     sql, params = expand_array_params(sql, params)
     translated = translate_sql(sql)
-    @pool.with do |conn|
-      result = conn.exec_params(translated, params)
-      # Convert PG::Result to array of hashes (compatible with SQLite3 interface)
-      result.map { |row| row }
+    conn = Thread.current[:db_connection]
+    if conn
+      conn.exec_params(translated, params).map { |row| row }
+    else
+      @pool.with do |c|
+        c.exec_params(translated, params).map { |row| row }
+      end
     end
   end
 
@@ -42,11 +47,13 @@ class DBWrapper
   def get_first_value(sql, params = [])
     sql, params = expand_array_params(sql, params)
     translated = translate_sql(sql)
-    @pool.with do |conn|
-      result = conn.exec_params(translated, params)
+    conn = Thread.current[:db_connection]
+    run_query = lambda do |c|
+      result = c.exec_params(translated, params)
       return nil if result.ntuples == 0
       result[0].values.first
     end
+    conn ? run_query.call(conn) : @pool.with { |c| run_query.call(c) }
   end
 
   # Execute an INSERT and return the new row's id (like SQLite3's last_insert_rowid).
@@ -70,8 +77,15 @@ class DBWrapper
   end
 
   # Wrap a block in a PostgreSQL transaction.
+  # Uses Thread.current[:db_connection] so nested DB.execute calls inside the
+  # yielded block reuse the same connection instead of trying to check out a
+  # second one from the pool (which would deadlock with timeout:5).
   def transaction
+    # Re-entrant: if already in a transaction on this thread, just yield
+    return yield if Thread.current[:db_connection]
+
     @pool.with do |conn|
+      Thread.current[:db_connection] = conn
       conn.exec('BEGIN')
       begin
         yield
@@ -79,6 +93,8 @@ class DBWrapper
       rescue => e
         conn.exec('ROLLBACK')
         raise e
+      ensure
+        Thread.current[:db_connection] = nil
       end
     end
   end

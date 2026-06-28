@@ -319,20 +319,27 @@ module GamificationHelpers
         # Check if completed
         if current_progress >= required_count
           DB.execute(
-            "INSERT OR REPLACE INTO user_collections (user_id, collection_id, progress, completed, completed_at)
-             VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)",
+            "INSERT INTO user_collections (user_id, collection_id, progress, completed, completed_at)
+             VALUES (?, ?, ?, TRUE, CURRENT_TIMESTAMP)
+             ON CONFLICT(user_id, collection_id) DO UPDATE SET
+               progress = EXCLUDED.progress,
+               completed = EXCLUDED.completed,
+               completed_at = EXCLUDED.completed_at",
             [user_id, collection["id"], required_count]
           )
-          
+
           # Award XP for completion
           add_xp(user_id, :complete_collection)
-          
+
           newly_completed << collection.merge({ "progress" => current_progress })
         else
           # Update progress
           DB.execute(
-            "INSERT OR REPLACE INTO user_collections (user_id, collection_id, progress, completed)
-             VALUES (?, ?, ?, 0)",
+            "INSERT INTO user_collections (user_id, collection_id, progress, completed)
+             VALUES (?, ?, ?, FALSE)
+             ON CONFLICT(user_id, collection_id) DO UPDATE SET
+               progress = EXCLUDED.progress,
+               completed = EXCLUDED.completed",
             [user_id, collection["id"], current_progress]
           )
         end
