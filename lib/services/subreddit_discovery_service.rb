@@ -228,7 +228,7 @@ class SubredditDiscoveryService
     def load_existing_candidates(filename)
       return [] unless File.exist?(filename)
       
-      data = YAML.load_file(filename)
+      data = YAML.load_file(filename, aliases: true)
       data['candidates'] || []
     rescue => e
       log_error("Load existing candidates error", e)

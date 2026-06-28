@@ -13,7 +13,7 @@ module CuratedCollectionsHelper
   # Load collections from YAML config
   def self.load_collections
     config_path = File.join(__dir__, '../../config/curated_collections.yml')
-    @collections ||= YAML.load_file(config_path)
+    @collections ||= YAML.load_file(config_path, aliases: true)
   end
   
   ##

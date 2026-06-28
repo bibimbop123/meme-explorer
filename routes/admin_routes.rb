@@ -22,7 +22,7 @@ module Routes
         begin
           # Load local memes as fallback
           local_memes = begin
-            yaml_data = YAML.load_file("data/memes.yml")
+            yaml_data = YAML.load_file("data/memes.yml", aliases: true)
             if yaml_data.is_a?(Hash)
               yaml_data.values.flatten.compact
             else

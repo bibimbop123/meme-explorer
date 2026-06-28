@@ -10,7 +10,7 @@ require 'yaml'
 
 class CuratorNotesService
   def initialize
-    @config = YAML.load_file('config/curator_notes.yml')['curator_notes']
+    @config = YAML.load_file('config/curator_notes.yml', aliases: true)['curator_notes']
     @curators = @config['curators']
     @templates = @config['templates']
     @social_proof = @config['social_proof']

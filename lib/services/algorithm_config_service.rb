@@ -14,7 +14,7 @@ class AlgorithmConfigService
         
         # Reload if file changed (hot-reload in development)
         if @config.nil? || (ENV['RACK_ENV'] == 'development' && current_mtime != @config_mtime)
-          @config = YAML.load_file(config_path)
+          @config = YAML.load_file(config_path, aliases: true)
           @config_mtime = current_mtime
           puts "✅ Algorithm config loaded (env: #{ENV['RACK_ENV'] || 'development'})"
         end

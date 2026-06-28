@@ -188,7 +188,7 @@ module MemeExplorer
   POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml", aliases: true)["popular"]
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
     MEME_CACHE = CacheManager.new
-    MEMES = YAML.load_file("data/memes.yml") rescue []
+    MEMES = YAML.load_file("data/memes.yml", aliases: true) rescue []
   # Thread-safe metrics using Concurrent::AtomicFixnum
 require 'concurrent'
 METRICS = {

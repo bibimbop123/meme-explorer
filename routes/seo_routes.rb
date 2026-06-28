@@ -86,7 +86,7 @@ module Routes
         begin
           subreddits_file = File.join(settings.root, "data", "subreddits.yml")
           if File.exist?(subreddits_file)
-            subreddits_data = YAML.load_file(subreddits_file)
+            subreddits_data = YAML.load_file(subreddits_file, aliases: true)
             
             # Extract subreddits from nested structure (tier_1, tier_2, etc.)
             top_subreddits = []

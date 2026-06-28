@@ -20,7 +20,7 @@ Sidekiq.configure_server do |config|
     config.on(:startup) do
       schedule_file = File.expand_path('../../sidekiq.yml', __FILE__)
       if File.exist?(schedule_file)
-        schedule_config = YAML.load_file(schedule_file)
+        schedule_config = YAML.load_file(schedule_file, aliases: true)
         if schedule_config && schedule_config[:schedule]
           Sidekiq.schedule = schedule_config[:schedule]
           SidekiqScheduler::Scheduler.instance.reload_schedule!

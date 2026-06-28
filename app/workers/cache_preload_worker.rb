@@ -43,7 +43,7 @@ class CachePreloadWorker
   private
   
   def load_local_memes
-    yaml_data = YAML.load_file("data/memes.yml")
+    yaml_data = YAML.load_file("data/memes.yml", aliases: true)
     memes = if yaml_data.is_a?(Hash)
       yaml_data.values.flatten.compact
     else

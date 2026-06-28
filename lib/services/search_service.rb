@@ -73,7 +73,7 @@ class SearchService
   end
 
   def self.flatten_memes
-    memes = YAML.load_file("data/memes.yml") rescue {}
+    memes = YAML.load_file("data/memes.yml", aliases: true) rescue {}
     return [] unless memes.is_a?(Hash)
     memes.values.flatten.compact
   end
