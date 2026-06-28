@@ -23,7 +23,6 @@ gem "dotenv", "~> 2.8"
 
 # Caching and persistence
 gem "redis"
-gem "rack-session", "~> 2.0"  # Redis-based session store (fixes cookie size limit, Rack 3 compatible)
 gem "rack-attack"
 gem "pg", "~> 1.5"  # PostgreSQL adapter
 gem "connection_pool", "~> 2.4"  # Connection pooling for PostgreSQL

@@ -4,6 +4,7 @@
 require_relative '../lib/services/diversity_engine_service'
 require_relative '../lib/services/diversity_engine_service_v2'
 require_relative '../lib/services/similar_meme_service'
+require_relative '../lib/services/viewing_history_service'
 
 module Routes
   module RandomMeme
@@ -36,11 +37,12 @@ module Routes
           # Fallback if something goes wrong
           @meme ||= fallback_meme
           
-          # Track in session history
+          # ✅ NEW: Track in Redis (NOT session) - fixes 4KB cookie limit!
           if @meme
             meme_identifier = @meme["url"] || @meme["file"]
-            session[:meme_history] ||= []; session[:meme_history] << meme_identifier if meme_identifier
-            session[:meme_history] = session[:meme_history].last(100) # Keep last 100
+            if meme_identifier
+              MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
+            end
             
             # Track subreddit for diversity tracking
             if defined?(REDIS) && REDIS && @meme["subreddit"]
@@ -193,11 +195,11 @@ module Routes
           # Track the request for learning
           MemeExplorer::SimilarMemeService.track_similar_request(subreddit, session_id)
           
-          # Track in session history
+          # ✅ Track in Redis (NOT session)
           meme_identifier = @meme["url"] || @meme["file"]
-          session[:meme_history] ||= []
-          session[:meme_history] ||= []; session[:meme_history] << meme_identifier
-          session[:meme_history] = session[:meme_history].last(100)
+          if meme_identifier
+            MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
+          end
           
           image_url = @meme["url"] || @meme["file"]
           
@@ -286,10 +288,11 @@ module Routes
         
         AppLogger.info("✅ [/random.json] Selected meme via Diversity Engine: #{@meme['title']} (Pool: #{@meme['diversity_pool']})")
         
-        # Track in session history
+        # ✅ Track in Redis (NOT session)
         meme_identifier = @meme["url"] || @meme["file"]
-        session[:meme_history] ||= []; session[:meme_history] << meme_identifier
-        session[:meme_history] = session[:meme_history].last(100)
+        if meme_identifier
+          MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
+        end
         session[:last_subreddit] = @meme["subreddit"]&.downcase
         
         image_url = @meme["url"] || @meme["file"]

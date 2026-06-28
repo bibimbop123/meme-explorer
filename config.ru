@@ -1,12 +1,14 @@
 require './app'
-require 'rack/session/redis'
 
 # Configure session middleware BEFORE mounting the app
-# SWITCHED FROM COOKIES TO REDIS (fixes "session dropped" error for large histories)
-use Rack::Session::Redis,
-  redis_server: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'),
+# Using Cookie sessions for now (4K limit, but stable)
+use Rack::Session::Cookie,
   key: 'meme_explorer.session',
-  expire_after: 7200, # 2 hours (was 30 days, but Redis session storage is more flexible)
+  path: '/',
+  httponly: true,
+  same_site: :lax,
+  secure: ENV['RACK_ENV'] == 'production',
+  expire_after: 2_592_000, # 30 days
   secret: (ENV['SESSION_SECRET'] || begin
     # In development, use persistent secret file
     secret_file = File.join(Dir.pwd, '.session_secret')
