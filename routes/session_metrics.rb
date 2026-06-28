@@ -27,7 +27,7 @@ module Routes
           
           # Get session ID from cookie or generate one
           session_id = (session[:session_id] ||= SecureRandom.uuid).to_s
-          user_id = session[:user_id]
+          user_id = current_user_id
           
           # Use SessionTrackerService to update metrics
           session_data = SessionTrackerService.update_metrics(session_id, {
@@ -73,7 +73,7 @@ module Routes
           
           # Get session ID
           session_id = (session[:session_id] ||= SecureRandom.uuid).to_s
-          user_id = session[:user_id]
+          user_id = current_user_id
           
           # Use SessionTrackerService to properly end session
           final_data = SessionTrackerService.end_session(session_id, {

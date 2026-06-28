@@ -322,7 +322,7 @@ module Routes
       # User notifications API
       app.get "/api/notifications" do
         require_auth!
-        user_id = session[:user_id]
+        user_id = current_user_id
         
         # Get user notifications (saved count changes, likes, etc.)
         content_type :json

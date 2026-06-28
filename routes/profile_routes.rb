@@ -70,7 +70,7 @@ module Routes
 
         # Use EngagementService for comprehensive tracking with gamification, leaderboard, and metrics
         result = ::EngagementService.track_save(
-          user_id: session[:user_id],
+          user_id: current_user_id,
           meme_url: url,
           title: title,
           subreddit: subreddit,
@@ -106,7 +106,7 @@ module Routes
 
         # Use EngagementService for comprehensive tracking
         result = ::EngagementService.track_save(
-          user_id: session[:user_id],
+          user_id: current_user_id,
           meme_url: url,
           saved_now: false,
           session: session,
@@ -129,7 +129,7 @@ module Routes
         saved_id = params[:id].to_i
         saved_meme = MemeExplorer::App::DB.execute(
           "SELECT * FROM saved_memes WHERE id = ? AND user_id = ?", 
-          [saved_id, session[:user_id]]
+          [saved_id, current_user_id]
         ).first
 
         halt 404, "Meme not found" unless saved_meme

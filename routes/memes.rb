@@ -10,7 +10,7 @@ module Routes
           halt 400, { error: "No URL provided" }.to_json unless url
 
           # For anonymous users: use session (temporary)
-          unless session[:user_id]
+          unless current_user_id
             session[:liked_memes] ||= []
             liked_now = if session[:liked_memes].include?(url)
               session[:liked_memes].delete(url)
@@ -25,7 +25,7 @@ module Routes
           end
 
           # For logged-in users: use database with FULL INTEGRATION
-          user_id = session[:user_id]
+          user_id = current_user_id
           
           # Check if already liked in user_liked_memes table
           existing = ::DB.execute(
@@ -82,7 +82,7 @@ module Routes
 
           # Use weighted random selector with consistent session tracking
           # FIX: Use consistent session ID (not object_id which changes every request!)
-          session_id = session[:visitor_id] || session[:user_id] || request.session_options[:id]
+          session_id = session[:visitor_id] || current_user_id || request.session_options[:id]
           session[:visitor_id] ||= session_id  # Persist for consistency
           
           # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions

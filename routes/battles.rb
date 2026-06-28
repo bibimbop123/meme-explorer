@@ -42,7 +42,7 @@ class BattlesRoutes
           halt 400, { error: 'Invalid winner' }.to_json unless [meme_a_url, meme_b_url].include?(winner_url)
           
           begin
-            user_id = session[:user_id]
+            user_id = current_user_id
             session_id = session.object_id.to_s
             
             # Record battle

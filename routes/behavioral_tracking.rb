@@ -45,12 +45,12 @@ module Routes
             REDIS.setex(key, 3600, recent_array.to_json)
             
             # Also track in database for long-term learning (if user logged in)
-            if session[:user_id]
+            if current_user_id
               DB.execute(
                 "INSERT INTO user_behavior_log (user_id, meme_url, action, duration, subreddit, created_at) 
                  VALUES (?, ?, ?, ?, ?, ?) 
                  ON CONFLICT DO NOTHING",
-                [session[:user_id], meme_url, action, duration, subreddit, Time.now.to_s]
+                [current_user_id, meme_url, action, duration, subreddit, Time.now.to_s]
               ) rescue nil
             end
             

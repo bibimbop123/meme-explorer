@@ -66,8 +66,8 @@ module Routes
           if milestone
             @milestone = milestone
             # Only award to DB if logged in
-            if session[:user_id]
-              MemeExplorer::MilestoneService.award_milestone(session[:user_id], milestone) rescue nil
+            if current_user_id
+              MemeExplorer::MilestoneService.award_milestone(current_user_id, milestone) rescue nil
             end
           end
           
@@ -75,18 +75,18 @@ module Routes
           @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
           
           # PHASE 6: Track daily streak for retention
-          if session[:user_id] && defined?(MemeExplorer::RetentionService)
-            current_streak = MemeExplorer::RetentionService.track_daily_streak(session[:user_id]) rescue nil
-            @streak_status = MemeExplorer::RetentionService.get_streak_status(session[:user_id]) rescue nil
+          if current_user_id && defined?(MemeExplorer::RetentionService)
+            current_streak = MemeExplorer::RetentionService.track_daily_streak(current_user_id) rescue nil
+            @streak_status = MemeExplorer::RetentionService.get_streak_status(current_user_id) rescue nil
             @social_proof = MemeExplorer::RetentionService.get_social_proof rescue nil
           end
           
           # PHASE 3: Check for near-miss tease
           if defined?(MemeExplorer::NearMissService)
             pool = MemeExplorer::App::MEME_CACHE[:memes] || []
-            if MemeExplorer::NearMissService.should_show_tease?(pool, session[:user_id])
-              @tease = MemeExplorer::NearMissService.generate_tease(pool, session[:user_id])
-              MemeExplorer::NearMissService.track_tease_shown(@tease, session[:user_id]) if @tease
+            if MemeExplorer::NearMissService.should_show_tease?(pool, current_user_id)
+              @tease = MemeExplorer::NearMissService.generate_tease(pool, current_user_id)
+              MemeExplorer::NearMissService.track_tease_shown(@tease, current_user_id) if @tease
             end
           end
           
@@ -130,7 +130,7 @@ module Routes
         # ASYNC: Track analytics via bounded thread pool (non-blocking, memory-safe)
         meme_snapshot = { url: @meme["url"], file: @meme["file"],
                           title: @meme["title"], subreddit: @meme["subreddit"] }
-        uid_snapshot = session[:user_id]
+        uid_snapshot = current_user_id
         ANALYTICS_POOL.post do
           begin
             meme_identifier = meme_snapshot[:url] || meme_snapshot[:file]

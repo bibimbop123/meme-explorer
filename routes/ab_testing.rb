@@ -9,7 +9,7 @@ module Routes
     def self.registered(app)
       # Admin dashboard for A/B testing
       app.get '/admin/ab-testing' do
-        halt 403, 'Forbidden' unless UserService.is_admin?(session[:user_id])
+        require_admin!
         @experiments = ABTestingService.list_experiments
         erb :'admin/ab_testing'
       end
@@ -17,7 +17,7 @@ module Routes
       # Create new experiment
       # Expected variants format: "variant_a:0.5,variant_b:0.5"
       app.post '/admin/ab-testing/create' do
-        halt 403, 'Forbidden' unless UserService.is_admin?(session[:user_id])
+        require_admin!
         name = params[:name].to_s.strip
         halt 400, 'Experiment name required' if name.empty?
 
@@ -38,7 +38,7 @@ module Routes
 
       # Toggle experiment active status
       app.post '/admin/ab-testing/:name/toggle' do
-        halt 403, 'Forbidden' unless UserService.is_admin?(session[:user_id])
+        require_admin!
         content_type :json
         success = ABTestingService.toggle_experiment(params[:name], params[:active] == 'true')
         { success: success }.to_json
@@ -46,14 +46,14 @@ module Routes
 
       # Get experiment statistics (API endpoint)
       app.get '/admin/ab-testing/:name/stats' do
-        halt 403, 'Forbidden' unless UserService.is_admin?(session[:user_id])
+        require_admin!
         content_type :json
         ABTestingService.get_stats(params[:name]).to_json
       end
 
       # View experiment details
       app.get '/admin/ab-testing/:name' do
-        halt 403, 'Forbidden' unless UserService.is_admin?(session[:user_id])
+        require_admin!
         @experiment_name = params[:name]
         @stats = ABTestingService.get_stats(@experiment_name)
         erb :'admin/ab_testing_detail'

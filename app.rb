@@ -67,6 +67,7 @@ require_relative "./lib/services/meme_service"
 require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/services/reddit_fetcher_service"
+require_relative "./lib/services/inline_reddit_fetcher"
 require_relative "./lib/middleware/request_timer"
 require_relative "./lib/middleware/security_headers"
 require_relative 'lib/helpers/cdn_helpers'
@@ -276,7 +277,7 @@ METRICS = {
     if session[:user_id]
       begin
         # Ensure user_id is an integer for DB queries
-        user_id = session[:user_id].to_i
+        user_id = current_user_id
         @streak_data = update_streak(user_id)
         @user_level = get_user_level(user_id)
       rescue => e
@@ -348,202 +349,27 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   end
 
   # -----------------------
-  # Static Methods (for background thread)
+  # Static Methods — extracted to lib/services/inline_reddit_fetcher.rb
   # -----------------------
+  # Thin shims kept for backward compat with any callers using MemeExplorer::App.fetch_*
   def self.fetch_reddit_memes_authenticated(access_token, subreddits = nil, limit = 15)
-    require "httparty"
-    
-    memes = []
-    subreddits = subreddits.sample(8) if subreddits&.size.to_i > 8
-    
-    subreddits.each do |subreddit|
-      begin
-        url = "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}"
-        
-        response = HTTParty.get(url,
-          headers: {
-            "Authorization" => "Bearer #{access_token}",
-            "User-Agent" => "MemeExplorer/1.0 (by #{ENV.fetch('REDDIT_USERNAME', 'meme-explorer-bot')})"
-          },
-          timeout: 15
-        )
-        
-        if response.success?
-          data = response.parsed_response
-          
-          data["data"]["children"].each do |post|
-            post_data = post["data"]
-            next if post_data["is_self"]
-            
-            # Check if gallery post
-            is_gallery = post_data["is_gallery"] == true
-            gallery_images = nil
-            
-            if is_gallery
-              gallery_images = extract_gallery_images_static(post_data)
-            end
-            
-            # Skip videos unless they're galleries
-            next if post_data["is_video"] && !is_gallery
-            
-            image_url = if gallery_images && gallery_images.any?
-                          gallery_images.first["url"]
-                        else
-                          post_data["url"]
-                        end
-            
-            next unless image_url
-            
-            meme = {
-              "title" => post_data["title"],
-              "url" => image_url,
-              "subreddit" => post_data["subreddit"],
-              "likes" => post_data["ups"] || 0,
-              "permalink" => post_data["permalink"]
-            }
-            
-            # Add gallery data if present
-            if is_gallery && gallery_images && gallery_images.any?
-              meme["is_gallery"] = true
-              meme["gallery_images"] = gallery_images
-            end
-            
-            memes << meme
-          end
-        end
-        sleep 1
-      rescue => e
-        AppLogger.error("Error fetching from r/#{subreddit} (authenticated): #{e.message}")
-      end
-    end
-    
-    memes
+    subreddits ||= POPULAR_SUBREDDITS
+    InlineRedditFetcher.fetch_authenticated(access_token, subreddits, limit: limit)
   end
 
   def self.fetch_reddit_memes_static(subreddits = nil, limit = 100)
-    memes = []
-    subreddits ||= YAML.load_file("data/subreddits.yml")["popular"]
-    subreddits = subreddits.sample(40) if subreddits.size > 40
-
-    user_agents = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ]
-
-    subreddits.each do |subreddit|
-      begin
-        url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
-        uri = URI(url)
-        
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 10, open_timeout: 10) do |http|
-          request = Net::HTTP::Get.new(uri.request_uri)
-          request["User-Agent"] = user_agents.sample
-          request["Accept"] = "application/json"
-          http.request(request)
-        end
-        
-        if response.code == "200"
-          data = JSON.parse(response.body)
-          data["data"]["children"].each do |post|
-            post_data = post["data"]
-            next if post_data["is_self"]
-            
-            # Check if gallery post
-            is_gallery = post_data["is_gallery"] == true
-            gallery_images = nil
-            
-            if is_gallery
-              gallery_images = extract_gallery_images_static(post_data)
-            end
-            
-            # Skip videos unless they're galleries
-            next if post_data["is_video"] && !is_gallery
-            
-            image_url = if gallery_images && gallery_images.any?
-                          gallery_images.first["url"]
-                        else
-                          post_data["url"]
-                        end
-            
-            next unless image_url
-            
-            meme = {
-              "title" => post_data["title"],
-              "url" => image_url,
-              "subreddit" => post_data["subreddit"],
-              "likes" => post_data["ups"] || 0
-            }
-            
-            # Add gallery data if present
-            if is_gallery && gallery_images && gallery_images.any?
-              meme["is_gallery"] = true
-              meme["gallery_images"] = gallery_images
-            end
-            
-            memes << meme
-          end
-        end
-        sleep 0.5
-      rescue => e
-        # Silently skip errors
-      end
-    end
-    
-    memes
+    subreddits ||= POPULAR_SUBREDDITS
+    InlineRedditFetcher.fetch_static(subreddits, limit: limit)
   end
 
   def self.extract_image_url_static(post_data)
-    if post_data["url"]&.match?(/^https:\/\/i\.redd\.it\//)
-      return post_data["url"]
-    end
-
-    if post_data["url"]&.match?(/^https:\/\/(i\.)?imgur\.com\//)
-      return post_data["url"]
-    end
-
-    if post_data["preview"]&.dig("images", 0, "source", "url")
-      url = post_data["preview"]["images"][0]["source"]["url"]
-      return url.gsub("&amp;", "&") if url
-    end
-
-    nil
+    InlineRedditFetcher.send(:extract_image_url, post_data)
   end
 
   def self.extract_gallery_images_static(post_data)
-    return nil unless post_data
-
-    if post_data["is_gallery"] && post_data["gallery_data"] && post_data["media_metadata"]
-      gallery_items = post_data["gallery_data"]["items"] || []
-      media_metadata = post_data["media_metadata"] || {}
-
-      images = []
-      gallery_items.each do |item|
-        media_id = item["media_id"]
-        next unless media_id
-
-        media_info = media_metadata[media_id]
-        next unless media_info
-
-        # Get the highest quality image
-        image_url = media_info.dig("s", "u") || media_info.dig("s", "gif") || media_info.dig("s", "mp4")
-        next unless image_url
-
-        # Clean up URL encoding
-        image_url = image_url.gsub('&amp;', '&')
-
-        images << {
-          "url" => image_url,
-          "caption" => item["caption"] || "",
-          "media_id" => media_id
-        }
-      end
-
-      return images if images.any?
-    end
-
-    nil
+    InlineRedditFetcher.send(:extract_gallery_images, post_data)
   end
+
 
   # -----------------------
   # Gamification, Gallery, Ad & Personality Helpers
@@ -1352,7 +1178,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     # Mark current user in leaderboard
     if session[:user_id] && @leaderboard.any?
       @leaderboard.each do |entry|
-        entry['is_current_user'] = (entry['user_id'].to_i == session[:user_id].to_i)
+        entry['is_current_user'] = (entry['user_id'].to_i == current_user_id)
       end
     end
     
@@ -1368,7 +1194,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       rescue => e
         AppLogger.error("⚠️ [LEADERBOARD] get_user_rank failed: #{e.message}")
         # Fallback: find in current leaderboard
-        @leaderboard.find { |e| e['user_id'].to_i == session[:user_id].to_i }
+        @leaderboard.find { |e| e['user_id'].to_i == current_user_id }
       end
       
       if @user_rank
@@ -1490,7 +1316,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       # Mark current user
       if session[:user_id]
         leaderboard.each do |entry|
-          entry['is_current_user'] = (entry['user_id'].to_i == session[:user_id].to_i)
+          entry['is_current_user'] = (entry['user_id'].to_i == current_user_id)
         end
       end
       

@@ -19,7 +19,7 @@ module Routes
         
         # FIXED: Track analytics synchronously with proper error handling + activity log
         begin
-          user_id = session[:user_id]
+          user_id = current_user_id
           meme_identifier = @meme["url"] || @meme["file"]
           
           if meme_identifier

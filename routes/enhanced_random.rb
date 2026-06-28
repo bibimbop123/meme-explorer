@@ -24,7 +24,7 @@ module Routes
         
         # Get session and user IDs
         session_id = session[:session_id] ||= SecureRandom.uuid
-        user_id = session[:user_id] # May be nil for anonymous users
+        user_id = current_user_id # May be nil for anonymous users
         
         # Use enhanced selector
         selected = ::EnhancedRandomSelector.select_meme(
@@ -74,7 +74,7 @@ module Routes
         
         meme_id = data['meme_id']
         interaction_type = data['type'] || 'like'
-        user_id = session[:user_id]
+        user_id = current_user_id
         session_id = session[:session_id]
         
         unless meme_id
@@ -112,7 +112,7 @@ module Routes
     app.get '/api/random/profile' do
       content_type :json
       
-      user_id = session[:user_id]
+      user_id = current_user_id
       
       unless user_id
         return {
@@ -142,7 +142,7 @@ module Routes
     app.get '/api/random/recommendations' do
       content_type :json
       
-      user_id = session[:user_id]
+      user_id = current_user_id
       
       unless user_id
         return {

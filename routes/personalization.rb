@@ -10,7 +10,7 @@
 get '/taste-evolution' do
   require_login
   
-  user_id = session[:user_id]
+  user_id = current_user_id
   personalization = PersonalizationService.new(user_id)
   
   @taste_evolution = personalization.get_taste_evolution
@@ -22,7 +22,7 @@ end
 get '/saved' do
   require_login
   
-  user_id = session[:user_id]
+  user_id = current_user_id
   personalization = PersonalizationService.new(user_id)
   
   @organized_saves = personalization.organize_saved_memes
@@ -48,7 +48,7 @@ post '/api/subscribe' do
        ON CONFLICT(email) DO UPDATE SET
          user_id       = EXCLUDED.user_id,
          subscribed_at = EXCLUDED.subscribed_at",
-      [email, session[:user_id], Time.now.to_i]
+      [email, current_user_id, Time.now.to_i]
     )
     
     session[:email_captured] = true
@@ -71,7 +71,7 @@ post '/api/saved/remove' do
   begin
     DB.execute(
       "DELETE FROM user_saved_memes WHERE user_id = ? AND meme_url = ?",
-      [session[:user_id], meme_url]
+      [current_user_id, meme_url]
     )
     
     {success: true}.to_json
@@ -83,5 +83,5 @@ end
 
 # Helper: Require login
 def require_login
-  redirect '/login' unless session[:user_id]
+  require_auth!
 end

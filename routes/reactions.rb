@@ -7,7 +7,7 @@ class ReactionsRoutes
         app.post '/api/reactions' do
           url = params[:url]
           reaction_type = params[:type]
-          user_id = session[:user_id]
+          user_id = current_user_id
           # Generate stable session ID
           session_id = session.id || SecureRandom.uuid
           session[:session_id] ||= session_id
@@ -97,7 +97,7 @@ class ReactionsRoutes
           halt 400, { error: 'Missing URL parameter' }.to_json unless url
           
           begin
-            user_id = session[:user_id]
+            user_id = current_user_id
             # Generate stable session ID
             session_id = session.id || SecureRandom.uuid
             session[:session_id] ||= session_id
