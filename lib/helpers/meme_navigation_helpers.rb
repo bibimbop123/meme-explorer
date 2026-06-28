@@ -122,10 +122,14 @@ def navigate_meme_unified(direction: "next")
   # Track view in meme_stats
   meme_title = new_meme["title"] || "Unknown"
   meme_subreddit = new_meme["subreddit"] || "local"
-  DB.execute(
-    "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-    [meme_identifier, meme_title, meme_subreddit]
-  ) rescue nil
+  begin
+    DB.execute(
+      "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+      [meme_identifier, meme_title, meme_subreddit]
+    )
+  rescue => e
+    AppLogger.warn("navigate_meme_unified: meme_stats upsert failed", error: e.message, url: meme_identifier)
+  end
   
   # Update session history
   session[:meme_history] << meme_identifier
@@ -134,10 +138,14 @@ def navigate_meme_unified(direction: "next")
 
   # Track exposure for analytics and spaced repetition
   if user_id
-    DB.execute(
-      "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-      [user_id, meme_identifier]
-    ) rescue nil
+    begin
+      DB.execute(
+        "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+        [user_id, meme_identifier]
+      )
+    rescue => e
+      AppLogger.warn("navigate_meme_unified: user_meme_exposure upsert failed", error: e.message, user_id: user_id)
+    end
   end
 
   new_meme
@@ -148,10 +156,14 @@ def update_user_preference(user_id, subreddit)
   return unless user_id && subreddit
   
   subreddit = subreddit.downcase
-  DB.execute(
-    "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, 1) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = preference_score + 0.2, times_liked = times_liked + 1, last_updated = CURRENT_TIMESTAMP",
-    [user_id, subreddit]
-  ) rescue nil
+  begin
+    DB.execute(
+      "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, 1) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = preference_score + 0.2, times_liked = times_liked + 1, last_updated = CURRENT_TIMESTAMP",
+      [user_id, subreddit]
+    )
+  rescue => e
+    AppLogger.warn("update_user_preference: subreddit preference upsert failed", error: e.message, user_id: user_id, subreddit: subreddit)
+  end
 end
 
 # Spaced repetition - allow re-showing memes after decay
@@ -170,7 +182,12 @@ def should_exclude_from_exposure(user_id, meme_url)
     last_shown_str = exposure["last_shown"].to_s.strip
     return false if last_shown_str.empty?
     
-    last_shown = Time.parse(last_shown_str) rescue nil
+    begin
+      last_shown = Time.parse(last_shown_str)
+    rescue ArgumentError, TypeError => e
+      AppLogger.warn("should_exclude_from_exposure: unparseable timestamp", value: last_shown_str, error: e.message)
+      return false
+    end
     return false unless last_shown.is_a?(Time)
     
     shown_count_val = exposure["shown_count"]

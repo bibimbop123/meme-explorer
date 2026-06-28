@@ -86,11 +86,20 @@ module TrendingService
   def cached_trending(time_window: 24, cache_ttl: 300)
     cache_key = "trending:#{time_window}h"
     
-    cached = RedisService.get(cache_key) rescue nil
+    cached = begin
+      RedisService.get(cache_key)
+    rescue => e
+      AppLogger.warn("cached_trending: Redis read failed", error: e.message, key: cache_key)
+      nil
+    end
     return JSON.parse(cached) if cached
     
     trending = get_trending_memes(time_window_hours: time_window)
-    RedisService.setex(cache_key, cache_ttl, trending.to_json) rescue nil
+    begin
+      RedisService.setex(cache_key, cache_ttl, trending.to_json)
+    rescue => e
+      AppLogger.warn("cached_trending: Redis write failed", error: e.message, key: cache_key)
+    end
     
     trending
   end

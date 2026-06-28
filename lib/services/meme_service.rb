@@ -274,8 +274,8 @@ class MemeService
         
         # Log like event to activity log for accurate time-based metrics
         begin
-          user_id = session[:user_id] rescue nil
-          session_id = session.id rescue nil
+          user_id = begin; session[:user_id]; rescue => e; AppLogger.warn("like toggle: session[:user_id] read failed", error: e.message); nil; end
+          session_id = begin; session.id; rescue => e; AppLogger.warn("like toggle: session.id read failed", error: e.message); nil; end
           db.execute(
             "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'like', ?, ?)",
             [url, user_id, session_id]
@@ -291,8 +291,8 @@ class MemeService
         
         # Log unlike event to activity log
         begin
-          user_id = session[:user_id] rescue nil
-          session_id = session.id rescue nil
+          user_id = begin; session[:user_id]; rescue => e; AppLogger.warn("unlike toggle: session[:user_id] read failed", error: e.message); nil; end
+          session_id = begin; session.id; rescue => e; AppLogger.warn("unlike toggle: session.id read failed", error: e.message); nil; end
           db.execute(
             "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'unlike', ?, ?)",
             [url, user_id, session_id]

@@ -226,7 +226,12 @@ class EngagementService
     
     # Log activity to meme_activity_log
     def log_activity(user_id, meme_url, activity_type, session, db)
-      session_id = session[:visitor_id] || session[:user_id] rescue nil
+      session_id = begin
+        session[:visitor_id] || session[:user_id]
+      rescue => e
+        AppLogger.warn("log_activity: session read failed", error: e.message)
+        nil
+      end
       
       db.execute(
         "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",

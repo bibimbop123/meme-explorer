@@ -1,10 +1,11 @@
-# RSpec tests for RandomSelectorService
-# Tests the core meme selection algorithm
+# RSpec tests for MemeSelectionService (formerly RandomSelectorService)
+# RandomSelectorService was deleted in Sprint 5 service consolidation.
+# MemeSelectionService is the canonical replacement — same public interface.
 
 require 'spec_helper'
-require_relative '../../lib/services/random_selector_service'
+require_relative '../../lib/services/meme_selection_service'
 
-RSpec.describe MemeExplorer::RandomSelectorService do
+RSpec.describe MemeExplorer::MemeSelectionService do
   describe '.select_random_meme' do
     context 'with empty meme pool' do
       it 'returns nil when no memes available' do

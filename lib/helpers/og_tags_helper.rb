@@ -8,8 +8,18 @@
 
 module OgTagsHelper
   def generate_og_tags(meme, request)
-    collection_name = collection_name_for_subreddit(meme['subreddit']) rescue 'Meme Explorer'
-    curation_signal = get_curation_signal(meme) rescue nil
+    collection_name = begin
+      collection_name_for_subreddit(meme['subreddit'])
+    rescue => e
+      AppLogger.warn("generate_og_tags: collection_name lookup failed", error: e.message, subreddit: meme['subreddit'])
+      'Meme Explorer'
+    end
+    curation_signal = begin
+      get_curation_signal(meme)
+    rescue => e
+      AppLogger.warn("generate_og_tags: curation_signal lookup failed", error: e.message)
+      nil
+    end
     
     {
       'og:type' => 'website',

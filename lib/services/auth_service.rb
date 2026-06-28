@@ -98,7 +98,7 @@ class AuthService
       redis.setex("reddit:token_expires_at", 3600, (Time.now + 3600).to_i.to_s)
       AppLogger.info("✅ [AUTH] Reddit token stored in Redis cache")
     rescue => e
-      AppLogger.warn("Redis token storage failed", error: e.message) rescue nil
+      AppLogger.warn("Redis token storage failed", error: e.message)
       AppLogger.error("⚠️  [AUTH] Redis token storage failed (non-critical): #{e.message}")
       # Non-critical - OAuth still works without token caching
     end

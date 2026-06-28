@@ -287,7 +287,9 @@ module GamificationHelpers
     DB.execute(
       "INSERT INTO xp_activity_log (user_id, activity_type, xp_gained) VALUES (?, ?, ?)",
       [user_id, activity_type.to_s, xp_gained]
-    ) rescue nil
+    )
+  rescue => e
+    AppLogger.warn("log_xp_activity: insert failed", error: e.message, user_id: user_id, activity: activity_type)
   end
   
   # ============================================
@@ -451,13 +453,17 @@ module GamificationHelpers
     
     week_num = Date.today.strftime("%Y%U").to_i
     
-    DB.execute(
-      "INSERT INTO weekly_leaderboard (week_number, user_id, metric_value)
-       VALUES (?, ?, ?)
-       ON CONFLICT (week_number, user_id)
-       DO UPDATE SET metric_value = metric_value + ?, updated_at = CURRENT_TIMESTAMP",
-      [week_num, user_id, metric_increment, metric_increment]
-    ) rescue nil
+    begin
+      DB.execute(
+        "INSERT INTO weekly_leaderboard (week_number, user_id, metric_value)
+         VALUES (?, ?, ?)
+         ON CONFLICT (week_number, user_id)
+         DO UPDATE SET metric_value = metric_value + ?, updated_at = CURRENT_TIMESTAMP",
+        [week_num, user_id, metric_increment, metric_increment]
+      )
+    rescue => e
+      AppLogger.warn("update_weekly_leaderboard: upsert failed", error: e.message, user_id: user_id, week: week_num)
+    end
     
     # Update ranks
     update_leaderboard_ranks(week_num)
@@ -475,10 +481,14 @@ module GamificationHelpers
     
     # Update ranks
     users.each_with_index do |user, index|
-      DB.execute(
-        "UPDATE weekly_leaderboard SET rank = ? WHERE id = ?",
-        [index + 1, user["id"]]
-      ) rescue nil
+      begin
+        DB.execute(
+          "UPDATE weekly_leaderboard SET rank = ? WHERE id = ?",
+          [index + 1, user["id"]]
+        )
+      rescue => e
+        AppLogger.warn("update_leaderboard_ranks: rank update failed", error: e.message, user_id: user["id"])
+      end
     end
   end
   

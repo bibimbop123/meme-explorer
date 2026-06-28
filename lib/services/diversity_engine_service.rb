@@ -24,8 +24,8 @@ module MemeExplorer
           pool_memes = (pool_memes + random_pool).uniq
         end
         
-        # Use RandomSelectorService for intelligent selection from pool
-        selected = RandomSelectorService.select_random_meme(
+        # Use MemeSelectionService for intelligent selection from pool
+        selected = MemeExplorer::MemeSelectionService.select_random_meme(
           pool_memes, 
           session_id: session_id, 
           preferences: preferences
@@ -158,11 +158,16 @@ module MemeExplorer
         
         all_memes.select do |meme|
           next false unless meme['created_at']
-          created = Time.parse(meme['created_at'].to_s) rescue nil
+          created = begin
+            Time.parse(meme['created_at'].to_s)
+          rescue ArgumentError, TypeError
+            nil
+          end
           created && created > cutoff
         end
-      rescue
-        [] # If parsing fails, return empty
+      rescue => e
+        AppLogger.warn("get_fresh_pool: pool selection failed", error: e.message)
+        []
       end
       
       # VINTAGE: Classic memes from 30+ days ago
@@ -171,10 +176,15 @@ module MemeExplorer
         
         all_memes.select do |meme|
           next false unless meme['created_at']
-          created = Time.parse(meme['created_at'].to_s) rescue nil
+          created = begin
+            Time.parse(meme['created_at'].to_s)
+          rescue ArgumentError, TypeError
+            nil
+          end
           created && created < cutoff && meme['likes'].to_i >= 500
         end
-      rescue
+      rescue => e
+        AppLogger.warn("get_vintage_pool: pool selection failed", error: e.message)
         []
       end
       
@@ -210,8 +220,8 @@ module MemeExplorer
         recent << pool_type
         
         REDIS.setex(key, 3600, recent.last(20).to_json)
-      rescue
-        nil
+      rescue => e
+        AppLogger.warn("track_pool_usage: Redis write failed", error: e.message, session_id: session_id)
       end
       
       def get_recent_pools(session_id)
@@ -220,7 +230,8 @@ module MemeExplorer
         key = "diversity:pools:#{session_id}"
         data = REDIS.get(key)
         data ? JSON.parse(data, symbolize_names: true) : []
-      rescue
+      rescue => e
+        AppLogger.warn("get_recent_pools: Redis read failed", error: e.message, session_id: session_id)
         []
       end
       
@@ -230,7 +241,8 @@ module MemeExplorer
         key = "recent_subreddits:#{session_id}"
         data = REDIS.get(key)
         data ? JSON.parse(data) : []
-      rescue
+      rescue => e
+        AppLogger.warn("get_recent_subreddits: Redis read failed", error: e.message, session_id: session_id)
         []
       end
       
@@ -244,7 +256,7 @@ module MemeExplorer
         score += 1.0 unless recent_subs.include?(current_sub)
         
         # Different humor type = +0.5
-        # (use RandomSelectorService's humor detection)
+        # (humor detection handled by MemeSelectionService)
         
         # Different age category = +0.5
         age_hours = if meme['created_at']
@@ -277,7 +289,8 @@ module MemeExplorer
         key = "diversity:ages:#{session_id}"
         data = REDIS.get(key)
         data ? JSON.parse(data) : []
-      rescue
+      rescue => e
+        AppLogger.warn("get_recent_age_categories: Redis read failed", error: e.message, session_id: session_id)
         []
       end
       
@@ -289,8 +302,8 @@ module MemeExplorer
         recent << category
         
         REDIS.setex(key, 3600, recent.last(20).to_json)
-      rescue
-        nil
+      rescue => e
+        AppLogger.warn("track_age_category: Redis write failed", error: e.message, session_id: session_id)
       end
     end
   end

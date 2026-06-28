@@ -87,7 +87,7 @@ module Routes
           
           # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
           user_prefs = {}
-          meme = RandomSelectorService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
+          meme = MemeExplorer::MemeSelectionService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
           
           halt 404, { error: "No suitable memes available" }.to_json unless meme
           

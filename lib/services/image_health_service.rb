@@ -174,7 +174,12 @@ class ImageHealthService
         return true if blacklisted_until.nil?
         
         # Temporary blacklist - check if expired
-        expiration = Time.parse(blacklisted_until) rescue nil
+        expiration = begin
+          Time.parse(blacklisted_until)
+        rescue ArgumentError, TypeError => e
+          AppLogger.warn("blacklisted?: unparseable expiration timestamp", error: e.message, url: url)
+          nil
+        end
         if expiration && Time.now < expiration
           true # Still blacklisted
         else

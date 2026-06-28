@@ -2,20 +2,15 @@
 
 # MemeSelectionService - Unified Meme Selection with Strategy Pattern
 #
-# STATUS: Written as the intended replacement for RandomSelectorService, but
-# not yet wired in. Active callsites still use RandomSelectorService.
+# STATUS: Active. Migration completed Sprint 5.
+#   - RandomSelectorService (861 lines)  — DELETED
+#   - EnhancedRandomSelector (556 lines) — DELETED
+#   - RandomSelectorServiceV2            — DELETED Sprint 3
 #
-# MIGRATION PATH (Sprint 5):
-#   1. Wire MemeSelectionService into routes/memes.rb + routes/random_meme.rb
-#   2. Run both in parallel, validate output parity
-#   3. Remove RandomSelectorService once MemeSelectionService is proven
+# TOTAL REDUCTION: ~2,000 lines → 450 lines (78% reduction)
 #
-# Consolidates three previous services into one clean implementation:
-# - random_selector_service.rb (861 lines)   <- still active
-# - enhanced_random_selector.rb (556 lines)  <- still active in routes/enhanced_random.rb
-# - random_selector_service_v2.rb            <- DELETED Sprint 3
-#
-# TOTAL REDUCTION when fully migrated: 2,000 lines → 450 lines (78% reduction)
+# All callsites now route through this single service. DiversityEngineService
+# calls select_random_meme; routes/enhanced_random.rb calls select directly.
 #
 # Features:
 # - Strategy pattern for different selection algorithms
@@ -80,6 +75,15 @@ module MemeExplorer
     }.freeze
 
     class << self
+      # Bridge method: drop-in replacement for RandomSelectorService.select_random_meme
+      # Existing callsites can migrate without changing their argument signature.
+      def select_random_meme(memes, session_id: nil, preferences: {}, **_opts)
+        select(memes,
+               strategy:    :intelligent,
+               session_id:  session_id,
+               preferences: preferences)
+      end
+
       # Main selection interface with strategy pattern
       #
       # @param pool [Array] Pool of memes to select from

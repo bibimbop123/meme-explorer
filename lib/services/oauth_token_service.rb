@@ -14,7 +14,12 @@ class OAuthTokenService
       # Check Redis first (shared across processes)
       if @redis
         cached = @redis.get(CACHE_KEY)
-        parsed = JSON.parse(cached) rescue nil
+        parsed = begin
+          JSON.parse(cached)
+        rescue JSON::ParserError, TypeError => e
+          AppLogger.warn("OAuthTokenService: cached token JSON parse failed", error: e.message)
+          nil
+        end
         return parsed if cached && valid?(parsed)
       end
 

@@ -201,7 +201,12 @@ class HealthCheckService
     end
     
     def cache_last_refresh
-      refresh_time = MEME_CACHE.get(:last_refresh) rescue nil
+      refresh_time = begin
+        MEME_CACHE.get(:last_refresh)
+      rescue => e
+        AppLogger.warn("cache_last_refresh: MEME_CACHE read failed", error: e.message)
+        nil
+      end
       refresh_time&.iso8601 || 'never'
     end
     

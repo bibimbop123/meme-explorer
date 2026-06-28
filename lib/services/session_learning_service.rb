@@ -318,11 +318,15 @@ module MemeExplorer
       end
       
       def detect_humor_type(meme)
-        # Use existing humor detection from RandomSelectorService
-        if defined?(RandomSelectorService)
-          RandomSelectorService.send(:detect_primary_humor_type, meme) rescue 'general'
-        else
-          'general'
+        # Lightweight humor type detection based on subreddit
+        subreddit = (meme['subreddit'] || meme[:subreddit] || '').downcase
+        case subreddit
+        when /wholesome|aww|mademesmile/ then 'wholesome'
+        when /dank|cursed|blursed|holup/ then 'absurdist'
+        when /relationship|dating|niceguys/ then 'relationship'
+        when /funny|memes|me_irl/ then 'relatable'
+        when /unexpected|unexpected/ then 'unexpected'
+        else 'general'
         end
       end
       

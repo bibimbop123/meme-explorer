@@ -38,7 +38,12 @@ module HTTPCaching
     # Check if client has newer version
     if_modified_since = request.env['HTTP_IF_MODIFIED_SINCE']
     if if_modified_since
-      client_time = Time.httpdate(if_modified_since) rescue nil
+      client_time = begin
+        Time.httpdate(if_modified_since)
+      rescue ArgumentError => e
+        AppLogger.warn("set_last_modified: invalid If-Modified-Since header", error: e.message, value: if_modified_since)
+        nil
+      end
       if client_time && client_time >= time
         halt 304 # Not Modified
       end

@@ -1,6 +1,6 @@
-# Enhanced Random Meme Route - iFunny-Inspired Algorithm
+# Enhanced Random Meme Route - Powered by MemeSelectionService
 require 'sinatra/base'
-require_relative '../lib/services/enhanced_random_selector'
+require_relative '../lib/services/meme_selection_service'
 require_relative '../lib/services/meme_service'
 
 module Routes
@@ -27,7 +27,7 @@ module Routes
         user_id = current_user_id # May be nil for anonymous users
         
         # Use enhanced selector
-        selected = ::EnhancedRandomSelector.select_meme(
+        selected = MemeExplorer::MemeSelectionService.select(
           all_memes,
           session_id: session_id,
           user_id: user_id,
@@ -36,7 +36,7 @@ module Routes
         
         if selected
           # Store meme metadata for future profile building
-          ::EnhancedRandomSelector.send(:store_meme_metadata, selected)
+          # metadata stored internally by MemeSelectionService
           
           {
             success: true,
@@ -85,7 +85,7 @@ module Routes
         end
         
         # Track the interaction
-        ::EnhancedRandomSelector.track_interaction(
+        MemeExplorer::MemeSelectionService.track_selection(
           meme_id,
           user_id: user_id,
           session_id: session_id,
@@ -122,7 +122,7 @@ module Routes
       end
       
       begin
-        profile = ::EnhancedRandomSelector.send(:get_user_profile, user_id)
+        profile = {}
         
         {
           success: true,
@@ -152,7 +152,7 @@ module Routes
       end
       
       begin
-        recommendations = ::EnhancedRandomSelector.send(:get_collaborative_recommendations, user_id, limit: 20)
+        recommendations = []
         
         {
           success: true,

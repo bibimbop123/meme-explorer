@@ -164,7 +164,12 @@ class QualityPipelineService
         last_seen = RedisService.get(key)
         
         if last_seen
-          last_seen_time = Time.parse(last_seen) rescue nil
+          last_seen_time = begin
+            Time.parse(last_seen)
+          rescue ArgumentError, TypeError => e
+            AppLogger.warn("novelty_check_passes?: unparseable last_seen timestamp", error: e.message, key: key)
+            nil
+          end
           if last_seen_time
             # Reject if seen within last 24 hours
             hours_since_seen = (Time.now - last_seen_time) / 3600
