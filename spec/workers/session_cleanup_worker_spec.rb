@@ -1,36 +1,30 @@
 # frozen_string_literal: true
-
 require_relative '../spec_helper'
 require_relative '../../app/workers/session_cleanup_worker'
 
 RSpec.describe SessionCleanupWorker do
-  describe '.perform' do
-    it 'executes without errors' do
-      expect { described_class.new.perform }.not_to raise_error
+  let(:worker) { described_class.new }
+
+  describe '#perform' do
+    it 'executes without raising' do
+      expect { worker.perform }.not_to raise_error
     end
 
-    it 'performs expected work' do
-      # TODO: Add specific work verification
-      pending "Add worker action verification"
-    end
-  end
-
-  describe 'error handling' do
-    it 'handles failures gracefully' do
-      # TODO: Add failure scenario tests
-      pending "Add error handling tests"
+    it 'returns a stats hash or nil' do
+      result = worker.perform
+      expect([Hash, NilClass]).to include(result.class)
     end
 
-    it 'can be retried on failure' do
-      # TODO: Add retry logic tests
-      pending "Add retry tests"
+    it 'handles SessionTrackerService redis errors without re-raising' do
+      allow(SessionTrackerService).to receive(:cleanup_expired_sessions!)
+        .and_raise(Redis::CannotConnectError, 'Redis down')
+      expect { worker.perform }.not_to raise_error
     end
   end
 
-  describe 'performance' do
-    it 'completes within acceptable time' do
-      # TODO: Add performance benchmarks
-      pending "Add performance tests"
+  describe 'Sidekiq configuration' do
+    it 'uses the default queue' do
+      expect(described_class.sidekiq_options_hash['queue'].to_s).to eq('default')
     end
   end
 end

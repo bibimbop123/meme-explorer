@@ -12,11 +12,12 @@ SimpleCov.start do
   add_filter "/spec/"
   add_filter "/config/"
   add_filter "/db/migrations/"
-  add_group "Routes", "routes"
+  add_group "Routes",   "routes"
   add_group "Services", "lib/services"
-  add_group "Helpers", "lib/helpers"
-  add_group "Workers", "app/workers"
-  minimum_coverage 40  # Start with 40%, increase weekly
+  add_group "Helpers",  "lib/helpers"
+  add_group "Workers",  "app/workers"
+  minimum_coverage 70             # Enforced — no more "increase weekly" deferral
+  minimum_coverage_by_file 30    # Every file must have at least some coverage
 end
 
 require_relative "../app"
@@ -95,27 +96,27 @@ RSpec.configure do |config|
   config.before(:each) do
     # Clear test database tables
     begin
-      # Create meme_activity_log if it doesn't exist
-      DB.execute(<<-SQL)
+      # Create meme_activity_log if it doesn't exist (PostgreSQL syntax)
+      DB.execute(<<~SQL)
         CREATE TABLE IF NOT EXISTS meme_activity_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          meme_url TEXT NOT NULL,
+          id           SERIAL PRIMARY KEY,
+          meme_url     TEXT NOT NULL,
           activity_type TEXT NOT NULL,
-          user_id INTEGER,
-          session_id TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          user_id      INTEGER,
+          session_id   TEXT,
+          created_at   TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       SQL
-      
-      # Create push_subscriptions table if it doesn't exist
-      DB.execute(<<-SQL)
+
+      # Create push_subscriptions table if it doesn't exist (PostgreSQL syntax)
+      DB.execute(<<~SQL)
         CREATE TABLE IF NOT EXISTS push_subscriptions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          endpoint TEXT NOT NULL,
-          p256dh TEXT NOT NULL,
-          auth TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          id         SERIAL PRIMARY KEY,
+          user_id    INTEGER NOT NULL,
+          endpoint   TEXT NOT NULL,
+          p256dh     TEXT NOT NULL,
+          auth       TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       SQL
       
@@ -129,10 +130,12 @@ RSpec.configure do |config|
       DB.execute("DELETE FROM meme_stats")
       DB.execute("DELETE FROM broken_images") rescue nil
       DB.execute("DELETE FROM users")
+    rescue PG::UndefinedTable, PG::Error => e
+      # Tables might not exist yet in a fresh test DB — that is fine
+      warn "Test setup warning (non-fatal): #{e.message}" unless e.message =~ /does not exist/
     rescue => e
-      # Tables might not exist yet, that's ok
-      puts "⚠️  Test setup warning: #{e.message}" unless e.message =~ /no such table/
+      warn "Test setup unexpected error: #{e.class}: #{e.message}"
     end
   end
-  
+
 end

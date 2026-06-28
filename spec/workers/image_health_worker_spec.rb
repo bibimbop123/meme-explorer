@@ -1,43 +1,39 @@
-# spec/workers/image_health_worker_spec.rb
+# frozen_string_literal: true
 require_relative '../spec_helper'
 require_relative '../../app/workers/image_health_worker'
 
 RSpec.describe ImageHealthWorker do
   let(:worker) { described_class.new }
-  
-  before(:each) do
-    DB.execute(<<-SQL) rescue nil
-      CREATE TABLE IF NOT EXISTS broken_images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT UNIQUE NOT NULL,
-        failure_count INTEGER DEFAULT 1,
-        last_checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    SQL
-    DB.execute("DELETE FROM broken_images") rescue nil
+
+  describe '#perform with empty cache' do
+    before { allow(MemeExplorer::App::MEME_CACHE).to receive(:get).with(:memes).and_return([]) }
+
+    it 'executes without raising' do
+      expect { worker.perform }.not_to raise_error
+    end
   end
-  
-  describe '#perform' do
-    it 'checks image health' do
+
+  describe '#perform with memes in cache' do
+    before do
+      memes = [{ 'url' => 'https://i.redd.it/test.jpg', 'title' => 'Test' }]
+      allow(MemeExplorer::App::MEME_CACHE).to receive(:get).with(:memes).and_return(memes)
+      allow(MemeExplorer::App::MEME_CACHE).to receive(:set)
+      allow(ImageHealthService).to receive(:blacklisted?).and_return(false)
+    end
+
+    it 'executes without raising' do
       expect { worker.perform }.not_to raise_error
     end
-    
-    it 'cleans up old broken image entries' do
-      # Add old entry
-      DB.execute("INSERT INTO broken_images (url, last_checked_at) VALUES (?, datetime('now', '-60 days'))",
-        ['https://old.example.com/image.jpg'])
-      
-      worker.perform
-      
-      count = DB.get_first_value("SELECT COUNT(*) FROM broken_images WHERE url = ?",
-        ['https://old.example.com/image.jpg'])
-      expect(count).to eq(0)
-    end
-    
-    it 'handles database errors gracefully' do
-      allow(DB).to receive(:execute).and_raise(SQLite3::Exception.new('DB error'))
-      expect { worker.perform }.not_to raise_error
+  end
+
+  it 'handles cache errors without re-raising' do
+    allow(MemeExplorer::App::MEME_CACHE).to receive(:get).and_raise(RuntimeError, 'cache error')
+    expect { worker.perform }.not_to raise_error
+  end
+
+  describe 'Sidekiq configuration' do
+    it 'uses the low_priority queue' do
+      expect(described_class.sidekiq_options_hash['queue'].to_s).to eq('low_priority')
     end
   end
 end

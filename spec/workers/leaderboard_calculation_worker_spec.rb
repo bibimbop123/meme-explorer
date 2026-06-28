@@ -1,36 +1,33 @@
 # frozen_string_literal: true
-
 require_relative '../spec_helper'
 require_relative '../../app/workers/leaderboard_calculation_worker'
 
 RSpec.describe LeaderboardCalculationWorker do
-  describe '.perform' do
-    it 'executes without errors' do
-      expect { described_class.new.perform }.not_to raise_error
+  let(:worker) { described_class.new }
+
+  describe '#perform' do
+    it 'executes without raising' do
+      expect { worker.perform }.not_to raise_error
     end
 
-    it 'performs expected work' do
-      # TODO: Add specific work verification
-      pending "Add worker action verification"
-    end
-  end
-
-  describe 'error handling' do
-    it 'handles failures gracefully' do
-      # TODO: Add failure scenario tests
-      pending "Add error handling tests"
+    it 'handles empty user set without error' do
+      allow(DB).to receive(:execute).with(/ user_levels/, any_args).and_return([])
+      allow(DB).to receive(:execute).and_call_original
+      expect { worker.perform }.not_to raise_error
     end
 
-    it 'can be retried on failure' do
-      # TODO: Add retry logic tests
-      pending "Add retry tests"
+    it 'handles database errors gracefully' do
+      allow(DB).to receive(:execute).and_raise(PG::Error, 'connection lost')
+      expect { worker.perform }.not_to raise_error
     end
   end
 
-  describe 'performance' do
-    it 'completes within acceptable time' do
-      # TODO: Add performance benchmarks
-      pending "Add performance tests"
+  describe 'Sidekiq configuration' do
+    it 'uses the critical queue' do
+      expect(described_class.sidekiq_options_hash['queue'].to_s).to eq('critical')
+    end
+    it 'is configured with retries' do
+      expect(described_class.sidekiq_options_hash['retry']).to be > 0
     end
   end
 end
