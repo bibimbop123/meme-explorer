@@ -25,8 +25,8 @@ module Routes
           session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
           user_prefs = {}
           
-          # Use sophisticated diversity system
-          @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+          # Use sophisticated diversity system V2 (ANTI-REPETITION)
+          @meme = MemeExplorer::DiversityEngineServiceV2.select_diverse_meme(
             meme_pool,
             session_id: session_id,
             preferences: user_prefs
@@ -274,8 +274,8 @@ module Routes
         session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
         user_prefs = {}
         
-        # Use sophisticated diversity system
-        @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+        # Use sophisticated diversity system V2 (ANTI-REPETITION)
+        @meme = MemeExplorer::DiversityEngineServiceV2.select_diverse_meme(
           memes,
           session_id: session_id,
           preferences: user_prefs
