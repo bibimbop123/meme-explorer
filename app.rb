@@ -49,6 +49,7 @@ require_relative "./lib/helpers/meme_pool_helpers"
 require_relative "./lib/helpers/reddit_media_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
+require_relative "./lib/helpers/session_stats_helper"
 require_relative "./lib/services/seo_service"
 require_relative "./lib/services/metrics_tracker_service"
 require_relative "./lib/middleware/request_id_middleware"
@@ -418,6 +419,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   helpers AppHelpers
   helpers MemePoolHelpers
   helpers RedditMediaHelpers
+  helpers SessionStatsHelper
 
 
   # -----------------------

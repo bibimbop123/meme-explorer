@@ -315,6 +315,12 @@ module MemeExplorer
         reddit_score = (meme['score'] || meme[:score] || 0).to_i
         score *= (1.0 + Math.log10([reddit_score, 1].max) / 10.0)
 
+        # CONTEXTUAL BOOST - New! Adapts to time of day and day of week
+        if defined?(MemeExplorer::ContextualScoringService)
+          contextual_boost = MemeExplorer::ContextualScoringService.calculate_contextual_boost(meme)
+          score *= contextual_boost
+        end
+
         score
       end
 
