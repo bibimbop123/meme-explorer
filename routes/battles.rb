@@ -170,9 +170,7 @@ class BattlesRoutes
           end
         end
         
-        private
-        
-        # Get ELO rating for a meme
+        # Internal helpers — not exposed as routes
         def self.get_elo(meme_url)
           result = DB.execute(
             "SELECT elo_score FROM meme_elo_ratings WHERE meme_url = ?",

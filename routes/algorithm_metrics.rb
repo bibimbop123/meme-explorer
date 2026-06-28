@@ -97,9 +97,7 @@ module Routes
         end
       end
       
-      private
-      
-      # Calculate percentile from array of numbers
+      # Internal helper — not exposed as a route
       def self.calculate_percentile(array, percentile)
         return 0 if array.empty?
         sorted = array.sort
