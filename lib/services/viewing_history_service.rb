@@ -15,7 +15,9 @@ module MemeExplorer
       def mark_seen(visitor_id, meme_identifier)
         return unless visitor_id && meme_identifier
         
-        redis = RedisService.connection
+        redis = REDIS  # Use global REDIS constant
+        return unless redis  # Guard against Redis being unavailable
+        
         key = history_key(visitor_id)
         
         # Add to sorted set with timestamp score
@@ -36,7 +38,9 @@ module MemeExplorer
       def get_seen_memes(visitor_id)
         return [] unless visitor_id
         
-        redis = RedisService.connection
+        redis = REDIS
+        return [] unless redis
+        
         key = history_key(visitor_id)
         
         # Get all seen memes (returns array of strings)
@@ -53,7 +57,9 @@ module MemeExplorer
       def seen?(visitor_id, meme_identifier)
         return false unless visitor_id && meme_identifier
         
-        redis = RedisService.connection
+        redis = REDIS
+        return false unless redis
+        
         key = history_key(visitor_id)
         
         score = redis.zscore(key, meme_identifier)
@@ -67,7 +73,9 @@ module MemeExplorer
       def seen_count(visitor_id)
         return 0 unless visitor_id
         
-        redis = RedisService.connection
+        redis = REDIS
+        return 0 unless redis
+        
         key = history_key(visitor_id)
         
         redis.zcard(key).to_i
@@ -80,7 +88,9 @@ module MemeExplorer
       def clear_history(visitor_id)
         return unless visitor_id
         
-        redis = RedisService.connection
+        redis = REDIS
+        return unless redis
+        
         key = history_key(visitor_id)
         
         redis.del(key)
@@ -93,7 +103,9 @@ module MemeExplorer
       def get_stats(visitor_id)
         return {} unless visitor_id
         
-        redis = RedisService.connection
+        redis = REDIS
+        return {} unless redis
+        
         key = history_key(visitor_id)
         
         count = redis.zcard(key).to_i
