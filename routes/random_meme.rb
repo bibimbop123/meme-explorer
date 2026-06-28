@@ -137,7 +137,7 @@ module Routes
             next unless meme_identifier
 
             MemeExplorer::App::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
               [meme_identifier, meme_snapshot[:title] || "Unknown", meme_snapshot[:subreddit] || "local"]
             )
 
@@ -221,7 +221,7 @@ module Routes
             meme_title = @meme["title"] || "Unknown"
             meme_subreddit = @meme["subreddit"] || "reddit"
             MemeExplorer::App::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
               [image_url, meme_title, meme_subreddit]
             ) rescue nil
           end
@@ -315,7 +315,7 @@ module Routes
           meme_title = @meme["title"] || "Unknown"
           meme_subreddit = @meme["subreddit"] || "reddit"
           MemeExplorer::App::DB.execute(
-            "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+            "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
             [image_url, meme_title, meme_subreddit]
           ) rescue nil
         end

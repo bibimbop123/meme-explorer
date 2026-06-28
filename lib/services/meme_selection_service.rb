@@ -300,11 +300,11 @@ module MemeExplorer
       def calculate_base_score(meme)
         score = 1.0
 
-        # Humor weight boost
+        # Humor weight boost — guard against empty array returning nil from .max
         categories = meme['categories'] || meme[:categories] || []
-        categories = categories.is_a?(String) ? [categories] : categories
-        humor_boost = categories.map { |cat| HUMOR_WEIGHTS[cat] || 1.0 }.max
-        score *= humor_boost
+        categories = categories.is_a?(String) ? [categories] : Array(categories)
+        humor_boost = categories.map { |cat| HUMOR_WEIGHTS[cat] || 1.0 }.max || 1.0
+        score *= humor_boost.to_f
 
         # Source quality boost
         subreddit = meme['subreddit'] || meme[:subreddit]
@@ -381,6 +381,14 @@ module MemeExplorer
       end
 
       # === TRACKING METHODS ===
+      # Public so external callers (routes/enhanced_random.rb) can call track_selection directly
+
+      public
+
+      # track_interaction is an alias used by routes/enhanced_random.rb
+      def track_interaction(meme, session_id:, user_id: nil, action: nil, **_opts)
+        track_selection(meme, session_id, user_id)
+      end
 
       def track_selection(meme, session_id, user_id, pool_type = nil)
         return unless meme && (session_id || user_id)

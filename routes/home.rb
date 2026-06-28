@@ -33,7 +33,7 @@ module Routes
           if meme_identifier
             # Track view in main thread with proper logging
             MemeExplorer::App::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes, created_at) VALUES (?, ?, ?, 1, 0, CURRENT_TIMESTAMP) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
               [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
             )
             
