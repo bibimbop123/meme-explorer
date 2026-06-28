@@ -114,8 +114,8 @@ end
 get '/api/recommendations' do
   content_type :json
   
-  user_id = session[:user_id]
-  halt 401, { error: 'Not authenticated' }.to_json unless user_id
+  require_auth!
+user_id = current_user_id
   
   # Get user's liked memes
   liked_memes = session[:liked_memes] || []

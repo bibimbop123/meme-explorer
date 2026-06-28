@@ -6,9 +6,8 @@ module Routes
     def self.registered(app)
       # User profile page with ENHANCED ENGAGEMENT STATS
       app.get "/profile" do
-        # Check session safely
-        user_id = session[:user_id]
-        halt 401, "Not logged in" unless user_id
+        require_auth!
+        user_id = current_user_id
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -61,7 +60,7 @@ module Routes
 
       # Save a meme to user's collection with FULL INTEGRATION
       app.post "/api/save-meme" do
-        halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+        require_auth!
 
         url = params[:url]
         title = params[:title] || 'Unknown'
@@ -100,7 +99,7 @@ module Routes
 
       # Remove a meme from user's collection with FULL INTEGRATION
       app.post "/api/unsave-meme" do
-        halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+        require_auth!
 
         url = params[:url]
         halt 400, { error: "URL required" }.to_json unless url
@@ -125,7 +124,7 @@ module Routes
       # View a specific saved meme
       app.get "/saved/:id" do
         # FIX: IDOR vulnerability - require authentication and authorization
-        halt 401, "Not logged in" unless session[:user_id]
+        require_auth!
         
         saved_id = params[:id].to_i
         saved_meme = MemeExplorer::App::DB.execute(

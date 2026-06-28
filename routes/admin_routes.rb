@@ -6,7 +6,7 @@ module Routes
     def self.registered(app)
       # Admin dashboard
       app.get "/admin" do
-        halt 403, "Forbidden" unless is_admin?
+        require_admin!
 
         @total_memes = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats").to_i
         @total_likes = MemeExplorer::App::DB.get_first_value("SELECT SUM(likes) FROM meme_stats").to_i
@@ -87,7 +87,7 @@ module Routes
 
       # Delete a meme from the system
       app.delete "/admin/meme/:url" do
-        halt 403, "Forbidden" unless is_admin?
+        require_admin!
 
         url = params[:url]
         halt 400, "URL required" unless url

@@ -321,7 +321,7 @@ module Routes
 
       # User notifications API
       app.get "/api/notifications" do
-        halt 401, { error: "Not logged in" }.to_json unless session[:user_id]
+        require_auth!
         user_id = session[:user_id]
         
         # Get user notifications (saved count changes, likes, etc.)

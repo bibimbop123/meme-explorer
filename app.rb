@@ -6,6 +6,9 @@ require "json"
 require "redis"
 require "rack/attack"
 require "securerandom"
+# Full Rack::Attack config lives in config/rack_attack.rb (per-endpoint limits, proper headers)
+# Loaded after all requires so Rack::Attack is available
+require_relative "./config/rack_attack"
 require "uri"
 require "time"
 require "active_support"
@@ -14,8 +17,7 @@ require "active_support/core_ext/numeric/time"
 require "active_support/core_ext/integer/time"
 require "active_support/core_ext/object/blank"
 require "net/http"
-require "thread"
-require "ostruct"
+# thread and ostruct are Ruby stdlib — no explicit require needed in Ruby 3.2+
 require "oauth2"
 require "httparty"
 require "bcrypt"
@@ -26,13 +28,13 @@ require 'rack/csrf'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
-require_relative "./lib/app_logger"
+require_relative "./lib/app_logger"       # single require — removed duplicate below
 require_relative "./config/application"
 require_relative "./config/constants"
 require_relative "./config/app_constants"
 require_relative "./config/schema"
-require_relative "./lib/app_logger"
 require_relative "./lib/cache_manager"
+require_relative "./lib/helpers/auth_helpers"
 require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
@@ -125,18 +127,8 @@ module MemeExplorer
   
   # Thread safety handled by CacheManager
 
-  # -----------------------
-  # Rack::Attack
-  # -----------------------
-  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
-  
-  class Rack::Attack
-    safelist("allow-localhost") { |req| ["127.0.0.1", "::1"].include?(req.ip) }
-    throttle("req/ip", limit: 60, period: 60) { |req| req.ip unless req.path.start_with?("/assets") }
-    self.throttled_responder = lambda do |_env|
-      [429, { "Content-Type" => "application/json" }, [{ error: "Too many requests" }.to_json]]
-    end
-  end
+  # Rack::Attack — full config in config/rack_attack.rb (required at file top)
+  # Per-endpoint limits, proper retry headers, localhost safelist all live there.
   use Rack::Attack
 
   # -----------------------
@@ -556,6 +548,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # -----------------------
   # Gamification, Gallery, Ad & Personality Helpers
   # -----------------------
+  helpers AuthHelpers        # current_user, require_auth!, require_admin!
   helpers GamificationHelpers
   helpers GalleryHelpers
   helpers AdHelpers
