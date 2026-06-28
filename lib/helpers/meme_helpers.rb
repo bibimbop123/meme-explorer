@@ -20,7 +20,7 @@ module MemeHelpers
         []
       end
     rescue => e
-      puts "⚠️ Error loading local memes: #{e.message}"
+      AppLogger.error("⚠️ Error loading local memes: #{e.message}")
       []
     end
   end
@@ -206,7 +206,7 @@ module MemeHelpers
     return url unless url
     url.gsub('&amp;', '&')
   rescue => e
-    puts "⚠️ URL unescape error: #{e.message}"
+    AppLogger.error("⚠️ URL unescape error: #{e.message}")
     url
   end
   
@@ -268,7 +268,7 @@ module MemeHelpers
     
     nil
   rescue => e
-    puts "⚠️ Reddit path error: #{e.message}"
+    AppLogger.error("⚠️ Reddit path error: #{e.message}")
     nil
   end
   
@@ -280,7 +280,7 @@ module MemeHelpers
     uri = URI.parse(url)
     uri.path
   rescue => e
-    puts "⚠️ Path extraction error: #{e.message}"
+    AppLogger.error("⚠️ Path extraction error: #{e.message}")
     nil
   end
   

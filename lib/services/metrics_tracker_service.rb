@@ -102,7 +102,7 @@ class MetricsTrackerService
       end
     rescue => e
       # Don't log here to avoid infinite loop
-      puts "Failed to track error metric: #{e.message}"
+      AppLogger.error("Failed to track error metric: #{e.message}")
     end
     
     # Track request

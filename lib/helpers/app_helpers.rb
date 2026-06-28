@@ -57,8 +57,8 @@ module AppHelpers
       # Render the partial with profile data
       erb :_taste_profile, locals: { profile: profile }
     rescue => e
-      puts "⚠️ Error rendering taste profile: #{e.class} - #{e.message}"
-      puts e.backtrace.first(3).join("\n") if e.backtrace
+      AppLogger.error("⚠️ Error rendering taste profile: #{e.class} - #{e.message}")
+      AppLogger.error("backtrace", lines: (e.backtrace.first(3).join("\n") if e.backtrace)&.join("\n"))
       ''  # Return empty string on error to prevent page crash
     end
   end

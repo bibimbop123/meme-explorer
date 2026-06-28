@@ -42,7 +42,7 @@ class ActivityTrackerService
       
       true
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error marking active: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error marking active: #{e.message}")
       false
     end
     
@@ -66,7 +66,7 @@ class ActivityTrackerService
       
       true
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error marking viewing: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error marking viewing: #{e.message}")
       false
     end
     
@@ -85,7 +85,7 @@ class ActivityTrackerService
       # Count remaining
       REDIS.zcard(key).to_i
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error getting active count: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error getting active count: #{e.message}")
       0
     end
     
@@ -102,7 +102,7 @@ class ActivityTrackerService
       # Count
       REDIS.zcard('viewing_users').to_i
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error getting viewing count: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error getting viewing count: #{e.message}")
       0
     end
     
@@ -136,7 +136,7 @@ class ActivityTrackerService
         timestamp: Time.now.to_i
       }
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error getting stats: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error getting stats: #{e.message}")
       offline_stats
     end
     
@@ -159,7 +159,7 @@ class ActivityTrackerService
       
       true
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Error recording action: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Error recording action: #{e.message}")
       false
     end
     
@@ -196,10 +196,10 @@ class ActivityTrackerService
         REDIS.zremrangebyscore("active_users:#{page}", 0, cutoff)
       end
       
-      puts "✅ [ACTIVITY TRACKER] Cleanup completed"
+      AppLogger.info("✅ [ACTIVITY TRACKER] Cleanup completed")
       true
     rescue => e
-      puts "⚠️ [ACTIVITY TRACKER] Cleanup error: #{e.message}"
+      AppLogger.error("⚠️ [ACTIVITY TRACKER] Cleanup error: #{e.message}")
       false
     end
     

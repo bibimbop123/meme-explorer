@@ -38,7 +38,7 @@ class ABTestingService
         
         variant
       rescue => e
-        puts "⚠️ [A/B Testing] Error getting variant: #{e.message}"
+        AppLogger.error("⚠️ [A/B Testing] Error getting variant: #{e.message}")
         Sentry.capture_exception(e) if defined?(Sentry)
         nil
       end
@@ -77,7 +77,7 @@ class ABTestingService
         
         true
       rescue => e
-        puts "⚠️ [A/B Testing] Error tracking conversion: #{e.message}"
+        AppLogger.error("⚠️ [A/B Testing] Error tracking conversion: #{e.message}")
         Sentry.capture_exception(e) if defined?(Sentry)
         false
       end
@@ -133,7 +133,7 @@ class ABTestingService
           results: results
         }
       rescue => e
-        puts "⚠️ [A/B Testing] Error getting stats: #{e.message}"
+        AppLogger.error("⚠️ [A/B Testing] Error getting stats: #{e.message}")
         Sentry.capture_exception(e) if defined?(Sentry)
         nil
       end
@@ -161,7 +161,7 @@ class ABTestingService
         
         true
       rescue => e
-        puts "❌ [A/B Testing] Error creating experiment: #{e.message}"
+        AppLogger.error("❌ [A/B Testing] Error creating experiment: #{e.message}")
         Sentry.capture_exception(e) if defined?(Sentry)
         false
       end
@@ -177,7 +177,7 @@ class ABTestingService
         )
         true
       rescue => e
-        puts "❌ [A/B Testing] Error toggling experiment: #{e.message}"
+        AppLogger.error("❌ [A/B Testing] Error toggling experiment: #{e.message}")
         false
       end
     end
@@ -187,7 +187,7 @@ class ABTestingService
       begin
         DB.execute("SELECT * FROM experiments ORDER BY created_at DESC")
       rescue => e
-        puts "❌ [A/B Testing] Error listing experiments: #{e.message}"
+        AppLogger.error("❌ [A/B Testing] Error listing experiments: #{e.message}")
         []
       end
     end
@@ -201,7 +201,7 @@ class ABTestingService
         [name]
       ).first
     rescue => e
-      puts "⚠️ [A/B Testing] Error fetching experiment: #{e.message}"
+      AppLogger.error("⚠️ [A/B Testing] Error fetching experiment: #{e.message}")
       nil
     end
     

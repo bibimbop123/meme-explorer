@@ -259,7 +259,7 @@ class RedisService
       # Log error with context
       error_msg = "Redis error: #{error.class} - #{error.message}"
       error_msg += " (#{context.map { |k, v| "#{k}: #{v}" }.join(', ')})" if context.any?
-      puts "⚠️  #{error_msg}"
+      AppLogger.error("⚠️  #{error_msg}")
       
       # Send to error tracking if available
       if defined?(Sentry)

@@ -1,11 +1,12 @@
 # Health Check Endpoint
 # Comprehensive health monitoring for production
 
-module MemeExplorer
-  class App < Sinatra::Base
+module Routes
+  module HealthRoutes
+    def self.registered(app)
     
     # Comprehensive health check endpoint
-    get '/health' do
+    app.get '/health' do
       content_type :json
       
       health_status = {
@@ -100,7 +101,7 @@ module MemeExplorer
     end
     
     # Readiness check - for load balancers
-    get '/health/ready' do
+    app.get '/health/ready' do
       content_type :json
       
       ready = true
@@ -129,14 +130,14 @@ module MemeExplorer
     end
     
     # Liveness check - for container orchestration
-    get '/health/live' do
+    app.get '/health/live' do
       content_type :json
       status 200
       { alive: true, timestamp: Time.now.iso8601 }.to_json
     end
     
     # Detailed health check - for monitoring systems
-    get '/health/detailed' do
+    app.get '/health/detailed' do
       content_type :json
       
       health_data = {
@@ -162,7 +163,7 @@ module MemeExplorer
         
         health_data[:checks][:database] = {
           status: 'healthy',
-          response_time_ms: measure_query_time,
+          response_time_ms: Routes::HealthRoutes.measure_query_time,
           pool: pool_info
         }
       rescue => e
@@ -286,10 +287,8 @@ module MemeExplorer
       health_data.to_json
     end
     
-    private
-    
-    # Measure database query response time
-    def measure_query_time
+    # Internal helper — not a route
+    def self.measure_query_time
       start_time = Time.now
       DB.execute("SELECT 1")
       ((Time.now - start_time) * 1000).round(2)
@@ -297,5 +296,6 @@ module MemeExplorer
       nil
     end
     
+    end
   end
 end

@@ -102,7 +102,7 @@ class PushNotificationService
       data.is_a?(String) ? JSON.parse(data) : data
     end
   rescue => e
-    puts "❌ Error fetching subscriptions: #{e.message}"
+    AppLogger.error("❌ Error fetching subscriptions: #{e.message}")
     []
   end
   
@@ -127,16 +127,16 @@ class PushNotificationService
         )
         successful += 1
       rescue WebPush::InvalidSubscription => e
-        puts "⚠️  Invalid subscription, should clean up: #{e.message}"
+        AppLogger.warn("⚠️  Invalid subscription, should clean up: #{e.message}")
         failed += 1
         # TODO: Remove invalid subscription from database
       rescue => e
-        puts "❌ Push send error: #{e.message}"
+        AppLogger.error("❌ Push send error: #{e.message}")
         failed += 1
       end
     end
     
-    puts "✅ Push notifications sent: #{successful} successful, #{failed} failed" if successful > 0 || failed > 0
+    AppLogger.error("✅ Push notifications sent: #{successful} successful, #{failed} failed") if successful > 0 || failed > 0
     { successful: successful, failed: failed }
   end
 end

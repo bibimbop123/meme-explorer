@@ -30,10 +30,10 @@ class HttpConnectionPool
         response
       end
     rescue Timeout::Error => e
-      puts "⏱️  [HTTP POOL] Timeout for #{uri.host}: #{e.message}"
+      AppLogger.warn("⏱️  [HTTP POOL] Timeout for #{uri.host}: #{e.message}")
       raise
     rescue StandardError => e
-      puts "❌ [HTTP POOL] Connection error for #{uri.host}: #{e.message}"
+      AppLogger.error("❌ [HTTP POOL] Connection error for #{uri.host}: #{e.message}")
       # Reset pool on persistent errors
       reset_pool(uri.host, uri.port)
       raise
@@ -47,14 +47,14 @@ class HttpConnectionPool
           begin
             @pools[pool_key].finish if @pools[pool_key].started?
           rescue => e
-            puts "⚠️  [HTTP POOL] Error finishing connection: #{e.message}"
+            AppLogger.error("⚠️  [HTTP POOL] Error finishing connection: #{e.message}")
           end
           @pools.delete(pool_key)
-          puts "🔄 [HTTP POOL] Reset pool for #{host}:#{port}"
+          AppLogger.info("🔄 [HTTP POOL] Reset pool for #{host}:#{port}")
         end
       end
     rescue => e
-      puts "⚠️  [HTTP POOL] Reset error: #{e.message}"
+      AppLogger.error("⚠️  [HTTP POOL] Reset error: #{e.message}")
     end
 
     # Reset all pools (useful for cleanup)
@@ -64,14 +64,14 @@ class HttpConnectionPool
           begin
             http.finish if http.started?
           rescue => e
-            puts "⚠️  [HTTP POOL] Error finishing #{key}: #{e.message}"
+            AppLogger.error("⚠️  [HTTP POOL] Error finishing #{key}: #{e.message}")
           end
         end
         @pools.clear
-        puts "🔄 [HTTP POOL] Reset all pools"
+        AppLogger.info("🔄 [HTTP POOL] Reset all pools")
       end
     rescue => e
-      puts "⚠️  [HTTP POOL] Reset all error: #{e.message}"
+      AppLogger.error("⚠️  [HTTP POOL] Reset all error: #{e.message}")
     end
 
     # Get pool statistics (for monitoring)
@@ -83,7 +83,7 @@ class HttpConnectionPool
         }
       end
     rescue => e
-      puts "⚠️  [HTTP POOL] Stats error: #{e.message}"
+      AppLogger.error("⚠️  [HTTP POOL] Stats error: #{e.message}")
       { pool_count: 0, pools: [] }
     end
 

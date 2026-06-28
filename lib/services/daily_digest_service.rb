@@ -55,7 +55,7 @@ class DailyDigestService
           sent_count += 1
         end
       rescue => e
-        puts "Error sending digest to user #{user['id']}: #{e.message}"
+        AppLogger.error("Error sending digest to user #{user['id']}: #{e.message}")
       end
     end
     
@@ -392,7 +392,7 @@ class DailyDigestService
     mail.deliver
     true
   rescue => e
-    puts "Email sending error: #{e.message}"
+    AppLogger.error("Email sending error: #{e.message}")
     false
   end
 

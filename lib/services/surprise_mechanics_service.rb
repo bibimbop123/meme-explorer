@@ -108,7 +108,7 @@ module MemeExplorer
           REDIS.ltrim(key, 0, 99)  # Keep last 100
           REDIS.expire(key, 30 * 86400)  # 30 days
         rescue => e
-          puts "Surprise logging error: #{e.message}"
+          AppLogger.error("Surprise logging error: #{e.message}")
         end
       end
       

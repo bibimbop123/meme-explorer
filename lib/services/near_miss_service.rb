@@ -77,7 +77,7 @@ module MemeExplorer
           
           REDIS.setex(key, 300, data.to_json)  # 5 min expiry
         rescue => e
-          puts "Tease tracking error: #{e.message}"
+          AppLogger.error("Tease tracking error: #{e.message}")
         end
       end
       

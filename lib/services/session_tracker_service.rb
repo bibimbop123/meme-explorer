@@ -45,11 +45,11 @@ class SessionTrackerService
       # Add to active sessions set
       REDIS.zadd('active_sessions', timestamp, session_id)
       
-      puts "🚀 [SESSION] Started: #{session_id[0..7]} (user: #{user_id || 'guest'})"
+      AppLogger.info("🚀 [SESSION] Started: #{session_id[0..7]} (user: #{user_id || 'guest'})")
       
       session_data
     rescue => e
-      puts "⚠️  [SESSION] Error starting session: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Error starting session: #{e.message}")
       nil
     end
     
@@ -78,7 +78,7 @@ class SessionTrackerService
       
       true
     rescue => e
-      puts "⚠️  [SESSION] Heartbeat error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Heartbeat error: #{e.message}")
       false
     end
     
@@ -121,7 +121,7 @@ class SessionTrackerService
       
       true
     rescue => e
-      puts "⚠️  [SESSION] Activity tracking error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Activity tracking error: #{e.message}")
       false
     end
     
@@ -152,7 +152,7 @@ class SessionTrackerService
         session_data[:is_active] = false
         session_data[:idle_reason] = 'no_engagement'
         
-        puts "⚠️  [SESSION] Marking #{session_id[0..7]} as idle (#{time_since_activity}s, 0 memes)"
+        AppLogger.warn("⚠️  [SESSION] Marking #{session_id[0..7]} as idle (#{time_since_activity}s, 0 memes)")
       end
       
       # Update metrics if provided
@@ -178,7 +178,7 @@ class SessionTrackerService
       
       session_data
     rescue => e
-      puts "⚠️  [SESSION] Metrics update error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Metrics update error: #{e.message}")
       nil
     end
     
@@ -206,7 +206,7 @@ class SessionTrackerService
         session_data[:engagement_quality] = 'none'
       end
       
-      puts "🏁 [SESSION] Ended: #{session_id[0..7]} - #{session_data[:memes_viewed]} memes, #{session_data[:total_duration]}s, quality: #{session_data[:engagement_quality]}"
+      AppLogger.info("🏁 [SESSION] Ended: #{session_id[0..7]} - #{session_data[:memes_viewed]} memes, #{session_data[:total_duration]}s, quality: #{session_data[:engagement_quality]}")
       
       # Remove from active sessions
       REDIS.zrem('active_sessions', session_id)
@@ -223,7 +223,7 @@ class SessionTrackerService
       
       session_data
     rescue => e
-      puts "⚠️  [SESSION] End session error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] End session error: #{e.message}")
       nil
     end
     
@@ -282,7 +282,7 @@ class SessionTrackerService
       
       active_count
     rescue => e
-      puts "⚠️  [SESSION] Error counting active sessions: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Error counting active sessions: #{e.message}")
       0
     end
     
@@ -325,7 +325,7 @@ class SessionTrackerService
         timestamp: Time.now.to_i
       }
     rescue => e
-      puts "⚠️  [SESSION] Stats error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Stats error: #{e.message}")
       { active_sessions: 0, error: e.message }
     end
     
@@ -360,11 +360,11 @@ class SessionTrackerService
       zombie_count = cleanup_zombie_sessions!
       
       total_cleaned = cleaned + zombie_count
-      puts "🧹 [SESSION CLEANUP] Removed #{total_cleaned} sessions (#{cleaned} expired, #{zombie_count} zombies)"
+      AppLogger.info("🧹 [SESSION CLEANUP] Removed #{total_cleaned} sessions (#{cleaned} expired, #{zombie_count} zombies)")
       
       total_cleaned
     rescue => e
-      puts "⚠️  [SESSION CLEANUP] Error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION CLEANUP] Error: #{e.message}")
       0
     end
     
@@ -385,7 +385,7 @@ class SessionTrackerService
         
         # Zombie detection: Long duration (>10 min) with no memes viewed
         if duration > 600 && memes_viewed == 0
-          puts "🧟 [SESSION] Zombie detected: #{session_id[0..7]} (#{duration}s, 0 memes)"
+          AppLogger.info("🧟 [SESSION] Zombie detected: #{session_id[0..7]} (#{duration}s, 0 memes)")
           end_session(session_id, { duration: duration, memes_viewed: 0 })
           cleaned += 1
         end
@@ -393,7 +393,7 @@ class SessionTrackerService
       
       cleaned
     rescue => e
-      puts "⚠️  [SESSION] Zombie cleanup error: #{e.message}"
+      AppLogger.error("⚠️  [SESSION] Zombie cleanup error: #{e.message}")
       0
     end
     

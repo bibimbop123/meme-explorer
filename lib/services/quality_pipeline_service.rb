@@ -196,7 +196,7 @@ class QualityPipelineService
     # Centralized error logging
     def log_error(context, error)
       message = error.is_a?(String) ? error : error.message
-      puts "⚠️  [QualityPipeline] #{context}: #{message}"
+      AppLogger.warn("⚠️  [QualityPipeline] #{context}: #{message}")
       
       # Send to Sentry if available
       if defined?(Sentry) && error.is_a?(Exception)

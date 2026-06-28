@@ -40,7 +40,7 @@ class SurpriseRewardsService
     
     result
   rescue => e
-    puts "❌ Surprise reward error: #{e.message}"
+    AppLogger.error("❌ Surprise reward error: #{e.message}")
     nil
   end
   

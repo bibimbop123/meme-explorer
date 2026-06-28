@@ -394,12 +394,12 @@ class TurbochargedRedditFetcher
   
   # Logging helpers
   def log_info(message)
-    puts "[TurboFetcher] #{message}"
+    AppLogger.info("[TurboFetcher] #{message}")
   end
   
   def log_error(context, error)
     message = error.is_a?(String) ? error : error.message
-    puts "⚠️  [TurboFetcher] #{context}: #{message}"
+    AppLogger.warn("⚠️  [TurboFetcher] #{context}: #{message}")
     
     if defined?(Sentry) && error.is_a?(Exception)
       Sentry.capture_exception(error, extra: { context: context })
@@ -412,12 +412,12 @@ class TurbochargedRedditFetcher
     duration = @stats[:end_time] - @stats[:start_time]
     rate = @stats[:memes_fetched] / duration if duration > 0
     
-    puts "📊 [TurboFetcher] Performance Stats:"
-    puts "   • Requests: #{@stats[:requests_made]}"
-    puts "   • Memes: #{@stats[:memes_fetched]}"
-    puts "   • Errors: #{@stats[:errors]}"
-    puts "   • Duration: #{duration.round(2)}s"
-    puts "   • Rate: #{rate.round(1)} memes/sec" if rate
-    puts "   • Efficiency: #{(@stats[:memes_fetched].to_f / @stats[:requests_made]).round(1)} memes/request" if @stats[:requests_made] > 0
+    AppLogger.info("📊 [TurboFetcher] Performance Stats:")
+    AppLogger.info("   • Requests: #{@stats[:requests_made]}")
+    AppLogger.info("   • Memes: #{@stats[:memes_fetched]}")
+    AppLogger.error("   • Errors: #{@stats[:errors]}")
+    AppLogger.info("   • Duration: #{duration.round(2)}s")
+    AppLogger.info("   • Rate: #{rate.round(1)} memes/sec" if rate)
+    AppLogger.info("   • Efficiency: #{(@stats[:memes_fetched].to_f / @stats[:requests_made]).round(1)} memes/request" if @stats[:requests_made] > 0)
   end
 end

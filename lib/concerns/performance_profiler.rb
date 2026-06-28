@@ -14,9 +14,9 @@ module PerformanceProfiler
       duration_ms = ((Time.now - start_time) * 1000).round(2)
       
       if duration_ms > threshold_ms
-        puts "⚠️  [SLOW] #{label}: #{duration_ms}ms (threshold: #{threshold_ms}ms)"
+        AppLogger.warn("⚠️  [SLOW] #{label}: #{duration_ms}ms (threshold: #{threshold_ms}ms)")
       else
-        puts "✓ #{label}: #{duration_ms}ms"
+        AppLogger.info("✓ #{label}: #{duration_ms}ms")
       end
       
       # Store for analytics
@@ -24,7 +24,7 @@ module PerformanceProfiler
       
       result
     rescue => e
-      puts "❌ [PROFILE ERROR] #{label}: #{e.message}"
+      AppLogger.error("❌ [PROFILE ERROR] #{label}: #{e.message}")
       raise
     end
     
@@ -98,7 +98,7 @@ module PerformanceProfiler
       after = get_memory_usage
       delta_mb = ((after - before) / 1024.0 / 1024.0).round(2)
       
-      puts "📊 [MEMORY] #{label}: #{delta_mb}MB delta (#{after_mb(after)}MB total)"
+      AppLogger.info("📊 [MEMORY] #{label}: #{delta_mb}MB delta (#{after_mb(after)}MB total)")
       
       result
     end

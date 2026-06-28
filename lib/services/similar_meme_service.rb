@@ -73,7 +73,7 @@ module MemeExplorer
           REDIS.incr(pref_key)
           REDIS.expire(pref_key, 604800) # 7 days
         rescue => e
-          puts "⚠️  [SimilarMemeService] Redis tracking error: #{e.message}"
+          AppLogger.error("⚠️  [SimilarMemeService] Redis tracking error: #{e.message}")
         end
       end
 
@@ -93,7 +93,7 @@ module MemeExplorer
           
           preferences
         rescue => e
-          puts "⚠️  [SimilarMemeService] Error fetching preferences: #{e.message}"
+          AppLogger.error("⚠️  [SimilarMemeService] Error fetching preferences: #{e.message}")
           {}
         end
       end
@@ -136,7 +136,7 @@ module MemeExplorer
             recent_urls.include?(url)
           end
         rescue => e
-          puts "⚠️  [SimilarMemeService] Error filtering recent: #{e.message}"
+          AppLogger.error("⚠️  [SimilarMemeService] Error filtering recent: #{e.message}")
           candidates
         end
       end

@@ -48,7 +48,7 @@ class TokenBucketLimiter
 
     result == 1
   rescue => e
-    puts "⚠️  [TOKEN BUCKET] Error: #{e.message}"
+    AppLogger.error("⚠️  [TOKEN BUCKET] Error: #{e.message}")
     # Fail open - allow request on error to prevent cascading failures
     true
   end
@@ -61,7 +61,7 @@ class TokenBucketLimiter
     
     (1 - tokens) / @refill_rate
   rescue => e
-    puts "⚠️  [TOKEN BUCKET] Wait time calculation error: #{e.message}"
+    AppLogger.error("⚠️  [TOKEN BUCKET] Wait time calculation error: #{e.message}")
     0
   end
 
@@ -75,7 +75,7 @@ class TokenBucketLimiter
     elapsed = Time.now.to_f - last_refill
     [[@capacity, tokens + (elapsed * @refill_rate)].min, 0].max
   rescue => e
-    puts "⚠️  [TOKEN BUCKET] Current tokens error: #{e.message}"
+    AppLogger.error("⚠️  [TOKEN BUCKET] Current tokens error: #{e.message}")
     @capacity
   end
 end

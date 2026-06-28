@@ -41,7 +41,7 @@ class RequestTimer
     [status, headers, response]
   rescue => e
     # Log error with request context
-    puts "❌ [REQUEST ERROR] #{env['REQUEST_METHOD']} #{env['PATH_INFO']}: #{e.class} - #{e.message}"
+    AppLogger.error("❌ [REQUEST ERROR] #{env['REQUEST_METHOD']} #{env['PATH_INFO']}: #{e.class} - #{e.message}")
     Sentry.capture_exception(e, extra: {
       path: env['PATH_INFO'],
       method: env['REQUEST_METHOD'],
@@ -64,7 +64,7 @@ class RequestTimer
     
     status_color = status >= 500 ? :red : (status >= 400 ? :yellow : :green)
     
-    puts "[#{request_id}] #{method} #{path} - #{status.to_s.colorize(status_color)} - #{duration}ms".colorize(color)
+    AppLogger.info("[#{request_id}] #{method} #{path} - #{status.to_s.colorize(status_color)} - #{duration}ms".colorize(color))
   end
   
   def track_slow_request(method, path, duration, request_id)

@@ -42,7 +42,7 @@ class MemeService
       before_blacklist = pool.size
       pool = ImageHealthService.filter_blacklisted(pool)
       blacklisted_count = before_blacklist - pool.size
-      puts "🚫 [MEME SERVICE] Filtered #{blacklisted_count} blacklisted memes" if blacklisted_count > 0
+      AppLogger.info("🚫 [MEME SERVICE] Filtered #{blacklisted_count} blacklisted memes") if blacklisted_count > 0
     end
     
     # Validate memes - STRICT: must have valid media, not just a URL
@@ -270,7 +270,7 @@ class MemeService
       if liked_now
         # Liking - increment counter
         db.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-        puts "✅ [LIKE] Incremented likes for: #{url}"
+        AppLogger.info("✅ [LIKE] Incremented likes for: #{url}")
         
         # Log like event to activity log for accurate time-based metrics
         begin
@@ -282,12 +282,12 @@ class MemeService
           )
         rescue => e
           # Fail gracefully if activity log doesn't exist yet
-          puts "  ⚠️  Activity log insert skipped: #{e.message}" if e.message !~ /no such table/
+          AppLogger.warn("  ⚠️  Activity log insert skipped: #{e.message}") if e.message !~ /no such table/
         end
       else
         # Unliking - decrement counter
         db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-        puts "✅ [UNLIKE] Decremented likes for: #{url}"
+        AppLogger.info("✅ [UNLIKE] Decremented likes for: #{url}")
         
         # Log unlike event to activity log
         begin
@@ -299,14 +299,14 @@ class MemeService
           )
         rescue => e
           # Fail gracefully if activity log doesn't exist yet
-          puts "  ⚠️  Activity log insert skipped: #{e.message}" if e.message !~ /no such table/
+          AppLogger.warn("  ⚠️  Activity log insert skipped: #{e.message}") if e.message !~ /no such table/
         end
       end
       
       get_likes(url, db)
     rescue => e
-      puts "❌ Like toggle error: #{e.class} - #{e.message}"
-      puts "   URL: #{url}, liked_now: #{liked_now}"
+      AppLogger.error("❌ Like toggle error: #{e.class} - #{e.message}")
+      AppLogger.info("   URL: #{url}, liked_now: #{liked_now}")
       0
     end
   end
@@ -319,7 +319,7 @@ class MemeService
       result = db.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
       result ? result["likes"].to_i : 0
     rescue => e
-      puts "❌ Get likes error: #{e.class} - #{e.message}"
+      AppLogger.error("❌ Get likes error: #{e.class} - #{e.message}")
       0
     end
   end

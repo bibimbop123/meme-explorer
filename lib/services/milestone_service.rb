@@ -107,10 +107,10 @@ class MilestoneService
             REDIS.expire(key, 30 * 86400)  # 30 days
           end
           
-          puts "✅ Milestone awarded: #{milestone_data[:title]} to user #{user_id}"
+          AppLogger.info("✅ Milestone awarded: #{milestone_data[:title]} to user #{user_id}")
           true
         rescue => e
-          puts "❌ Milestone award error: #{e.message}"
+          AppLogger.error("❌ Milestone award error: #{e.message}")
           false
         end
       end
@@ -131,7 +131,7 @@ class MilestoneService
             data
           end
         rescue => e
-          puts "Get milestones error: #{e.message}"
+          AppLogger.error("Get milestones error: #{e.message}")
           []
         end
       end
@@ -169,7 +169,7 @@ class MilestoneService
             [amount, user_id]
           )
         rescue => e
-          puts "XP award error: #{e.message}"
+          AppLogger.error("XP award error: #{e.message}")
         end
       end
     end

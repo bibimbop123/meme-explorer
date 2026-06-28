@@ -388,9 +388,9 @@ class ViewTrackerService
     # Log errors with context
     def log_error(message, error, context = {})
       error_msg = "ViewTrackerService: #{message} - #{error.class}: #{error.message}"
-      puts "❌ #{error_msg}"
-      puts "   Context: #{context.inspect}" unless context.empty?
-      puts "   Backtrace: #{error.backtrace.first(3).join("\n   ")}" if error.respond_to?(:backtrace)
+      AppLogger.error("❌ #{error_msg}")
+      AppLogger.info("   Context: #{context.inspect}") unless context.empty?
+      AppLogger.error("backtrace", lines: ("   Backtrace: #{error.backtrace.first(3).join("\n   ")}" if error.respond_to?(:backtrace))&.join("\n"))
       
       AppLogger.error(message, error: error.message, context: context) if defined?(AppLogger)
     rescue

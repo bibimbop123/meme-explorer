@@ -90,8 +90,9 @@ require_relative "./routes/algorithm_metrics"
 require_relative "./routes/seo_routes"
 require_relative "./routes/enhanced_random"
 require_relative "./routes/session_metrics"
-# NOTE: collections.rb, personalization.rb, health.rb use bare DSL (pre-module style)
-# They are loaded inside the App class body below via class_eval (see Route Registration block)
+require_relative "./routes/health"
+require_relative "./routes/collections"
+require_relative "./routes/personalization"
 require_relative "./routes/utility_routes"
 require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
@@ -419,24 +420,17 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
 
 
   # -----------------------
-  # Load bare-DSL route files inside the App class context
-  # These files use plain get/post calls (pre-module style) and must be
-  # eval'd inside Sinatra::Base, not required at the top level.
-  # -----------------------
-  module_eval(File.read(File.join(__dir__, 'routes/collections.rb')))
-  module_eval(File.read(File.join(__dir__, 'routes/personalization.rb')))
-  # health.rb wraps itself in MemeExplorer::App — load after class is open
-  load File.join(__dir__, 'routes/health.rb')
-
-  # -----------------------
   # Route Registration
-  # Every route lives in routes/*.rb — none inline in app.rb
+  # Every route lives in routes/*.rb — all use the self.registered(app) pattern
   # -----------------------
   AuthRoutes.register(self)
   ReactionsRoutes.register(self)
   BattlesRoutes.register(self)
   LegalRoutes.register(self)
   register Routes::ABTesting
+  register Routes::HealthRoutes
+  register Routes::CollectionRoutes
+  register Routes::PersonalizationRoutes
   register Routes::Home
   register Routes::RandomMeme
   register Routes::Memes

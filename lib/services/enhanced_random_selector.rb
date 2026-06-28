@@ -449,7 +449,7 @@ module MemeExplorer
             pipe.zremrangebyrank("meme:view_times:#{meme_id}", 0, -1001)  # Keep last 1000
           end
         rescue => e
-          puts "⚠️ Tracking error: #{e.message}"
+          AppLogger.error("⚠️ Tracking error: #{e.message}")
         end
       end
       
@@ -483,7 +483,7 @@ module MemeExplorer
             pipe.del("meme:engagement:#{meme_id}")
           end
         rescue => e
-          puts "⚠️ Interaction tracking error: #{e.message}"
+          AppLogger.error("⚠️ Interaction tracking error: #{e.message}")
         end
       end
       

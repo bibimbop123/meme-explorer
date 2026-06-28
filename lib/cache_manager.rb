@@ -135,7 +135,7 @@ class CacheManager
       age = Time.now - @@cache_timestamps[key]
       age > ttl
     rescue => e
-      puts "⚠️ Cache expiration check error: #{e.message}"
+      AppLogger.error("⚠️ Cache expiration check error: #{e.message}")
       false
     end
 
@@ -143,7 +143,7 @@ class CacheManager
     def count_expired
       @@cache.keys.count { |key| expired?(key) }
     rescue => e
-      puts "⚠️ Cache count error: #{e.message}"
+      AppLogger.error("⚠️ Cache count error: #{e.message}")
       0
     end
 
@@ -162,7 +162,7 @@ class CacheManager
       begin
         estimate_size > MAX_CACHE_SIZE
       rescue => e
-        puts "⚠️ Cache size estimation failed: #{e.message}"
+        AppLogger.error("⚠️ Cache size estimation failed: #{e.message}")
         @@cache.size > 500  # Conservative fallback
       end
     end
@@ -186,7 +186,7 @@ class CacheManager
       
       delete_unsafe(lru_key) if lru_key
     rescue => e
-      puts "⚠️ Cache eviction error: #{e.message}"
+      AppLogger.error("⚠️ Cache eviction error: #{e.message}")
       # Emergency: delete oldest entry
       oldest_key = @@cache_timestamps.min_by { |k, v| v }&.first
       delete_unsafe(oldest_key) if oldest_key
@@ -200,7 +200,7 @@ class CacheManager
       end
       total_size
     rescue => e
-      puts "⚠️ Cache size estimation error: #{e.message}"
+      AppLogger.error("⚠️ Cache size estimation error: #{e.message}")
       # FIX: Better fallback estimation
       @@cache.size * 10_000
     end
@@ -221,7 +221,7 @@ class CacheManager
         100
       end
     rescue => e
-      puts "⚠️ Object size estimation error: #{e.message}"
+      AppLogger.error("⚠️ Object size estimation error: #{e.message}")
       100
     end
   end

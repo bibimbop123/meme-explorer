@@ -62,7 +62,7 @@ module MemeExplorer
           REDIS.ltrim(key, 0, 49)  # Keep last 50
           REDIS.expire(key, 86400)  # 24 hours
         rescue => e
-          puts "Humor tracking error: #{e.message}"
+          AppLogger.error("Humor tracking error: #{e.message}")
         end
       end
       
@@ -77,7 +77,7 @@ module MemeExplorer
           themes.each { |theme| REDIS.sadd(key, theme) }
           REDIS.expire(key, 3600)  # 1 hour
         rescue => e
-          puts "Theme tracking error: #{e.message}"
+          AppLogger.error("Theme tracking error: #{e.message}")
         end
       end
       

@@ -42,7 +42,7 @@ module MemeExplorer
           update_streak(user_id, current_streak, today)
           current_streak
         rescue => e
-          puts "Streak tracking error: #{e.message}"
+          AppLogger.error("Streak tracking error: #{e.message}")
           1
         end
       end
@@ -166,15 +166,15 @@ module MemeExplorer
             "INSERT INTO user_rewards (user_id, reward_type, reward_data, earned_at) VALUES (?, ?, ?, ?)",
             [user_id, type, { bonus: bonus }.to_json, Time.now]
           )
-          puts "✅ Streak reward: #{type} awarded to user #{user_id}"
+          AppLogger.info("✅ Streak reward: #{type} awarded to user #{user_id}")
         rescue => e
-          puts "Reward error: #{e.message}"
+          AppLogger.error("Reward error: #{e.message}")
         end
       end
       
       def send_streak_broken_notification(user_id, streak)
         # Log streak break (could send push notification in future)
-        puts "🔔 Streak broken for user #{user_id}: #{streak} days"
+        AppLogger.info("🔔 Streak broken for user #{user_id}: #{streak} days")
         
         if defined?(REDIS) && REDIS
           begin

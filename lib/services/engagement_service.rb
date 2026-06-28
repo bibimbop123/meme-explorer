@@ -30,10 +30,10 @@ class EngagementService
         
         if liked_now
           db.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [meme_url])
-          puts "✅ [ENGAGEMENT] Like recorded for: #{meme_url[0..50]}..."
+          AppLogger.info("✅ [ENGAGEMENT] Like recorded for: #{meme_url[0..50]}...")
         else
           db.execute("UPDATE meme_stats SET likes = CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [meme_url])
-          puts "✅ [ENGAGEMENT] Unlike recorded for: #{meme_url[0..50]}..."
+          AppLogger.info("✅ [ENGAGEMENT] Unlike recorded for: #{meme_url[0..50]}...")
         end
         
         result[:likes] = get_likes_count(meme_url, db)
@@ -63,8 +63,8 @@ class EngagementService
         result[:success] = true
         result
       rescue => e
-        puts "❌ [ENGAGEMENT] Error tracking like: #{e.message}"
-        puts e.backtrace.first(3)
+        AppLogger.error("❌ [ENGAGEMENT] Error tracking like: #{e.message}")
+        AppLogger.error("backtrace", lines: (e.backtrace.first(3))&.join("\n"))
         result[:error] = e.message
         result
       end
@@ -104,7 +104,7 @@ class EngagementService
               "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
               [user_id, meme_url, title, subreddit]
             )
-            puts "✅ [ENGAGEMENT] Save recorded for user #{user_id}"
+            AppLogger.info("✅ [ENGAGEMENT] Save recorded for user #{user_id}")
           end
         else
           # Unsave
@@ -112,7 +112,7 @@ class EngagementService
             "DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ?",
             [user_id, meme_url]
           )
-          puts "✅ [ENGAGEMENT] Unsave recorded for user #{user_id}"
+          AppLogger.info("✅ [ENGAGEMENT] Unsave recorded for user #{user_id}")
         end
         
         # 2. Log activity for metrics
@@ -140,8 +140,8 @@ class EngagementService
         result[:success] = true
         result
       rescue => e
-        puts "❌ [ENGAGEMENT] Error tracking save: #{e.message}"
-        puts e.backtrace.first(3)
+        AppLogger.error("❌ [ENGAGEMENT] Error tracking save: #{e.message}")
+        AppLogger.error("backtrace", lines: (e.backtrace.first(3))&.join("\n"))
         result[:error] = e.message
         result
       end
@@ -202,7 +202,7 @@ class EngagementService
         current_streak: get_current_streak(user_id, db)
       }
     rescue => e
-      puts "❌ [ENGAGEMENT] Error getting user stats: #{e.message}"
+      AppLogger.error("❌ [ENGAGEMENT] Error getting user stats: #{e.message}")
       {}
     end
     
@@ -234,7 +234,7 @@ class EngagementService
       )
     rescue PG::UndefinedTable, StandardError => e
       # Table might not exist yet - fail gracefully
-      puts "⚠️ [ENGAGEMENT] Activity log insert skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
+      AppLogger.warn("⚠️ [ENGAGEMENT] Activity log insert skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
     
     # Update user_meme_stats table
@@ -256,7 +256,7 @@ class EngagementService
       end
     rescue PG::UndefinedTable, StandardError => e
       # Table might not exist yet
-      puts "⚠️ [ENGAGEMENT] user_meme_stats update skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
+      AppLogger.warn("⚠️ [ENGAGEMENT] user_meme_stats update skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
     
     # Award XP using GamificationHelpers
@@ -278,7 +278,7 @@ class EngagementService
       
       result
     rescue => e
-      puts "⚠️ [ENGAGEMENT] XP award failed: #{e.message}"
+      AppLogger.error("⚠️ [ENGAGEMENT] XP award failed: #{e.message}")
       nil
     end
     
@@ -305,7 +305,7 @@ class EngagementService
       # Update ranks (could be done async in production)
       update_leaderboard_ranks(week_num, db)
     rescue PG::UndefinedTable, StandardError => e
-      puts "⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
+      AppLogger.warn("⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
     
     # Update leaderboard ranks
@@ -326,7 +326,7 @@ class EngagementService
         )
       end
     rescue => e
-      puts "⚠️ [ENGAGEMENT] Rank update failed: #{e.message}"
+      AppLogger.error("⚠️ [ENGAGEMENT] Rank update failed: #{e.message}")
     end
     
     # Check collection progress after save
@@ -344,7 +344,7 @@ class EngagementService
       
       Object.const_set(:DB, original_db) if original_db && !defined?(::DB)
     rescue => e
-      puts "⚠️ [ENGAGEMENT] Collection check failed: #{e.message}"
+      AppLogger.error("⚠️ [ENGAGEMENT] Collection check failed: #{e.message}")
     end
     
     # Count user's total likes

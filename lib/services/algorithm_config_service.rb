@@ -16,7 +16,7 @@ class AlgorithmConfigService
         if @config.nil? || (ENV['RACK_ENV'] == 'development' && current_mtime != @config_mtime)
           @config = YAML.load_file(config_path, aliases: true)
           @config_mtime = current_mtime
-          puts "✅ Algorithm config loaded (env: #{ENV['RACK_ENV'] || 'development'})"
+          AppLogger.info("✅ Algorithm config loaded (env: #{ENV['RACK_ENV'] || 'development'})")
         end
         
         @config[ENV['RACK_ENV'] || 'development'] || @config['development']

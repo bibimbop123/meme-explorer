@@ -26,14 +26,14 @@ class AuthService
       )
 
       unless token_response.success?
-        puts "❌ Reddit token exchange failed:"
-        puts "Status: #{token_response.code}"
-        puts "Body: #{token_response.body}"
-        puts "Headers sent: Authorization=Basic [REDACTED], User-Agent=MemeExplorer/1.0"
+        AppLogger.error("❌ Reddit token exchange failed:")
+        AppLogger.info("Status: #{token_response.code}")
+        AppLogger.info("Body: #{token_response.body}")
+        AppLogger.info("Headers sent: Authorization=Basic [REDACTED], User-Agent=MemeExplorer/1.0")
         raise "Token exchange failed: #{token_response.code} - #{token_response.body}"
       end
       
-      puts "✅ Token exchange successful!"
+      AppLogger.info("✅ Token exchange successful!")
 
       token_data = token_response.parsed_response
       access_token = token_data["access_token"]
@@ -96,10 +96,10 @@ class AuthService
     begin
       redis.setex("reddit:access_token", 3600, token)
       redis.setex("reddit:token_expires_at", 3600, (Time.now + 3600).to_i.to_s)
-      puts "✅ [AUTH] Reddit token stored in Redis cache"
+      AppLogger.info("✅ [AUTH] Reddit token stored in Redis cache")
     rescue => e
       AppLogger.warn("Redis token storage failed", error: e.message) rescue nil
-      puts "⚠️  [AUTH] Redis token storage failed (non-critical): #{e.message}"
+      AppLogger.error("⚠️  [AUTH] Redis token storage failed (non-critical): #{e.message}")
       # Non-critical - OAuth still works without token caching
     end
   end

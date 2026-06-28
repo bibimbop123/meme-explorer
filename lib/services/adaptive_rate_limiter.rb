@@ -18,7 +18,7 @@ class AdaptiveRateLimiter
     rate = @redis.get("#{@key}:current_rate")
     rate ? rate.to_i : @initial_rate
   rescue => e
-    puts "⚠️  [ADAPTIVE] Error getting rate: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Error getting rate: #{e.message}")
     @initial_rate
   end
 
@@ -34,12 +34,12 @@ class AdaptiveRateLimiter
     unless limiter.acquire
       wait_time = limiter.wait_time
       if wait_time > 0
-        puts "⏸️  [ADAPTIVE] Rate limited, waiting #{wait_time.round(2)}s (current rate: #{current_rate} req/min)"
+        AppLogger.info("⏸️  [ADAPTIVE] Rate limited, waiting #{wait_time.round(2)}s (current rate: #{current_rate} req/min)")
         sleep(wait_time + 0.1)  # Small buffer
       end
     end
   rescue => e
-    puts "⚠️  [ADAPTIVE] Acquire error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Acquire error: #{e.message}")
     # Fail open - allow request
   end
 
@@ -58,7 +58,7 @@ class AdaptiveRateLimiter
       @redis.del("#{@key}:consecutive_successes")
     end
   rescue => e
-    puts "⚠️  [ADAPTIVE] Success recording error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Success recording error: #{e.message}")
   end
 
   # Record a rate limit response (429)
@@ -73,9 +73,9 @@ class AdaptiveRateLimiter
     @redis.setex("#{@key}:last_429", 300, Time.now.to_i)
     @redis.incr("#{@key}:total_429s")
     
-    puts "⚠️  [ADAPTIVE] Rate limit hit! Decreasing to #{new_rate} req/min (retry_after: #{retry_after}s)"
+    AppLogger.warn("⚠️  [ADAPTIVE] Rate limit hit! Decreasing to #{new_rate} req/min (retry_after: #{retry_after}s)")
   rescue => e
-    puts "⚠️  [ADAPTIVE] Rate limit recording error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Rate limit recording error: #{e.message}")
   end
 
   # Check if we're in cooldown from a recent 429
@@ -86,7 +86,7 @@ class AdaptiveRateLimiter
     cooldown_seconds = 120  # 2 minute cooldown
     Time.now.to_i - last_429.to_i < cooldown_seconds
   rescue => e
-    puts "⚠️  [ADAPTIVE] Cooldown check error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Cooldown check error: #{e.message}")
     false
   end
 
@@ -100,7 +100,7 @@ class AdaptiveRateLimiter
       last_429_ago: last_429_seconds_ago
     }
   rescue => e
-    puts "⚠️  [ADAPTIVE] Stats error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Stats error: #{e.message}")
     {}
   end
 
@@ -110,9 +110,9 @@ class AdaptiveRateLimiter
     @redis.del("#{@key}:last_429")
     @redis.del("#{@key}:total_429s")
     @redis.del("#{@key}:consecutive_successes")
-    puts "🔄 [ADAPTIVE] Reset to initial rate: #{@initial_rate} req/min"
+    AppLogger.info("🔄 [ADAPTIVE] Reset to initial rate: #{@initial_rate} req/min")
   rescue => e
-    puts "⚠️  [ADAPTIVE] Reset error: #{e.message}"
+    AppLogger.error("⚠️  [ADAPTIVE] Reset error: #{e.message}")
   end
 
   private

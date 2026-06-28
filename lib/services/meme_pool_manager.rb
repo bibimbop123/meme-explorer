@@ -25,23 +25,23 @@ class MemePoolManager
   class << self
     # Main entry point - maintains pool at target size
     def maintain_pool!
-      puts "🔄 [PoolManager] Starting pool maintenance..."
+      AppLogger.info("🔄 [PoolManager] Starting pool maintenance...")
       current_size = get_pool_size
       
       if current_size < MIN_POOL_SIZE
-        puts "⚠️  [PoolManager] Pool below minimum (#{current_size} < #{MIN_POOL_SIZE})"
+        AppLogger.warn("⚠️  [PoolManager] Pool below minimum (#{current_size} < #{MIN_POOL_SIZE})")
         fetch_batch(size: 1000, priority: :high)
       elsif current_size < TARGET_POOL_SIZE
         needed = TARGET_POOL_SIZE - current_size
-        puts "📊 [PoolManager] Pool at #{current_size}/#{TARGET_POOL_SIZE}, fetching #{needed} memes"
+        AppLogger.info("📊 [PoolManager] Pool at #{current_size}/#{TARGET_POOL_SIZE}, fetching #{needed} memes")
         fetch_batch(size: needed)
       else
-        puts "✅ [PoolManager] Pool at target size (#{current_size}), replacing stale content"
+        AppLogger.info("✅ [PoolManager] Pool at target size (#{current_size}), replacing stale content")
         replace_stale(percentage: 0.2)
       end
       
       final_size = get_pool_size
-      puts "✅ [PoolManager] Maintenance complete: #{final_size} memes in pool"
+      AppLogger.info("✅ [PoolManager] Maintenance complete: #{final_size} memes in pool")
       { success: true, pool_size: final_size }
     rescue => e
       log_error("Pool maintenance error", e)
@@ -65,11 +65,11 @@ class MemePoolManager
       end
       
       # Pool empty - bootstrap with small quick fetch
-      puts "⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes..."
+      AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes...")
       bootstrap_result = bootstrap_pool
       
       if bootstrap_result[:success]
-        puts "✅ [PoolManager] Bootstrap complete: #{bootstrap_result[:size]} memes"
+        AppLogger.info("✅ [PoolManager] Bootstrap complete: #{bootstrap_result[:size]} memes")
         # Trigger background expansion to 5K (non-blocking)
         trigger_background_expansion
         
@@ -81,7 +81,7 @@ class MemePoolManager
           error: nil
         }
       else
-        puts "⚠️  [PoolManager] Bootstrap failed: #{bootstrap_result[:error]}"
+        AppLogger.error("⚠️  [PoolManager] Bootstrap failed: #{bootstrap_result[:error]}")
         return {
           success: false,
           memes: [],
@@ -96,7 +96,7 @@ class MemePoolManager
     
     # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
     def bootstrap_pool
-      puts "🚀 [Bootstrap] Quick fetch from top 2 tiers only..."
+      AppLogger.info("🚀 [Bootstrap] Quick fetch from top 2 tiers only...")
       
       # Only fetch from tier 1 & 2 for speed (most popular subreddits)
       tier_1_subs = load_tier_subreddits(:tier_1).first(20)  # Top 20 tier 1
@@ -111,7 +111,7 @@ class MemePoolManager
       validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
       stored = store_in_pool(validated)
       
-      puts "📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}"
+      AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
       
       # Return memes directly (don't re-fetch from Redis)
       { success: stored > 0, size: stored, memes: validated, error: stored == 0 ? "No memes passed validation" : nil }
@@ -124,21 +124,21 @@ class MemePoolManager
     def trigger_background_expansion
       if defined?(MemePoolMaintenanceWorker)
         MemePoolMaintenanceWorker.perform_async
-        puts "✅ [PoolManager] Triggered background expansion to 5,000 memes"
+        AppLogger.info("✅ [PoolManager] Triggered background expansion to 5,000 memes")
       else
-        puts "ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size"
+        AppLogger.warn("ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size")
       end
     end
     
     # Build pool from scratch
     def build_pool!
-      puts "🔨 [PoolManager] Building pool from scratch..."
+      AppLogger.info("🔨 [PoolManager] Building pool from scratch...")
       fetch_batch(size: TARGET_POOL_SIZE, priority: :high)
     end
     
     # Fetch a batch of memes with tier-based distribution
     def fetch_batch(size:, priority: :normal)
-      puts "📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})"
+      AppLogger.info("📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})")
       
       # Calculate tier distribution
       tier_counts = TIER_DISTRIBUTION.map do |tier, percentage|
@@ -152,15 +152,15 @@ class MemePoolManager
 
       # Collect results with a per-tier timeout — never blocks forever
       all_memes = futures.flat_map { |f| f.value(30) || [] }
-      puts "📦 [PoolManager] Fetched #{all_memes.size} memes total"
+      AppLogger.info("📦 [PoolManager] Fetched #{all_memes.size} memes total")
       
       # Apply quality pipeline
       validated_memes = quality_filter(all_memes)
-      puts "✅ [PoolManager] #{validated_memes.size} memes passed quality filter"
+      AppLogger.info("✅ [PoolManager] #{validated_memes.size} memes passed quality filter")
       
       # Store in pool
       stored_count = store_in_pool(validated_memes)
-      puts "💾 [PoolManager] Stored #{stored_count} memes in pool"
+      AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
       
       { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count }
     rescue => e
@@ -173,7 +173,7 @@ class MemePoolManager
       current_pool = get_current_pool
       stale_count = (current_pool.size * percentage).to_i
       
-      puts "🔄 [PoolManager] Replacing #{stale_count} stale memes (#{(percentage * 100).to_i}%)"
+      AppLogger.info("🔄 [PoolManager] Replacing #{stale_count} stale memes (#{(percentage * 100).to_i}%)")
       
       # Find oldest memes
       stale_urls = find_stale_memes(current_pool, stale_count)
@@ -194,7 +194,7 @@ class MemePoolManager
     
     # Fetch memes from a specific tier
     def fetch_from_tier(tier, count)
-      puts "  📍 [PoolManager] Fetching #{count} memes from #{tier}"
+      AppLogger.info("  📍 [PoolManager] Fetching #{count} memes from #{tier}")
       
       subreddits = load_tier_subreddits(tier)
       return [] if subreddits.empty?
@@ -206,7 +206,7 @@ class MemePoolManager
       fetcher = create_fetcher
       memes = fetcher.fetch_memes(subreddits, limit: memes_per_sub)
       
-      puts "  ✅ [PoolManager] Got #{memes.size} memes from #{tier}"
+      AppLogger.info("  ✅ [PoolManager] Got #{memes.size} memes from #{tier}")
       memes
     rescue => e
       log_error("Fetch from tier #{tier} error", e)
@@ -356,7 +356,7 @@ class MemePoolManager
     # Centralized error logging
     def log_error(context, error)
       message = error.is_a?(String) ? error : error.message
-      puts "⚠️  [PoolManager] #{context}: #{message}"
+      AppLogger.warn("⚠️  [PoolManager] #{context}: #{message}")
       
       if defined?(Sentry) && error.is_a?(Exception)
         Sentry.capture_exception(error, extra: { context: context })

@@ -34,7 +34,7 @@ class CircuitBreaker
     raise e
   rescue => e
     # Unexpected error during transition
-    puts "❌ [CIRCUIT BREAKER] Unexpected error: #{e.message}"
+    AppLogger.error("❌ [CIRCUIT BREAKER] Unexpected error: #{e.message}")
     raise e
   end
 
@@ -47,7 +47,7 @@ class CircuitBreaker
   def failure_count
     @redis.get("#{@key_prefix}:failures").to_i
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Error getting failure count: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Error getting failure count: #{e.message}")
     0
   end
 
@@ -57,7 +57,7 @@ class CircuitBreaker
     @redis.del("#{@key_prefix}:failures")
     @redis.del("#{@key_prefix}:successes")
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Reset error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Reset error: #{e.message}")
   end
 
   private
@@ -83,7 +83,7 @@ class CircuitBreaker
       transition_to(:closed) if successes >= @success_threshold
     end
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Success recording error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Success recording error: #{e.message}")
   end
 
   def record_failure
@@ -96,14 +96,14 @@ class CircuitBreaker
     failures = @redis.get("#{@key_prefix}:failures").to_i
     transition_to(:open) if failures >= @failure_threshold
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Failure recording error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Failure recording error: #{e.message}")
   end
 
   def current_state
     state = @redis.get("#{@key_prefix}:state")
     (state&.to_sym || :closed)
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] State check error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] State check error: #{e.message}")
     :closed  # Fail safe - default to closed
   end
 
@@ -111,16 +111,16 @@ class CircuitBreaker
     old_state = current_state
     @redis.setex("#{@key_prefix}:state", 300, new_state.to_s)
     @redis.setex("#{@key_prefix}:opened_at", 300, Time.now.to_i) if new_state == :open
-    puts "⚡ [CIRCUIT BREAKER] #{@service_name}: #{old_state} -> #{new_state}"
+    AppLogger.info("⚡ [CIRCUIT BREAKER] #{@service_name}: #{old_state} -> #{new_state}")
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Transition error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Transition error: #{e.message}")
   end
 
   def should_attempt_reset?
     opened_at = @redis.get("#{@key_prefix}:opened_at").to_i
     Time.now.to_i - opened_at >= @timeout
   rescue => e
-    puts "⚠️  [CIRCUIT BREAKER] Reset check error: #{e.message}"
+    AppLogger.error("⚠️  [CIRCUIT BREAKER] Reset check error: #{e.message}")
     true  # Allow reset attempt on error
   end
 end

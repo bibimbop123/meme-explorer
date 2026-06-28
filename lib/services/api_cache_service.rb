@@ -201,7 +201,7 @@ class ApiCacheService
         if @@request_count >= REQUESTS_PER_MINUTE
           sleep_time = 60 - (Time.now - @@rate_limit_reset)
           if sleep_time > 0
-            puts "[RATE LIMIT] Hit limit, sleeping #{sleep_time.round(1)}s"
+            AppLogger.info("[RATE LIMIT] Hit limit, sleeping #{sleep_time.round(1)}s")
             sleep(sleep_time)
           end
           @@request_count = 0
@@ -328,7 +328,7 @@ class ApiCacheService
 
       # Another process is fetching, return cached
       unless acquire_lock
-        puts "[CACHE] Another process is fetching, using cached data"
+        AppLogger.info("[CACHE] Another process is fetching, using cached data")
         return get_cached_memes || []
       end
 
@@ -340,14 +340,14 @@ class ApiCacheService
         begin
           Timeout.timeout(FETCH_TIMEOUT) do
             subreddits_sample = popular_subreddits.sample([MAX_SUBREDDITS, popular_subreddits.size].min)
-            puts "[CACHE] Fetching from #{subreddits_sample.size} subreddits (unauthenticated)"
+            AppLogger.info("[CACHE] Fetching from #{subreddits_sample.size} subreddits (unauthenticated)")
             api_memes = fetch_reddit_memes_unauthenticated(subreddits_sample, 50)
-            puts "[CACHE] Unauthenticated fetch: #{api_memes.size} memes"
+            AppLogger.info("[CACHE] Unauthenticated fetch: #{api_memes.size} memes")
           end
         rescue Timeout::Error
-          puts "[CACHE] Timeout on unauthenticated fetch"
+          AppLogger.warn("[CACHE] Timeout on unauthenticated fetch")
         rescue => e
-          puts "[CACHE] Error on unauthenticated fetch: #{e.message}"
+          AppLogger.error("[CACHE] Error on unauthenticated fetch: #{e.message}")
         end
 
         # If unauthenticated failed or got rate limited, try authenticated
@@ -367,14 +367,14 @@ class ApiCacheService
                 )
                 token = client.client_credentials.get_token(scope: 'read')
                 subreddits_sample = popular_subreddits.sample([MAX_SUBREDDITS, popular_subreddits.size].min)
-                puts "[CACHE] Fetching from #{subreddits_sample.size} subreddits (authenticated)"
+                AppLogger.info("[CACHE] Fetching from #{subreddits_sample.size} subreddits (authenticated)")
                 api_memes = fetch_reddit_memes_authenticated(token.token, subreddits_sample, 50)
-                puts "[CACHE] Authenticated fetch: #{api_memes.size} memes"
+                AppLogger.info("[CACHE] Authenticated fetch: #{api_memes.size} memes")
               end
             rescue Timeout::Error
-              puts "[CACHE] Timeout on authenticated fetch"
+              AppLogger.warn("[CACHE] Timeout on authenticated fetch")
             rescue => e
-              puts "[CACHE] Error on authenticated fetch: #{e.message}"
+              AppLogger.error("[CACHE] Error on authenticated fetch: #{e.message}")
             end
           end
         end
@@ -384,12 +384,12 @@ class ApiCacheService
           validated = validate_and_filter_quality_memes(api_memes)
           if !validated.empty?
             set_cached_memes(validated)
-            puts "[CACHE] Cached #{validated.size} high-quality memes"
+            AppLogger.info("[CACHE] Cached #{validated.size} high-quality memes")
             return validated
           end
         end
 
-        puts "[CACHE] No API memes fetched, using existing cache"
+        AppLogger.info("[CACHE] No API memes fetched, using existing cache")
         get_cached_memes || []
       ensure
         release_lock
@@ -419,7 +419,7 @@ class ApiCacheService
           if response.code == 429
             # Rate limited - back off
             retry_after = response.headers['retry-after']&.to_i || 60
-            puts "[FETCH] Rate limited! Waiting #{retry_after}s"
+            AppLogger.info("[FETCH] Rate limited! Waiting #{retry_after}s")
             sleep(retry_after)
             next
           end
@@ -499,7 +499,7 @@ class ApiCacheService
             end
           end
         rescue => e
-          puts "[FETCH] Error from r/#{subreddit}: #{e.class} - #{e.message}"
+          AppLogger.error("[FETCH] Error from r/#{subreddit}: #{e.class} - #{e.message}")
         end
       end
       memes
@@ -541,12 +541,12 @@ class ApiCacheService
               # Rate limited - exponential backoff
               if retries < MAX_RETRIES
                 backoff_time = BACKOFF_BASE ** retries * 10
-                puts "[FETCH] Rate limited on r/#{subreddit}, backing off #{backoff_time}s (attempt #{retries + 1}/#{MAX_RETRIES})"
+                AppLogger.info("[FETCH] Rate limited on r/#{subreddit}, backing off #{backoff_time}s (attempt #{retries + 1}/#{MAX_RETRIES})")
                 sleep(backoff_time)
                 retries += 1
                 next  # Try again
               else
-                puts "[FETCH] Max retries reached for r/#{subreddit}, skipping"
+                AppLogger.info("[FETCH] Max retries reached for r/#{subreddit}, skipping")
                 break
               end
             end
@@ -630,7 +630,7 @@ class ApiCacheService
               success = true  # Don't retry on other error codes
             end
           rescue => e
-            puts "[FETCH] Error from r/#{subreddit}: #{e.class} - #{e.message}"
+            AppLogger.error("[FETCH] Error from r/#{subreddit}: #{e.class} - #{e.message}")
             success = true  # Don't retry on exceptions
           end
         end

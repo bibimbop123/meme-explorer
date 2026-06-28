@@ -37,10 +37,10 @@ class PerformanceMonitor
     [status, headers, body]
   rescue => e
     # Log error with context
-    puts "❌ Request failed: #{e.message}"
-    puts "   Path: #{env['PATH_INFO']}"
-    puts "   Method: #{env['REQUEST_METHOD']}"
-    puts "   Duration: #{(Time.now - request_start).round(3)}s"
+    AppLogger.error("❌ Request failed: #{e.message}")
+    AppLogger.info("   Path: #{env['PATH_INFO']}")
+    AppLogger.info("   Method: #{env['REQUEST_METHOD']}")
+    AppLogger.info("   Duration: #{(Time.now - request_start).round(3)}s")
     
     Sentry.capture_exception(e, extra: {
       path: env['PATH_INFO'],
@@ -77,13 +77,13 @@ class PerformanceMonitor
     duration_ms = (duration * 1000).round(1)
     
     # Log the request
-    puts "#{level} #{method} #{path} - #{status} (#{duration_ms}ms) [#{request_id}]"
+    AppLogger.info("#{level} #{method} #{path} - #{status} (#{duration_ms}ms) [#{request_id}]")
     
     # Log additional details for slow requests
     if duration > SLOW_REQUEST_THRESHOLD
-      puts "   ⏱️  Slow request details:"
-      puts "   Query string: #{env['QUERY_STRING']}" if env['QUERY_STRING']
-      puts "   User agent: #{env['HTTP_USER_AGENT']}"
+      AppLogger.info("   ⏱️  Slow request details:")
+      AppLogger.info("   Query string: #{env['QUERY_STRING']}") if env['QUERY_STRING']
+      AppLogger.info("   User agent: #{env['HTTP_USER_AGENT']}")
     end
   end
   

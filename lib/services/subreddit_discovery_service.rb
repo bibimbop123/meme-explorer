@@ -13,7 +13,7 @@ class SubredditDiscoveryService
   class << self
     # Discover related subreddits from seed list
     def discover_related(seed_subreddits, limit: DISCOVERY_LIMIT)
-      puts "🔍 [Discovery] Starting discovery from #{seed_subreddits.size} seeds"
+      AppLogger.info("🔍 [Discovery] Starting discovery from #{seed_subreddits.size} seeds")
       
       discovered = []
       processed = 0
@@ -27,7 +27,7 @@ class SubredditDiscoveryService
         discovered.concat(qualified)
         processed += 1
         
-        puts "  📊 Processed #{processed}/#{seed_subreddits.size}: Found #{qualified.size} from r/#{subreddit}"
+        AppLogger.info("  📊 Processed #{processed}/#{seed_subreddits.size}: Found #{qualified.size} from r/#{subreddit}")
         
         sleep 2  # Rate limiting
       end
@@ -35,7 +35,7 @@ class SubredditDiscoveryService
       # Remove duplicates and existing subreddits
       unique = dedup_and_filter_existing(discovered)
       
-      puts "✅ [Discovery] Found #{unique.size} new qualified subreddits"
+      AppLogger.info("✅ [Discovery] Found #{unique.size} new qualified subreddits")
       unique.first(limit)
     rescue => e
       log_error("Discover related error", e)
@@ -44,7 +44,7 @@ class SubredditDiscoveryService
     
     # Auto-discover and save to file
     def auto_discover_and_save!
-      puts "🤖 [Discovery] Starting auto-discovery..."
+      AppLogger.info("🤖 [Discovery] Starting auto-discovery...")
       
       # Load current tier 1 subreddits as seeds
       current = YAML.load_file('data/subreddits.yml', aliases: true)
@@ -72,8 +72,8 @@ class SubredditDiscoveryService
         }.to_yaml
       )
       
-      puts "✅ [Discovery] Saved #{discovered.size} new candidates to #{candidates_file}"
-      puts "   Total candidates: #{all_candidates.size}"
+      AppLogger.info("✅ [Discovery] Saved #{discovered.size} new candidates to #{candidates_file}")
+      AppLogger.info("   Total candidates: #{all_candidates.size}")
       
       { discovered: discovered.size, saved: true, total: all_candidates.size }
     rescue => e
@@ -101,7 +101,7 @@ class SubredditDiscoveryService
       # Save back to file
       File.write('data/subreddits.yml', current.to_yaml)
       
-      puts "✅ [Discovery] Approved #{subreddit_names.size} subreddits to #{tier}"
+      AppLogger.info("✅ [Discovery] Approved #{subreddit_names.size} subreddits to #{tier}")
       { approved: subreddit_names.size, tier: tier }
     rescue => e
       log_error("Approve candidates error", e)
@@ -238,7 +238,7 @@ class SubredditDiscoveryService
     # Centralized error logging
     def log_error(context, error)
       message = error.is_a?(String) ? error : error.message
-      puts "⚠️  [SubredditDiscovery] #{context}: #{message}"
+      AppLogger.warn("⚠️  [SubredditDiscovery] #{context}: #{message}")
       
       if defined?(Sentry) && error.is_a?(Exception)
         Sentry.capture_exception(error, extra: { context: context })

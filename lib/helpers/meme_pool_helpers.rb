@@ -143,13 +143,13 @@ module MemePoolHelpers
       pool_result = MemePoolManager.get_pool
       
       if pool_result[:success] && pool_result[:memes]&.any?
-        puts "✅ [POOL] Using MemePoolManager: #{pool_result[:pool_size]} memes (tier-distributed)"
+        AppLogger.info("✅ [POOL] Using MemePoolManager: #{pool_result[:pool_size]} memes (tier-distributed)")
         return pool_result[:memes]
       else
-        puts "⚠️  [POOL] MemePoolManager not ready: #{pool_result[:error]}"
+        AppLogger.error("⚠️  [POOL] MemePoolManager not ready: #{pool_result[:error]}")
       end
     rescue => e
-      puts "⚠️  [POOL] MemePoolManager error: #{e.message}"
+      AppLogger.error("⚠️  [POOL] MemePoolManager error: #{e.message}")
     end
     
     # Fallback to old cache system (backward compatible)
@@ -192,7 +192,7 @@ module MemePoolHelpers
     end
     
     valid_local_memes = local_memes.select { |m| has_valid_media?(m) }
-    puts "✅ [POOL FALLBACK] Using local memes: #{valid_local_memes.size} memes"
+    AppLogger.info("✅ [POOL FALLBACK] Using local memes: #{valid_local_memes.size} memes")
     valid_local_memes
   end
 end

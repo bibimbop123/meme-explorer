@@ -27,7 +27,7 @@ class SimilarMemeCache
     
     # Prefetch all popular subreddits for instant response
     def prefetch_all_popular!
-      puts "🔄 [SimilarMemeCache] Starting prefetch for popular subreddits..."
+      AppLogger.info("🔄 [SimilarMemeCache] Starting prefetch for popular subreddits...")
       
       subreddit_data = YAML.load_file('data/subreddits.yml', aliases: true)
       popular = subreddit_data['tier_1'] || []
@@ -40,10 +40,10 @@ class SimilarMemeCache
           memes = fetch_and_cache(subreddit)
           if memes && memes.any?
             prefetched += 1
-            puts "  ✅ Cached #{memes.size} memes for r/#{subreddit}"
+            AppLogger.info("  ✅ Cached #{memes.size} memes for r/#{subreddit}")
           else
             failed += 1
-            puts "  ⚠️  No memes found for r/#{subreddit}"
+            AppLogger.warn("  ⚠️  No memes found for r/#{subreddit}")
           end
           
           sleep 0.5 # Rate limiting
@@ -53,7 +53,7 @@ class SimilarMemeCache
         end
       end
       
-      puts "✅ [SimilarMemeCache] Prefetch complete: #{prefetched} success, #{failed} failed"
+      AppLogger.error("✅ [SimilarMemeCache] Prefetch complete: #{prefetched} success, #{failed} failed")
       { prefetched: prefetched, failed: failed }
     rescue => e
       log_error("Prefetch all error", e)
@@ -148,7 +148,7 @@ class SimilarMemeCache
     # Centralized error logging
     def log_error(context, error)
       message = error.is_a?(String) ? error : error.message
-      puts "⚠️  [SimilarMemeCache] #{context}: #{message}"
+      AppLogger.warn("⚠️  [SimilarMemeCache] #{context}: #{message}")
       
       if defined?(Sentry) && error.is_a?(Exception)
         Sentry.capture_exception(error, extra: { context: context })

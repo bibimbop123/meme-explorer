@@ -8,14 +8,14 @@
 require_relative './algorithm_config_service'
 
 # Phase 3: Load addiction/gamification services
-require_relative './surprise_mechanics_service' rescue nil
-require_relative './near_miss_service' rescue nil
-require_relative './milestone_service' rescue nil
+require_relative './surprise_mechanics_service'
+require_relative './near_miss_service'
+require_relative './milestone_service'
 
 # Phase 4-6: Load quality, humor, and retention services
-require_relative './quality_control_service' rescue nil
-require_relative './humor_optimizer_service' rescue nil
-require_relative './retention_service' rescue nil
+require_relative './quality_control_service'
+require_relative './humor_optimizer_service'
+require_relative './retention_service'
 
 module MemeExplorer
   class RandomSelectorService
@@ -168,14 +168,14 @@ module MemeExplorer
           titles: JSON.parse(values[2] || '[]')
         }
       rescue => e
-        puts "⚠️  Session batch fetch failed: #{e.message}"
+        AppLogger.error("⚠️  Session batch fetch failed: #{e.message}")
         {}
       end
 
       # PHASE 1 FIX #2: Log algorithm decisions for observability
       def log_selection_metadata(meme, metadata)
         # Basic logging
-        puts "[ALGORITHM] #{metadata.to_json}"
+        AppLogger.info("[ALGORITHM] #{metadata.to_json}")
         
         # Track in Redis for dashboard
         if defined?(REDIS) && REDIS
@@ -188,7 +188,7 @@ module MemeExplorer
         end
       rescue => e
         # Don't break selection if logging fails
-        puts "Logging error: #{e.message}"
+        AppLogger.error("Logging error: #{e.message}")
       end
 
       # ENHANCEMENT 1: Aggressive high-quality media filtering
@@ -640,7 +640,7 @@ module MemeExplorer
         # Tier 3: Empty state (graceful degradation)
         nil
       rescue => e
-        puts "⚠️  Storage error for #{key}: #{e.message}"
+        AppLogger.error("⚠️  Storage error for #{key}: #{e.message}")
         Sentry.capture_exception(e) if defined?(Sentry)
         nil
       end
@@ -660,7 +660,7 @@ module MemeExplorer
           @memory_cache.shift(500)  # Remove oldest 500
         end
       rescue => e
-        puts "⚠️  Storage error: #{e.message}"
+        AppLogger.error("⚠️  Storage error: #{e.message}")
         # Site still works even if storage fails
       end
 

@@ -170,7 +170,7 @@ module MemeExplorer
           # Save back to Redis (expire after 1 hour of inactivity)
           REDIS.setex(key, 3600, prefs.to_json)
         rescue => e
-          puts "⚠️ Redis session learning error: #{e.message}"
+          AppLogger.error("⚠️ Redis session learning error: #{e.message}")
         end
       end
       
@@ -182,7 +182,7 @@ module MemeExplorer
           prefs_json = REDIS.get(key)
           prefs_json ? JSON.parse(prefs_json, symbolize_names: true) : {}
         rescue => e
-          puts "⚠️ Redis get preferences error: #{e.message}"
+          AppLogger.error("⚠️ Redis get preferences error: #{e.message}")
           {}
         end
       end
@@ -210,7 +210,7 @@ module MemeExplorer
           # Update time preference
           update_learning_entry(session_id, user_id, 'time_preference', hour.to_s, value)
         rescue => e
-          puts "⚠️ DB session learning error: #{e.message}"
+          AppLogger.error("⚠️ DB session learning error: #{e.message}")
         end
       end
       
@@ -228,7 +228,7 @@ module MemeExplorer
           [session_id, user_id, learning_type, key, value, value]
         )
       rescue StandardError => e
-        puts "⚠️ [SessionLearning] update_learning_entry failed: #{e.message}"
+        AppLogger.error("⚠️ [SessionLearning] update_learning_entry failed: #{e.message}")
       end
       
       def get_session_preferences_db(session_id)
@@ -266,7 +266,7 @@ module MemeExplorer
           
           preferences
         rescue => e
-          puts "⚠️ DB get preferences error: #{e.message}"
+          AppLogger.error("⚠️ DB get preferences error: #{e.message}")
           {}
         end
       end
@@ -287,7 +287,7 @@ module MemeExplorer
              meme['subreddit'], pool_type, humor_type, meme['engagement_rate'].to_f]
           )
         rescue => e
-          puts "⚠️ Interaction tracking error: #{e.message}"
+          AppLogger.error("⚠️ Interaction tracking error: #{e.message}")
         end
       end
       
@@ -313,7 +313,7 @@ module MemeExplorer
           )
         rescue => e
           # SQLite fallback - simpler approach
-          puts "⚠️ Engagement pattern update skipped: #{e.message}"
+          AppLogger.warn("⚠️ Engagement pattern update skipped: #{e.message}")
         end
       end
       

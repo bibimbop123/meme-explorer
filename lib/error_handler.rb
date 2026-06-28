@@ -51,8 +51,8 @@ module ErrorHandler
                        else :white
                        end
 
-      puts "[#{error_ctx.timestamp.strftime('%H:%M:%S')}] #{error_ctx.to_s}".colorize(severity_color)
-      puts "  Context: #{context}".colorize(:light_black) if context.any?
+      AppLogger.error("[#{error_ctx.timestamp.strftime('%H:%M:%S')}] #{error_ctx.to_s}".colorize(severity_color))
+      AppLogger.info("  Context: #{context}".colorize(:light_black)) if context.any?
     end
 
     def self.recent(limit = 50)

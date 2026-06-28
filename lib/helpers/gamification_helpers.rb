@@ -142,7 +142,7 @@ module GamificationHelpers
         end
       end
     rescue => e
-      puts "❌ Error updating streak: #{e.message}"
+      AppLogger.error("❌ Error updating streak: #{e.message}")
       nil
     end
   end
@@ -251,7 +251,7 @@ module GamificationHelpers
         total_xp: new_total_xp
       }
     rescue => e
-      puts "❌ Error adding XP: #{e.message}"
+      AppLogger.error("❌ Error adding XP: #{e.message}")
       nil
     end
   end
@@ -347,7 +347,7 @@ module GamificationHelpers
       
       newly_completed
     rescue => e
-      puts "❌ Error checking collections: #{e.message}"
+      AppLogger.error("❌ Error checking collections: #{e.message}")
       []
     end
   end
@@ -412,7 +412,7 @@ module GamificationHelpers
       ).first
     rescue PG::UndefinedTable, StandardError => e
       # Table doesn't exist yet - return nil
-      puts "⚠️ weekly_challenges table not found: #{e.message}"
+      AppLogger.warn("⚠️ weekly_challenges table not found: #{e.message}")
       return nil
     end
     

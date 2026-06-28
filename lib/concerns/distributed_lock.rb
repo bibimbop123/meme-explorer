@@ -29,7 +29,7 @@ module DistributedLock
     end
   rescue => e
     # Log error but don't re-raise to allow cleanup
-    puts "⚠️ [DistributedLock] Error in locked block: #{e.class} - #{e.message}"
+    AppLogger.error("⚠️ [DistributedLock] Error in locked block: #{e.class} - #{e.message}")
     raise
   end
   
@@ -70,6 +70,6 @@ module DistributedLock
     
     REDIS.eval(lua_script, keys: [lock_key], argv: [lock_token])
   rescue => e
-    puts "⚠️ [DistributedLock] Error releasing lock: #{e.message}"
+    AppLogger.error("⚠️ [DistributedLock] Error releasing lock: #{e.message}")
   end
 end
