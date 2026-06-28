@@ -1,5 +1,19 @@
 require "rack/attack"
 
+# Configure Rack::Attack cache store.
+# Without this, every request raises Rack::Attack::MissingStoreError.
+# Use Redis in production (shared across Puma workers), memory in dev/test.
+if ENV['REDIS_URL'] && ENV['RACK_ENV'] == 'production'
+  require 'redis'
+  Rack::Attack.cache.store = Rack::Attack::StoreProxy::RedisStoreProxy.new(
+    Redis.new(url: ENV['REDIS_URL'])
+  )
+else
+  # ActiveSupport::Cache::MemoryStore works for single-process dev/test
+  require 'active_support/cache'
+  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+end
+
 class Rack::Attack
   ### SAFELISTS ###
 
