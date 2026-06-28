@@ -15,7 +15,7 @@ module MemeExplorer
       def mark_seen(visitor_id, meme_identifier)
         return unless visitor_id && meme_identifier
         
-        redis = REDIS  # Use global REDIS constant
+        redis = ::REDIS  # Use global REDIS constant (:: prefix for top-level)
         return unless redis  # Guard against Redis being unavailable
         
         key = history_key(visitor_id)
@@ -38,7 +38,7 @@ module MemeExplorer
       def get_seen_memes(visitor_id)
         return [] unless visitor_id
         
-        redis = REDIS
+        redis = ::REDIS
         return [] unless redis
         
         key = history_key(visitor_id)
@@ -57,7 +57,7 @@ module MemeExplorer
       def seen?(visitor_id, meme_identifier)
         return false unless visitor_id && meme_identifier
         
-        redis = REDIS
+        redis = ::REDIS
         return false unless redis
         
         key = history_key(visitor_id)
@@ -73,7 +73,7 @@ module MemeExplorer
       def seen_count(visitor_id)
         return 0 unless visitor_id
         
-        redis = REDIS
+        redis = ::REDIS
         return 0 unless redis
         
         key = history_key(visitor_id)
@@ -88,7 +88,7 @@ module MemeExplorer
       def clear_history(visitor_id)
         return unless visitor_id
         
-        redis = REDIS
+        redis = ::REDIS
         return unless redis
         
         key = history_key(visitor_id)
@@ -103,7 +103,7 @@ module MemeExplorer
       def get_stats(visitor_id)
         return {} unless visitor_id
         
-        redis = REDIS
+        redis = ::REDIS
         return {} unless redis
         
         key = history_key(visitor_id)
