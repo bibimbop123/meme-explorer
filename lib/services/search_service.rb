@@ -38,7 +38,7 @@ class SearchService
     if cache_results.empty?
       db_results = begin
         DB.execute(
-          "SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE",
+          "SELECT * FROM meme_stats WHERE title ILIKE ?",
           ["%#{query_lower}%"]
         ).map { |r| r.transform_keys(&:to_s) }
       rescue

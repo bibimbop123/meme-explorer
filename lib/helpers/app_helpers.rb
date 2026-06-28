@@ -86,22 +86,21 @@ module AppHelpers
     existing = DB.execute("SELECT id FROM users WHERE reddit_id = ?", [reddit_id]).first
     return existing["id"] if existing
 
-    DB.execute(
+    DB.last_insert_row_id(
       "INSERT INTO users (reddit_id, reddit_username, reddit_email) VALUES (?, ?, ?)",
       [reddit_id, reddit_username, reddit_email]
     )
-    DB.last_insert_row_id
   end
 
   # Create email/password user
   def create_email_user(email, password)
     hashed = hash_password(password)
-    DB.execute(
+    DB.last_insert_row_id(
       "INSERT INTO users (email, password_hash) VALUES (?, ?)",
       [email, hashed]
     )
-    DB.last_insert_row_id
-  rescue SQLite3::ConstraintException
+  rescue PG::UniqueViolation, StandardError => e
+    raise e unless e.message =~ /unique|duplicate/i
     nil
   end
 

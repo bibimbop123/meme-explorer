@@ -232,9 +232,9 @@ class EngagementService
         "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
         [meme_url, activity_type, user_id, session_id]
       )
-    rescue SQLite3::SQLException => e
+    rescue PG::UndefinedTable, StandardError => e
       # Table might not exist yet - fail gracefully
-      puts "⚠️ [ENGAGEMENT] Activity log insert skipped: #{e.message}" unless e.message =~ /no such table/
+      puts "⚠️ [ENGAGEMENT] Activity log insert skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
     end
     
     # Update user_meme_stats table
@@ -254,9 +254,9 @@ class EngagementService
           [user_id, meme_url]
         )
       end
-    rescue SQLite3::SQLException => e
+    rescue PG::UndefinedTable, StandardError => e
       # Table might not exist yet
-      puts "⚠️ [ENGAGEMENT] user_meme_stats update skipped: #{e.message}" unless e.message =~ /no such table/
+      puts "⚠️ [ENGAGEMENT] user_meme_stats update skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
     end
     
     # Award XP using GamificationHelpers
@@ -304,8 +304,8 @@ class EngagementService
       
       # Update ranks (could be done async in production)
       update_leaderboard_ranks(week_num, db)
-    rescue SQLite3::SQLException => e
-      puts "⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}" unless e.message =~ /no such table/
+    rescue PG::UndefinedTable, StandardError => e
+      puts "⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}" unless e.message =~ /does not exist|no such table/
     end
     
     # Update leaderboard ranks

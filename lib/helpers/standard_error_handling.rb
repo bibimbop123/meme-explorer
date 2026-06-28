@@ -85,7 +85,7 @@ module StandardErrorHandling
     
     case log_level
     when :fatal
-      AppLogger.fatal("Fatal error occurred", log_data)
+      AppLogger.error("Fatal error occurred", log_data)
     when :error
       AppLogger.error("Unexpected error occurred", log_data)
     else

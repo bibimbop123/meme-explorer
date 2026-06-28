@@ -43,9 +43,9 @@ module Routes
             # Get time period filter
             period = params[:period] || 'all'
             
-            # Check if activity log table exists for accurate time-based filtering (SQLite)
+            # Check if activity log table exists for accurate time-based filtering
             has_activity_log = MemeExplorer::App::DB.get_first_value(
-              "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='meme_activity_log'"
+              "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'meme_activity_log'"
             ).to_i > 0 rescue false
             
             if has_activity_log && period != 'all'

@@ -1,37 +1,28 @@
-# Database-agnostic helper methods for PostgreSQL and SQLite compatibility
+# Database helper methods
 module DbHelpers
-  # Returns true if using PostgreSQL, false if using SQLite
-  def using_postgres?
-    defined?(DATABASE_URL) && DATABASE_URL&.start_with?("postgres")
+  # Returns the global DBWrapper instance (PostgreSQL).
+  # All services that previously called get_db_connection should use this.
+  def get_db_connection
+    DB
   end
-  
-  # Database-agnostic date comparison for "column < NOW() - interval"
+
+  # Returns true — we are always on PostgreSQL in production.
+  def using_postgres?
+    true
+  end
+
+  # Database-agnostic date comparison for "column < NOW() - interval".
+  # Always returns PostgreSQL syntax since we only support PostgreSQL.
   # Usage: date_ago('first_failed_at', days: 1)
-  # Returns a SQL fragment like: "first_failed_at < (NOW() - INTERVAL '1 days')" (PostgreSQL)
-  #                          or: "datetime(first_failed_at) < datetime('now', '-1 day')" (SQLite)
   def date_ago(column_name, days: nil, hours: nil)
-    if using_postgres?
-      # PostgreSQL syntax
-      if days
-        "#{column_name} < (NOW() - INTERVAL '#{days} days')"
-      elsif hours
-        "#{column_name} < (NOW() - INTERVAL '#{hours} hours')"
-      else
-        raise ArgumentError, "Must specify either days or hours"
-      end
+    if days
+      "#{column_name} < (NOW() - INTERVAL '#{days} days')"
+    elsif hours
+      "#{column_name} < (NOW() - INTERVAL '#{hours} hours')"
     else
-      # SQLite syntax
-      if days
-        unit = days == 1 ? 'day' : 'days'
-        "datetime(#{column_name}) < datetime('now', '-#{days} #{unit}')"
-      elsif hours
-        unit = hours == 1 ? 'hour' : 'hours'  
-        "datetime(#{column_name}) < datetime('now', '-#{hours} #{unit}')"
-      else
-        raise ArgumentError, "Must specify either days or hours"
-      end
+      raise ArgumentError, "Must specify either days: or hours:"
     end
   end
-  
-  module_function :using_postgres?, :date_ago
+
+  module_function :get_db_connection, :using_postgres?, :date_ago
 end

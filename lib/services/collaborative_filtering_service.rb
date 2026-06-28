@@ -30,7 +30,7 @@ class CollaborativeFilteringService
          WHERE ulm.meme_url IN (?)
          AND ulm.user_id != ?
          GROUP BY ulm.user_id
-         HAVING overlap >= ?
+         HAVING COUNT(*) >= ?
          ORDER BY overlap DESC
          LIMIT ?",
         [user_likes, user_id, MIN_COMMON_LIKES, limit]
@@ -75,7 +75,7 @@ class CollaborativeFilteringService
          JOIN meme_stats m ON ulm.meme_url = m.url
          WHERE ulm.user_id IN (?)
          AND ulm.meme_url NOT IN (?)
-         GROUP BY m.url
+         GROUP BY m.url, m.title, m.subreddit, m.quality_score
          ORDER BY recommendation_score DESC, m.quality_score DESC
          LIMIT ?",
         [similar_user_ids, user_likes.empty? ? [''] : user_likes, limit]

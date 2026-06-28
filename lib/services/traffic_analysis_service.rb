@@ -99,7 +99,7 @@ class TrafficAnalysisService
          WHERE event_type = 'sql_injection_attempt' 
          AND created_at > datetime('now', '-1 hour')
          GROUP BY ip_address 
-         HAVING count > 5"
+         HAVING COUNT(*) > 5"
       )
     end
 
@@ -111,7 +111,7 @@ class TrafficAnalysisService
          WHERE event_type = 'xss_attempt' 
          AND created_at > datetime('now', '-1 hour')
          GROUP BY ip_address 
-         HAVING count > 5"
+         HAVING COUNT(*) > 5"
       )
     end
 
@@ -123,7 +123,7 @@ class TrafficAnalysisService
          WHERE event_type = 'path_traversal_attempt' 
          AND created_at > datetime('now', '-1 hour')
          GROUP BY ip_address 
-         HAVING count > 3"
+         HAVING COUNT(*) > 3"
       )
     end
 
@@ -135,7 +135,7 @@ class TrafficAnalysisService
          WHERE event_type = 'failed_login' 
          AND created_at > datetime('now', '-15 minutes')
          GROUP BY ip_address 
-         HAVING count > 10"
+         HAVING COUNT(*) > 10"
       )
     end
 
@@ -160,8 +160,7 @@ class TrafficAnalysisService
     end
 
     def get_db_connection
-      require_relative '../db_helpers'
-      get_db_connection
+      DB
     end
   end
 end

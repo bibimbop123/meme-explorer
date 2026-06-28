@@ -4,15 +4,14 @@
 class RevenueTracker
   class << self
     def record_ad_impression(user_id: nil, page: nil)
-      DB[:ad_impressions].insert(
-        user_id: user_id,
-        page: page,
-        created_at: Time.now
+      DB.execute(
+        "INSERT INTO ad_impressions (user_id, page, created_at) VALUES (?, ?, ?)",
+        [user_id, page, Time.now]
       )
     rescue => e
       AppLogger.debug("Failed to record ad impression: #{e.message}")
     end
-    
+
     def daily_stats(date: Date.today)
       {
         ad_impressions: count_ad_impressions(date),
@@ -21,76 +20,72 @@ class RevenueTracker
         estimated_revenue: estimate_daily_revenue(date)
       }
     end
-    
+
     def monthly_recurring_revenue
-      return 0 unless DB.table_exists?(:users) && DB[:users].columns.include?(:premium_until)
-      
-      DB[:users]
-        .where('premium_until > ?', Time.now)
-        .count * 2.99 # Assuming $2.99/month
+      result = DB.get_first_value(
+        "SELECT COUNT(*) FROM users WHERE premium_until > ?", [Time.now]
+      ).to_i
+      result * 2.99
+    rescue => e
+      AppLogger.debug("Failed to query MRR: #{e.message}")
+      0
     end
-    
+
     def weekly_trend
       (0..6).map do |days_ago|
         date = Date.today - days_ago
         daily_stats(date: date).merge(date: date)
       end.reverse
     end
-    
+
     def ad_frequency_stats(since: Time.now - 86400)
-      return {} unless DB.table_exists?(:ad_impressions)
-      
-      impressions = DB[:ad_impressions]
-        .where('created_at > ?', since)
-        .count
-      
-      users = DB[:ad_impressions]
-        .where('created_at > ?', since)
-        .select(:user_id)
-        .distinct
-        .count
-      
+      impressions = DB.get_first_value(
+        "SELECT COUNT(*) FROM ad_impressions WHERE created_at > ?", [since]
+      ).to_i
+      users = DB.get_first_value(
+        "SELECT COUNT(DISTINCT user_id) FROM ad_impressions WHERE created_at > ?", [since]
+      ).to_i
       {
         total_impressions: impressions,
         unique_users: users,
         impressions_per_user: users > 0 ? (impressions.to_f / users).round(2) : 0
       }
+    rescue => e
+      AppLogger.debug("Failed to query ad frequency stats: #{e.message}")
+      {}
     end
-    
+
     private
-    
+
     def count_ad_impressions(date)
-      return 0 unless DB.table_exists?(:ad_impressions)
-      
-      DB[:ad_impressions]
-        .where(Sequel.lit("DATE(created_at) = ?", date))
-        .count
+      DB.get_first_value(
+        "SELECT COUNT(*) FROM ad_impressions WHERE DATE(created_at) = ?", [date.to_s]
+      ).to_i
+    rescue => e
+      0
     end
-    
+
     def count_active_users(date)
-      return 0 unless DB.table_exists?(:users) && DB[:users].columns.include?(:last_seen)
-      
-      DB[:users]
-        .where(Sequel.lit("DATE(last_seen) = ?", date))
-        .count
+      DB.get_first_value(
+        "SELECT COUNT(*) FROM users WHERE DATE(last_seen) = ?", [date.to_s]
+      ).to_i
+    rescue => e
+      0
     end
-    
+
     def count_premium_users(date)
-      return 0 unless DB.table_exists?(:users) && DB[:users].columns.include?(:premium_until)
-      
-      DB[:users]
-        .where('premium_until > ?', date.to_time)
-        .count
+      DB.get_first_value(
+        "SELECT COUNT(*) FROM users WHERE premium_until > ?", [date.to_time]
+      ).to_i
+    rescue => e
+      0
     end
-    
+
     def estimate_daily_revenue(date)
-      impressions = count_ad_impressions(date)
-      premium_users = count_premium_users(date)
-      
-      # Rough estimates
-      ad_revenue = (impressions * 0.002) # $2 CPM
-      premium_revenue = (premium_users * 2.99 / 30) # Daily from monthly
-      
+      impressions    = count_ad_impressions(date)
+      premium_users  = count_premium_users(date)
+      ad_revenue     = impressions * 0.002       # $2 CPM
+      premium_revenue = premium_users * 2.99 / 30 # Daily share of monthly
       ad_revenue + premium_revenue
     end
   end

@@ -21,8 +21,8 @@ module Routes
             puts "⚠️ [TRENDING] Database not available"
             []
           end
-        rescue SQLite3::Exception => e
-          puts "⚠️ [TRENDING] SQLite error: #{e.message}"
+        rescue PG::Error, StandardError => e
+          puts "⚠️ [TRENDING] Database error: #{e.message}"
           []
         rescue => e
           puts "⚠️ [TRENDING] Database error: #{e.class} - #{e.message}"

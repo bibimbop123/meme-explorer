@@ -222,7 +222,7 @@ class MemeService
     
     # Tier 3: Fall back to DB + YAML if still empty
     if cache_results.empty?
-      db_results = (db.execute("SELECT * FROM meme_stats WHERE title LIKE ? COLLATE NOCASE", ["%#{query_lower}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
+      db_results = (db.execute("SELECT * FROM meme_stats WHERE title ILIKE ?", ["%#{query_lower}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
       yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end

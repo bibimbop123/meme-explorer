@@ -403,7 +403,7 @@ module GamificationHelpers
         "SELECT * FROM weekly_challenges WHERE week_number = ?",
         [week_num]
       ).first
-    rescue SQLite3::SQLException => e
+    rescue PG::UndefinedTable, StandardError => e
       # Table doesn't exist yet - return nil
       puts "⚠️ weekly_challenges table not found: #{e.message}"
       return nil

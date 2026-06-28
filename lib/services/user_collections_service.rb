@@ -15,13 +15,11 @@ class UserCollectionsService
   def create_collection(user_id, name, description = '', is_public = true)
     slug = generate_slug(name, user_id)
     
-    @db.execute(
+    collection_id = @db.last_insert_row_id(
       "INSERT INTO user_collections (user_id, name, description, slug, is_public) 
        VALUES (?, ?, ?, ?, ?)",
-      [user_id, name, description, slug, is_public ? 1 : 0]
+      [user_id, name, description, slug, is_public ? true : false]
     )
-    
-    collection_id = @db.last_insert_row_id
     get_collection(collection_id)
   end
 
@@ -237,7 +235,7 @@ class UserCollectionsService
     
     if !is_public.nil?
       updates << "is_public = ?"
-      params << (is_public ? 1 : 0)
+      params << (is_public ? true : false)
     end
     
     updates << "updated_at = CURRENT_TIMESTAMP"

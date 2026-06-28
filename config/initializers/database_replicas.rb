@@ -1,41 +1,27 @@
 # frozen_string_literal: true
 
 # Database Read Replica Configuration
-# Based on: REFACTORING_ROADMAP Phase 4, Task 6.2
+# PostgreSQL-only (migrated from SQLite3)
 
+require 'pg'
 require 'connection_pool'
 
-# Primary database (for writes)
-DB_POOL ||= ConnectionPool.new(size: 25, timeout: 5) do
-  if ENV['DATABASE_URL']&.include?('postgres')
-    require 'pg'
-    PG.connect(ENV['DATABASE_URL'])
-  else
-    require 'sqlite3'
-    SQLite3::Database.new(ENV['DATABASE_URL'] || 'db/meme_explorer.db')
-  end
-end
+# Primary DB_POOL is defined in db/setup.rb — do not redefine it here.
+# This initializer sets up an optional read replica pool.
 
-# Read replica (for reads)
 if ENV['DATABASE_REPLICA_URL']
   DB_REPLICA = ConnectionPool.new(size: 50, timeout: 5) do
-    if ENV['DATABASE_REPLICA_URL'].include?('postgres')
-      require 'pg'
-      PG.connect(ENV['DATABASE_REPLICA_URL'])
-    else
-      require 'sqlite3'
-      SQLite3::Database.new(ENV['DATABASE_REPLICA_URL'])
-    end
+    PG.connect(ENV['DATABASE_REPLICA_URL'])
   end
 
-  AppLogger.info("Database replica configured", 
-    primary_pool: 25,
+  AppLogger.info("Database replica configured",
+    primary_pool: 35,
     replica_pool: 50
   )
 else
-  # No replica configured, use primary for reads
+  # No replica configured — alias replica to primary pool
   DB_REPLICA = DB_POOL
-  
+
   AppLogger.info("No database replica configured, using primary for all queries")
 end
 

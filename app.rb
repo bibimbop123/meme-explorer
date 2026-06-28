@@ -10,7 +10,9 @@ require "uri"
 require "time"
 require "active_support"
 require "active_support/cache"
-require "sqlite3"
+require "active_support/core_ext/numeric/time"
+require "active_support/core_ext/integer/time"
+require "active_support/core_ext/object/blank"
 require "net/http"
 require "thread"
 require "ostruct"
@@ -814,9 +816,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       # Use RedisService.fetch with automatic DB fallback
       RedisService.fetch("meme:likes:#{url}", ttl: 300) do
         # Fallback: query database if Redis unavailable or cache miss
-        # PostgreSQL uses $1 placeholders, SQLite uses ?
-        placeholder = DB.respond_to?(:adapter_scheme) ? '$1' : '?'
-        row = DB.execute("SELECT likes FROM meme_stats WHERE url = #{placeholder}", [url]).first
+        row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
         row ? (row["likes"] || row[:likes] || row.values.first).to_i : 0
       end
     end
@@ -1348,8 +1348,8 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     # SECURITY FIX: Proper parameterized query with ESCAPE clause
     if cache_results.empty?
       db_results = (DB.execute(
-        "SELECT * FROM meme_stats WHERE title LIKE '%' || ? || '%' ESCAPE '\\' COLLATE NOCASE LIMIT 100",
-        [sanitized_query]
+        "SELECT * FROM meme_stats WHERE title ILIKE ? LIMIT 100",
+        ["%#{sanitized_query}%"]
       ) rescue []).map { |r| r.transform_keys(&:to_s) }
       yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }

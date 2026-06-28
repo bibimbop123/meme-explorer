@@ -227,19 +227,8 @@ module MemeExplorer
              last_updated = CURRENT_TIMESTAMP",
           [session_id, user_id, learning_type, key, value, value]
         )
-      rescue SQLite3::Exception => e
-        # SQLite syntax
-        DB.execute(
-          "INSERT OR REPLACE INTO session_learning 
-           (session_id, user_id, learning_type, key, value, confidence, sample_size, last_updated)
-           VALUES (?, ?, ?, ?, ?, 
-             COALESCE((SELECT confidence FROM session_learning WHERE session_id = ? AND learning_type = ? AND key = ?), 0.5),
-             COALESCE((SELECT sample_size + 1 FROM session_learning WHERE session_id = ? AND learning_type = ? AND key = ?), 1),
-             datetime('now'))",
-          [session_id, user_id, learning_type, key, value,
-           session_id, learning_type, key,
-           session_id, learning_type, key]
-        )
+      rescue StandardError => e
+        puts "⚠️ [SessionLearning] update_learning_entry failed: #{e.message}"
       end
       
       def get_session_preferences_db(session_id)

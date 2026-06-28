@@ -93,7 +93,6 @@ class AdminIPWhitelist
   end
 
   def get_db_connection
-    require_relative '../db_helpers'
-    get_db_connection
+    DB
   end
 end

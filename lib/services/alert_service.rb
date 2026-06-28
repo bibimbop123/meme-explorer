@@ -37,36 +37,34 @@ class AlertService
     private
     
     def check_error_rate
-      return nil unless DB.table_exists?(:error_metrics) && DB.table_exists?(:performance_metrics)
-      
-      total = DB[:performance_metrics]
-        .where('created_at > ?', Time.now - 3600)
-        .count
-      
-      errors = DB[:error_metrics]
-        .where('created_at > ?', Time.now - 3600)
-        .count
-      
+      cutoff = Time.now - 3600
+      total = DB.get_first_value(
+        "SELECT COUNT(*) FROM performance_metrics WHERE created_at > ?", [cutoff]
+      ).to_i
+      errors = DB.get_first_value(
+        "SELECT COUNT(*) FROM error_metrics WHERE created_at > ?", [cutoff]
+      ).to_i
       return nil if total.zero?
-      
       error_rate = errors.to_f / total
-      
       if error_rate > ALERT_THRESHOLDS[:error_rate]
         "High error rate: #{(error_rate * 100).round(2)}% (#{errors}/#{total} requests)"
       end
+    rescue => e
+      nil
     end
-    
+
     def check_slow_requests
-      return nil unless DB.table_exists?(:performance_metrics)
-      
-      slow_count = DB[:performance_metrics]
-        .where('created_at > ?', Time.now - 3600)
-        .where('duration_ms > ?', ALERT_THRESHOLDS[:slow_request] * 1000)
-        .count
-      
+      cutoff = Time.now - 3600
+      threshold_ms = ALERT_THRESHOLDS[:slow_request] * 1000
+      slow_count = DB.get_first_value(
+        "SELECT COUNT(*) FROM performance_metrics WHERE created_at > ? AND duration_ms > ?",
+        [cutoff, threshold_ms]
+      ).to_i
       if slow_count > 10
         "#{slow_count} slow requests (>#{ALERT_THRESHOLDS[:slow_request]}s) in the last hour"
       end
+    rescue => e
+      nil
     end
     
     def check_memory
@@ -112,11 +110,11 @@ class AlertService
     end
     
     def slack_configured?
-      ENV['SLACK_WEBHOOK_URL']&.length&.> 0
+      ENV['SLACK_WEBHOOK_URL'].to_s.length > 0
     end
-    
+
     def sentry_configured?
-      defined?(Sentry) && ENV['SENTRY_DSN']&.length&.> 0
+      defined?(Sentry) && ENV['SENTRY_DSN'].to_s.length > 0
     end
   end
 end

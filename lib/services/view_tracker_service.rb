@@ -387,11 +387,9 @@ class ViewTrackerService
       Digest::MD5.hexdigest(meme_url)
     end
     
-    # Check if PostgreSQL is being used
+    # Always PostgreSQL in production
     def postgresql?
-      DB.class.name.include?('Postgres') || 
-      DB.methods.include?(:exec_params) ||
-      (defined?(DB_TYPE) && DB_TYPE == 'postgres')
+      true
     end
     
     # Check if Redis is available

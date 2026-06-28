@@ -11,26 +11,10 @@ module DBTransactionHelpers
     # Execute block within a database transaction
     # All operations succeed or all rollback
     def transaction(&block)
-      if defined?(DB.transaction) && DB.respond_to?(:transaction)
-        # PostgreSQL with built-in transaction support
-        DB.transaction(&block)
-      elsif defined?(DB_POOL)
-        # PostgreSQL with connection pool
-        DB_POOL.with do |conn|
-          conn.transaction do
-            yield conn
-          end
-        end
-      else
-        # SQLite or fallback
-        DB.execute("BEGIN TRANSACTION")
-        result = yield
-        DB.execute("COMMIT")
-        result
-      end
+      # DBWrapper#transaction handles BEGIN/COMMIT/ROLLBACK for PostgreSQL
+      DB.transaction(&block)
     rescue => e
-      DB.execute("ROLLBACK") if defined?(DB)
-      AppLogger.error("Transaction failed", 
+      AppLogger.error("Transaction failed",
         error: e.message,
         error_class: e.class.name,
         backtrace: e.backtrace&.first(5)

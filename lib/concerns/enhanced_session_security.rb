@@ -116,8 +116,12 @@ module EnhancedSessionSecurity
         # Remove oldest session
         db = get_db_connection
         db.execute(
-          'DELETE FROM active_sessions WHERE user_id = ? 
-           ORDER BY last_activity ASC LIMIT 1',
+          'DELETE FROM active_sessions WHERE session_id = (
+             SELECT session_id FROM active_sessions
+             WHERE user_id = ?
+             ORDER BY last_activity ASC
+             LIMIT 1
+           )',
           [user_id]
         )
       end
@@ -167,8 +171,7 @@ module EnhancedSessionSecurity
     end
 
     def get_db_connection
-      require_relative '../db_helpers'
-      get_db_connection
+      DB
     end
   end
 end

@@ -55,41 +55,37 @@ class MaterializedViewRefreshWorker
     start_time = Time.now
     
     # Use CONCURRENTLY to avoid locking the view
-    DB.run("REFRESH MATERIALIZED VIEW CONCURRENTLY #{view_name}")
-    
+    DB.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY #{view_name}")
+
     duration = Time.now - start_time
-    
+
     # Track refresh metrics
     track_refresh_metrics(view_name, duration)
-    
+
     AppLogger.info("Refreshed #{view_name} in #{duration.round(3)}s")
-    
+
     duration
-  rescue Sequel::DatabaseError => e
+  rescue PG::Error => e
     # Handle case where CONCURRENTLY fails (e.g., no unique index)
     if e.message.include?('CONCURRENTLY') || e.message.include?('unique index')
       AppLogger.warn("CONCURRENTLY failed for #{view_name}, trying regular refresh")
-      DB.run("REFRESH MATERIALIZED VIEW #{view_name}")
+      DB.execute("REFRESH MATERIALIZED VIEW #{view_name}")
     else
       raise
     end
   end
 
   def track_refresh_metrics(view_name, duration)
-    # Store refresh metrics for monitoring
-    DB[:materialized_view_refreshes].insert(
-      view_name: view_name.to_s,
-      duration_seconds: duration,
-      refreshed_at: Time.now,
-      row_count: get_view_row_count(view_name)
+    DB.execute(
+      "INSERT INTO materialized_view_refreshes (view_name, duration_seconds, refreshed_at, row_count) VALUES (?, ?, ?, ?)",
+      [view_name.to_s, duration, Time.now, get_view_row_count(view_name)]
     )
   rescue => e
-    # Don't fail the job if metrics tracking fails
     AppLogger.warn("Failed to track metrics for #{view_name}: #{e.message}")
   end
 
   def get_view_row_count(view_name)
-    DB[view_name].count
+    DB.get_first_value("SELECT COUNT(*) FROM #{view_name}").to_i
   rescue
     nil
   end
@@ -114,15 +110,17 @@ class MaterializedViewRefreshWorker
 
   # Check if a view needs refresh based on last refresh time
   def self.needs_refresh?(view_name)
-    last_refresh = DB[:materialized_view_refreshes]
-      .where(view_name: view_name.to_s)
-      .order(Sequel.desc(:refreshed_at))
-      .first
+    last_refresh = DB.execute(
+      "SELECT refreshed_at FROM materialized_view_refreshes WHERE view_name = ? ORDER BY refreshed_at DESC LIMIT 1",
+      [view_name.to_s]
+    ).first
 
     return true unless last_refresh # Never refreshed
-    
+
     interval = VIEWS[view_name.to_sym][:interval]
-    Time.now - last_refresh[:refreshed_at] >= interval
+    Time.now - Time.parse(last_refresh['refreshed_at'].to_s) >= interval
+  rescue
+    true
   end
 
   # Manual refresh endpoint for admin

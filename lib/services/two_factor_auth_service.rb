@@ -59,7 +59,7 @@ class TwoFactorAuthService
         [user_id]
       ).first
       
-      result && result['two_factor_enabled'] == 1
+      result && result['two_factor_enabled'].to_s =~ /\A(t|true|1)\z/i ? true : false
     end
 
     # Generate backup codes
@@ -105,8 +105,7 @@ class TwoFactorAuthService
     private
 
     def get_db
-      require_relative '../db_helpers'
-      get_db_connection
+      DB
     end
 
     def log_security_event(user_id, event_type)

@@ -32,7 +32,7 @@ module DatabaseFailover
           result = yield(:replica)
           reset_failover_state # Replica working again
           return result
-        rescue Sequel::DatabaseConnectionError, PG::ConnectionBad => e
+        rescue PG::ConnectionBad, PG::Error, StandardError => e
           handle_replica_failure(e)
           # Fall through to primary
         end
@@ -50,8 +50,8 @@ module DatabaseFailover
       @last_replica_check = Time.now
       
       begin
-        DB.with_server(:replica) do
-          DB.fetch('SELECT 1 AS health_check').first
+        DB_REPLICA.with do |conn|
+          conn.exec('SELECT 1 AS health_check')
         end
         @replica_healthy = true
       rescue => e
@@ -67,11 +67,9 @@ module DatabaseFailover
       return nil unless replica_enabled?
       
       begin
-        DB.with_server(:replica) do
-          result = DB.fetch(
-            "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) AS lag"
-          ).first
-          result[:lag].to_f
+        DB_REPLICA.with do |conn|
+          result = conn.exec("SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) AS lag")
+          result[0]['lag'].to_f
         end
       rescue => e
         AppLogger.error("Failed to check replica lag: #{e.message}")
@@ -82,9 +80,9 @@ module DatabaseFailover
     # Check if we're currently in recovery (replica)
     def in_recovery?
       begin
-        DB.with_server(:replica) do
-          result = DB.fetch('SELECT pg_is_in_recovery() AS in_recovery').first
-          result[:in_recovery]
+        DB_REPLICA.with do |conn|
+          result = conn.exec('SELECT pg_is_in_recovery() AS in_recovery')
+          result[0]['in_recovery'] == 't'
         end
       rescue
         false
@@ -132,7 +130,7 @@ module DatabaseFailover
       
       # Alert if too many failovers
       if @failover_count > 10
-        AppLogger.critical("Excessive database failovers detected: #{@failover_count}")
+        AppLogger.error("Excessive database failovers detected: #{@failover_count}")
       end
     end
 
@@ -150,19 +148,4 @@ end
 # Initialize on load
 DatabaseFailover.initialize_failover
 
-# Helper methods for easy usage
-module Sequel
-  class Dataset
-    # Use this to force primary for important reads
-    def with_primary
-      db.with_server(:primary) { yield(self) }
-    end
-
-    # Use this to prefer replica but fallback to primary
-    def with_replica_failover
-      DatabaseFailover.with_failover(prefer_replica: true) do |server|
-        db.with_server(server) { yield(self) }
-      end
-    end
-  end
-end
+# Note: Sequel::Dataset helpers removed — app uses DBWrapper (pg gem directly), not Sequel.

@@ -133,8 +133,8 @@ class CrowdsourcedQualityService
                 COUNT(q.id) as signal_count
          FROM meme_stats m
          LEFT JOIN meme_quality_signals q ON m.url = q.meme_url
-         GROUP BY m.url
-         HAVING signal_count >= ?
+         GROUP BY m.url, m.title, m.subreddit, m.quality_score
+         HAVING COUNT(q.id) >= ?
          ORDER BY m.quality_score DESC, signal_count DESC
          LIMIT ?",
         [min_signals, limit]

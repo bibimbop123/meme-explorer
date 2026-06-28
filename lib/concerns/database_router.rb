@@ -32,9 +32,7 @@ module DatabaseRouter
 
     # Execute in transaction (always on primary)
     def transaction(&block)
-      DB_POOL.with do |conn|
-        conn.transaction(&block)
-      end
+      DB.transaction(&block)
     end
 
     # Check if replica is available and healthy

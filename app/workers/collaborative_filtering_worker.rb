@@ -85,13 +85,8 @@ class CollaborativeFilteringWorker
          last_calculated = datetime('now')",
       [user_a, user_b, similarity, common_likes, similarity, common_likes]
     )
-  rescue SQLite3::Exception
-    # SQLite version
-    DB.execute(
-      "INSERT OR REPLACE INTO user_similarity (user_id_a, user_id_b, similarity_score, common_likes, last_calculated)
-       VALUES (?, ?, ?, ?, datetime('now'))",
-      [user_a, user_b, similarity, common_likes]
-    )
+  rescue StandardError => e
+    AppLogger.warn("update_similarity failed: #{e.message}") if defined?(AppLogger)
   end
   
   def calculate_jaccard_similarity(user_a, user_b)

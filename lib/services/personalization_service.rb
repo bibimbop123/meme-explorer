@@ -373,4 +373,16 @@ class PersonalizationService
 
   def humanize_collection(slug)
     {
-      'absurdist' => 'The Absurdist\'s Corner',
+      'absurdist' => "The Absurdist's Corner",
+      'wholesome' => 'Wholesome Memes',
+      'dark_humor' => 'Dark Humor',
+      'gaming' => 'Gaming Memes',
+      'programming' => 'Programming Humor',
+      'animals' => 'Animal Memes',
+      'politics' => 'Political Humor',
+      'movies' => 'Movie & TV Memes',
+      'sports' => 'Sports Memes',
+      'science' => 'Science Humor'
+    }.fetch(slug.to_s, slug.to_s.gsub('_', ' ').capitalize)
+  end
+end
