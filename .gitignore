@@ -67,6 +67,15 @@ secrets.yml
 
 # Backup files (keep in git history only)
 *_BACKUP.rb
+*_BACKUP.rb.*
 *_v2.rb
 *_old.rb
 *.bak
+backups/
+
+# Runtime / generated
+.session_secret
+tmp/pids/*.pid
+tmp/pids/*.state
+coverage/
+backups/

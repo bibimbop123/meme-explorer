@@ -105,7 +105,10 @@ end
 # REMOVED: Global warning suppression (security risk)
 
 # Track server start time for /health endpoint
-$start_time = Time.now
+# Freeze start time as a namespaced constant — not a global variable
+module MemeExplorer
+  START_TIME = Time.now.freeze
+end
 
 # -----------------------
 # Module Wrapper for Services
@@ -368,7 +371,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         response = HTTParty.get(url,
           headers: {
             "Authorization" => "Bearer #{access_token}",
-            "User-Agent" => "MemeExplorer/1.0 (by YourRedditUsername)"
+            "User-Agent" => "MemeExplorer/1.0 (by #{ENV.fetch('REDDIT_USERNAME', 'meme-explorer-bot')})"
           },
           timeout: 15
         )
@@ -1954,7 +1957,7 @@ end
     health = {
       status: 'operational',
       timestamp: Time.now.iso8601,
-      uptime_seconds: (Time.now - $start_time).to_i,
+      uptime_seconds: (Time.now - MemeExplorer::START_TIME).to_i,
       site_url: request.base_url,
       adsense_ready: true,
       checks: {

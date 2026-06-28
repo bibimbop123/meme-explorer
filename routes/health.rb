@@ -11,7 +11,7 @@ module MemeExplorer
       health_status = {
         status: 'ok',
         timestamp: Time.now.iso8601,
-        uptime_seconds: (Time.now - $start_time).to_i,
+        uptime_seconds: (Time.now - MemeExplorer::START_TIME).to_i,
         checks: {}
       }
       
@@ -142,7 +142,7 @@ module MemeExplorer
       health_data = {
         status: 'healthy',
         timestamp: Time.now.iso8601,
-        uptime_seconds: (Time.now - $start_time).to_i,
+        uptime_seconds: (Time.now - MemeExplorer::START_TIME).to_i,
         checks: {},
         metrics: {},
         resources: {}

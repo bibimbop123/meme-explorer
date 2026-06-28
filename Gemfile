@@ -34,18 +34,14 @@ gem "bcrypt", "~> 3.1" # Password hashing
 # Error tracking and monitoring
 gem "sentry-ruby", "~> 5.0"
 
-# Scheduling
-gem "whenever", require: false
-
 # Push Notifications
 gem "web-push"
 
-# Optional (for Tier 2)
-gem "sqlite3"
+# Background jobs & scheduling
+# NOTE: sidekiq-scheduler manages cron via Redis (see config/sidekiq.yml)
+# whenever (cron-based) was removed — sidekiq-scheduler is the single scheduler
 gem "sidekiq"
 gem "sidekiq-scheduler"  # Cron-like scheduling for Sidekiq
-gem "thread"
-gem "ostruct"
 
 group :development, :test do
   gem "rspec", "~> 3.12"
@@ -57,4 +53,11 @@ end
 
 group :development do
   gem "rerun"
+  # sqlite3 kept in development only for local migration tooling
+  gem "sqlite3"
 end
+
+# REMOVED from production:
+# - gem "whenever"    -> replaced by sidekiq-scheduler (single scheduling mechanism)
+# - gem "thread"      -> Thread/Mutex/Queue are Ruby core, not a gem
+# - gem "ostruct"     -> stdlib, no explicit gem needed in Ruby 3.2+

@@ -2,12 +2,20 @@
 
 # MemeSelectionService - Unified Meme Selection with Strategy Pattern
 #
-# Consolidates three previous services into one clean implementation:
-# - random_selector_service.rb (861 lines)
-# - random_selector_service_v2.rb (583 lines)
-# - enhanced_random_selector.rb (556 lines)
+# STATUS: Written as the intended replacement for RandomSelectorService, but
+# not yet wired in. Active callsites still use RandomSelectorService.
 #
-# TOTAL REDUCTION: 2,000 lines → 450 lines (78% reduction)
+# MIGRATION PATH (Sprint 5):
+#   1. Wire MemeSelectionService into routes/memes.rb + routes/random_meme.rb
+#   2. Run both in parallel, validate output parity
+#   3. Remove RandomSelectorService once MemeSelectionService is proven
+#
+# Consolidates three previous services into one clean implementation:
+# - random_selector_service.rb (861 lines)   <- still active
+# - enhanced_random_selector.rb (556 lines)  <- still active in routes/enhanced_random.rb
+# - random_selector_service_v2.rb            <- DELETED Sprint 3
+#
+# TOTAL REDUCTION when fully migrated: 2,000 lines → 450 lines (78% reduction)
 #
 # Features:
 # - Strategy pattern for different selection algorithms

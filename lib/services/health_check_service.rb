@@ -50,7 +50,7 @@ class HealthCheckService
     def uptime_info
       {
         seconds: uptime_seconds,
-        started_at: $start_time&.iso8601,
+        started_at: MemeExplorer::START_TIME.iso8601,
         human: humanize_duration(uptime_seconds)
       }
     end
@@ -167,8 +167,8 @@ class HealthCheckService
     end
     
     def uptime_seconds
-      return 0 unless defined?($start_time) && $start_time.is_a?(Time)
-      (Time.now - $start_time).to_i
+      return 0 unless defined?(MemeExplorer::START_TIME)
+      (Time.now - MemeExplorer::START_TIME).to_i
     end
     
     def humanize_duration(seconds)
