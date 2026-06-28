@@ -205,6 +205,7 @@ DEPENDENCIES
   rack-attack
   rack-csrf (~> 0.1.0)
   rack-protection (~> 4.0)
+  rack-session (~> 2.0)
   rack-test (~> 2.1)
   rackup (~> 2.1)
   redis
