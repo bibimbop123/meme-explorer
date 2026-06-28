@@ -18,14 +18,14 @@ module Routes
                LIMIT 20"
             )
           else
-            puts "⚠️ [TRENDING] Database not available"
+            AppLogger.warn("⚠️ [TRENDING] Database not available")
             []
           end
         rescue PG::Error, StandardError => e
-          puts "⚠️ [TRENDING] Database error: #{e.message}"
+          AppLogger.error("⚠️ [TRENDING] Database error: #{e.message}")
           []
         rescue => e
-          puts "⚠️ [TRENDING] Database error: #{e.class} - #{e.message}"
+          AppLogger.error("⚠️ [TRENDING] Database error: #{e.class} - #{e.message}")
           []
         end
         

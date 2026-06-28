@@ -1,8 +1,10 @@
 # frozen_string_literal: true
+# CONSOLIDATED: All constants now live in config/app_constants.rb (AppConstants module).
+# This file is kept only so `require_relative 'constants'` calls still work.
+# MemeExplorerConstants is aliased to AppConstants at the bottom of app_constants.rb.
+require_relative 'app_constants'
 
-# Application-wide constants for Meme Explorer
-# Centralizes magic numbers and configuration values for better maintainability
-
+# Stub module — do not add constants here. Add to AppConstants in app_constants.rb.
 module MemeExplorerConstants
   # Cache Configuration
   CACHE_REFRESH_INTERVAL_SECONDS = 30

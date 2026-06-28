@@ -85,9 +85,9 @@ begin
   require_relative "./app/workers/activity_aggregation_worker"
   require_relative "./app/workers/streak_reminder_worker"
   require_relative "./app/workers/session_cleanup_worker"
-  puts "✅ Sidekiq workers loaded"
+  AppLogger.info("✅ Sidekiq workers loaded")
 rescue LoadError => e
-  puts "⚠️  Sidekiq not available: #{e.message}"
+  AppLogger.warn("⚠️  Sidekiq not available: #{e.message}")
 end
 
 # Load thread pool for analytics (MEMORY LEAK FIX)
@@ -98,7 +98,7 @@ begin
   require 'sentry-ruby'
   require_relative './config/sentry'
 rescue LoadError
-  puts "⚠️  Sentry not available - error tracking disabled"
+  AppLogger.error("⚠️  Sentry not available - error tracking disabled")
 end
 
 
@@ -180,7 +180,7 @@ METRICS = {
       ConfigSchema.validate!
     rescue ConfigurationError => e
       AppLogger.error("Configuration validation failed", error: e.message)
-      puts "❌ Fatal: #{e.message}"
+      AppLogger.error("❌ Fatal: #{e.message}")
       exit 1
     end
     
@@ -190,10 +190,10 @@ METRICS = {
     # DO NOT add enable :sessions here — double session middleware breaks auth.
 
     begin
-      MemeExplorerConfig.validate!
+      AppConstants.validate!  # Validates TIER_WEIGHTS sum to 100
     rescue ConfigurationError => e
       AppLogger.error("Configuration validation failed", error: e.message)
-      puts "Fatal: Configuration error: #{e.message}"
+      AppLogger.error("Fatal: Configuration error: #{e.message}")
       exit 1
     end
   end
@@ -215,8 +215,8 @@ METRICS = {
     else
       secret = SecureRandom.hex(32)
       File.write(secret_file, secret)
-      puts "⚠️  Generated persistent session secret in #{secret_file}"
-      puts "    Add .session_secret to .gitignore if not already present"
+      AppLogger.warn("⚠️  Generated persistent session secret in #{secret_file}")
+      AppLogger.info("    Add .session_secret to .gitignore if not already present")
     end
     
     set :session_secret, ENV.fetch("SESSION_SECRET", secret)
@@ -245,20 +245,20 @@ METRICS = {
 
   # Load tier configuration
   TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
-  TIER_WEIGHTS = MemeExplorerConfig::TIER_WEIGHTS
-  TOTAL_TIER_WEIGHT = MemeExplorerConfig::TOTAL_TIER_WEIGHT
+  TIER_WEIGHTS = AppConstants::TIER_WEIGHTS
+  TOTAL_TIER_WEIGHT = AppConstants::TOTAL_TIER_WEIGHT
 
   # ✅ REFACTORING: Cache preload now handled by Sidekiq CachePreloadWorker
   # See: app/workers/cache_preload_worker.rb and config/sidekiq.yml
   # Runs on @reboot with proper error handling, retry logic, and monitoring
-  puts "ℹ️  [CACHE] Cache preload handled by CachePreloadWorker (Sidekiq @reboot)"
-  puts "ℹ️  [CACHE] Cache refresh handled by CacheRefreshWorker (every 30 minutes)"
+  AppLogger.debug("ℹ️  [CACHE] Cache preload handled by CachePreloadWorker (Sidekiq @reboot)")
+  AppLogger.debug("ℹ️  [CACHE] Cache refresh handled by CacheRefreshWorker (every 30 minutes)")
   
   # Trigger cache preload worker immediately (non-blocking)
   begin
     CachePreloadWorker.perform_async if defined?(CachePreloadWorker)
   rescue => e
-    puts "⚠️  Could not trigger CachePreloadWorker: #{e.message}"
+    AppLogger.warn("⚠️  Could not trigger CachePreloadWorker: #{e.message}")
   end
 
   # Database cleanup now handled by DatabaseCleanupWorker via Sidekiq scheduler
@@ -273,7 +273,7 @@ METRICS = {
       cookie_data = request.cookies["seen_memes"]
       JSON.parse(cookie_data) if cookie_data
     rescue => e
-      puts "⚠️ Cookie parsing error: #{e.class}"
+      AppLogger.error("⚠️ Cookie parsing error: #{e.class}")
       []
     end || []
     
@@ -285,7 +285,7 @@ METRICS = {
         @streak_data = update_streak(user_id)
         @user_level = get_user_level(user_id)
       rescue => e
-        puts "⚠️ Gamification error: #{e.message}"
+        AppLogger.error("⚠️ Gamification error: #{e.message}")
         @streak_data = nil
         @user_level = nil
       end
@@ -314,7 +314,7 @@ METRICS = {
         )
       rescue => e
         # Don't break the app if tracking fails
-        puts "⚠️ Activity tracking error: #{e.message}"
+        AppLogger.error("⚠️ Activity tracking error: #{e.message}")
       end
     end
   end
@@ -328,7 +328,7 @@ METRICS = {
         duration = 0
       end
     rescue => e
-      puts "After hook duration calc error: #{e.class}"
+      AppLogger.error("After hook duration calc error: #{e.class}")
       duration = 0
     end
     
@@ -336,7 +336,7 @@ METRICS = {
       METRICS[:total_requests].increment
 METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     rescue => e
-      puts "After hook metrics error: #{e.class}"
+      AppLogger.error("After hook metrics error: #{e.class}")
     end
 
     begin
@@ -348,7 +348,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         httponly: true
       )
     rescue => e
-      puts "After hook cookie error: #{e.class}"
+      AppLogger.error("After hook cookie error: #{e.class}")
     end
   end
 
@@ -418,7 +418,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         end
         sleep 1
       rescue => e
-        puts "Error fetching from r/#{subreddit} (authenticated): #{e.message}"
+        AppLogger.error("Error fetching from r/#{subreddit} (authenticated): #{e.message}")
       end
     end
     
@@ -596,7 +596,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     # Unified Navigation with Intelligent Pool + Spaced Repetition
     # Consolidates navigate_meme and navigate_meme_v3 into single optimized method
     def navigate_meme_unified(direction: "next")
-      user_id = session[:user_id] rescue nil
+      user_id = session[:user_id]
       
       # Choose pool strategy based on user state
       memes = if user_id
@@ -744,7 +744,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         
         time_since_shown < hours_to_wait
       rescue => e
-        puts "Error in should_exclude_from_exposure: #{e.class}: #{e.message}"
+        AppLogger.error("Error in should_exclude_from_exposure: #{e.class}: #{e.message}")
         false
       end
     end
@@ -781,7 +781,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       MEME_CACHE.set(:memes, memes)
       memes
     rescue => e
-      puts "❌ get_cached_memes error: #{e.class} - #{e.message}"
+      AppLogger.error("❌ get_cached_memes error: #{e.class} - #{e.message}")
       MEME_CACHE.get(:memes) || MEMES
     end
 
@@ -853,7 +853,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
             session[:last_xp_gain] = xp_result if xp_result
             update_weekly_leaderboard(user_id, 1)
           rescue => e
-            puts "⚠️ XP/Leaderboard error: #{e.message}"
+            AppLogger.error("⚠️ XP/Leaderboard error: #{e.message}")
           end
         end
         session[:meme_like_counts][url] = true
@@ -887,7 +887,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       return nil unless defined?(DB) && DB
       DB.execute(query, params)
     rescue => e
-      puts "DB Error: #{e.message}"
+      AppLogger.error("DB Error: #{e.message}")
       nil
     end
 
@@ -918,7 +918,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
           [url]
         )
       rescue => e
-        puts "Error tracking broken image: #{e.message}"
+        AppLogger.error("Error tracking broken image: #{e.message}")
       end
     end
 
@@ -1034,7 +1034,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         file_path = File.join(public_folder, normalized_path)
         return File.exist?(file_path)
       rescue => e
-        puts "⚠️  [VALIDATION] Error checking local file #{url}: #{e.message}"
+        AppLogger.error("⚠️  [VALIDATION] Error checking local file #{url}: #{e.message}")
         return false
       end
     end
@@ -1055,13 +1055,13 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
 
   
   get "/random.json" do
-    puts "🔄 [/random.json] Request received"
+    AppLogger.debug("🔄 [/random.json] Request received")
     
     # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
     # This fixes the OAuth issue where new users only saw local memes
-    puts "🔄 [/random.json] Calling random_memes_pool..."
+    AppLogger.debug("🔄 [/random.json] Calling random_memes_pool...")
     memes = random_memes_pool
-    puts "✅ [/random.json] Got #{memes.size} memes from pool"
+    AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
     
     halt 404, { error: "No memes found" }.to_json if memes.empty?
     
@@ -1091,7 +1091,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     end
     
     halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
-    puts "✅ [/random.json] Found valid meme: #{@meme['title']}"
+    AppLogger.info("✅ [/random.json] Found valid meme: #{@meme['title']}")
     
     # Track in session history
     meme_identifier = @meme["url"] || @meme["file"]
@@ -1144,7 +1144,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     }
     
     content_type :json
-    puts "✅ [/random.json] Returning response with #{preview_images.size} preview images..."
+    AppLogger.info("✅ [/random.json] Returning response with #{preview_images.size} preview images...")
     response_data.to_json
   end
   
@@ -1298,7 +1298,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         ")
       end
     rescue => e
-      puts "Metrics error: #{e.class}: #{e.message}"
+      AppLogger.error("Metrics error: #{e.class}: #{e.message}")
     end
 
     erb :metrics
@@ -1316,7 +1316,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   
   # Enhanced Leaderboard Route with Advanced Features + Fallback
   get "/leaderboard" do
-    puts "🏆 [LEADERBOARD] Route accessed"
+    AppLogger.info("🏆 [LEADERBOARD] Route accessed")
     
     # Initialize all variables with safe defaults
     @leaderboard_type = params[:type]&.to_sym || :all_time
@@ -1334,11 +1334,11 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     @leaderboard = begin
       if @leaderboard_type == :weekly && @current_period.nil?
         # For weekly default, try simple method first (faster)
-        puts "🏆 [LEADERBOARD] Using simple weekly leaderboard"
+        AppLogger.info("🏆 [LEADERBOARD] Using simple weekly leaderboard")
         get_leaderboard || []
       else
         # For other types or specific periods, use LeaderboardService
-        puts "🏆 [LEADERBOARD] Using LeaderboardService (type: #{@leaderboard_type})"
+        AppLogger.info("🏆 [LEADERBOARD] Using LeaderboardService (type: #{@leaderboard_type})")
         LeaderboardService.get_leaderboard(
           type: @leaderboard_type,
           period: @current_period,
@@ -1346,12 +1346,12 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         )
       end
     rescue => e
-      puts "⚠️ [LEADERBOARD] Advanced service failed: #{e.message}, falling back to simple"
+      AppLogger.error("⚠️ [LEADERBOARD] Advanced service failed: #{e.message}, falling back to simple")
       @leaderboard_type = :weekly  # Reset to weekly on error
       get_leaderboard rescue []
     end
     
-    puts "🏆 [LEADERBOARD] Got #{@leaderboard.size} entries"
+    AppLogger.info("🏆 [LEADERBOARD] Got #{@leaderboard.size} entries")
     
     # Mark current user in leaderboard
     if session[:user_id] && @leaderboard.any?
@@ -1370,7 +1370,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
           period: @current_period
         )
       rescue => e
-        puts "⚠️ [LEADERBOARD] get_user_rank failed: #{e.message}"
+        AppLogger.error("⚠️ [LEADERBOARD] get_user_rank failed: #{e.message}")
         # Fallback: find in current leaderboard
         @leaderboard.find { |e| e['user_id'].to_i == session[:user_id].to_i }
       end
@@ -1380,7 +1380,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         @rank_change = begin
           LeaderboardService.rank_change(session[:user_id], type: @leaderboard_type)
         rescue => e
-          puts "⚠️ [LEADERBOARD] rank_change failed: #{e.message}"
+          AppLogger.error("⚠️ [LEADERBOARD] rank_change failed: #{e.message}")
           nil
         end
         
@@ -1393,7 +1393,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
             period: @current_period
           )
         rescue => e
-          puts "⚠️ [LEADERBOARD] get_nearby_ranks failed: #{e.message}"
+          AppLogger.error("⚠️ [LEADERBOARD] get_nearby_ranks failed: #{e.message}")
           []
         end
         
@@ -1408,7 +1408,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
               period: @current_period
             )
           rescue => e
-            puts "⚠️ [LEADERBOARD] rank_gap_analysis failed: #{e.message}"
+            AppLogger.error("⚠️ [LEADERBOARD] rank_gap_analysis failed: #{e.message}")
             nil
           end
           
@@ -1464,12 +1464,12 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         end
         periods
       rescue => e
-        puts "⚠️ [LEADERBOARD] previous_periods generation failed: #{e.message}"
+        AppLogger.error("⚠️ [LEADERBOARD] previous_periods generation failed: #{e.message}")
         []
       end
     end
     
-    puts "🏆 [LEADERBOARD] Rendering view..."
+    AppLogger.info("🏆 [LEADERBOARD] Rendering view...")
     erb :leaderboard
   end
   
@@ -1547,7 +1547,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         challenge: challenge
       }.to_json
     rescue => e
-      puts "❌ API Leaderboard error: #{e.message}"
+      AppLogger.error("❌ API Leaderboard error: #{e.message}")
       {
         success: false,
         error: e.message
@@ -1560,7 +1560,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # -----------------------
   get "/profile" do
     # Check session safely
-    user_id = session[:user_id] rescue nil
+    user_id = session[:user_id]
     halt 401, "Not logged in" unless user_id
   
     # Wrap Redis or DB calls in safe error handling
@@ -1582,14 +1582,14 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         ) || []
         results.map { |row| row.transform_keys(&:to_s) }
       rescue => e
-        puts "Error fetching liked memes: #{e.message}"
+        AppLogger.error("Error fetching liked memes: #{e.message}")
         []
       end
   
     rescue => e
       # Log the error and return proper error response
-      puts "Profile Error: #{e.class}: #{e.message}"
-      puts e.backtrace.join("\n")
+      AppLogger.error("Profile Error: #{e.class}: #{e.message}")
+      AppLogger.info("backtrace", lines: e.backtrace.join("\n"))
       halt 500, "Error loading profile: #{e.message}"
     end
   
@@ -1660,12 +1660,12 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
         )
       end
       
-      puts "✅ Push subscription saved for user #{session[:user_id]}"
+      AppLogger.info("✅ Push subscription saved for user #{session[:user_id]}")
       
       content_type :json
       { success: true, message: "Push subscription saved" }.to_json
     rescue => e
-      puts "❌ Push subscription error: #{e.message}"
+      AppLogger.error("❌ Push subscription error: #{e.message}")
       halt 500, { error: "Failed to save subscription", details: e.message }.to_json
     end
   end
@@ -1686,7 +1686,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       content_type :json
       { success: true, message: "Test notification sent" }.to_json
     rescue => e
-      puts "❌ Test push error: #{e.message}"
+      AppLogger.error("❌ Test push error: #{e.message}")
       halt 500, { error: e.message }.to_json
     end
   end
@@ -1704,7 +1704,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       content_type :json
       { reward: reward }.to_json
     rescue => e
-      puts "❌ Surprise reward check error: #{e.message}"
+      AppLogger.error("❌ Surprise reward check error: #{e.message}")
       halt 500, { error: e.message }.to_json
     end
   end
@@ -1718,7 +1718,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
       content_type :json
       { boosts: boosts }.to_json
     rescue => e
-      puts "❌ Active boosts error: #{e.message}"
+      AppLogger.error("❌ Active boosts error: #{e.message}")
       halt 500, { error: e.message }.to_json
     end
   end
@@ -1863,7 +1863,7 @@ end
           duration_ms: nil
         )
         
-        puts "👤 [USER FEEDBACK] Broken content reported: #{url} (from #{page})"
+        AppLogger.info("👤 [USER FEEDBACK] Broken content reported: #{url} (from #{page})")
         
         { success: true, message: 'Thank you for your feedback!' }.to_json
       else
@@ -1872,7 +1872,7 @@ end
     rescue JSON::ParserError => e
       halt 400, { success: false, error: 'Invalid JSON' }.to_json
     rescue => e
-      puts "❌ [USER FEEDBACK] Error: #{e.message}"
+      AppLogger.error("❌ [USER FEEDBACK] Error: #{e.message}")
       halt 500, { success: false, error: 'Server error' }.to_json
     end
   end
@@ -1887,7 +1887,7 @@ end
       stats = ActivityTrackerService.stats
       stats.to_json
     rescue => e
-      puts "❌ [Activity Stats] Error: #{e.message}"
+      AppLogger.error("❌ [Activity Stats] Error: #{e.message}")
       { 
         active_users: 0, 
         viewing_users: 0, 

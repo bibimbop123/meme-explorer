@@ -269,7 +269,7 @@ module Routes
             ")
           end
         rescue => e
-          puts "Metrics error: #{e.class}: #{e.message}"
+          AppLogger.error("Metrics error: #{e.class}: #{e.message}")
         end
 
         erb :metrics

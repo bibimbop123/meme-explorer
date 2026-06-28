@@ -2,6 +2,7 @@
 # Intelligent 5,000-meme pool management with tier-based distribution
 # Created: June 3, 2026
 
+require 'concurrent'
 require_relative 'reddit_fetcher_service'
 require_relative 'turbocharged_reddit_fetcher'
 require_relative 'quality_pipeline_service'
@@ -144,13 +145,13 @@ class MemePoolManager
         [tier, (size * percentage).to_i]
       end.to_h
       
-      # Parallel fetch from all tiers
-      threads = tier_counts.map do |tier, count|
-        Thread.new { fetch_from_tier(tier, count) }
+      # Parallel fetch from all tiers using Concurrent::Future (bounded, no raw Thread.new)
+      futures = tier_counts.map do |tier, count|
+        Concurrent::Future.execute { fetch_from_tier(tier, count) }
       end
-      
-      # Collect all fetched memes
-      all_memes = threads.flat_map(&:value)
+
+      # Collect results with a per-tier timeout — never blocks forever
+      all_memes = futures.flat_map { |f| f.value(30) || [] }
       puts "📦 [PoolManager] Fetched #{all_memes.size} memes total"
       
       # Apply quality pipeline

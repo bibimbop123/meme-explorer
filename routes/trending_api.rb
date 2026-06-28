@@ -1,5 +1,7 @@
 # routes/trending_api.rb
 # API endpoints for trending memes
+# Required at file load time (not per-request) to avoid require mutex contention
+require_relative '../lib/services/trending_service'
 
 module Routes
   module TrendingAPI
@@ -42,7 +44,6 @@ module Routes
           end
           
           # Use main trending service (has cache fallback built-in)
-          require_relative '../lib/services/trending_service'
           result = TrendingService.trending_memes(
             time_window: time_window,
             sort_by: sort_by,
@@ -52,7 +53,7 @@ module Routes
           
           # Ensure result has data
           if result[:memes].nil? || !result[:memes].is_a?(Array)
-            puts "⚠️ [TRENDING API] Invalid result format from service"
+            AppLogger.warn("⚠️ [TRENDING API] Invalid result format from service")
             result[:memes] = []
           end
           
@@ -67,7 +68,7 @@ module Routes
             } 
           }.to_json
         rescue LoadError => e
-          puts "❌ [TRENDING API] Service not found: #{e.message}"
+          AppLogger.error("❌ [TRENDING API] Service not found: #{e.message}")
           status 500
           { 
             success: false,
@@ -75,8 +76,8 @@ module Routes
             details: ENV['RACK_ENV'] == 'development' ? e.message : nil 
           }.to_json
         rescue => e
-          puts "❌ [TRENDING API] Error: #{e.class}: #{e.message}"
-          puts "   Backtrace: #{e.backtrace.first(5).join("\n   ")}"
+          AppLogger.error("❌ [TRENDING API] Error: #{e.class}: #{e.message}")
+          AppLogger.info("backtrace", lines: "   Backtrace: #{e.backtrace.first(5).join("\n   ")}")
           status 500
           { 
             success: false,

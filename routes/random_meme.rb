@@ -1,5 +1,8 @@
 # routes/random_meme.rb
 # Random meme routes - HTML and JSON endpoints
+# Services required at file load time (not per-request) to avoid require mutex contention
+require_relative '../lib/services/diversity_engine_service'
+require_relative '../lib/services/similar_meme_service'
 
 module Routes
   module RandomMeme
@@ -18,7 +21,6 @@ module Routes
           end
           
           # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
-          require_relative '../lib/services/diversity_engine_service'
           
           session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
           user_prefs = {}
@@ -48,8 +50,8 @@ module Routes
             end
           end
         rescue => e
-          puts "Error in /random route: #{e.class}: #{e.message}"
-          puts e.backtrace.first(5).join("\n")
+          AppLogger.error("Error in /random route: #{e.class}: #{e.message}")
+          AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))
           @meme = fallback_meme
         end
         
@@ -97,8 +99,8 @@ module Routes
             }
           end
         rescue => e
-          puts "⚠️  Gamification error: #{e.class} - #{e.message}"
-          puts e.backtrace.first(5).join("\n")
+          AppLogger.error("⚠️  Gamification error: #{e.class} - #{e.message}")
+          AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))
         end
         
         @image_src = meme_image_src(@meme)
@@ -122,31 +124,31 @@ module Routes
             end
           end
         rescue => e
-          puts "⚠️ Reddit path error: #{e.message}"
+          AppLogger.error("⚠️ Reddit path error: #{e.message}")
         end
         
-        # ASYNC: Track analytics in background (non-blocking)
-        Thread.new do
+        # ASYNC: Track analytics via bounded thread pool (non-blocking, memory-safe)
+        meme_snapshot = { url: @meme["url"], file: @meme["file"],
+                          title: @meme["title"], subreddit: @meme["subreddit"] }
+        uid_snapshot = session[:user_id]
+        ANALYTICS_POOL.post do
           begin
-            user_id = session[:user_id] rescue nil
-            meme_identifier = @meme["url"] || @meme["file"]
-            return unless meme_identifier
-            
-            # Track view
+            meme_identifier = meme_snapshot[:url] || meme_snapshot[:file]
+            next unless meme_identifier
+
             MemeExplorer::App::DB.execute(
               "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
-              [meme_identifier, @meme["title"] || "Unknown", @meme["subreddit"] || "local"]
-            ) rescue nil
-            
-            # Track exposure for spaced repetition
-            if user_id
+              [meme_identifier, meme_snapshot[:title] || "Unknown", meme_snapshot[:subreddit] || "local"]
+            )
+
+            if uid_snapshot
               MemeExplorer::App::DB.execute(
                 "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-                [user_id, meme_identifier]
-              ) rescue nil
+                [uid_snapshot, meme_identifier]
+              )
             end
           rescue => e
-            puts "⚠️ Background analytics error: #{e.message}"
+            AppLogger.warn("Background analytics failed", error: e.message, url: meme_snapshot[:url])
           end
         end
 
@@ -156,7 +158,7 @@ module Routes
       # JSON API endpoint for similar memes (more like this)
       app.get "/similar.json" do
         content_type :json
-        puts "✨ [/similar.json] Request received"
+        AppLogger.debug("✨ [/similar.json] Request received")
         
         begin
           # Require subreddit parameter
@@ -173,7 +175,6 @@ module Routes
           halt 404, { error: "No memes available" }.to_json if meme_pool.empty?
           
           # Load Similar Meme Service
-          require_relative '../lib/services/similar_meme_service'
           
           # Create source meme representation
           source_meme = { 'subreddit' => subreddit }
@@ -244,23 +245,23 @@ module Routes
             response_data[:total_images] = @meme["gallery_images"].size
           end
           
-          puts "✅ [/similar.json] Returning meme from #{@meme['subreddit']}"
+          AppLogger.info("✅ [/similar.json] Returning meme from #{@meme['subreddit']}")
           response_data.to_json
         rescue => e
-          puts "❌ [/similar.json] Error: #{e.class}: #{e.message}"
-          puts e.backtrace.first(5).join("\n")
+          AppLogger.error("❌ [/similar.json] Error: #{e.class}: #{e.message}")
+          AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))
           halt 500, { error: "Internal server error", message: e.message }.to_json
         end
       end
       
       # JSON API endpoint for random memes with validation
       app.get "/random.json" do
-        puts "🔄 [/random.json] Request received"
+        AppLogger.debug("🔄 [/random.json] Request received")
         
         # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
-        puts "🔄 [/random.json] Calling random_memes_pool..."
+        AppLogger.debug("🔄 [/random.json] Calling random_memes_pool...")
         memes = random_memes_pool
-        puts "✅ [/random.json] Got #{memes.size} memes from pool"
+        AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
         
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
@@ -269,7 +270,6 @@ module Routes
         headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
         
         # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
-        require_relative '../lib/services/diversity_engine_service'
         
         session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
         user_prefs = {}
@@ -283,7 +283,7 @@ module Routes
         
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
         
-        puts "✅ [/random.json] Selected meme via Diversity Engine: #{@meme['title']} (Pool: #{@meme['diversity_pool']})"
+        AppLogger.info("✅ [/random.json] Selected meme via Diversity Engine: #{@meme['title']} (Pool: #{@meme['diversity_pool']})")
         
         # Track in session history
         meme_identifier = @meme["url"] || @meme["file"]
@@ -341,7 +341,7 @@ module Routes
         end
         
         content_type :json
-        puts "✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}"
+        AppLogger.info("✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}")
         response_data.to_json
       end
     end

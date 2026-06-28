@@ -7,7 +7,7 @@ module Routes
       # User profile page with ENHANCED ENGAGEMENT STATS
       app.get "/profile" do
         # Check session safely
-        user_id = session[:user_id] rescue nil
+        user_id = session[:user_id]
         halt 401, "Not logged in" unless user_id
       
         # Wrap Redis or DB calls in safe error handling
@@ -29,7 +29,7 @@ module Routes
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
-            puts "Error fetching liked memes: #{e.message}"
+            AppLogger.error("Error fetching liked memes: #{e.message}")
             []
           end
           
@@ -41,8 +41,8 @@ module Routes
       
         rescue => e
           # Log the error and return proper error response
-          puts "Profile Error: #{e.class}: #{e.message}"
-          puts e.backtrace.join("\n")
+          AppLogger.error("Profile Error: #{e.class}: #{e.message}")
+          AppLogger.info("backtrace", lines: e.backtrace.join("\n"))
           halt 500, "Error loading profile: #{e.message}"
         end
       
@@ -91,7 +91,7 @@ module Routes
           response[:xp_awarded] = result[:xp_awarded]
           response[:level_up] = result[:level_up]
           response[:new_level] = result[:new_level] if result[:level_up]
-          puts "✅ [XP] Awarded #{result[:xp_awarded]} XP for save"
+          AppLogger.info("✅ [XP] Awarded #{result[:xp_awarded]} XP for save")
         end
 
         content_type :json

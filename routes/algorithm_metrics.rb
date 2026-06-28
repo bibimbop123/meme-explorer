@@ -76,7 +76,7 @@ module Routes
             }
           }.to_json
         rescue => e
-          puts "❌ Algorithm metrics error: #{e.message}"
+          AppLogger.error("❌ Algorithm metrics error: #{e.message}")
           {
             error: e.message,
             backtrace: e.backtrace.first(3)

@@ -27,7 +27,7 @@ class BattlesRoutes
             
             erb :battle
           rescue => e
-            puts "❌ [BATTLES] Error creating battle: #{e.message}"
+            AppLogger.error("❌ [BATTLES] Error creating battle: #{e.message}")
             halt 500, "Failed to create battle"
           end
         end
@@ -85,7 +85,7 @@ class BattlesRoutes
               }
             }.to_json
           rescue => e
-            puts "❌ [BATTLES] Error recording result: #{e.message}"
+            AppLogger.error("❌ [BATTLES] Error recording result: #{e.message}")
             Sentry.capture_exception(e) if defined?(Sentry)
             halt 500, { error: 'Failed to record battle' }.to_json
           end
@@ -132,7 +132,7 @@ class BattlesRoutes
               erb :battle_leaderboard
             end
           rescue => e
-            puts "❌ [BATTLES] Error fetching leaderboard: #{e.message}"
+            AppLogger.error("❌ [BATTLES] Error fetching leaderboard: #{e.message}")
             @top_memes = []
             erb :battle_leaderboard
           end
@@ -164,7 +164,7 @@ class BattlesRoutes
               favorite_memes: favorite_memes
             }.to_json
           rescue => e
-            puts "❌ [BATTLES] Error fetching user stats: #{e.message}"
+            AppLogger.error("❌ [BATTLES] Error fetching user stats: #{e.message}")
             content_type :json
             { total_battles: 0, favorite_memes: [] }.to_json
           end

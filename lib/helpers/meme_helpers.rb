@@ -49,32 +49,32 @@ module MemeHelpers
     identifier = meme_identifier(meme)
     return unless identifier
     
-    Thread.new do
+    ANALYTICS_POOL.post do
       begin
         title = meme["title"] || "Unknown"
         subreddit = meme["subreddit"] || "local"
-        
+
         # Track in meme_stats
         DB.execute(
-          "INSERT INTO meme_stats (url, title, subreddit, views, likes) 
-           VALUES (?, ?, ?, 1, 0) 
-           ON CONFLICT(url) DO UPDATE SET 
+          "INSERT INTO meme_stats (url, title, subreddit, views, likes)
+           VALUES (?, ?, ?, 1, 0)
+           ON CONFLICT(url) DO UPDATE SET
            views = views + 1, updated_at = CURRENT_TIMESTAMP",
           [identifier, title, subreddit]
         )
-        
+
         # Track user exposure for spaced repetition
         if user_id
           DB.execute(
-            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) 
-             VALUES (?, ?, 1) 
-             ON CONFLICT(user_id, meme_url) DO UPDATE SET 
+            "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count)
+             VALUES (?, ?, 1)
+             ON CONFLICT(user_id, meme_url) DO UPDATE SET
              shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
             [user_id, identifier]
           )
         end
       rescue => e
-        puts "⚠️ Background meme tracking error: #{e.message}"
+        AppLogger.warn("Background meme tracking failed", error: e.message, url: identifier)
       end
     end
   end

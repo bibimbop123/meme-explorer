@@ -67,7 +67,7 @@ module Routes
             response[:xp_awarded] = result[:xp_awarded]
             response[:level_up] = result[:level_up]
             response[:new_level] = result[:new_level] if result[:level_up]
-            puts "✅ [XP] Awarded #{result[:xp_awarded]} XP for like"
+            AppLogger.info("✅ [XP] Awarded #{result[:xp_awarded]} XP for like")
           end
 
           content_type :json

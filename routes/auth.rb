@@ -126,7 +126,7 @@ class AuthRoutes
               code_present: !code.nil?,
               error_param: error,
               callback_url: request.url
-            }, :error) rescue nil
+            }, :error)
             
             session[:error] = "An unexpected error occurred during Reddit login. Please try again."
             redirect "/login"
@@ -229,7 +229,7 @@ class AuthRoutes
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json
           rescue => e
-            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error) rescue nil
+            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error)
             return { success: false, error: "Login failed. Please try again." }.to_json
           end
         end
@@ -286,7 +286,7 @@ class AuthRoutes
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json
           rescue => e
-            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error) rescue nil
+            ErrorHandler::Logger.log(e, { params: safe_params.to_s }, :error)
             return { success: false, error: "Registration failed. Please try again." }.to_json
           end
         end

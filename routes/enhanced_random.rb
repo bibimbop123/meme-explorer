@@ -52,8 +52,8 @@ module Routes
         end
         
       rescue => e
-        puts "❌ Enhanced random error: #{e.message}"
-        puts e.backtrace.first(5)
+        AppLogger.error("❌ Enhanced random error: #{e.message}")
+        AppLogger.info("backtrace", lines: e.backtrace.first(5))
         
         Sentry.capture_exception(e) if defined?(Sentry)
         
@@ -98,7 +98,7 @@ module Routes
         }.to_json
         
       rescue => e
-        puts "❌ Track interaction error: #{e.message}"
+        AppLogger.error("❌ Track interaction error: #{e.message}")
         
         status 500
         {

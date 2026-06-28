@@ -85,7 +85,7 @@ class ReactionsRoutes
               user_reactions: user_reactions
             }.to_json
           rescue => e
-            puts "❌ [REACTIONS] Error: #{e.message}"
+            AppLogger.error("❌ [REACTIONS] Error: #{e.message}")
             Sentry.capture_exception(e) if defined?(Sentry)
             halt 500, { error: 'Failed to save reaction' }.to_json
           end
@@ -126,7 +126,7 @@ class ReactionsRoutes
               total: counts.values.sum
             }.to_json
           rescue => e
-            puts "❌ [REACTIONS] Error fetching: #{e.message}"
+            AppLogger.error("❌ [REACTIONS] Error fetching: #{e.message}")
             content_type :json
             { counts: {}, user_reactions: [], total: 0 }.to_json
           end
@@ -160,7 +160,7 @@ class ReactionsRoutes
             content_type :json
             top_memes.to_json
           rescue => e
-            puts "❌ [REACTIONS] Error fetching top: #{e.message}"
+            AppLogger.error("❌ [REACTIONS] Error fetching top: #{e.message}")
             content_type :json
             [].to_json
           end

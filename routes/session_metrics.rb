@@ -38,10 +38,10 @@ module Routes
           
           # Log only if session is active and has engagement
           if session_data && session_data[:is_active] && memes_viewed > 0
-            puts "📊 [SESSION METRICS] #{session_id[0..7]}: #{memes_viewed} memes, #{duration}s duration, #{avg_time_per_meme.round(1)}s avg"
+            AppLogger.debug("📊 [SESSION METRICS] #{session_id[0..7]}: #{memes_viewed} memes, #{duration}s duration, #{avg_time_per_meme.round(1)}s avg")
           elsif session_data && !session_data[:is_active]
             # Don't spam logs with idle sessions
-            puts "💤 [SESSION] #{session_id[0..7]} idle (#{duration}s, #{memes_viewed} memes)" if memes_viewed == 0 && duration > 600
+            AppLogger.info("💤 [SESSION] #{session_id[0..7]} idle (#{duration}s, #{memes_viewed} memes)" if memes_viewed == 0 && duration > 600)
           end
           
           status 200
@@ -53,7 +53,7 @@ module Routes
           }.to_json
           
         rescue => e
-          puts "⚠️  [SESSION METRICS] Error: #{e.message}"
+          AppLogger.error("⚠️  [SESSION METRICS] Error: #{e.message}")
           status 200 # Return 200 to prevent client errors
           { success: false, error: e.message }.to_json
         end
@@ -87,7 +87,7 @@ module Routes
           { success: true }.to_json
           
         rescue => e
-          puts "⚠️  [SESSION END] Error: #{e.message}"
+          AppLogger.error("⚠️  [SESSION END] Error: #{e.message}")
           status 200 # Return 200 to prevent client errors
           { success: false }.to_json
         end
@@ -116,7 +116,7 @@ module Routes
           end
           
         rescue => e
-          puts "⚠️  [SESSION HEARTBEAT] Error: #{e.message}"
+          AppLogger.error("⚠️  [SESSION HEARTBEAT] Error: #{e.message}")
           status 200
           { success: false, error: e.message }.to_json
         end

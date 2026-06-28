@@ -119,7 +119,7 @@ module Routes
           end
         rescue => e
           # Silently continue if subreddits can't be loaded
-          puts "⚠️  Could not load subreddits for sitemap: #{e.message}"
+          AppLogger.warn("⚠️  Could not load subreddits for sitemap: #{e.message}")
         end
         
         # Build XML sitemap

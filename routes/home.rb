@@ -10,7 +10,7 @@ module Routes
           @meme = MemeExplorer::App::MEME_CACHE[:memes].sample rescue nil
           @meme ||= fallback_meme
         rescue => e
-          puts "Error in root route: #{e.class}: #{e.message}"
+          AppLogger.error("Error in root route: #{e.class}: #{e.message}")
           @meme = fallback_meme
         end
         
@@ -19,7 +19,7 @@ module Routes
         
         # FIXED: Track analytics synchronously with proper error handling + activity log
         begin
-          user_id = session[:user_id] rescue nil
+          user_id = session[:user_id]
           meme_identifier = @meme["url"] || @meme["file"]
           
           if meme_identifier
@@ -45,8 +45,8 @@ module Routes
           end
         rescue => e
           # Log error properly instead of silent failure
-          puts "❌ Analytics tracking error: #{e.class} - #{e.message}"
-          ErrorHandler::Logger.log(e, { meme_url: meme_identifier }, :warning) rescue nil
+          AppLogger.error("❌ Analytics tracking error: #{e.class} - #{e.message}")
+          ErrorHandler::Logger.log(e, { meme_url: meme_identifier }, :warning)
         end
         
         erb :random
