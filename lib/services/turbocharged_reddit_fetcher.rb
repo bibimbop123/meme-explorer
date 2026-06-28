@@ -417,7 +417,7 @@ class TurbochargedRedditFetcher
     AppLogger.info("   • Memes: #{@stats[:memes_fetched]}")
     AppLogger.error("   • Errors: #{@stats[:errors]}")
     AppLogger.info("   • Duration: #{duration.round(2)}s")
-    AppLogger.info("   • Rate: #{rate.round(1)} memes/sec" if rate)
-    AppLogger.info("   • Efficiency: #{(@stats[:memes_fetched].to_f / @stats[:requests_made]).round(1)} memes/request" if @stats[:requests_made] > 0)
+    AppLogger.info("   • Rate: #{rate.round(1)} memes/sec") if rate
+    AppLogger.info("   • Efficiency: #{(@stats[:memes_fetched].to_f / @stats[:requests_made]).round(1)} memes/request") if @stats[:requests_made] > 0
   end
 end
