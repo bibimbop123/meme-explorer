@@ -2,6 +2,7 @@
 # Random meme routes - HTML and JSON endpoints
 # Services required at file load time (not per-request) to avoid require mutex contention
 require_relative '../lib/services/diversity_engine_service'
+require_relative '../lib/services/diversity_engine_service_v2'
 require_relative '../lib/services/similar_meme_service'
 
 module Routes
