@@ -108,7 +108,7 @@ class MemePoolRefreshWorker
   def load_subreddits
     # Load from YAML or use defaults
     if File.exist?('data/subreddits.yml')
-      YAML.load_file('data/subreddits.yml')['subreddits'] || []
+      YAML.load_file('data/subreddits.yml', aliases: true)['subreddits'] || []
     else
       %w[memes dankmemes me_irl funny wholesomememes]
     end

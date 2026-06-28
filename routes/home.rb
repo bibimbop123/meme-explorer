@@ -6,8 +6,16 @@ module Routes
     def self.registered(app)
       app.get "/" do
         begin
-          # FAST: Serve from pre-warmed cache (instant)
-          @meme = MemeExplorer::App::MEME_CACHE[:memes].sample rescue nil
+          # Try pre-warmed cache first (instant when Sidekiq is running)
+          cached = MemeExplorer::App::MEME_CACHE[:memes]
+          if cached.is_a?(Array) && cached.any?
+            @meme = cached.sample
+          else
+            # Cache empty — fetch from Reddit on-demand via random_memes_pool
+            # (triggers OAuth fetch in InlineRedditFetcher when no workers running)
+            pool = random_memes_pool
+            @meme = pool.sample
+          end
           @meme ||= fallback_meme
         rescue => e
           AppLogger.error("Error in root route: #{e.class}: #{e.message}")

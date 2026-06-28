@@ -149,7 +149,7 @@ class AnalyticsService
     end
     
     def count_active_subreddits
-      subreddits = YAML.load_file('data/subreddits.yml')
+      subreddits = YAML.load_file('data/subreddits.yml', aliases: true)
       popular = subreddits['popular'] || []
       popular.size
     rescue => e

@@ -185,7 +185,7 @@ module MemeExplorer
   # -----------------------
   # Constants
   # -----------------------
-  POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml")["popular"]
+  POPULAR_SUBREDDITS = YAML.load_file("data/subreddits.yml", aliases: true)["popular"]
   ALL_POPULAR_SUBS = POPULAR_SUBREDDITS.sample(50)
     MEME_CACHE = CacheManager.new
     MEMES = YAML.load_file("data/memes.yml") rescue []
@@ -269,7 +269,7 @@ METRICS = {
   end
 
   # Load tier configuration
-  TIER_CONFIG = YAML.load_file("data/subreddits.yml") rescue {}
+  TIER_CONFIG = YAML.load_file("data/subreddits.yml", aliases: true) rescue {}
   TIER_WEIGHTS = AppConstants::TIER_WEIGHTS
   TOTAL_TIER_WEIGHT = AppConstants::TOTAL_TIER_WEIGHT
 

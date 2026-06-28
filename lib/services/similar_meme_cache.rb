@@ -29,7 +29,7 @@ class SimilarMemeCache
     def prefetch_all_popular!
       puts "🔄 [SimilarMemeCache] Starting prefetch for popular subreddits..."
       
-      subreddit_data = YAML.load_file('data/subreddits.yml')
+      subreddit_data = YAML.load_file('data/subreddits.yml', aliases: true)
       popular = subreddit_data['tier_1'] || []
       
       prefetched = 0

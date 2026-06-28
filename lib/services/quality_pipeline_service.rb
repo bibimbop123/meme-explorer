@@ -187,7 +187,7 @@ class QualityPipelineService
     def popular_subreddit?(subreddit)
       return false unless subreddit
       
-      popular_subs = YAML.load_file('data/subreddits.yml')['tier_1'] rescue []
+      popular_subs = YAML.load_file('data/subreddits.yml', aliases: true)['tier_1'] rescue []
       popular_subs.include?(subreddit.downcase)
     rescue
       false

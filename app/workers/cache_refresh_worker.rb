@@ -100,7 +100,7 @@ class CacheRefreshWorker
     client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
     
     # Load ALL popular subreddits (don't sample yet - let RedditFetcherService handle it)
-    all_subreddits = YAML.load_file("data/subreddits.yml")["popular"]
+    all_subreddits = YAML.load_file("data/subreddits.yml", aliases: true)["popular"]
     
     if !client_id.empty? && !client_secret.empty?
       # Use RedditFetcherService with OAuth - HIGHER LIMIT for more memes

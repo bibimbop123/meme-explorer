@@ -156,10 +156,28 @@ module MemePoolHelpers
     cache_memes = MEME_CACHE.get(:memes)
     if cache_memes.is_a?(Array) && !cache_memes.empty?
       valid_memes = cache_memes.select { |m| has_valid_media?(m) }
-      puts "✅ [POOL FALLBACK] Using legacy cache: #{valid_memes.size} memes"
+      AppLogger.info("[POOL FALLBACK] Using legacy cache: #{valid_memes.size} memes")
       return valid_memes unless valid_memes.empty?
     end
-    
+
+    # Cache is empty — fetch directly from Reddit via OAuth (no Sidekiq needed)
+    # This ensures memes load immediately in development without running workers
+    begin
+      if defined?(InlineRedditFetcher)
+        AppLogger.info("[POOL] Cache empty — fetching from Reddit via OAuth...")
+        subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
+        fresh_memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
+        if fresh_memes.any?
+          MEME_CACHE.set(:memes, fresh_memes)
+          MEME_CACHE.set(:last_refresh, Time.now)
+          AppLogger.info("[POOL] Fetched and cached #{fresh_memes.size} memes from Reddit")
+          return fresh_memes
+        end
+      end
+    rescue => e
+      AppLogger.warn("[POOL] On-demand Reddit fetch failed", error: e.message)
+    end
+
     # Last resort: local memes
     local_memes = begin
       if MEMES.is_a?(Hash)

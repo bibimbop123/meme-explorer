@@ -84,7 +84,7 @@ class CachePreloadWorker
     )
     
     token = client.client_credentials.get_token(scope: "read")
-    subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+    subreddits = YAML.load_file("data/subreddits.yml", aliases: true)["popular"].sample(8)
     
     RedditFetcherService.new(auth_strategy: :oauth, access_token: token.token)
       .fetch_memes(subreddits, limit: 30)
@@ -95,7 +95,7 @@ class CachePreloadWorker
   end
   
   def fetch_unauthenticated
-    subreddits = YAML.load_file("data/subreddits.yml")["popular"].sample(8)
+    subreddits = YAML.load_file("data/subreddits.yml", aliases: true)["popular"].sample(8)
     
     RedditFetcherService.new(auth_strategy: :static)
       .fetch_memes(subreddits, limit: 30)

@@ -317,7 +317,7 @@ class MemePoolManager
     
     # Load subreddits for a specific tier
     def load_tier_subreddits(tier)
-      data = YAML.load_file('data/subreddits.yml')
+      data = YAML.load_file('data/subreddits.yml', aliases: true)
       data[tier.to_s] || []
     rescue => e
       log_error("Load tier subreddits error for #{tier}", e)

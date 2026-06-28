@@ -6,7 +6,7 @@ require 'uri'
 require 'json'
 
 # Load subreddits
-subreddits_yaml = YAML.load_file('data/subreddits.yml')
+subreddits_yaml = YAML.load_file('data/subreddits.yml', aliases: true)
 
 # User agent rotation
 user_agents = [

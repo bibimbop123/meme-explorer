@@ -24,16 +24,35 @@ use Rack::Session::Cookie,
 use Rack::Deflater
 
 # Initialize meme pool cache on startup
-begin
-  if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
-    puts "🚀 [STARTUP] Triggering initial meme pool refresh..."
-    MemePoolRefreshWorker.perform_async(true)  # Force refresh on startup
-    puts "✅ [STARTUP] Meme pool refresh job queued"
-  else
-    puts "⚠️  [STARTUP] MemePoolRefreshWorker or Sidekiq not available - cache will be empty until first refresh"
+# If Sidekiq is running, queue via worker. Otherwise fetch directly via OAuth.
+Thread.new do
+  Thread.current.name = 'startup-cache-warm'
+  sleep 1 # Brief pause to let the app fully initialize
+
+  begin
+    cache = MemeExplorer::App::MEME_CACHE
+
+    if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
+      puts "🚀 [STARTUP] Triggering initial meme pool refresh via Sidekiq..."
+      MemePoolRefreshWorker.perform_async(true)
+      puts "✅ [STARTUP] Meme pool refresh job queued"
+    else
+      # No Sidekiq — fetch directly from Reddit using OAuth (client credentials)
+      puts "🚀 [STARTUP] Fetching memes directly from Reddit (no Sidekiq)..."
+      subreddits = MemeExplorer::App::POPULAR_SUBREDDITS.sample(20)
+      memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
+
+      if memes.any?
+        cache.set(:memes, memes.shuffle)
+        cache.set(:last_refresh, Time.now)
+        puts "✅ [STARTUP] Meme cache warmed: #{memes.size} memes from Reddit"
+      else
+        puts "⚠️  [STARTUP] Reddit fetch returned 0 memes — will retry on first request"
+      end
+    end
+  rescue => e
+    puts "❌ [STARTUP] Cache warm failed: #{e.message}"
   end
-rescue => e
-  puts "❌ [STARTUP] Failed to queue meme pool refresh: #{e.message}"
 end
 
 # Mount Sidekiq Web UI with authentication (production only)

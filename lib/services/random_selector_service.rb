@@ -489,8 +489,8 @@ module MemeExplorer
 
       # ENHANCEMENT 5: Anti-repetition with similarity detection
       def filter_recent_and_similar(memes, session_id)
-        recent_ids = fetch_recent_memes(session_id)
-        recent_titles = fetch_recent_titles(session_id)
+        recent_ids    = Array(fetch_recent_memes(session_id))
+        recent_titles = Array(fetch_recent_titles(session_id))
         
         memes.reject do |meme|
           meme_id = meme_identifier(meme)

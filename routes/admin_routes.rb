@@ -36,7 +36,7 @@ module Routes
           api_memes = []
           client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
           client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
-          all_subreddits = YAML.load_file("data/subreddits.yml")["popular"]
+          all_subreddits = YAML.load_file("data/subreddits.yml", aliases: true)["popular"]
           
           if !client_id.empty? && !client_secret.empty?
             begin

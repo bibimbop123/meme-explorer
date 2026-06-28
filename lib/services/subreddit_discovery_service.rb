@@ -47,7 +47,7 @@ class SubredditDiscoveryService
       puts "🤖 [Discovery] Starting auto-discovery..."
       
       # Load current tier 1 subreddits as seeds
-      current = YAML.load_file('data/subreddits.yml')
+      current = YAML.load_file('data/subreddits.yml', aliases: true)
       seeds = current['tier_1'] || []
       
       # Discover new subreddits
@@ -83,7 +83,7 @@ class SubredditDiscoveryService
     
     # Approve candidates and add to main list
     def approve_candidates(subreddit_names, tier: 'tier_2')
-      current = YAML.load_file('data/subreddits.yml')
+      current = YAML.load_file('data/subreddits.yml', aliases: true)
       tier_list = current[tier] || []
       
       # Add approved subreddits
@@ -212,7 +212,7 @@ class SubredditDiscoveryService
     # Remove duplicates and filter out existing subreddits
     def dedup_and_filter_existing(discovered)
       # Load existing subreddits
-      current = YAML.load_file('data/subreddits.yml')
+      current = YAML.load_file('data/subreddits.yml', aliases: true)
       existing_names = current.values.flatten.map(&:downcase).to_set
       
       # Filter out existing and deduplicate

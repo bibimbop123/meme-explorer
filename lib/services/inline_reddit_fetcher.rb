@@ -6,6 +6,42 @@
 # unavailable. RedditFetcherService is the primary path.
 
 module InlineRedditFetcher
+  # Fetch memes using client_credentials OAuth (no user login required).
+  # Works for reading public subreddits. Preferred over fetch_static which
+  # Reddit blocks with 403 on unauthenticated requests.
+  def self.fetch(subreddits, limit: 25)
+    token = get_app_token
+    return fetch_static(subreddits, limit: limit) unless token
+
+    fetch_authenticated(token, subreddits, limit: limit)
+  end
+
+  # Get a Reddit app-level OAuth token (client_credentials grant).
+  # Does not require a user to log in — just the app credentials.
+  def self.get_app_token
+    client_id     = ENV['REDDIT_CLIENT_ID'].to_s.strip
+    client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
+    return nil if client_id.empty? || client_secret.empty?
+
+    require 'base64'
+    auth = Base64.strict_encode64("#{client_id}:#{client_secret}")
+    response = HTTParty.post(
+      'https://www.reddit.com/api/v1/access_token',
+      body:    { grant_type: 'client_credentials' },
+      headers: {
+        'Authorization' => "Basic #{auth}",
+        'User-Agent'    => "MemeExplorer/1.0 (by #{ENV.fetch('REDDIT_USERNAME', 'meme-explorer-bot')})"
+      },
+      timeout: 10
+    )
+    return nil unless response.success?
+
+    response.parsed_response['access_token']
+  rescue => e
+    AppLogger.warn("InlineRedditFetcher: failed to get app token", error: e.message)
+    nil
+  end
+
   # Authenticated fetch using an existing OAuth access token.
   def self.fetch_authenticated(access_token, subreddits, limit: 15)
     require 'httparty'
