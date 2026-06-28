@@ -115,7 +115,7 @@ get '/api/recommendations' do
   content_type :json
   
   require_auth!
-user_id = current_user_id
+ user_id = current_user_id
   
   # Get user's liked memes
   liked_memes = session[:liked_memes] || []

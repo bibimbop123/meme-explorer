@@ -4,7 +4,7 @@
 module Routes
   module AdminInlineRoutes
     def self.registered(app)
-    get "/admin" do
+    app.get "/admin" do
       halt 403, "Forbidden" unless is_admin?
 
       @total_memes = DB.get_first_value("SELECT COUNT(*) FROM meme_stats").to_i
@@ -16,7 +16,7 @@ module Routes
       erb :admin
     end
 
-    delete "/admin/meme/:url" do
+    app.delete "/admin/meme/:url" do
       halt 403, "Forbidden" unless is_admin?
 
       url = params[:url]
@@ -32,7 +32,7 @@ module Routes
     # -----------------------
     # Content Feedback API (Chunk 4)
     # -----------------------
-    post '/api/report-broken-content' do
+    app.post '/api/report-broken-content' do
       content_type :json
 
       begin
@@ -68,7 +68,7 @@ module Routes
     # -----------------------
     # Activity Tracking API
     # -----------------------
-    get '/api/activity-stats' do
+    app.get '/api/activity-stats' do
       content_type :json
 
       begin
@@ -88,55 +88,11 @@ module Routes
     # -----------------------
     # Load Additional Routes
     # -----------------------
-    require_relative './routes/auth'
-    require_relative './routes/reactions'
-    require_relative './routes/battles'
-    require_relative './routes/ab_testing'
-
-    # P2 Week 2: Refactored route modules
-    require_relative './routes/home'
-    require_relative './routes/random_meme'
-    require_relative './routes/memes'
-    require_relative './routes/meme_stats'
-    require_relative './routes/search_routes'
-    require_relative './routes/trending_routes'
-    require_relative './routes/trending_api'
-    require_relative './routes/profile_routes'
-    require_relative './routes/admin_routes'
-    require_relative './routes/metrics_routes'
-    require_relative './routes/behavioral_tracking'
-    require_relative './routes/algorithm_metrics'
-    require_relative './routes/seo_routes'
-    require_relative './routes/enhanced_random'
-    require_relative './routes/session_metrics'
-    require_relative './routes/legal_routes'
-
-    AuthRoutes.register(self)
-    ReactionsRoutes.register(self)
-    BattlesRoutes.register(self)
-    LegalRoutes.register(self)
-    register Routes::ABTesting
-    register Routes::Home
-    register Routes::RandomMeme
-    register Routes::Memes
-    register Routes::MemeStats
-    register Routes::SearchRoutes
-    register Routes::TrendingRoutes
-    register Routes::TrendingAPI
-    register Routes::ProfileRoutes
-    register Routes::AdminRoutes
-    register Routes::MetricsRoutes
-    register Routes::BehavioralTracking
-    register Routes::AlgorithmMetrics
-    register Routes::Seo
-    register Routes::EnhancedRandom
-    register Routes::SessionMetrics
-
     # -----------------------
     # AdSense Verification & Health Check
     # -----------------------
 
-    get '/adsense-verification' do
+    app.get '/adsense-verification' do
       content_type :html
 
       health = {
@@ -154,13 +110,6 @@ module Routes
 
       erb :adsense_verification, locals: { health: health }
     end
-
-    # -----------------------
-
-    # Start server
-    # -----------------------
-    run! if app_file == $0
-    end  # End of App class
     end
   end
 end

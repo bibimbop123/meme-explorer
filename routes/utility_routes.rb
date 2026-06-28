@@ -4,7 +4,7 @@
 module Routes
   module UtilityRoutes
     def self.registered(app)
-    get "/ads.txt" do
+    app.get "/ads.txt" do
       content_type 'text/plain'
       File.read('ads.txt')
     end
@@ -13,7 +13,7 @@ module Routes
     # (registered via  and )
 
 
-    get "/random.json" do
+    app.get "/random.json" do
       AppLogger.debug("🔄 [/random.json] Request received")
 
       # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available

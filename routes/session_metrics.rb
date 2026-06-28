@@ -41,7 +41,7 @@ module Routes
             AppLogger.debug("📊 [SESSION METRICS] #{session_id[0..7]}: #{memes_viewed} memes, #{duration}s duration, #{avg_time_per_meme.round(1)}s avg")
           elsif session_data && !session_data[:is_active]
             # Don't spam logs with idle sessions
-            AppLogger.info("💤 [SESSION] #{session_id[0..7]} idle (#{duration}s, #{memes_viewed} memes)" if memes_viewed == 0 && duration > 600)
+            AppLogger.info("💤 [SESSION] #{session_id[0..7]} idle (#{duration}s, #{memes_viewed} memes)") if memes_viewed == 0 && duration > 600
           end
           
           status 200

@@ -4,26 +4,26 @@
 module Routes
   module SystemRoutes
     def self.registered(app)
-    get "/health" do
+    app.get "/health" do
       content_type :json
       HealthCheckService.quick_check.to_json
     end
 
     # Detailed health check (admin only)
-    get "/health/detailed" do
+    app.get "/health/detailed" do
       halt 403, { error: "Forbidden" }.to_json unless is_admin?
       content_type :json
       HealthCheckService.check.to_json
     end
 
     # Performance metrics (admin only)
-    get "/metrics/performance" do
+    app.get "/metrics/performance" do
       halt 403, { error: "Forbidden" }.to_json unless is_admin?
       content_type :json
       PerformanceProfiler.summary.to_json
     end
 
-    get "/errors" do
+    app.get "/errors" do
       halt 403, "Forbidden" unless is_admin?
       content_type :json
       {
@@ -34,7 +34,7 @@ module Routes
       }.to_json
     end
 
-    get "/api/notifications" do
+    app.get "/api/notifications" do
       require_auth!
       user_id = current_user_id
 
@@ -51,7 +51,7 @@ module Routes
       # -----------------------
       # Admin Authorization Filter (P0 Security Fix)
       # -----------------------
-      before '/admin/*' do
+      app.before '/admin/*' do
     halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
       end
 

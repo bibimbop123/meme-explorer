@@ -4,7 +4,7 @@
 module Routes
   module UserApiRoutes
     def self.registered(app)
-    get "/profile" do
+    app.get "/profile" do
       # Check session safely
       user_id = current_user_id
       halt 401, "Not logged in" unless user_id
@@ -47,7 +47,7 @@ module Routes
     end
 
 
-    post "/api/save-meme" do
+    app.post "/api/save-meme" do
       require_auth!
 
       url = params[:url]
@@ -62,7 +62,7 @@ module Routes
       { saved: true, message: "Meme saved" }.to_json
     end
 
-    post "/api/unsave-meme" do
+    app.post "/api/unsave-meme" do
       require_auth!
 
       url = params[:url]
@@ -77,7 +77,7 @@ module Routes
     # -----------------------
     # Push Notification API (Priority 1)
     # -----------------------
-    post "/api/subscribe-push" do
+    app.post "/api/subscribe-push" do
       require_auth!
 
       begin
@@ -117,7 +117,7 @@ module Routes
     end
 
     # Test endpoint for admins to send test notifications
-    post "/api/test-push" do
+    app.post "/api/test-push" do
       require_auth!
       halt 403 unless is_admin?
 
@@ -140,7 +140,7 @@ module Routes
     # -----------------------
     # Surprise Rewards API (Priority 2)
     # -----------------------
-    get "/api/surprise-rewards/check" do
+    app.get "/api/surprise-rewards/check" do
       require_auth!
 
       begin
@@ -155,7 +155,7 @@ module Routes
       end
     end
 
-    get "/api/surprise-rewards/active-boosts" do
+    app.get "/api/surprise-rewards/active-boosts" do
       require_auth!
 
       begin
@@ -169,7 +169,7 @@ module Routes
       end
     end
 
-    get "/saved/:id" do
+    app.get "/saved/:id" do
       # FIX: IDOR vulnerability - require authentication and authorization
       require_auth!
 

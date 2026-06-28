@@ -6,7 +6,9 @@
 # Registered in app.rb via: helpers MemeNavigationHelpers
 
 module MemeNavigationHelpers
-  include PersonalityContent
+  # PersonalityContent is included via: helpers PersonalityContent (app.rb)
+  # Do not include here at load time — it causes NameError if personality_content
+  # is not yet required when this file loads.
 
 
   # -----------------------

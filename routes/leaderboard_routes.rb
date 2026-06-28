@@ -4,7 +4,7 @@
 module Routes
   module LeaderboardRoutes
     def self.registered(app)
-    get "/leaderboard" do
+    app.get "/leaderboard" do
       AppLogger.info("🏆 [LEADERBOARD] Route accessed")
 
       # Initialize all variables with safe defaults
@@ -163,7 +163,7 @@ module Routes
     end
 
     # API Endpoint for AJAX leaderboard updates
-    get "/api/leaderboard" do
+    app.get "/api/leaderboard" do
       content_type :json
 
       begin

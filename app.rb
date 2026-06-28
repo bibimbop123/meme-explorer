@@ -35,11 +35,11 @@ require_relative "./config/app_constants"
 require_relative "./config/schema"
 require_relative "./lib/cache_manager"
 require_relative "./lib/helpers/auth_helpers"
+require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/meme_navigation_helpers"
 require_relative "./lib/helpers/meme_helpers"
 require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
-require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
 require_relative "./lib/helpers/curated_collections_helper"
@@ -69,6 +69,29 @@ require_relative "./lib/services/push_notification_service"
 require_relative "./lib/services/surprise_rewards_service"
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/services/inline_reddit_fetcher"
+# Route files — loaded before registration block
+require_relative "./routes/auth"
+require_relative "./routes/reactions"
+require_relative "./routes/battles"
+require_relative "./routes/legal_routes"
+require_relative "./routes/ab_testing"
+require_relative "./routes/home"
+require_relative "./routes/random_meme"
+require_relative "./routes/memes"
+require_relative "./routes/meme_stats"
+require_relative "./routes/search_routes"
+require_relative "./routes/trending_routes"
+require_relative "./routes/trending_api"
+require_relative "./routes/profile_routes"
+require_relative "./routes/admin_routes"
+require_relative "./routes/metrics_routes"
+require_relative "./routes/behavioral_tracking"
+require_relative "./routes/algorithm_metrics"
+require_relative "./routes/seo_routes"
+require_relative "./routes/enhanced_random"
+require_relative "./routes/session_metrics"
+# NOTE: collections.rb, personalization.rb, health.rb use bare DSL (pre-module style)
+# They are loaded inside the App class body below via class_eval (see Route Registration block)
 require_relative "./routes/utility_routes"
 require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
@@ -381,6 +404,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # Gamification, Gallery, Ad & Personality Helpers
   # -----------------------
   helpers AuthHelpers           # current_user, require_auth!, require_admin!
+  helpers PersonalityContent    # personality-based content helpers
   helpers MemeNavigationHelpers # navigate_meme_unified, is_valid_meme?, get_time_based_pools, etc.
   helpers GamificationHelpers
   helpers GalleryHelpers
@@ -393,6 +417,16 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   helpers MemePoolHelpers
   helpers RedditMediaHelpers
 
+
+  # -----------------------
+  # Load bare-DSL route files inside the App class context
+  # These files use plain get/post calls (pre-module style) and must be
+  # eval'd inside Sinatra::Base, not required at the top level.
+  # -----------------------
+  module_eval(File.read(File.join(__dir__, 'routes/collections.rb')))
+  module_eval(File.read(File.join(__dir__, 'routes/personalization.rb')))
+  # health.rb wraps itself in MemeExplorer::App — load after class is open
+  load File.join(__dir__, 'routes/health.rb')
 
   # -----------------------
   # Route Registration
