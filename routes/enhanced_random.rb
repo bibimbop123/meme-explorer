@@ -87,9 +87,8 @@ module Routes
         # Track the interaction
         MemeExplorer::MemeSelectionService.track_selection(
           meme_id,
-          user_id: user_id,
-          session_id: session_id,
-          interaction_type: interaction_type
+          session_id,
+          user_id
         )
         
         {

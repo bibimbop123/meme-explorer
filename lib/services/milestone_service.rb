@@ -1,7 +1,8 @@
 # Milestone Service
 # Celebrates user achievements to drive continued engagement
 
-class MilestoneService
+module MemeExplorer
+  class MilestoneService
     MILESTONES = {
       5 => {
         badge: 'getting_started',
@@ -174,3 +175,4 @@ class MilestoneService
       end
     end
   end
+end
