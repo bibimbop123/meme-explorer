@@ -38,7 +38,7 @@ module Routes
           # Track in session history
           if @meme
             meme_identifier = @meme["url"] || @meme["file"]
-            session[:meme_history] << meme_identifier if meme_identifier
+            session[:meme_history] ||= []; session[:meme_history] << meme_identifier if meme_identifier
             session[:meme_history] = session[:meme_history].last(100) # Keep last 100
             
             # Track subreddit for diversity tracking
@@ -195,7 +195,7 @@ module Routes
           # Track in session history
           meme_identifier = @meme["url"] || @meme["file"]
           session[:meme_history] ||= []
-          session[:meme_history] << meme_identifier
+          session[:meme_history] ||= []; session[:meme_history] << meme_identifier
           session[:meme_history] = session[:meme_history].last(100)
           
           image_url = @meme["url"] || @meme["file"]
@@ -287,7 +287,7 @@ module Routes
         
         # Track in session history
         meme_identifier = @meme["url"] || @meme["file"]
-        session[:meme_history] << meme_identifier
+        session[:meme_history] ||= []; session[:meme_history] << meme_identifier
         session[:meme_history] = session[:meme_history].last(100)
         session[:last_subreddit] = @meme["subreddit"]&.downcase
         

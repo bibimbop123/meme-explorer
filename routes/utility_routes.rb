@@ -52,10 +52,11 @@ module Routes
       halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
       AppLogger.info("✅ [/random.json] Found valid meme: #{@meme['title']}")
 
-      # Track in session history
+      # Track in session history (guard: initialize if nil)
       meme_identifier = @meme["url"] || @meme["file"]
+      session[:meme_history] ||= []
       session[:meme_history] << meme_identifier
-      session[:meme_history] = session[:meme_history].last(10)  # Hard cap: 50 (reduced from 100)
+      session[:meme_history] = session[:meme_history].last(10)
       session[:last_subreddit] = @meme["subreddit"]&.downcase
 
       image_url = @meme["url"] || @meme["file"]

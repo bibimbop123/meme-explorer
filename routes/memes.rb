@@ -205,7 +205,7 @@ module Routes
       def self.track_meme_view(meme, session)
         meme_identifier = meme["url"] || meme["file"]
         session[:meme_history] ||= []
-        session[:meme_history] << meme_identifier
+        session[:meme_history] ||= []; session[:meme_history] << meme_identifier
         session[:meme_history] = session[:meme_history].last(100)
         session[:last_subreddit] = meme["subreddit"]&.downcase
 

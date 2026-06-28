@@ -102,12 +102,36 @@ module InlineRedditFetcher
 
   # ── private helpers ──────────────────────────────────────────────────────
 
+  # Domains known to serve actual images/videos
+  IMAGE_DOMAINS = %w[
+    i.redd.it preview.redd.it v.redd.it
+    i.imgur.com imgur.com
+    gfycat.com redgifs.com
+    tenor.com giphy.com
+    external-preview.redd.it
+  ].freeze
+
+  # File extensions that are renderable in a browser <img> tag
+  IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?|$)/i
+
+  def self.image_url?(url)
+    return false unless url&.start_with?('http')
+    return false if url.include?('/comments/')   # Reddit post page, not media
+    return true  if url.match?(IMAGE_EXTENSIONS)
+    IMAGE_DOMAINS.any? { |d| url.include?(d) }
+  end
+
   def self.extract_meme(post_data)
     return nil if post_data['is_self'] || (post_data['is_video'] && !post_data['is_gallery'])
 
     gallery_images = extract_gallery_images(post_data) if post_data['is_gallery']
-    image_url      = gallery_images&.first&.dig('url') || post_data['url']
-    return nil unless image_url
+
+    # Try gallery first, then direct URL, then Reddit preview
+    image_url = gallery_images&.first&.dig('url') ||
+                (image_url?(post_data['url']) ? post_data['url'] : nil) ||
+                post_data.dig('preview', 'images', 0, 'source', 'url')&.gsub('&amp;', '&')
+
+    return nil unless image_url?(image_url)
 
     meme = {
       'title'     => post_data['title'],

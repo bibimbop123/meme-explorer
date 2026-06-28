@@ -575,27 +575,27 @@ module MemeExplorer
 
       # Tracking methods
       def track_selection(meme, session_id)
-        # Track meme ID
-        recent_ids = fetch_recent_memes(session_id)
+        # Track meme ID — Array() guards against nil when Redis returns nothing
+        recent_ids = Array(fetch_recent_memes(session_id))
         recent_ids << meme_identifier(meme)
-        store_recent_memes(session_id, recent_ids.last(100)) # Keep last 100
+        store_recent_memes(session_id, recent_ids.last(100))
 
         # Track title
-        recent_titles = fetch_recent_titles(session_id)
+        recent_titles = Array(fetch_recent_titles(session_id))
         recent_titles << (meme['title'] || '').downcase
         store_recent_titles(session_id, recent_titles.last(50))
 
         # Track humor type
-        recent_types = fetch_recent_humor_types(session_id)
+        recent_types = Array(fetch_recent_humor_types(session_id))
         recent_types << detect_primary_humor_type(meme)
         store_recent_humor_types(session_id, recent_types.last(20))
       end
 
       # Session storage helpers (use Redis if available, fallback to memory)
       def fetch_recent_memes(session_id)
-        return @session_cache[:meme_ids] if @session_cache  # Use batch cache
+        return Array(@session_cache[:meme_ids]) if @session_cache
         key = "recent_memes:#{session_id}"
-        fetch_from_storage(key) || []
+        Array(fetch_from_storage(key))
       end
 
       def store_recent_memes(session_id, data)
@@ -604,20 +604,20 @@ module MemeExplorer
       end
 
       def fetch_recent_titles(session_id)
-        return @session_cache[:titles] if @session_cache  # Use batch cache
+        return Array(@session_cache[:titles]) if @session_cache
         key = "recent_titles:#{session_id}"
-        fetch_from_storage(key) || []
+        Array(fetch_from_storage(key))
+      end
+
+      def store_recent_titles(session_id, data)
+        key = "recent_titles:#{session_id}"
+        store_in_storage(key, data, 3600)
       end
 
       def fetch_recent_humor_types(session_id)
-        return @session_cache[:humor_types] if @session_cache  # Use batch cache
+        return Array(@session_cache[:humor_types]) if @session_cache
         key = "recent_humor_types:#{session_id}"
-        fetch_from_storage(key) || []
-      end
-
-      def fetch_recent_humor_types(session_id)
-        key = "recent_humor_types:#{session_id}"
-        fetch_from_storage(key) || []
+        Array(fetch_from_storage(key))
       end
 
       def store_recent_humor_types(session_id, data)

@@ -1,7 +1,7 @@
 # Algorithm Configuration - Phase 2
 # All algorithm parameters in one place for easy A/B testing and tuning
 
-production:
+production: &production
   # Streak Bonuses (Reward engagement momentum)
   streak_bonuses:
     none: 1.0           # 0-1 consecutive likes
