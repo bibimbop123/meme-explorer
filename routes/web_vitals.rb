@@ -19,10 +19,12 @@ module Routes
           # Log to application logger (DEBUG level to reduce noise)
           AppLogger.debug("Web Vital - #{metric.upcase}: #{value}ms on #{url}")
           
-          # Store in Redis for aggregation
-          redis_key = "web_vitals:#{Date.today}:#{metric}"
-          RedisService.rpush(redis_key, value.to_s)
-          RedisService.expire(redis_key, 604800) # Keep for 7 days
+          # Store in Redis for aggregation using with_redis
+          RedisService.with_redis do |redis|
+            redis_key = "web_vitals:#{Date.today}:#{metric}"
+            redis.rpush(redis_key, value.to_s)
+            redis.expire(redis_key, 604800) # Keep for 7 days
+          end
           
           # Alert if critical thresholds exceeded
           if (metric == 'lcp' && value > 4000) ||
@@ -45,8 +47,10 @@ module Routes
         
         @vitals_data = {}
         %w[lcp fid cls].each do |metric|
-          redis_key = "web_vitals:#{Date.today}:#{metric}"
-          values = RedisService.lrange(redis_key, 0, -1).map(&:to_f)
+          values = RedisService.with_redis do |redis|
+            redis_key = "web_vitals:#{Date.today}:#{metric}"
+            redis.lrange(redis_key, 0, -1).map(&:to_f)
+          end || []
           
           next if values.empty?
           
