@@ -12,6 +12,7 @@ module TrendingService
     query = <<~SQL
       SELECT 
         url,
+        url AS image_url,
         title,
         subreddit,
         views,
@@ -41,7 +42,13 @@ module TrendingService
   def get_trending_by_category(category, limit: 30)
     query = <<~SQL
       SELECT 
-        m.*,
+        m.url,
+        m.url AS image_url,
+        m.title,
+        m.subreddit,
+        m.views,
+        m.likes,
+        m.updated_at,
         (m.likes * 2.0 + m.views) * 
         EXP(-0.05 * EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - m.updated_at)) / 3600.0) AS score
       FROM meme_stats m
