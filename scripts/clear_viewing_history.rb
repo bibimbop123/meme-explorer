@@ -2,6 +2,7 @@
 # Clear all viewing history from Redis
 
 require_relative '../config/application'
+require_relative '../lib/services/redis_service'
 
 puts "🔍 Searching for viewing history keys in Redis..."
 
