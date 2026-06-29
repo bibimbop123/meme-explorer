@@ -50,11 +50,8 @@ module MemeExplorer
         # Track usage
         track_pool_usage(session_id, pool_type)
         
-        # Track viewed meme using ViewingHistoryService
-        if selected
-          meme_id = selected['url'] || selected['file'] || selected['id']
-          MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_id) if meme_id
-        end
+        # DON'T mark as seen here! Let the route do it after successful delivery
+        # This prevents marking memes that fail to load or aren't actually shown
         
         # Add metadata
         selected['diversity_pool'] = pool_type if selected
