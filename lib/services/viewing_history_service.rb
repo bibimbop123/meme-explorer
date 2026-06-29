@@ -17,14 +17,16 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        # Add to sorted set with timestamp score
-        RedisService.zadd(key, Time.now.to_i, meme_identifier)
-        
-        # Keep only last MAX_HISTORY_SIZE memes
-        RedisService.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
-        
-        # Set expiry
-        RedisService.expire(key, HISTORY_TTL)
+        RedisService.with_redis do |redis|
+          # Add to sorted set with timestamp score
+          redis.zadd(key, Time.now.to_i, meme_identifier)
+          
+          # Keep only last MAX_HISTORY_SIZE memes
+          redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
+          
+          # Set expiry
+          redis.expire(key, HISTORY_TTL)
+        end
         
         AppLogger.debug("📝 Marked meme as seen: #{meme_identifier} for #{visitor_id}")
       rescue => e
@@ -37,9 +39,12 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        # Get all seen memes (returns array of strings)
-        seen = RedisService.zrange(key, 0, -1)
+        seen = RedisService.with_redis do |redis|
+          # Get all seen memes (returns array of strings)
+          redis.zrange(key, 0, -1)
+        end
         
+        seen ||= []
         AppLogger.debug("📊 Retrieved #{seen.size} seen memes for #{visitor_id}")
         seen
       rescue => e
@@ -53,7 +58,10 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        score = RedisService.zscore(key, meme_identifier)
+        score = RedisService.with_redis do |redis|
+          redis.zscore(key, meme_identifier)
+        end
+        
         !score.nil?
       rescue => e
         AppLogger.error("Failed to check if meme seen: #{e.message}")
@@ -66,7 +74,11 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        RedisService.zcard(key).to_i
+        count = RedisService.with_redis do |redis|
+          redis.zcard(key)
+        end
+        
+        count.to_i
       rescue => e
         AppLogger.error("Failed to get seen count: #{e.message}")
         0
@@ -78,7 +90,10 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        RedisService.del(key)
+        RedisService.with_redis do |redis|
+          redis.del(key)
+        end
+        
         AppLogger.info("🗑️  Cleared viewing history for #{visitor_id}")
       rescue => e
         AppLogger.error("Failed to clear history: #{e.message}")
@@ -90,14 +105,18 @@ module MemeExplorer
         
         key = history_key(visitor_id)
         
-        count = RedisService.zcard(key).to_i
-        ttl = RedisService.ttl(key).to_i
+        stats = RedisService.with_redis do |redis|
+          count = redis.zcard(key).to_i
+          ttl = redis.ttl(key).to_i
+          
+          {
+            total_seen: count,
+            ttl_seconds: ttl,
+            ttl_minutes: (ttl / 60.0).round(1)
+          }
+        end
         
-        {
-          total_seen: count,
-          ttl_seconds: ttl,
-          ttl_minutes: (ttl / 60.0).round(1)
-        }
+        stats || {}
       rescue => e
         AppLogger.error("Failed to get stats: #{e.message}")
         {}
