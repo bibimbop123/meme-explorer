@@ -2,11 +2,10 @@
 # Clear all viewing history from Redis
 
 require_relative '../config/application'
-require_relative '../lib/services/redis_service'
 
 puts "🔍 Searching for viewing history keys in Redis..."
 
-MemeExplorer::RedisService.with_redis do |redis|
+RedisService.with_redis do |redis|
   keys = redis.keys('viewing_history:*')
   
   if keys.empty?
