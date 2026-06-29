@@ -30,6 +30,7 @@ require_relative "./db/setup"
 require_relative "./lib/error_handler"
 require_relative "./lib/app_logger"       # single require — removed duplicate below
 require_relative "./config/application"
+require_relative "./config/initializers/redis_cluster"  # Must load before RedisService
 require_relative "./config/constants"
 require_relative "./config/app_constants"
 require_relative "./config/schema"

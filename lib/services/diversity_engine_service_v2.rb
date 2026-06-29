@@ -9,11 +9,9 @@ module MemeExplorer
       def select_diverse_meme(all_memes, session_id:, preferences: {})
         return all_memes.sample if all_memes.empty?
         
-        # Initialize session state
-        init_session_state(session_id)
-        
-        # Get FULL viewing history (not just recent)
-        seen_memes = get_full_history(session_id)
+        # Use ViewingHistoryService for consistent tracking
+        # session_id is used as visitor_id for unified tracking
+        seen_memes = MemeExplorer::ViewingHistoryService.get_seen_memes(session_id)
         
         # CRITICAL: Remove ALL previously seen memes
         unseen_memes = all_memes.reject do |meme|
@@ -24,7 +22,7 @@ module MemeExplorer
         # If we've seen everything, reset history and start fresh
         if unseen_memes.empty?
           puts "🔄 User has seen all #{all_memes.size} memes! Resetting history..."
-          reset_history(session_id)
+          MemeExplorer::ViewingHistoryService.clear_history(session_id)
           unseen_memes = all_memes
         end
         
@@ -51,7 +49,12 @@ module MemeExplorer
         
         # Track usage
         track_pool_usage(session_id, pool_type)
-        track_meme_view(session_id, selected) if selected
+        
+        # Track viewed meme using ViewingHistoryService
+        if selected
+          meme_id = selected['url'] || selected['file'] || selected['id']
+          MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_id) if meme_id
+        end
         
         # Add metadata
         selected['diversity_pool'] = pool_type if selected
@@ -62,63 +65,6 @@ module MemeExplorer
       end
       
       private
-      
-      def init_session_state(session_id)
-        return unless defined?(REDIS) && REDIS
-        
-        # Initialize viewing history
-        key = "meme_history:#{session_id}"
-        unless REDIS.exists(key)
-          REDIS.setex(key, 7200, [].to_json) # 2 hour TTL
-        end
-        
-        # Initialize pool history
-        pool_key = "diversity:pools:#{session_id}"
-        unless REDIS.exists(pool_key)
-          REDIS.setex(pool_key, 3600, [].to_json)
-        end
-      end
-      
-      # Get FULL viewing history
-      def get_full_history(session_id)
-        return [] unless defined?(REDIS) && REDIS
-        
-        key = "meme_history:#{session_id}"
-        data = REDIS.get(key)
-        data ? JSON.parse(data) : []
-      rescue => e
-        AppLogger.warn("get_full_history failed", error: e.message)
-        []
-      end
-      
-      # Track viewed meme
-      def track_meme_view(session_id, meme)
-        return unless defined?(REDIS) && REDIS
-        return unless meme
-        
-        meme_id = meme['url'] || meme['file'] || meme['id']
-        return unless meme_id
-        
-        key = "meme_history:#{session_id}"
-        history = get_full_history(session_id)
-        history << meme_id unless history.include?(meme_id)
-        
-        # Keep last 1000 memes (prevents seeing same meme for a LONG time)
-        REDIS.setex(key, 7200, history.last(1000).to_json)
-      rescue => e
-        AppLogger.warn("track_meme_view failed", error: e.message)
-      end
-      
-      # Reset history when user has seen everything
-      def reset_history(session_id)
-        return unless defined?(REDIS) && REDIS
-        
-        key = "meme_history:#{session_id}"
-        REDIS.del(key)
-        REDIS.setex(key, 7200, [].to_json)
-      rescue => e
-        AppLogger.warn("reset_history failed", error: e.message)
-      end
       
       # Pool rotation (unchanged)
       def determine_next_pool(session_id)
@@ -274,34 +220,28 @@ module MemeExplorer
         end
       end
       
-      # Tracking helpers
+      # Tracking helpers - use RedisService wrapper for safety
       def track_pool_usage(session_id, pool_type)
-        return unless defined?(REDIS) && REDIS
-        
         key = "diversity:pools:#{session_id}"
         recent = get_recent_pools(session_id)
         recent << pool_type
         
-        REDIS.setex(key, 3600, recent.last(20).to_json)
+        RedisService.set(key, recent.last(20).to_json, ttl: 3600)
       rescue => e
         AppLogger.warn("track_pool_usage failed", error: e.message)
       end
       
       def get_recent_pools(session_id)
-        return [] unless defined?(REDIS) && REDIS
-        
         key = "diversity:pools:#{session_id}"
-        data = REDIS.get(key)
+        data = RedisService.get(key, default: nil)
         data ? JSON.parse(data, symbolize_names: true) : []
       rescue => e
         []
       end
       
       def get_recent_subreddits(session_id)
-        return [] unless defined?(REDIS) && REDIS
-        
         key = "recent_subreddits:#{session_id}"
-        data = REDIS.get(key)
+        data = RedisService.get(key, default: nil)
         data ? JSON.parse(data) : []
       rescue => e
         []
