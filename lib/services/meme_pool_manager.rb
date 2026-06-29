@@ -69,7 +69,7 @@ class MemePoolManager
       bootstrap_result = bootstrap_pool
       
       if bootstrap_result[:success]
-        AppLogger.info("✅ [PoolManager] Bootstrap complete: #{bootstrap_result[:size]} memes")
+        AppLogger.info("✅ [Pool] Using MemePoolManager: #{bootstrap_result[:size]} memes (tier-distributed)")
         # Trigger background expansion to 5K (non-blocking)
         trigger_background_expansion
         
@@ -126,7 +126,7 @@ class MemePoolManager
         MemePoolMaintenanceWorker.perform_async
         AppLogger.info("✅ [PoolManager] Triggered background expansion to 5,000 memes")
       else
-        AppLogger.warn("ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size")
+        AppLogger.debug("ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size")
       end
     end
     

@@ -187,8 +187,8 @@ module MemeExplorer
           likes = meme['likes'].to_i
           upvote_ratio = meme['upvote_ratio'].to_f
           
-          # MUCH lower threshold: 20+ likes, 0.5+ ratio
-          likes >= 20 && upvote_ratio >= 0.5
+          # VERY relaxed threshold for bootstrap: 5+ likes OR 0.6+ ratio OR recent
+          likes >= 5 || upvote_ratio >= 0.6 || meme['created_at']
         end.sort_by do |meme|
           -calculate_trending_score(meme)
         end.take(150) # Top 150 (was 50)
@@ -230,7 +230,7 @@ module MemeExplorer
         end
         
         # If still too few, include 48h
-        if fresh.size < 50
+        if fresh.size < 20
           cutoff_48h = Time.now - (48 * 3600)
           fresh = all_memes.select do |meme|
             next false unless meme['created_at']

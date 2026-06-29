@@ -93,6 +93,7 @@ require_relative "./routes/seo_routes"
 require_relative "./routes/enhanced_random"
 require_relative "./routes/session_metrics"
 require_relative "./routes/health"
+require_relative "./routes/web_vitals"
 require_relative "./routes/collections"
 require_relative "./routes/personalization"
 require_relative "./routes/utility_routes"
@@ -432,6 +433,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   LegalRoutes.register(self)
   register Routes::ABTesting
   register Routes::HealthRoutes
+      register Routes::WebVitals
   register Routes::CollectionRoutes
   register Routes::PersonalizationRoutes
   register Routes::Home
