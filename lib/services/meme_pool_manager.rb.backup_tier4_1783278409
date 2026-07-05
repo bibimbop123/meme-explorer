@@ -52,11 +52,11 @@ class MemePoolManager
     # HYBRID: Quick bootstrap on first call, then scale via Sidekiq
     # Check pool capacity and trigger proactive refresh if below threshold
 def check_and_refresh_if_low(current_size)
-  return if current_size >= 300 # Above comfortable level (50% = 250 memes)
+  return if current_size >= 250 # Above comfortable level (40% = 200 memes)
 
   capacity_percent = (current_size.to_f / 500) * 100
   
-  if capacity_percent <= LOW_THRESHOLD_PERCENT # Triggers at 250 memes (50%)
+  if capacity_percent <= LOW_THRESHOLD_PERCENT # Triggers at 200 memes (40%)
     AppLogger.info("📊 [PoolManager] Pool at #{capacity_percent.round}% capacity (#{current_size} memes) - triggering proactive refresh")
     trigger_background_expansion
   end
@@ -278,11 +278,11 @@ end
     # Get current pool size
     # Check pool capacity and trigger proactive refresh if below threshold
 def check_and_refresh_if_low(current_size)
-  return if current_size >= 300 # Above comfortable level (50% = 250 memes)
+  return if current_size >= 250 # Above comfortable level (40% = 200 memes)
 
   capacity_percent = (current_size.to_f / 500) * 100
   
-  if capacity_percent <= LOW_THRESHOLD_PERCENT # Triggers at 250 memes (50%)
+  if capacity_percent <= LOW_THRESHOLD_PERCENT # Triggers at 200 memes (40%)
     AppLogger.info("📊 [PoolManager] Pool at #{capacity_percent.round}% capacity (#{current_size} memes) - triggering proactive refresh")
     trigger_background_expansion
   end
