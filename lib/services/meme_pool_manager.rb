@@ -124,7 +124,7 @@ end
   # Now 80 subreddits * 25 per sub = 2,000 potential memes
   
   fetcher = create_fetcher
-  memes = fetcher.fetch_memes(all_subs, limit: 25)  # Increased from 20 to 25
+  memes = fetcher.fetch_memes(all_subs, limit: 20)  # 240 subs * 20 = 4,800 potential
   # 20 per subreddit = ~600 total
       
       # SKIP quality filter on bootstrap for speed (basic validation only)
