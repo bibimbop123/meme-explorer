@@ -50,20 +50,6 @@ class MemePoolManager
     
     # Get current pool (main entry point for app.rb)
     # HYBRID: Quick bootstrap on first call, then scale via Sidekiq
-    # Check pool capacity and trigger proactive refresh if below threshold
-def check_and_refresh_if_low(current_size)
-  return if current_size >= 200 # Above comfortable level
-
-  capacity_percent = (current_size.to_f / 500) * 100
-  
-  if capacity_percent <= LOW_THRESHOLD_PERCENT
-    AppLogger.info("📊 [PoolManager] Pool at #{capacity_percent.round}% capacity (#{current_size} memes) - triggering proactive refresh")
-    trigger_background_expansion
-  end
-rescue => e
-  AppLogger.error("⚠️  [PoolManager] Proactive refresh check failed: #{e.message}")
-end
-
     def get_pool
       pool = get_current_pool
       size = pool.size
@@ -276,20 +262,6 @@ end
     end
     
     # Get current pool size
-    # Check pool capacity and trigger proactive refresh if below threshold
-def check_and_refresh_if_low(current_size)
-  return if current_size >= 200 # Above comfortable level
-
-  capacity_percent = (current_size.to_f / 500) * 100
-  
-  if capacity_percent <= LOW_THRESHOLD_PERCENT
-    AppLogger.info("📊 [PoolManager] Pool at #{capacity_percent.round}% capacity (#{current_size} memes) - triggering proactive refresh")
-    trigger_background_expansion
-  end
-rescue => e
-  AppLogger.error("⚠️  [PoolManager] Proactive refresh check failed: #{e.message}")
-end
-
     def get_pool_size
       cached_count = RedisService.get('meme_pool:count')
       return cached_count.to_i if cached_count
