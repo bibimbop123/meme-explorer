@@ -250,6 +250,65 @@ end
       memes # Return unfiltered on error
     end
     
+# Categorize memes by their subreddit tier
+def categorize_by_tier(memes)
+  return { fresh: [], surprise: [], diverse: [] } if memes.empty?
+  
+  categorized = { fresh: [], surprise: [], diverse: [] }
+  tier_map = load_subreddit_tier_map
+  
+  memes.each do |meme|
+    subreddit = meme["subreddit"]&.downcase
+    next unless subreddit
+    
+    tier = tier_map[subreddit] || 5 # Default to tier 5 if unknown
+    
+    case tier
+    when 1
+      categorized[:fresh] << meme
+    when 2, 3
+      categorized[:surprise] << meme
+    when 4, 5
+      categorized[:diverse] << meme
+    end
+  end
+  
+  AppLogger.info("📊 [PoolManager] Categorized: fresh=#{categorized[:fresh].size}, surprise=#{categorized[:surprise].size}, diverse=#{categorized[:diverse].size}")
+  categorized
+end
+
+# Load subreddit → tier mapping from YAML
+def load_subreddit_tier_map
+  return @tier_map if @tier_map
+  
+  yaml_path = File.join(__dir__, '../../data/subreddits.yml')
+  data = YAML.load_file(yaml_path)
+  
+  @tier_map = {}
+  data['tier_1']&.each { |sub| @tier_map[sub.downcase] = 1 }
+  data['tier_2']&.each { |sub| @tier_map[sub.downcase] = 2 }
+  data['tier_3']&.each { |sub| @tier_map[sub.downcase] = 3 }
+  data['tier_4']&.each { |sub| @tier_map[sub.downcase] = 4 }
+  data['tier_5']&.each { |sub| @tier_map[sub.downcase] = 5 }
+  
+  AppLogger.info("📚 [PoolManager] Loaded tier map: #{@tier_map.size} subreddits")
+  @tier_map
+rescue => e
+  AppLogger.error("⚠️  [PoolManager] Failed to load tier map: #{e.message}")
+  {}
+end
+
+# Get memes from a specific tier pool
+def get_tier_pool(pool_name)
+  json = RedisService.get("meme_pool:#{pool_name}")
+  return [] unless json
+  
+  JSON.parse(json)
+rescue => e
+  AppLogger.error("⚠️  Failed to get tier pool '#{pool_name}': #{e.message}")
+  []
+end
+
     # Store memes in Redis pool
     def store_in_pool(memes)
       return 0 if memes.empty?
