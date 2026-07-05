@@ -96,16 +96,22 @@ class MemePoolManager
     
     # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
     def bootstrap_pool
-      AppLogger.info("🚀 [Bootstrap] Quick fetch from top 2 tiers only...")
-      
-      # Only fetch from tier 1 & 2 for speed (most popular subreddits)
-      tier_1_subs = load_tier_subreddits(:tier_1).first(20)  # Top 20 tier 1
-      tier_2_subs = load_tier_subreddits(:tier_2).first(10)  # Top 10 tier 2
-      
-      all_subs = tier_1_subs + tier_2_subs
-      
-      fetcher = create_fetcher
-      memes = fetcher.fetch_memes(all_subs, limit: 20)  # 20 per subreddit = ~600 total
+  AppLogger.info("🚀 [Bootstrap] AGGRESSIVE fetch from ALL 5 tiers for variety...")
+  
+  # CRITICAL FIX: Fetch from ALL tiers, not just 1-2 (July 5, 2026)
+  # This increases pool from 40 → 400-600 memes
+  tier_1_subs = load_tier_subreddits(:tier_1).first(30)  # 30 tier 1
+  tier_2_subs = load_tier_subreddits(:tier_2).first(20)  # 20 tier 2
+  tier_3_subs = load_tier_subreddits(:tier_3).first(15)  # 15 tier 3
+  tier_4_subs = load_tier_subreddits(:tier_4).first(10)  # 10 tier 4
+  tier_5_subs = load_tier_subreddits(:tier_5).first(5)   # 5 tier 5
+  
+  all_subs = tier_1_subs + tier_2_subs + tier_3_subs + tier_4_subs + tier_5_subs
+  # Now 80 subreddits * 25 per sub = 2,000 potential memes
+  
+  fetcher = create_fetcher
+  memes = fetcher.fetch_memes(all_subs, limit: 25)  # Increased from 20 to 25
+  # 20 per subreddit = ~600 total
       
       # SKIP quality filter on bootstrap for speed (basic validation only)
       validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
