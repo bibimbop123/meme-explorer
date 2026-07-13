@@ -106,21 +106,48 @@ module MemeExplorer
         pools.last
       end
       
-      # RELAXED POOL DEFINITIONS - Much larger pools!
+      # RELAXED POOL DEFINITIONS - Now retrieves from tier-specific Redis pools!
+      # FIXED July 13, 2026: Retrieve from MemePoolManager's tier-specific pools
       def get_pool_memes(all_memes, pool_type, session_id)
-        case pool_type
-        when :trending
-          get_trending_pool_relaxed(all_memes)
-        when :fresh
-          get_fresh_pool_relaxed(all_memes)
-        when :diverse
-          get_diverse_pool(all_memes, session_id)
-        when :random
-          all_memes.shuffle.take(100) # Random 100
-        when :surprise
-          get_surprise_pool_relaxed(all_memes)
-        else
-          all_memes
+        begin
+          # Convert symbol to string for Redis key
+          pool_name = pool_type.to_s
+          redis_key = "meme_pool:#{pool_name}"
+          
+          # Try to get from tier-specific Redis pool first
+          pool_json = RedisService.get(redis_key)
+          
+          if pool_json && !pool_json.empty?
+            pool_memes = JSON.parse(pool_json)
+            
+            if pool_memes.is_a?(Array) && pool_memes.any?
+              AppLogger.info("✅ Retrieved #{pool_memes.size} memes from Redis pool '#{redis_key}'")
+              return pool_memes
+            end
+          end
+          
+          # Fallback to attribute-based filtering if Redis pool not available
+          AppLogger.warn("⚠️  Redis pool '#{redis_key}' empty, falling back to filtering")
+          case pool_type
+          when :trending
+            get_trending_pool_relaxed(all_memes)
+          when :fresh
+            get_fresh_pool_relaxed(all_memes)
+          when :diverse
+            get_diverse_pool(all_memes, session_id)
+          when :random
+            all_memes.shuffle.take(100) # Random 100
+          when :surprise
+            get_surprise_pool_relaxed(all_memes)
+          else
+            all_memes
+          end
+        rescue JSON::ParserError => e
+          AppLogger.error("JSON parse error for pool '#{pool_type}'", error: e.message)
+          all_memes.shuffle.take(100)
+        rescue => e
+          AppLogger.error("Error retrieving pool '#{pool_type}'", error: e.message)
+          all_memes.shuffle.take(100)
         end
       end
       
