@@ -87,6 +87,99 @@ class RedisService
       false
     end
     
+    # Push value(s) to end of Redis list
+    # @param key [String] Redis list key
+    # @param values [String|Array] Value(s) to push
+    # @return [Integer] New list length
+    def rpush(key, *values)
+      return 0 unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.rpush(key, *values)
+      end
+    rescue => e
+      handle_error(e, operation: 'rpush', key: key)
+      0
+    end
+    
+    # Get range of values from Redis list
+    # @param key [String] Redis list key  
+    # @param start [Integer] Start index (default 0)
+    # @param stop [Integer] Stop index (default -1 = all)
+    # @return [Array<String>] List values
+    def lrange(key, start = 0, stop = -1)
+      return [] unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.lrange(key, start, stop)
+      end
+    rescue => e
+      handle_error(e, operation: 'lrange', key: key)
+      []
+    end
+    
+    # Get list length
+    # @param key [String] Redis list key
+    # @return [Integer] List length
+    def llen(key)
+      return 0 unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.llen(key)
+      end
+    rescue => e
+      handle_error(e, operation: 'llen', key: key)
+      0
+    end
+    
+    # Set hash field
+    # @param key [String] Redis hash key
+    # @param field [String] Hash field name
+    # @param value [String] Value to store
+    # @return [Boolean] Success status
+    def hset(key, field, value)
+      return false unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.hset(key, field, value)
+        true
+      end
+    rescue => e
+      handle_error(e, operation: 'hset', key: key)
+      false
+    end
+    
+    # Get hash field
+    # @param key [String] Redis hash key
+    # @param field [String] Hash field name
+    # @return [String|nil] Field value
+    def hget(key, field)
+      return nil unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.hget(key, field)
+      end
+    rescue => e
+      handle_error(e, operation: 'hget', key: key)
+      nil
+    end
+    
+    # Set expiration on key
+    # @param key [String] Redis key
+    # @param seconds [Integer] TTL in seconds
+    # @return [Boolean] Success status
+    def expire(key, seconds)
+      return false unless redis_available?
+      
+      REDIS_POOL.with do |redis|
+        redis.expire(key, seconds)
+        true
+      end
+    rescue => e
+      handle_error(e, operation: 'expire', key: key)
+      false
+    end
+    
     # Direct Redis access with error handling and connection pooling
     # Use this for operations not covered by helper methods
     #

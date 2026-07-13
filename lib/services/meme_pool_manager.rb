@@ -283,59 +283,56 @@ rescue => e
   {}
 end
 
-# Get memes from a specific tier pool
+# Get memes from a specific tier pool (July 13, 2026 - Redis Lists)
 def get_tier_pool(pool_name)
-  json = RedisService.get("meme_pool:#{pool_name}")
-  return [] unless json
+  list_key = "meme_pool:#{pool_name}_ids"
+  meme_ids = RedisService.lrange(list_key, 0, -1)
+  return [] if meme_ids.empty?
   
-  JSON.parse(json)
+  # Fetch full meme data for each ID
+  memes = meme_ids.map do |meme_id|
+    json = RedisService.hget("meme:data", meme_id)
+    JSON.parse(json) if json
+  end.compact
+  
+  memes
 rescue => e
   AppLogger.error("⚠️  Failed to get tier pool '#{pool_name}': #{e.message}")
   []
 end
 
-    # Store memes in Redis pool (TIERED VERSION - July 5, 2026)
+    # Store memes using Redis Lists (July 13, 2026 - LRU Fix)
     def store_in_pool(memes)
       return 0 if memes.empty?
       
-      # Categorize by tier FIRST
+      # Categorize memes by tier
       categorized = categorize_by_tier(memes)
       
       total_stored = 0
-      
-      # Store each tier separately
-      [:fresh, :surprise, :diverse].each do |pool_name|
-        tier_memes = categorized[pool_name]
-        next if tier_memes.empty?
+      categorized.each do |pool_name, pool_memes|
+        next if pool_memes.empty?
         
-        # Get current tier pool
-        current_pool = get_tier_pool(pool_name)
+        # Store each meme individually in hash
+        pool_memes.each do |meme|
+          meme_id = meme['id'] || "#{meme['subreddit']}_#{Time.now.to_i}_#{rand(1000)}"
+          RedisService.hset("meme:data", meme_id, meme.to_json)
+        end
         
-        # Add new memes (avoid duplicates by URL)
-        existing_urls = current_pool.map { |m| m["url"] }.to_set
-        new_memes = tier_memes.reject { |m| existing_urls.include?(m["url"]) }
+        # Store IDs in list
+        list_key = "meme_pool:#{pool_name}_ids"
+        RedisService.delete(list_key)  # Clear old
+        meme_ids = pool_memes.map { |m| m['id'] || "#{m['subreddit']}_#{Time.now.to_i}" }
+        RedisService.rpush(list_key, *meme_ids)
+        RedisService.expire(list_key, 3600)  # 1 hour TTL
         
-        # Update pool
-        updated_pool = current_pool + new_memes
-        
-        # Store in Redis with tier-specific key
-        RedisService.set("meme_pool:#{pool_name}", updated_pool.to_json)
-        RedisService.set("meme_pool:#{pool_name}:count", updated_pool.size)
-        
-        total_stored += new_memes.size
-        AppLogger.info("   ✅ Stored #{new_memes.size} memes in '#{pool_name}' pool (total: #{updated_pool.size})")
+        AppLogger.info("   ✅ Stored #{pool_memes.size} memes in '#{pool_name}' pool (total: #{pool_memes.size})")
+        total_stored += pool_memes.size
       end
       
-      # Also maintain legacy single pool for backward compatibility
-      all_memes = categorized[:fresh] + categorized[:surprise] + categorized[:diverse]
-      current_pool = get_current_pool
-      existing_urls = current_pool.map { |m| m["url"] }.to_set
-      new_memes = all_memes.reject { |m| existing_urls.include?(m["url"]) }
-      updated_pool = current_pool + new_memes
-      
-      RedisService.set('meme_pool', updated_pool.to_json)
-      RedisService.set('meme_pool:count', updated_pool.size)
-      RedisService.set('meme_pool:updated_at', Time.now.to_s)
+      # Update metadata
+      RedisService.set("meme_pool:count", total_stored, ttl: 3600)
+      RedisService.set("meme_pool:initialized", "true", ttl: 3600)
+      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 3600)
       
       total_stored
     rescue => e
