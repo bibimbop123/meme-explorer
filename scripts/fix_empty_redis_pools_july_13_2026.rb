@@ -6,6 +6,9 @@
 require 'bundler/setup'
 require_relative '../app'
 
+# Explicitly require MemePoolManager and dependencies
+require_relative '../lib/services/meme_pool_manager'
+
 puts "=" * 80
 puts "🔧 REDIS POOL EMERGENCY FIX - July 13, 2026"
 puts "=" * 80
