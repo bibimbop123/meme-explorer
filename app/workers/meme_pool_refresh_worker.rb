@@ -39,13 +39,16 @@ class MemePoolRefreshWorker
       # Combine and deduplicate
       all_memes = (api_memes + db_memes).uniq { |m| m["url"] }
       
-      # Update cache
+      # Store in tier-based Redis Lists using MemePoolManager
+      MemePoolManager.store_in_pool(all_memes)
+      
+      # Update old cache for backward compatibility
       MEME_CACHE.set(:memes, all_memes)
       MEME_CACHE.set(:last_refresh, Time.now)
       MEME_CACHE.set(:refreshing, false)
       
       duration = (Time.now - start_time).round(2)
-      logger.info "✅ Pool refreshed: #{all_memes.size} memes in #{duration}s"
+      logger.info "✅ Pool refreshed: #{all_memes.size} memes stored in Redis Lists in #{duration}s"
       
       # Track metrics
       track_refresh_metrics(all_memes.size, duration)
