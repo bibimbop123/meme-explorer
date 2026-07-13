@@ -99,6 +99,7 @@ require_relative "./routes/collections"
 require_relative "./routes/personalization"
 require_relative "./routes/utility_routes"
 require_relative "./routes/guides"
+require_relative "./routes/blog_routes"  # AdSense: Blog system
 require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
 require_relative "./routes/system_routes"
@@ -455,6 +456,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   register Routes::SessionMetrics
   register Routes::UtilityRoutes
   register Routes::Guides
+  register Routes::Blog  # AdSense: Original content blog
   register Routes::LeaderboardRoutes
   register Routes::UserApiRoutes
   register Routes::SystemRoutes

@@ -1,0 +1,44 @@
+---
+slug: quality-meme-curation-system
+title: How We Built a Quality Meme Curation System
+author: Meme Explorer Editorial Team
+published_at: '2026-07-13'
+updated_at: '2026-07-13'
+word_count: 2100
+excerpt: An in-depth look at our 6-stage quality pipeline that ensures only the best
+  memes reach our users. Learn about algorithmic filtering, community signals, and
+  expert curation.
+content: |
+  <h2>Introduction</h2>
+  <p>At Meme Explorer, quality isn't an accident—it's a carefully engineered outcome of our sophisticated curation pipeline...</p>
+
+  <h2>The Challenge of Meme Aggregation</h2>
+  <p>Reddit produces millions of posts daily across thousands of communities...</p>
+
+  <h2>Our 6-Stage Quality Pipeline</h2>
+
+  <h3>Stage 1: Source Selection</h3>
+  <p>We carefully curate which subreddits we pull from...</p>
+
+  <h3>Stage 2: Initial Filtering</h3>
+  <p>Automated systems filter out NSFW content, spam, and low-quality submissions...</p>
+
+  <h3>Stage 3: Engagement Analysis</h3>
+  <p>We analyze community engagement signals including upvotes, comments, and awards...</p>
+
+  <h3>Stage 4: Format Recognition</h3>
+  <p>Our AI identifies meme formats and templates to ensure variety...</p>
+
+  <h3>Stage 5: Quality Scoring</h3>
+  <p>Each meme receives a composite quality score based on multiple factors...</p>
+
+  <h3>Stage 6: Human Curation</h3>
+  <p>Our team of curators reviews high-scoring memes for final approval...</p>
+
+  <h2>Results and Impact</h2>
+  <p>Since implementing this system, user engagement has increased by 300%...</p>
+
+  <h2>Conclusion</h2>
+  <p>Quality curation is what separates a great meme platform from mere aggregation...</p>
+
+  <p><em>This is a SAMPLE post. Replace with actual 2000+ word content.</em></p>

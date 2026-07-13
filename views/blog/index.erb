@@ -1,0 +1,39 @@
+<div class="blog-index">
+  <h1>📝 Meme Culture Blog</h1>
+  <p class="tagline">Expert insights on internet culture, meme formats, and digital humor</p>
+  
+  <div class="blog-posts">
+    <% @posts.each do |post| %>
+      <article class="blog-card">
+        <h2><a href="/blog/<%= post['slug'] %>"><%= post['title'] %></a></h2>
+        <div class="meta">
+          <span>📅 <%= post['published_at'] %></span>
+          <span>📖 <%= post['word_count'] %> words</span>
+          <span>⏱️ <%= (post['word_count'] / 200.0).ceil %> min read</span>
+        </div>
+        <p><%= post['excerpt'] %></p>
+        <a href="/blog/<%= post['slug'] %>" class="read-more">Read More →</a>
+      </article>
+    <% end %>
+  </div>
+</div>
+
+<style>
+  .blog-index { max-width: 900px; margin: 2rem auto; padding: 2rem; }
+  .blog-card { 
+    background: white; 
+    padding: 2rem; 
+    margin: 2rem 0; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+  }
+  .blog-card h2 a { color: #667eea; text-decoration: none; }
+  .blog-card h2 a:hover { text-decoration: underline; }
+  .meta { color: #666; font-size: 0.9rem; margin: 1rem 0; }
+  .meta span { margin-right: 1rem; }
+  .read-more { 
+    color: #667eea; 
+    font-weight: 600; 
+    text-decoration: none; 
+  }
+</style>
