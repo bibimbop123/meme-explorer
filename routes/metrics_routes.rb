@@ -6,9 +6,9 @@ module Routes
     def self.registered(app)
       # Metrics JSON API
       app.get "/metrics.json" do
-        total_memes = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0
-        total_likes = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0
-        total_views = MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0
+        total_memes = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM meme_stats") || 0).to_i
+        total_likes = (MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(likes), 0) FROM meme_stats") || 0).to_i
+        total_views = (MemeExplorer::App::DB.get_first_value("SELECT COALESCE(SUM(views), 0) FROM meme_stats") || 0).to_i
 
         avg_likes = total_memes > 0 ? (total_likes.to_f / total_memes).round(2) : 0
         avg_views = total_memes > 0 ? (total_views.to_f / total_memes).round(2) : 0
