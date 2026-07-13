@@ -177,7 +177,7 @@ module MemeExplorer
           likes >= 5 || upvote_ratio >= 0.6 || meme['created_at']
         end.sort_by do |meme|
           -calculate_trending_score(meme)
-        end.take(150) # Top 150 (was 50)
+        end.shuffle.take(150) # FIXED: Shuffle to prevent repetition!
       end
       
       def calculate_trending_score(meme)
