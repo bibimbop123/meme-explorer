@@ -298,9 +298,8 @@ class TurbochargedRedditFetcher
       post_data = post["data"]
       next unless post_data
       
-      # Quick filtering - expensive checks later in quality pipeline
+      # Quick filtering - skip text-only posts
       next if post_data["is_self"]
-      next if post_data["is_video"] && !post_data["is_gallery"]
       
       # CROSSPOST FIX: Extract data from original post if this is a crosspost
       if post_data["is_crosspost"] && post_data["crosspost_parent_list"]&.any?
@@ -316,6 +315,9 @@ class TurbochargedRedditFetcher
         source_data = post_data
         is_crosspost = false
       end
+      
+      # MOVED: Filter videos AFTER crosspost extraction (check source_data, not post_data)
+      next if source_data["is_video"] && !source_data["is_gallery"]
       
       # Get image URL efficiently from the right source
       is_gallery = source_data["is_gallery"] == true
