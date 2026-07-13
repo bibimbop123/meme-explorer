@@ -47,9 +47,10 @@ class RedisService
       
       REDIS_POOL.with do |redis|
         value = redis.get(key)
-        value ? parse_value(value) : default
+        return default if value.nil?
+        parse_value(value)
       end
-    rescue Redis::BaseError, ConnectionPool::TimeoutError => e
+    rescue => e
       handle_error(e, operation: 'get', key: key)
       default
     end
