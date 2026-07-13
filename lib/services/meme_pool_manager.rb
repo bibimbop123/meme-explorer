@@ -235,30 +235,46 @@ class MemePoolManager
       memes # Return unfiltered on error
     end
     
-# Categorize memes by their subreddit tier
+# Categorize memes by their subreddit tier - FIXED July 13: NOW CREATES ALL 5 POOLS
 def categorize_by_tier(memes)
-  return { fresh: [], surprise: [], diverse: [] } if memes.empty?
+  return { fresh: [], trending: [], surprise: [], diverse: [], random: [] } if memes.empty?
   
-  categorized = { fresh: [], surprise: [], diverse: [] }
+  categorized = { fresh: [], trending: [], surprise: [], diverse: [], random: [] }
   tier_map = load_subreddit_tier_map
   
   memes.each do |meme|
     subreddit = meme["subreddit"]&.downcase
     next unless subreddit
     
-    tier = tier_map[subreddit] || 5 # Default to tier 5 if unknown
+    tier = tier_map[subreddit] || 5
+    likes = meme['likes'].to_i
+    upvote_ratio = meme['upvote_ratio'].to_f || 0.5
     
-    case tier
-    when 1
+    # Fresh: Tier 1 (Peak humor, relationships)
+    if tier == 1
       categorized[:fresh] << meme
-    when 2, 3
+    end
+    
+    # Trending: High engagement from any tier
+    if likes >= 50 || upvote_ratio >= 0.8
+      categorized[:trending] << meme
+    end
+    
+    # Surprise: Tier 2-3 (Viral + Niche)
+    if [2, 3].include?(tier)
       categorized[:surprise] << meme
-    when 4, 5
+    end
+    
+    # Diverse: Tier 4-5 (Visual + Wholesome)
+    if [4, 5].include?(tier)
       categorized[:diverse] << meme
     end
+    
+    # Random: Everything
+    categorized[:random] << meme
   end
   
-  AppLogger.info("📊 [PoolManager] Categorized: fresh=#{categorized[:fresh].size}, surprise=#{categorized[:surprise].size}, diverse=#{categorized[:diverse].size}")
+  AppLogger.info("📊 [PoolManager] Categorized: fresh=#{categorized[:fresh].size}, trending=#{categorized[:trending].size}, surprise=#{categorized[:surprise].size}, diverse=#{categorized[:diverse].size}, random=#{categorized[:random].size}")
   categorized
 end
 
@@ -301,38 +317,59 @@ rescue => e
   []
 end
 
-    # Store memes using Redis Lists (July 13, 2026 - LRU Fix)
+    # Store memes using DUAL FORMAT (July 13, 2026 - Comprehensive Fix)
+    # Stores both JSON blobs (backward compat) and Redis Lists (new arch)
     def store_in_pool(memes)
       return 0 if memes.empty?
       
-      # Categorize memes by tier
+      # Categorize memes by tier (now returns 5 pools!)
       categorized = categorize_by_tier(memes)
+      
+      # Deduplicate and limit each pool
+      categorized.each do |pool, pool_memes|
+        categorized[pool] = pool_memes.uniq { |m| m['url'] }.take(300)
+      end
       
       total_stored = 0
       categorized.each do |pool_name, pool_memes|
         next if pool_memes.empty?
         
-        # Store each meme individually in hash
-        pool_memes.each do |meme|
-          meme_id = meme['id'] || "#{meme['subreddit']}_#{Time.now.to_i}_#{rand(1000)}"
-          RedisService.hset("meme:data", meme_id, meme.to_json)
-        end
+        # DUAL FORMAT: Store in BOTH JSON and Lists
         
-        # Store IDs in list
+        # Format 1: JSON blob (for legacy DiversityEngine v1 code)
+        json_key = "meme_pool:#{pool_name}"
+        RedisService.set(json_key, pool_memes.to_json, ttl: 21600) # 6 hours
+        
+        # Format 2: Redis Lists (for new architecture)
         list_key = "meme_pool:#{pool_name}_ids"
         RedisService.delete(list_key)  # Clear old
-        meme_ids = pool_memes.map { |m| m['id'] || "#{m['subreddit']}_#{Time.now.to_i}" }
-        RedisService.rpush(list_key, *meme_ids)
-        RedisService.expire(list_key, 3600)  # 1 hour TTL
         
-        AppLogger.info("   ✅ Stored #{pool_memes.size} memes in '#{pool_name}' pool (total: #{pool_memes.size})")
+        pool_memes.each do |meme|
+          # Generate consistent ID
+          meme_id = meme['id'] || "#{meme['subreddit']}_#{meme['url'].hash.abs}"
+          meme['id'] = meme_id
+          
+          # Store full meme data in hash
+          RedisService.hset("meme:data", meme_id, meme.to_json)
+          
+          # Add ID to list
+          RedisService.rpush(list_key, meme_id)
+        end
+        
+        RedisService.expire(list_key, 21600)  # 6 hour TTL
+        
+        AppLogger.info("   ✅ Stored #{pool_memes.size} memes in '#{pool_name}' pool (JSON + Lists)")
         total_stored += pool_memes.size
       end
       
-      # Update metadata
-      RedisService.set("meme_pool:count", total_stored, ttl: 3600)
-      RedisService.set("meme_pool:initialized", "true", ttl: 3600)
-      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 3600)
+      # Update metadata with extended TTL
+      RedisService.set("meme_pool:count", total_stored, ttl: 21600)
+      RedisService.set("meme_pool:initialized", "true", ttl: 21600)
+      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 21600)
+      
+      # Store complete pool for legacy code (backward compatibility)
+      all_memes = categorized.values.flatten.uniq { |m| m['url'] }
+      RedisService.set("meme_pool", all_memes.to_json, ttl: 21600)
       
       total_stored
     rescue => e

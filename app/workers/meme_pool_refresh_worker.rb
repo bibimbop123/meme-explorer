@@ -19,39 +19,31 @@ class MemePoolRefreshWorker
         return
       end
       
-      # Get Reddit access token
-      access_token = get_reddit_token
+      # FIXED July 13, 2026: Use MemePoolManager.maintain_pool! instead of manual fetching
+      # This ensures proper tier categorization and dual-format storage
+      logger.info "📊 Delegating to MemePoolManager for proper pool maintenance..."
       
-      # Fetch memes using RedditFetcherService
-      subreddits = load_subreddits
-      fetcher = RedditFetcherService.new(
-        auth_strategy: access_token ? :oauth : :static,
-        access_token: access_token
-      )
+      result = MemePoolManager.maintain_pool!
       
-      api_memes = fetcher.fetch_memes(subreddits, limit: 50)
-      logger.info "📥 Fetched #{api_memes.size} memes from Reddit"
-      
-      # Get database memes
-      db_memes = fetch_db_memes(1000)
-      logger.info "📊 Loaded #{db_memes.size} memes from database"
-      
-      # Combine and deduplicate
-      all_memes = (api_memes + db_memes).uniq { |m| m["url"] }
-      
-      # Store in tier-based Redis Lists using MemePoolManager
-      MemePoolManager.store_in_pool(all_memes)
-      
-      # Update old cache for backward compatibility
-      MEME_CACHE.set(:memes, all_memes)
-      MEME_CACHE.set(:last_refresh, Time.now)
-      MEME_CACHE.set(:refreshing, false)
-      
-      duration = (Time.now - start_time).round(2)
-      logger.info "✅ Pool refreshed: #{all_memes.size} memes stored in Redis Lists in #{duration}s"
-      
-      # Track metrics
-      track_refresh_metrics(all_memes.size, duration)
+      if result[:success]
+        duration = (Time.now - start_time).round(2)
+        logger.info "✅ Pool refreshed successfully: #{result[:pool_size]} memes in #{duration}s"
+        
+        # Update old cache for backward compatibility
+        pool = MemePoolManager.get_pool
+        if pool[:success]
+          MEME_CACHE.set(:memes, pool[:memes])
+          MEME_CACHE.set(:last_refresh, Time.now)
+        end
+        MEME_CACHE.set(:refreshing, false)
+        
+        # Track metrics
+        track_refresh_metrics(result[:pool_size], duration)
+      else
+        logger.error "❌ Pool maintenance failed: #{result[:error]}"
+        MEME_CACHE.set(:refreshing, false)
+        raise StandardError, "Pool maintenance failed: #{result[:error]}"
+      end
       
     rescue => e
       logger.error "❌ Pool refresh failed: #{e.message}"
