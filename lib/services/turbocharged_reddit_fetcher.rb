@@ -287,7 +287,7 @@ class TurbochargedRedditFetcher
     sleep([retry_after&.to_i || 2, 5].min)
   end
   
-  # Parse Reddit API response (same logic as original, optimized)
+  # Parse Reddit API response with video preview extraction
   def parse_reddit_response(data)
     return [] unless data.is_a?(Hash) && data["data"]
     
@@ -316,8 +316,8 @@ class TurbochargedRedditFetcher
         is_crosspost = false
       end
       
-      # MOVED: Filter videos AFTER crosspost extraction (check source_data, not post_data)
-      next if source_data["is_video"] && !source_data["is_gallery"]
+      # IMPROVED VIDEO HANDLING: Try to extract preview image from videos
+      is_video = source_data["is_video"] == true
       
       # Get image URL efficiently from the right source
       is_gallery = source_data["is_gallery"] == true
@@ -325,11 +325,19 @@ class TurbochargedRedditFetcher
       
       image_url = if gallery_images && gallery_images.any?
                     gallery_images.first["url"]
+                  elsif is_video
+                    # NEW: Extract video preview/thumbnail
+                    extract_video_preview(source_data)
                   else
                     source_data["url"]
                   end
       
+      # Skip if no displayable content found
       next unless image_url
+      next if image_url.to_s.strip.empty?
+      
+      # Skip if URL points to video player (not an image)
+      next if is_video && !image_url.match?(/\.(jpg|jpeg|png|gif|webp)/i)
       
       # Build meme object with variety-preserving data
       meme = {
@@ -348,6 +356,12 @@ class TurbochargedRedditFetcher
         meme["crossposted_from"] = "r/#{original_subreddit}"
       end
       
+      # Mark if this was originally a video (for context)
+      if is_video
+        meme["was_video"] = true
+        meme["video_preview"] = true
+      end
+      
       # Add gallery data if present
       if is_gallery && gallery_images && gallery_images.any?
         meme["is_gallery"] = true
@@ -358,6 +372,57 @@ class TurbochargedRedditFetcher
     end
     
     memes
+  end
+  
+  # Extract preview image from video posts
+  def extract_video_preview(post_data)
+    # Try multiple sources for video preview images
+    
+    # 1. Check for preview images (most common)
+    if post_data["preview"] && post_data["preview"]["images"]
+      images = post_data["preview"]["images"]
+      if images.any?
+        # Get the highest resolution preview
+        source = images.first["source"]
+        if source && source["url"]
+          # Decode HTML entities in URL
+          return source["url"].gsub('&amp;', '&')
+        end
+        
+        # Fallback to resolutions array
+        resolutions = images.first["resolutions"]
+        if resolutions && resolutions.any?
+          # Get highest resolution
+          best = resolutions.last
+          return best["url"].gsub('&amp;', '&') if best && best["url"]
+        end
+      end
+    end
+    
+    # 2. Check thumbnail
+    thumbnail = post_data["thumbnail"]
+    if thumbnail && thumbnail.start_with?("http") && !thumbnail.include?("self")
+      return thumbnail
+    end
+    
+    # 3. Check secure media (some videos have preview here)
+    if post_data["secure_media"] && post_data["secure_media"]["oembed"]
+      oembed = post_data["secure_media"]["oembed"]
+      if oembed["thumbnail_url"]
+        return oembed["thumbnail_url"]
+      end
+    end
+    
+    # 4. Check media
+    if post_data["media"] && post_data["media"]["oembed"]
+      oembed = post_data["media"]["oembed"]
+      if oembed["thumbnail_url"]
+        return oembed["thumbnail_url"]
+      end
+    end
+    
+    # No preview found
+    nil
   end
   
   # Extract gallery images (same as original)
