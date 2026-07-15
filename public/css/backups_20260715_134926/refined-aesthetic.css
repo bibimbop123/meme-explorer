@@ -1,0 +1,381 @@
+/**
+ * REFINED AESTHETIC SYSTEM
+ * Design Philosophy: Literary, sophisticated, intentional
+ * Inspired by: Criterion Collection, Letterboxd, Are.na, The Paris Review
+ */
+
+/* ==========================================================================
+   TYPOGRAPHY
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Typography */
+  --font-serif: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+  
+  /* Muted, Sophisticated Palette */
+  --color-primary: #2D3142;
+  --color-secondary: #4F5D75;
+  --color-accent: #BF4F5A;
+  --color-subtle: #EFE9F4;
+  --color-text: #1A1A1A;
+  --color-text-secondary: #6B7280;
+  --color-background: #FAFAFA;
+  --color-surface: #FFFFFF;
+  
+  /* Shadows - Subtle, not harsh */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
+  
+  /* Spacing - Generous */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+  
+  /* Animation - Smooth, purposeful */
+  --transition-quick: 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  --transition-standard: 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+/* ==========================================================================
+   REFINED MEME CONTAINER
+   ========================================================================== */
+
+.meme-container-refined {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-standard);
+  margin-bottom: var(--space-lg);
+}
+
+.meme-container-refined:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   CURATION SIGNALS
+   ========================================================================== */
+
+.curation-signal {
+  font-family: var(--font-serif);
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--color-accent);
+  opacity: 0.85;
+  margin-top: var(--space-sm);
+  letter-spacing: 0.01em;
+  transition: opacity var(--transition-quick);
+}
+
+.curation-signal:hover {
+  opacity: 1;
+}
+
+.curation-signal-icon {
+  display: inline-block;
+  margin-right: var(--space-xs);
+  opacity: 0.6;
+}
+
+/* Multiple signals (detailed view) */
+.curation-signals-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-subtle);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-accent);
+}
+
+/* ==========================================================================
+   COLLECTION STYLING
+   ========================================================================== */
+
+.collection-title {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 400;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-sm);
+}
+
+.collection-description {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 42em;
+}
+
+.collection-tagline {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--color-secondary);
+  margin-top: var(--space-xs);
+}
+
+/* Collection cards in navigation */
+.collection-card {
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-standard);
+  cursor: pointer;
+}
+
+.collection-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.collection-card-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+.collection-card-description {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   TASTE PROFILE
+   ========================================================================== */
+
+.taste-profile {
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, var(--color-subtle) 0%, var(--color-surface) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.taste-profile-heading {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--space-md);
+}
+
+.taste-profile-trait {
+  margin-bottom: var(--space-md);
+}
+
+.taste-profile-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.taste-profile-value {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.taste-profile-summary {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--color-secondary);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  line-height: 1.7;
+}
+
+/* ==========================================================================
+   RARITY BADGES
+   ========================================================================== */
+
+.rarity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-right: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.rarity-badge-vintage {
+  background: linear-gradient(135deg, #A8DADC 0%, #457B9D 100%);
+  color: white;
+}
+
+.rarity-badge-rare {
+  background: linear-gradient(135deg, #6A4C93 0%, #C08497 100%);
+  color: white;
+}
+
+.rarity-badge-quality {
+  background: linear-gradient(135deg, #F4B942 0%, #F77F00 100%);
+  color: var(--color-primary);
+}
+
+/* ==========================================================================
+   REFINED BUTTONS & INTERACTIONS
+   ========================================================================== */
+
+.btn-refined {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all var(--transition-standard);
+  letter-spacing: 0.02em;
+}
+
+.btn-refined:hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-refined:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   MICRO-INTERACTIONS
+   ========================================================================== */
+
+.interaction-feedback {
+  animation: gentlePulse 0.3s ease-out;
+}
+
+@keyframes gentlePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.like-button-refined {
+  transition: all var(--transition-quick);
+}
+
+.like-button-refined:active {
+  transform: scale(0.95);
+}
+
+.like-button-refined.liked {
+  color: var(--color-accent);
+  animation: likeAnimation 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes likeAnimation {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* ==========================================================================
+   CONTEXTUAL INFORMATION
+   ========================================================================== */
+
+.context-panel {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-accent);
+  margin-top: var(--space-lg);
+}
+
+.context-heading {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--space-md);
+}
+
+.context-body {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.7;
+}
+
+.context-body p {
+  margin-bottom: var(--space-md);
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .meme-container-refined {
+    padding: var(--space-md);
+  }
+  
+  .collection-title {
+    font-size: 1.5rem;
+  }
+  
+  .taste-profile {
+    padding: var(--space-md);
+  }
+}
+
+/* ==========================================================================
+   DARK MODE SUPPORT (Optional)
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #E5E5E5;
+    --color-secondary: #B8B8B8;
+    --color-accent: #E07A7A;
+    --color-subtle: #2A2A2A;
+    --color-text: #E5E5E5;
+    --color-text-secondary: #A0A0A0;
+    --color-background: #1A1A1A;
+    --color-surface: #252525;
+  }
+  
+  .meme-container-refined {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}

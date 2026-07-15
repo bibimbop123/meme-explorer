@@ -1,0 +1,100 @@
+/* =========================
+   CSS GRID LAYOUT V3 - Desktop 3-Column Layout
+   Based on actual requirement:
+   ┌────┬──────────────┬────┐
+   │left│   progress   │right│
+   ├────┼──────────────┼────┤
+   │    │    meme      │    │
+   │ads │──────────────│ads │
+   │    │    info      │    │
+   ├────┴──────────────┴────┤
+   │       controls         │
+   └────────────────────────┘
+   ========================= */
+
+/* Only apply grid on desktop (1200px+) */
+@media (min-width: 1200px) {
+  .meme-container {
+    display: grid !important;
+    grid-template-columns: 300px 1fr 300px !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    grid-template-areas:
+      "left-sidebar progress right-sidebar"
+      "left-sidebar meme right-sidebar"
+      "left-sidebar info right-sidebar"
+      "left-sidebar controls right-sidebar"
+      "left-sidebar hints right-sidebar" !important;
+    gap: 1rem !important;
+    row-gap: 1rem !important;
+    padding: 1.5rem !important;
+    max-width: 1800px !important;
+    margin: 0 auto !important;
+    min-height: calc(100vh - 100px) !important;
+  }
+
+  /* Ad containers - MUST be direct children */
+  .meme-container > .ad-container[data-position="left"] {
+    grid-area: left-sidebar !important;
+    position: sticky !important;
+    top: 100px !important;
+    align-self: start !important;
+    height: fit-content !important;
+  }
+
+  .meme-container > .ad-container[data-position="right"] {
+    grid-area: right-sidebar !important;
+    position: sticky !important;
+    top: 100px !important;
+    align-self: start !important;
+    height: fit-content !important;
+  }
+
+  /* Meme content areas */
+  .meme-container > .milestone-progress-bar {
+    grid-area: progress !important;
+    margin-bottom: 0 !important;
+  }
+
+  .meme-container > .meme-display {
+    grid-area: meme !important;
+    min-height: 500px !important;
+    max-height: 70vh !important;
+    margin: 0 !important;
+  }
+
+  .meme-container > .meme-info {
+    grid-area: info !important;
+    margin: 0 !important;
+  }
+
+  .meme-container > .meme-controls {
+    grid-area: controls !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .meme-container > .nav-hints-container {
+    grid-area: hints !important;
+    display: flex !important;
+  }
+
+  /* Handle gamification elements */
+  .meme-container > .near-miss-tease,
+  .meme-container > .milestone-celebration,
+  .meme-container > .surprise-reward {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 1600px) {
+  .meme-container {
+    max-width: 1800px;
+    gap: 2rem;
+    padding: 2rem;
+  }
+}

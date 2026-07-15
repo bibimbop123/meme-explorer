@@ -1,0 +1,66 @@
+/* Session Stats Badge Styling */
+/* Shows user their progress: memes viewed and session duration */
+
+.session-stats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+  border: 1px solid rgba(var(--primary-rgb, 59, 130, 246), 0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+  transition: all 0.2s ease;
+  cursor: default;
+  user-select: none;
+}
+
+.session-stats-badge:hover {
+  background: rgba(var(--primary-rgb, 59, 130, 246), 0.15);
+  transform: translateY(-1px);
+}
+
+.session-stats-badge .stats-icon {
+  flex-shrink: 0;
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+.session-stats-badge .stats-text {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .session-stats-badge {
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.15);
+    border-color: rgba(var(--primary-rgb, 59, 130, 246), 0.3);
+    color: var(--text-primary, #f9fafb);
+  }
+  
+  .session-stats-badge:hover {
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.2);
+  }
+}
+
+/* Mobile optimization */
+@media (max-width: 640px) {
+  .session-stats-badge {
+    font-size: 12px;
+    padding: 5px 10px;
+    gap: 5px;
+  }
+  
+  .session-stats-badge .stats-icon {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* Placement in header */
+.meme-info-header .session-stats-badge {
+  margin-left: auto;
+}

@@ -1,0 +1,729 @@
+/* =========================
+   RESPONSIVE MEME EXPLORER CSS
+   Mobile-First Approach
+   ========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Comic Neue', cursive, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: clamp(14px, 2.5vw, 16px);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* =========================
+   HEADER & NAVIGATION
+   ========================= */
+
+header {
+  background: linear-gradient(90deg, #ff8a00, #e52e71);
+  color: #fff;
+  padding: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+header h1 a {
+  color: white;
+  text-decoration: none;
+  display: block;
+  font-weight: bold;
+}
+
+/* Navigation Styling */
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+nav a,
+nav button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: clamp(0.75rem, 2vw, 0.9rem);
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+nav a:hover,
+nav button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.dark-mode-toggle {
+  background: rgba(255, 255, 255, 0.2) !important;
+  padding: 0.5rem !important;
+  min-width: auto !important;
+}
+
+/* =========================
+   MAIN CONTENT
+   ========================= */
+
+main {
+  flex: 1;
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* =========================
+   SEARCH FORM
+   ========================= */
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 600px;
+  margin: 1rem 0;
+}
+
+.search-form input[type="text"],
+.search-form input[type="search"] {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  width: 100%;
+  min-height: 44px;
+}
+
+.search-form button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: #e52e71;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.search-form button:hover {
+  background: #d91c63;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   MEME DISPLAY
+   ========================= */
+
+.meme-container {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.meme-single {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.meme-single img,
+.meme-single video {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: block;
+  object-fit: contain;
+}
+
+.meme-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.3;
+  margin: 0;
+  padding: 0 1rem;
+}
+
+.meme-subtitle {
+  color: #888;
+  font-size: 0.95rem;
+  text-align: center;
+  margin: 0;
+  padding: 0 1rem;
+}
+
+.meme-likes {
+  font-weight: bold;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+/* =========================
+   NAVIGATION BUTTONS
+   ========================= */
+
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+  width: 100%;
+  max-width: 600px;
+}
+
+.nav-buttons button {
+  min-height: 44px;
+  min-width: 100px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1 1 auto;
+  max-width: 200px;
+}
+
+#prev-btn {
+  background: #f44336;
+  color: #fff;
+}
+
+#next-btn {
+  background: #4caf50;
+  color: #fff;
+}
+
+.nav-buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nav-buttons button.liked {
+  background: #ff4f81 !important;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.nav-buttons button.liked:hover {
+  background: #ff769f !important;
+}
+
+/* =========================
+   MEME GRID/LIST
+   ========================= */
+
+.meme-grid,
+.meme-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1.5rem;
+}
+
+.meme-grid-item,
+.meme-list-item {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.meme-grid-item:hover,
+.meme-list-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+.meme-grid-item img,
+.meme-list-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  aspect-ratio: 16 / 9;
+}
+
+/* =========================
+   FOOTER
+   ========================= */
+
+footer {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: #333;
+  color: #fff;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+footer p {
+  margin: 0.5rem 0;
+}
+
+/* =========================
+   ANIMATIONS
+   ========================= */
+
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================
+   TABLET BREAKPOINT (768px+)
+   ========================= */
+
+@media (min-width: 768px) {
+  header {
+    padding: 1.25rem 2rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+
+  nav {
+    gap: 0.75rem;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  nav a,
+  nav button {
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  main {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .search-form {
+    max-width: 500px;
+    flex-direction: row;
+    margin-bottom: 2rem;
+  }
+
+  .search-form input[type="text"],
+  .search-form input[type="search"] {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border-radius: 8px 0 0 8px;
+    border-right: none;
+  }
+
+  .search-form button {
+    border-radius: 0 8px 8px 0;
+  }
+
+  .meme-container {
+    max-width: 700px;
+  }
+
+  .meme-single img,
+  .meme-single video {
+    max-width: 80%;
+  }
+
+  .meme-grid,
+  .meme-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    max-width: 900px;
+  }
+
+  .meme-grid-item img,
+  .meme-list-item img {
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+  }
+
+  .nav-buttons {
+    max-width: 700px;
+  }
+
+  .nav-buttons button {
+    min-width: 120px;
+  }
+
+  footer {
+    padding: 2rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* =========================
+   DESKTOP BREAKPOINT (1200px+)
+   ========================= */
+
+@media (min-width: 1200px) {
+  header {
+    padding: 1.5rem 3rem;
+  }
+
+  header h1 {
+    font-size: 2rem;
+  }
+
+  nav {
+    gap: 1rem;
+  }
+
+  nav a,
+  nav button {
+    padding: 0.7rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  main {
+    padding: 3rem 2rem;
+    max-width: 1200px;
+  }
+
+  .search-form {
+    max-width: 600px;
+    margin-bottom: 2rem;
+  }
+
+  .search-form input[type="text"],
+  .search-form input[type="search"] {
+    font-size: 1rem;
+  }
+
+  .meme-container {
+    max-width: 900px;
+  }
+
+  .meme-single img,
+  .meme-single video {
+    max-width: 70%;
+    border-radius: 16px;
+  }
+
+  .meme-grid,
+  .meme-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+    max-width: 1200px;
+  }
+
+  .meme-grid-item img,
+  .meme-list-item img {
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+  }
+
+  .nav-buttons {
+    max-width: 900px;
+    gap: 1rem;
+  }
+
+  .nav-buttons button {
+    min-width: 140px;
+  }
+
+  footer {
+    padding: 2.5rem 3rem;
+    font-size: 1rem;
+  }
+}
+
+/* =========================
+   ULTRA-WIDE SCREENS (1600px+)
+   ========================= */
+
+@media (min-width: 1600px) {
+  main {
+    max-width: 1400px;
+  }
+
+  .meme-grid,
+  .meme-list {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3rem;
+    max-width: 1400px;
+  }
+}
+
+/* =========================
+   TOUCH DEVICE OPTIMIZATION
+   ========================= */
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a {
+    min-height: 44px;
+  }
+
+  nav a,
+  nav button {
+    min-height: 44px;
+    padding: 0.6rem 1rem;
+  }
+
+  .nav-buttons button {
+    min-height: 48px;
+  }
+}
+
+/* =========================
+   DARK MODE SUPPORT
+   ========================= */
+
+/* Dark mode via class (manual toggle) */
+html.dark-mode body {
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+html.dark-mode header {
+  background: linear-gradient(90deg, #d67700, #c12a5f);
+}
+
+html.dark-mode footer {
+  background: #0a0a0a;
+}
+
+html.dark-mode .meme-grid-item,
+html.dark-mode .meme-list-item {
+  background: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode .meme-grid-item:hover,
+html.dark-mode .meme-list-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+html.dark-mode .search-form input[type="text"],
+html.dark-mode .search-form input[type="search"] {
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+html.dark-mode .search-form input[type="text"]:focus,
+html.dark-mode .search-form input[type="search"]:focus {
+  border-color: #e52e71;
+  background: #333;
+}
+
+html.dark-mode .meme-title {
+  color: #e0e0e0;
+}
+
+html.dark-mode .meme-subtitle {
+  color: #aaa;
+}
+
+html.dark-mode nav a:not(:hover),
+html.dark-mode nav button:not(:hover) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+
+/* =========================
+   TATTOO ANNIE PLACEHOLDER (SEO-OPTIMIZED)
+   ========================= */
+
+/* Tattoo Annie Placeholder Styles - SEO Optimized */
+.tattoo-annie-placeholder-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  aspect-ratio: 3 / 4;
+}
+
+.placeholder-image.tattoo-annie {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.placeholder-image.tattoo-annie:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
+}
+
+/* Progressive loading animation */
+.tattoo-annie-placeholder-wrapper.loading .placeholder-image {
+  animation: placeholder-shimmer 2s infinite;
+}
+
+@keyframes placeholder-shimmer {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+/* Screen reader only caption */
+.placeholder-caption.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Blur placeholder for progressive loading */
+.placeholder-blur {
+  animation: blur-fade 0.8s ease-out forwards;
+}
+
+@keyframes blur-fade {
+  to { opacity: 0; }
+}
+
+/* Fallback image in media unavailable state */
+.placeholder-fallback-image {
+  max-width: 300px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* =========================
+   REDUCED MOTION SUPPORT
+   ========================= */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .placeholder-image.tattoo-annie,
+  .placeholder-blur,
+  .placeholder-fallback-image {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =========================
+   PRINT STYLES FOR PLACEHOLDER
+   ========================= */
+
+@media print {
+  .tattoo-annie-placeholder-wrapper {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
+
+/* =========================
+   HIGH CONTRAST MODE SUPPORT
+   ========================= */
+
+@media (prefers-contrast: high) {
+  .tattoo-annie-placeholder-wrapper {
+    border: 2px solid currentColor;
+  }
+}
