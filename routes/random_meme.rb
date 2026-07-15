@@ -2,7 +2,7 @@
 # Random meme routes - HTML and JSON endpoints
 # Services required at file load time (not per-request) to avoid require mutex contention
 require_relative '../lib/services/diversity_engine_service'
-require_relative '../lib/services/diversity_engine_service_v2'
+require_relative '../lib/services/diversity_engine_service'
 require_relative '../lib/services/similar_meme_service'
 require_relative '../lib/services/viewing_history_service'
 
@@ -28,7 +28,7 @@ module Routes
           user_prefs = {}
           
           # Use sophisticated diversity system V2 (ANTI-REPETITION)
-          @meme = MemeExplorer::DiversityEngineServiceV2.select_diverse_meme(
+          @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
             meme_pool,
             session_id: session_id,
             preferences: user_prefs
@@ -278,7 +278,7 @@ module Routes
         user_prefs = {}
         
         # Use sophisticated diversity system V2 (ANTI-REPETITION)
-        @meme = MemeExplorer::DiversityEngineServiceV2.select_diverse_meme(
+        @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
           memes,
           session_id: session_id,
           preferences: user_prefs

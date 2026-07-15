@@ -52,15 +52,15 @@ end
 # 3. Check if diversity engine is working
 puts "\n3️⃣ DIVERSITY ENGINE:"
 begin
-  require_relative '../lib/services/diversity_engine_service_v2'
-  puts "   ✅ DiversityEngineServiceV2 loaded"
+  require_relative '../lib/services/diversity_engine_service'
+  puts "   ✅ DiversityEngineService loaded"
   
   # Test selection
   test_id = "test_#{Time.now.to_i}"
   pool = MemeExplorer::App::MEME_CACHE[:memes] || []
   
   if pool.any?
-    selected = MemeExplorer::DiversityEngineServiceV2.select_diverse_meme(
+    selected = MemeExplorer::DiversityEngineService.select_diverse_meme(
       pool,
       session_id: test_id,
       preferences: {}
