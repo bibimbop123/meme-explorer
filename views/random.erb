@@ -147,52 +147,6 @@
     <% end %>
   </div>
 
-  <!-- PHASE 3: Near-Miss Tease -->
-  <% if @tease %>
-    <div class="near-miss-tease urgency-<%= @tease[:urgency] %>" id="near-miss-tease">
-      <span class="tease-icon"><%= @tease[:icon] %></span>
-      <span class="tease-message"><%= @tease[:message] %></span>
-    </div>
-  <% end %>
-
-  <!-- GAMIFICATION: Milestone Celebration -->
-  <% if @milestone %>
-    <div class="milestone-celebration" id="milestone-celebration">
-      <div class="milestone-content">
-        <h2 class="milestone-title"><%= @milestone[:title] %></h2>
-        <p class="milestone-message"><%= @milestone[:message] %></p>
-        <button onclick="document.getElementById('milestone-celebration').style.display='none'" class="milestone-close">
-          Continue
-        </button>
-      </div>
-    </div>
-  <% end %>
-
-  <!-- GAMIFICATION: Surprise Reward -->
-  <% if @surprise_reward %>
-    <div class="surprise-reward" id="surprise-reward">
-      <div class="reward-content">
-        <div class="reward-icon"><%= @surprise_reward[:icon] %></div>
-        <h3 class="reward-title"><%= @surprise_reward[:title] %></h3>
-        <p class="reward-message"><%= @surprise_reward[:message] %></p>
-        <button onclick="document.getElementById('surprise-reward').style.display='none'" class="reward-close">
-          Awesome!
-        </button>
-      </div>
-    </div>
-  <% end %>
-
-  <!-- GAMIFICATION: Progress Bar -->
-  <% if @progress && @progress[:next_milestone] %>
-    <div class="milestone-progress-bar" id="progress-bar">
-      <div class="progress-text">
-        <%= @progress[:memes_until_next] %> memes until next milestone! (Level <%= @progress[:current_count] %>)
-      </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar-fill" style="width: <%= @progress[:progress_percent] %>%"></div>
-      </div>
-    </div>
-  <% end %>
 
     <!-- Right Ad Column (inside grid) -->
     <% if should_show_ads? %>
@@ -366,33 +320,21 @@
   
   initializeTitleVisibility();
   
-  // Toggle title visibility AND progress bar
+  // Toggle title visibility
   function toggleTitleVisibility() {
     isTitleVisible = !isTitleVisible;
     sessionStorage.setItem('titleVisible', isTitleVisible);
-    
-    const progressBar = document.getElementById('progress-bar');
     
     if (isTitleVisible) {
       memeInfo.classList.remove('title-hidden');
       memeInfo.classList.add('title-visible');
       titleToggle.classList.remove('toggle-hidden');
       titleToggle.classList.add('toggle-visible');
-      // Show progress bar
-      if (progressBar) {
-        progressBar.style.display = 'block';
-        progressBar.style.opacity = '1';
-      }
     } else {
       memeInfo.classList.remove('title-visible');
       memeInfo.classList.add('title-hidden');
       titleToggle.classList.remove('toggle-visible');
       titleToggle.classList.add('toggle-hidden');
-      // Hide progress bar
-      if (progressBar) {
-        progressBar.style.display = 'none';
-        progressBar.style.opacity = '0';
-      }
     }
     
     // Haptic feedback - mobile devices
@@ -1634,201 +1576,6 @@
     animation: countBump 0.5s ease-out;
   }
 
-  /* ========================================
-     GAMIFICATION STYLING
-     ======================================== */
-  
-  /* Milestone Celebration Modal */
-  .milestone-celebration {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    animation: fadeIn 0.3s ease-out;
-  }
-  
-  .milestone-content {
-    background: white;
-    padding: 3rem 2rem;
-    border-radius: 20px;
-    text-align: center;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
-  
-  .milestone-title {
-    font-size: 2.5rem;
-    margin: 0 0 1rem 0;
-    color: #667eea;
-    animation: pulse 2s infinite;
-  }
-  
-  .milestone-message {
-    font-size: 1.2rem;
-    color: #666;
-    margin: 0 0 2rem 0;
-  }
-  
-  .milestone-close {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 1rem 3rem;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .milestone-close:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-  }
-  
-  /* Surprise Reward Modal */
-  .surprise-reward {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 2.5rem 2rem;
-    border-radius: 16px;
-    text-align: center;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-    z-index: 9998;
-    animation: slideDown 0.4s ease-out;
-  }
-  
-  .reward-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    animation: rotate 1s ease-in-out;
-  }
-  
-  .reward-title {
-    font-size: 1.8rem;
-    margin: 0 0 0.5rem 0;
-    color: #ff6b6b;
-  }
-  
-  .reward-message {
-    font-size: 1rem;
-    color: #666;
-    margin: 0 0 1.5rem 0;
-  }
-  
-  .reward-close {
-    background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 50px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .reward-close:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
-  }
-  
-  /* Progress Bar - COMPACT VERSION */
-  .milestone-progress-bar {
-    width: 100%;
-    max-width: 400px;
-    background: transparent;
-    padding: 0.25rem 0;
-    margin: 0.5rem auto;
-  }
-  
-  .progress-text {
-    font-size: 0.7rem;
-    color: #999;
-    text-align: center;
-    margin-bottom: 0.25rem;
-    font-weight: 500;
-  }
-  
-  .progress-bar-container {
-    width: 100%;
-    height: 8px;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-  }
-  
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
-    border-radius: 12px;
-    transition: width 0.5s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .progress-bar-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      90deg,
-      rgba(255,255,255,0) 0%,
-      rgba(255,255,255,0.3) 50%,
-      rgba(255,255,255,0) 100%
-    );
-    animation: shimmer 2s infinite;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes bounceIn {
-    0% { transform: scale(0.3); opacity: 0; }
-    50% { transform: scale(1.05); }
-    70% { transform: scale(0.9); }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  
-  @keyframes slideDown {
-    from { transform: translate(-50%, -60%); opacity: 0; }
-    to { transform: translate(-50%, -50%); opacity: 1; }
-  }
-  
-  @keyframes rotate {
-    0% { transform: rotate(0deg) scale(0); }
-    50% { transform: rotate(180deg) scale(1.2); }
-    100% { transform: rotate(360deg) scale(1); }
-  }
-  
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-  }
-  
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
 
   /* ========================================
      RESPONSIVE DESIGN - MOBILE (≤768px)
