@@ -5,6 +5,12 @@ module Routes
   module Home
     def self.registered(app)
       app.get "/" do
+        # Prevent caching of homepage (ensures nav bar updates after login/logout)
+        headers(
+          'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma' => 'no-cache'
+        )
+        
         begin
           # Try pre-warmed cache first (instant when Sidekiq is running)
           cached = MemeExplorer::App::MEME_CACHE[:memes]
