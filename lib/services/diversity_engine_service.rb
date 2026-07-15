@@ -21,12 +21,12 @@ module MemeExplorer
         
         # If we've seen everything, reset history and start fresh
         if unseen_memes.empty?
-          puts "🔄 User has seen all #{all_memes.size} memes! Resetting history..."
+          AppLogger.debug("🔄 User has seen all #{all_memes.size} memes! Resetting history...")
           MemeExplorer::ViewingHistoryService.clear_history(session_id)
           unseen_memes = all_memes
         end
         
-        puts "📊 Pool stats: #{all_memes.size} total, #{unseen_memes.size} unseen (#{seen_memes.size} seen)"
+        AppLogger.debug("📊 Pool stats: #{all_memes.size} total, #{unseen_memes.size} unseen (#{seen_memes.size} seen)")
         
         # Determine pool type
         pool_type = determine_next_pool(session_id)
@@ -36,7 +36,7 @@ module MemeExplorer
         
         # If pool still too small, use ALL unseen memes
         if pool_memes.size < 20
-          puts "⚠️  Pool '#{pool_type}' only has #{pool_memes.size} memes, using all unseen (#{unseen_memes.size})"
+          AppLogger.debug("⚠️  Pool '#{pool_type}' only has #{pool_memes.size} memes, using all unseen (#{unseen_memes.size})")
           pool_memes = unseen_memes
         end
         

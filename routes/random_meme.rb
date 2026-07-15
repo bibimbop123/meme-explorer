@@ -2,7 +2,6 @@
 # Random meme routes - HTML and JSON endpoints
 # Services required at file load time (not per-request) to avoid require mutex contention
 require_relative '../lib/services/diversity_engine_service'
-require_relative '../lib/services/diversity_engine_service'
 require_relative '../lib/services/similar_meme_service'
 require_relative '../lib/services/viewing_history_service'
 
@@ -80,8 +79,18 @@ module Routes
           # PHASE 6: Track daily streak for retention
           if current_user_id && defined?(MemeExplorer::RetentionService)
             current_streak = MemeExplorer::RetentionService.track_daily_streak(current_user_id) rescue nil
-            @streak_status = MemeExplorer::RetentionService.get_streak_status(current_user_id) rescue nil
-            @social_proof = MemeExplorer::RetentionService.get_social_proof rescue nil
+            begin
+              @streak_status = MemeExplorer::RetentionService.get_streak_status(current_user_id)
+            rescue => e
+              AppLogger.warn("Failed to get streak status", error: e.message, user_id: current_user_id)
+              @streak_status = nil
+            end
+            begin
+              @social_proof = MemeExplorer::RetentionService.get_social_proof
+            rescue => e
+              AppLogger.warn("Failed to get social proof", error: e.message)
+              @social_proof = nil
+            end
           end
           
           # PHASE 3: Check for near-miss tease
