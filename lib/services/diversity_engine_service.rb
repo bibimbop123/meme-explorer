@@ -155,11 +155,11 @@ module MemeExplorer
           when :diverse
             get_diverse_pool(all_memes, session_id)
           when :random
-            all_memes.shuffle.take(200) # Increased from 100
+            all_memes.sample(200) # TRUE randomization, not shuffle
           when :surprise
             get_surprise_pool_relaxed(all_memes)
           else
-            all_memes.shuffle.take(200)
+            all_memes.sample(200)
           end
         rescue => e
           AppLogger.error("❌ Error retrieving pool '#{pool_type}': #{e.message}")
@@ -177,7 +177,7 @@ module MemeExplorer
           likes >= 5 || upvote_ratio >= 0.6 || meme['created_at']
         end.sort_by do |meme|
           -calculate_trending_score(meme)
-        end.shuffle.take(150) # FIXED: Shuffle to prevent repetition!
+        end.sample(150) # TRUE randomization: picks 150 random items from sorted pool
       end
       
       def calculate_trending_score(meme)
@@ -245,8 +245,8 @@ module MemeExplorer
           !recent_subs.include?(subreddit)
         end
         
-        # If filtered too much, just shuffle all
-        diverse.size >= 50 ? diverse : all_memes.shuffle.take(100)
+        # If filtered too much, use true random sample
+        diverse.size >= 50 ? diverse : all_memes.sample(100)
       end
       
       # RELAXED SURPRISE: Lower threshold
