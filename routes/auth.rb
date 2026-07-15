@@ -292,8 +292,21 @@ class AuthRoutes
         end
 
         app.get "/logout" do
+          # Clear all session data
           session.clear
-          redirect "/"
+          
+          # Add cache-control headers to prevent cached logout
+          headers(
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
+          )
+          
+          # Log the logout
+          AppLogger.info("User logged out", ip: request.ip)
+          
+          # Redirect to home page
+          redirect "/", 303
         end
   end
 end
