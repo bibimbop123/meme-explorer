@@ -113,6 +113,11 @@ GEM
       redis-client (>= 0.22.0)
     redis-client (0.26.1)
       connection_pool
+    redis-rack (3.0.0)
+      rack-session (>= 0.2.0)
+      redis-store (>= 1.2, < 2)
+    redis-store (1.11.0)
+      redis (>= 4, < 6)
     rerun (0.14.0)
       listen (~> 3.0)
     rexml (3.4.4)
@@ -208,6 +213,7 @@ DEPENDENCIES
   rack-test (~> 2.1)
   rackup (~> 2.1)
   redis
+  redis-rack (~> 3.0)
   rerun
   rspec (~> 3.12)
   sentry-ruby (~> 5.0)

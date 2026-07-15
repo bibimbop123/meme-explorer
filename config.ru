@@ -1,9 +1,14 @@
 require './app'
+require 'rack/session/redis'
 
 # Configure session middleware BEFORE mounting the app
-# Using Cookie sessions for now (4K limit, but stable)
-use Rack::Session::Cookie,
+# Using Redis sessions to avoid 4K cookie limit (fixes OAuth state issues)
+use Rack::Session::Redis,
   key: 'meme_explorer.session',
+  redis_server: {
+    url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'),
+    namespace: 'session'
+  },
   path: '/',
   httponly: true,
   same_site: :lax,

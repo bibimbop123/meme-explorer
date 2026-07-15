@@ -24,6 +24,7 @@ gem "dotenv", "~> 2.8"
 # Caching and persistence
 gem "redis"
 gem "rack-attack"
+gem "redis-rack", "~> 3.0"  # Redis-based session storage
 gem "pg", "~> 1.5"  # PostgreSQL adapter
 gem "connection_pool", "~> 2.4"  # Connection pooling for PostgreSQL
 
