@@ -66,26 +66,8 @@ class AchievementSystem {
   }
 
   showAchievementPopup(milestone) {
-    const popup = document.createElement('div');
-    popup.className = 'achievement-popup';
-    popup.innerHTML = `
-      <div class="achievement-content">
-        <div class="achievement-icon">🎉</div>
-        <div class="achievement-title">${milestone.title}</div>
-        <div class="achievement-message">${milestone.message}</div>
-      </div>
-    `;
-    
-    document.body.appendChild(popup);
-    
-    // Animate in
-    setTimeout(() => popup.classList.add('show'), 10);
-    
-    // Auto-remove after 4 seconds
-    setTimeout(() => {
-      popup.classList.remove('show');
-      setTimeout(() => popup.remove(), 300);
-    }, 4000);
+    // Popup notifications disabled
+    return;
   }
 
   playAchievementSound() {

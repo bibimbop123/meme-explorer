@@ -21,10 +21,6 @@ module Routes
         erb :'guides/personalization'
       end
 
-      app.get '/guides/gamification' do
-        erb :'guides/gamification'
-      end
-
       app.get '/guides/collections' do
         erb :'guides/collections'
       end

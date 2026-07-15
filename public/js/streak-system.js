@@ -66,121 +66,23 @@ class StreakSystem {
   }
 
   showStreakBadge() {
-    const streak = this.streakData.currentStreak || 0;
-    if (streak === 0) return;
-
-    // Create floating streak badge
-    const badge = document.createElement('div');
-    badge.className = 'streak-badge';
-    badge.innerHTML = `
-      <div class="streak-content">
-        <div class="streak-icon">🔥</div>
-        <div class="streak-number">${streak}</div>
-        <div class="streak-label">day streak</div>
-      </div>
-    `;
-
-    // Position in top-right
-    badge.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 50px;
-      box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
-      cursor: pointer;
-      transition: all 0.3s ease;
-    `;
-
-    badge.addEventListener('mouseenter', () => {
-      badge.style.transform = 'scale(1.05)';
-    });
-
-    badge.addEventListener('mouseleave', () => {
-      badge.style.transform = 'scale(1)';
-    });
-
-    badge.addEventListener('click', () => {
-      this.showStreakDetails();
-    });
-
-    document.body.appendChild(badge);
+    // Streak badge disabled
+    return;
   }
 
   showStreakIncrement(streak) {
-    const messages = [
-      `🔥 ${streak} day streak!`,
-      `💪 ${streak} days strong!`,
-      `⚡ ${streak} days in a row!`,
-      `🎯 ${streak} day combo!`,
-      `🚀 ${streak} days unstoppable!`
-    ];
-
-    const message = messages[Math.floor(Math.random() * messages.length)];
-
-    const popup = document.createElement('div');
-    popup.className = 'streak-popup';
-    popup.innerHTML = `
-      <div class="streak-popup-content">
-        <div class="streak-popup-icon">🎉</div>
-        <div class="streak-popup-title">${message}</div>
-        <div class="streak-popup-message">Come back tomorrow to keep it going!</div>
-      </div>
-    `;
-
-    document.body.appendChild(popup);
-
-    setTimeout(() => popup.classList.add('show'), 10);
-    setTimeout(() => {
-      popup.classList.remove('show');
-      setTimeout(() => popup.remove(), 300);
-    }, 3500);
+    // Streak increment popup disabled
+    return;
   }
 
   showNewRecord() {
-    const popup = document.createElement('div');
-    popup.className = 'streak-popup record';
-    popup.innerHTML = `
-      <div class="streak-popup-content">
-        <div class="streak-popup-icon">🏆</div>
-        <div class="streak-popup-title">NEW RECORD!</div>
-        <div class="streak-popup-message">Your longest streak ever!</div>
-      </div>
-    `;
-
-    document.body.appendChild(popup);
-
-    setTimeout(() => popup.classList.add('show'), 10);
-    setTimeout(() => {
-      popup.classList.remove('show');
-      setTimeout(() => popup.remove(), 300);
-    }, 4000);
-
-    // Confetti effect
-    this.triggerConfetti();
+    // New record popup disabled
+    return;
   }
 
   showStreakBroken(brokenStreak) {
-    const popup = document.createElement('div');
-    popup.className = 'streak-popup broken';
-    popup.innerHTML = `
-      <div class="streak-popup-content">
-        <div class="streak-popup-icon">💔</div>
-        <div class="streak-popup-title">Streak Broken</div>
-        <div class="streak-popup-message">You had a ${brokenStreak} day streak. Starting fresh!</div>
-      </div>
-    `;
-
-    document.body.appendChild(popup);
-
-    setTimeout(() => popup.classList.add('show'), 10);
-    setTimeout(() => {
-      popup.classList.remove('show');
-      setTimeout(() => popup.remove(), 300);
-    }, 3000);
+    // Streak broken popup disabled
+    return;
   }
 
   showStreakDetails() {
