@@ -84,8 +84,8 @@ class SecurityHeaders
     [
       "default-src 'self'",
       
-      # Scripts: self + specific CDNs + inline for critical path
-      "script-src 'self' 'unsafe-inline' " \
+      # Scripts: self + specific CDNs + inline for critical path + wasm support
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " \
         "https://pagead2.googlesyndication.com " \
         "https://www.googletagmanager.com " \
         "https://www.google-analytics.com " \
