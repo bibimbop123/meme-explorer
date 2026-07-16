@@ -29,10 +29,6 @@ guides = {
             <h3>Personalization</h3>
             <p>Smart content adapted to your context and preferences</p>
           </a>
-          <a href="/guides/gamification" class="guide-card">
-            <h3>Gamification</h3>
-            <p>Streaks, achievements, and leveling up</p>
-          </a>
           <a href="/guides/collections" class="guide-card">
             <h3>Collections</h3>
             <p>How we curate and organize meme categories</p>
@@ -244,7 +240,6 @@ guides = {
         <h2>Related Guides</h2>
         <ul>
           <li><a href="/guides/quality-system">Quality System</a></li>
-          <li><a href="/guides/gamification">Gamification Features</a></li>
           <li><a href="/guides/discovery">Discovery Algorithm</a></li>
         </ul>
       </section>
