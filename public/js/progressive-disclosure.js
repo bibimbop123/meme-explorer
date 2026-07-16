@@ -49,7 +49,7 @@
       if (this.memeCount === 5 && !this.hasSeenMilestone('keyboard-shortcuts')) {
         this.showFeatureUnlock({
           title: '⌨️ Keyboard Shortcuts Unlocked!',
-          description: 'You've viewed 5 memes! Press Space for next, L to like, S to save.',
+          description: "You've viewed 5 memes! Press Space for next, L to like, S to save.",
           cta: 'Try it now',
           milestone: 'keyboard-shortcuts'
         });

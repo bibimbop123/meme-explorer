@@ -18,7 +18,7 @@ import { MemeInteractions } from './meme-interactions.js';
 
 // Optional modules - load based on configuration
 let trackingEnabled = false;
-let prefetchEnabled = true;
+let prefetchEnabled = false; // Disabled - module not yet implemented
 
 class MemeApp {
   constructor() {

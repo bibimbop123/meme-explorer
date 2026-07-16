@@ -136,8 +136,8 @@ class ReactionsSystem {
 }
 
 // Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
+const styleElement = document.createElement('style');
+styleElement.textContent = `
   @keyframes reactionFloat {
     0% {
       transform: translateY(0) scale(1);
@@ -158,7 +158,7 @@ style.textContent = `
     }
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(styleElement);
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
