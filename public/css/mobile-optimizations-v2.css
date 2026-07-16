@@ -1,0 +1,583 @@
+/* ============================================
+   MOBILE OPTIMIZATIONS V2 - JULY 2026
+   Tech Lead Comprehensive Overhaul
+   ============================================
+   Fixes:
+   - Removed duplicate code
+   - Content-first layout
+   - Natural document flow (no fixed positioning hell)
+   - 48px minimum touch targets
+   - Performance optimizations
+============================================ */
+
+/* ============================================
+   1. BASE MOBILE STYLES
+   ============================================ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Prevent horizontal scroll */
+body, html {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+/* Touch-friendly tap targets - WCAG 2.1 AA compliant */
+button, .btn, a.btn, input[type="submit"], input[type="button"] {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 16px; /* Prevents zoom on iOS */
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+a, button, input, select, textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   2. MOBILE BREAKPOINTS - CONTENT FIRST
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* ===== NAVIGATION SIMPLIFICATION ===== */
+  header {
+    padding: 0.75rem 1rem !important;
+    min-height: 60px;
+  }
+  
+  header h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* Hide non-essential navigation items */
+  nav a[href="/leaderboard"],
+  nav a[href="/blog"],
+  nav a[href="/metrics"],
+  nav a[href="/guides"],
+  nav a[href*="/category/"],
+  nav a[href="/admin"] {
+    display: none !important;
+  }
+  
+  nav {
+    gap: 0.5rem !important;
+    flex-wrap: nowrap !important;
+  }
+  
+  nav a, nav button {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+  }
+  
+  /* ===== CONTENT-FIRST LAYOUT ===== */
+  /* Remove ALL fixed positioning - use natural flow */
+  .meme-container {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: calc(100vh - 60px) !important;
+    position: relative !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  
+  /* Meme display takes maximum space */
+  .meme-display {
+    flex: 1 !important;
+    min-height: 50vh !important;
+    max-height: 65vh !important;
+    position: relative !important;
+    width: 100% !important;
+    background: #000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.5rem !important;
+  }
+  
+  .meme-display img,
+  .meme-display video {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  
+  /* ===== INFO SECTION - NATURAL FLOW ===== */
+  .meme-info {
+    position: relative !important;
+    transform: none !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1rem !important;
+    background: var(--bg-primary, #fff) !important;
+    color: var(--text-primary, #333) !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  
+  .meme-info-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  
+  .meme-title {
+    font-size: 1rem !important;
+    line-height: 1.4 !important;
+    flex: 1 !important;
+  }
+  
+  .title-toggle-btn {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* ===== CONTROLS - STICKY BOTTOM ===== */
+  .meme-controls {
+    position: sticky !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.75rem !important;
+    background: rgba(0, 0, 0, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3) !important;
+    z-index: 100 !important;
+  }
+  
+  .control-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    padding: 0.75rem 0.5rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 1.75rem !important;
+    min-height: 64px !important;
+    min-width: 60px !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .control-btn:active {
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: scale(0.95) !important;
+  }
+  
+  .control-count {
+    font-size: 0.65rem !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+  }
+  
+  /* ===== REACTIONS - TOUCH-FRIENDLY GRID ===== */
+  .reactions-container {
+    padding: 1rem !important;
+    background: var(--bg-secondary, #f5f5f5) !important;
+  }
+  
+  .reactions-buttons {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+    margin-top: 0.75rem !important;
+  }
+  
+  .reaction-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    padding: 16px 12px !important;
+    font-size: 28px !important;
+    min-height: 72px !important;
+    min-width: 72px !important;
+    border-radius: 12px !important;
+    background: white !important;
+    border: 2px solid #e0e0e0 !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .reaction-btn:active {
+    transform: scale(0.95) !important;
+    background: #f0f0f0 !important;
+  }
+  
+  .reaction-count {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+  }
+  
+  /* ===== GAMIFICATION - MINIMIZED ===== */
+  .streak-badge,
+  .level-badge {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  /* Hide XP notifications on very small screens */
+  @media (max-width: 375px) {
+    .xp-notification,
+    .achievement-notification {
+      display: none !important;
+    }
+  }
+  
+  /* ===== CAROUSEL CONTROLS ===== */
+  .carousel-arrow {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 2rem !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .carousel-counter {
+    font-size: 0.85rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  /* ===== HIDE DESKTOP-ONLY ELEMENTS ===== */
+  .nav-hints-container {
+    display: none !important;
+  }
+  
+  .milestone-progress-bar {
+    display: none !important;
+  }
+  
+  /* Hide side ads on mobile */
+  .ad-container[data-position="left"],
+  .ad-container[data-position="right"] {
+    display: none !important;
+  }
+  
+  /* ===== TYPOGRAPHY ===== */
+  body {
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+  }
+  
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  h3 {
+    font-size: 1.1rem !important;
+  }
+  
+  /* ===== FORMS ===== */
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px !important;
+    min-height: 48px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* ===== SHARE BUTTONS ===== */
+  .share-bar {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    margin: 1rem 0 !important;
+  }
+  
+  .share-btn {
+    width: 100% !important;
+    min-height: 56px !important;
+    justify-content: center !important;
+    font-size: 16px !important;
+  }
+}
+
+/* ===== SMALL PHONES (≤375px) ===== */
+@media (max-width: 375px) {
+  .meme-controls {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.25rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  .control-btn {
+    font-size: 1.5rem !important;
+    min-height: 56px !important;
+    padding: 0.5rem 0.25rem !important;
+  }
+  
+  .control-count {
+    font-size: 0.6rem !important;
+  }
+  
+  .reactions-buttons {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  
+  .reaction-btn {
+    font-size: 24px !important;
+    min-height: 64px !important;
+    padding: 12px 8px !important;
+  }
+}
+
+/* ============================================
+   3. ACCESSIBILITY
+   ============================================ */
+
+/* Focus states for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid #4A90E2 !important;
+  outline-offset: 2px !important;
+}
+
+/* Active state feedback */
+@media (max-width: 768px) {
+  button:active,
+  a.button:active {
+    opacity: 0.7 !important;
+    transition: opacity 0.1s ease !important;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   4. PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .meme-info {
+    background: #1a1a1a !important;
+    color: #e0e0e0 !important;
+  }
+  
+  .reactions-container {
+    background: #222 !important;
+  }
+  
+  .reaction-btn {
+    background: #2d2d2d !important;
+    border-color: #444 !important;
+    color: #fff !important;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* ============================================
+   5. TABLET LANDSCAPE (769px - 1024px)
+   ============================================ */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .meme-display {
+    max-height: 70vh !important;
+  }
+  
+  .meme-controls {
+    grid-template-columns: repeat(5, 1fr) !important;
+    max-width: 700px !important;
+    margin: 0 auto !important;
+  }
+  
+  .reactions-buttons {
+    grid-template-columns: repeat(5, 1fr) !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* ============================================
+   6. LOADING STATES
+   ============================================ */
+
+@media (max-width: 768px) {
+  .loading-skeleton {
+    animation: shimmer 2s infinite;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  button.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    cursor: wait;
+  }
+}
+
+/* ============================================
+   7. SWIPE GESTURE INDICATORS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .swipe-hint {
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    opacity: 0;
+    animation: fadeInOut 3s ease-in-out;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    10%, 90% { opacity: 1; }
+  }
+}
+
+/* ============================================
+   8. MODAL/OVERLAY FIXES
+   ============================================ */
+
+@media (max-width: 768px) {
+  .modal,
+  .level-up-modal {
+    padding: 1rem !important;
+  }
+  
+  .modal-content,
+  .level-up-content {
+    width: 90% !important;
+    max-width: 400px !important;
+    padding: 2rem 1.5rem !important;
+  }
+  
+  .modal h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  .modal p {
+    font-size: 1rem !important;
+  }
+}
+
+/* ============================================
+   9. COLLECTION BADGES & META
+   ============================================ */
+
+@media (max-width: 768px) {
+  .refined-collection-badge {
+    font-size: 0.85rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  .curation-signal {
+    font-size: 0.85rem !important;
+    padding: 0.5rem !important;
+    margin: 0.5rem 0 !important;
+  }
+  
+  .rarity-indicator {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+}
+
+/* ============================================
+   10. COPY TOAST
+   ============================================ */
+
+@media (max-width: 768px) {
+  .copy-toast {
+    bottom: 100px !important;
+    max-width: 90% !important;
+    font-size: 0.9rem !important;
+    padding: 12px 20px !important;
+  }
+  
+  .copy-toast.show {
+    animation: slideUpMobile 0.3s ease !important;
+  }
+  
+  @keyframes slideUpMobile {
+    from {
+      transform: translateX(-50%) translateY(50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  }
+}
