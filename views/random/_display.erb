@@ -1,0 +1,28 @@
+<!-- Meme Display Partial -->
+<% if @meme && is_gallery_post?(@meme) && @meme["gallery_images"] %>
+  <!-- Multi-image gallery carousel -->
+  <%= gallery_styles %>
+  <%= render_gallery_carousel(@meme["gallery_images"], @meme["title"]) %>
+<% else %>
+  <!-- Single image/video display -->
+  <button class="carousel-arrow carousel-arrow-left" id="carousel-prev" aria-label="Previous image" style="display: none;">‹</button>
+  <div class="meme-display-content">
+    <% if @meme %>
+      <% media_type = @media_type || (File.extname(@image_src).downcase == '.mp4' || File.extname(@image_src).downcase == '.webm' ? 'video' : 'image') %>
+      <% if media_type == 'video' %>
+        <video src="<%= @image_src %>" controls autoplay muted loop style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          Your browser does not support the video tag.
+        </video>
+      <% else %>
+        <img id="meme-image" src="<%= @image_src %>" alt="<%= @meme['title'] %>" onerror="showPlaceholder()" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in;">
+      <% end %>
+    <% else %>
+      <div class="meme-loading">
+        <div class="loading-spinner"></div>
+        <p class="loading-text"><%= PersonalityContent.random_loading_message %></p>
+      </div>
+    <% end %>
+  </div>
+  <button class="carousel-arrow carousel-arrow-right" id="carousel-next" aria-label="Next image" style="display: none;">›</button>
+  <div class="carousel-counter" id="carousel-counter" style="display: none;">1/1</div>
+<% end %>

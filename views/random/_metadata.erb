@@ -1,0 +1,38 @@
+<!-- Meme Metadata Partial -->
+<div class="meme-info-header">
+  <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
+  <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">
+    <span class="toggle-icon"></span>
+  </button>
+</div>
+
+<% if @meme %>
+  <% collection_name = collection_name_for_subreddit(@meme['subreddit']) %>
+  <% rarity_data = calculate_rarity(@meme) %>
+  
+  <div class="refined-collection-badge">
+    <%= collection_name %>
+    <% if rarity_data[:label] != 'Common' %>
+      <span class="rarity-indicator rarity-<%= rarity_data[:label].downcase %>">
+        <%= rarity_data[:icon] %> <%= rarity_data[:label] %>
+      </span>
+    <% end %>
+  </div>
+  
+  <% signal = generate_curation_signal(@meme) %>
+  <div class="curation-signal curation-signal-<%= signal[:type] %>">
+    <span class="signal-icon"><%= signal[:icon] %></span>
+    <span class="signal-text"><%= signal[:message] %></span>
+  </div>
+<% end %>
+
+<div class="meme-meta-wrapper">
+  <div class="meme-meta">
+  <% if @reddit_path || @meme&.dig('permalink') %>
+    <a href="https://reddit.com<%= @reddit_path || @meme&.dig('permalink') %>" 
+       target="_blank" rel="noopener" class="reddit-link refined-source-link" title="View original post on Reddit">
+      Source →
+    </a>
+  <% end %>
+  </div>
+</div>

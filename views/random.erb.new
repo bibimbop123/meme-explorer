@@ -1,0 +1,35 @@
+<div class="page-wrapper">
+  <div class="meme-container">
+    <!-- Left Ad Column -->
+    <% if should_show_ads? %>
+      <div class="ad-container" data-position="left">
+        <%= render_ad_unit(0, format: 'vertical') %>
+      </div>
+    <% end %>
+
+    <!-- Meme Display -->
+    <div class="meme-display" id="meme-display">
+      <%= render partial: 'random/display' %>
+    </div>
+    
+    <!-- Meme Info/Metadata -->
+    <div class="meme-info" id="meme-info">
+      <%= render partial: 'random/metadata' %>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="meme-controls">
+      <%= render partial: 'random/controls' %>
+    </div>
+
+    <!-- Right Ad Column -->
+    <% if should_show_ads? %>
+      <div class="ad-container" data-position="right">
+        <%= render_ad_unit(1, format: 'vertical') %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Load modular JavaScript -->
+<script type="module" src="/js/modules/meme-app.js" defer></script>
