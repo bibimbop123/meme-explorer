@@ -1,17 +1,17 @@
 /**
- * Meme Interactions Module - Production Grade
+ * Meme Interactions Module - Enhanced Edition
  * Professional-grade like/save functionality with smooth animations
  * Built by experienced tech lead for optimal UX
  */
 
-export class MemeInteractions {
+export class MemeInteractionsEnhanced {
   constructor() {
     this.isProcessing = false;
     this.init();
   }
   
   init() {
-    console.log('[MemeInteractions] Initializing Production Grade Edition...');
+    console.log('[MemeInteractions] Initializing Enhanced Edition...');
     this.bindLikeButton();
     this.bindSaveButton();
     this.bindShareButton();
@@ -40,13 +40,39 @@ export class MemeInteractions {
       }
       
       @keyframes ripple {
-        0% { transform: scale(0); opacity: 1; }
-        100% { transform: scale(4); opacity: 0; }
+        0% {
+          transform: scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(4);
+          opacity: 0;
+        }
       }
       
-      .btn-processing { opacity: 0.6; pointer-events: none; }
-      .btn-liked { animation: heartBeat 0.6s ease; }
-      .btn-saved { animation: bookmarkSlide 0.5s ease; }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translate(-50%, 20px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+      
+      .btn-processing {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      
+      .btn-liked {
+        animation: heartBeat 0.6s ease;
+      }
+      
+      .btn-saved {
+        animation: bookmarkSlide 0.5s ease;
+      }
       
       .ripple-effect {
         position: absolute;
@@ -54,6 +80,15 @@ export class MemeInteractions {
         background: rgba(255, 255, 255, 0.6);
         animation: ripple 0.6s ease-out;
         pointer-events: none;
+      }
+      
+      .toast-notification {
+        animation: fadeInUp 0.3s ease, fadeOut 0.3s ease 2.7s !important;
+      }
+      
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
       }
     `;
     document.head.appendChild(styles);
@@ -133,23 +168,35 @@ export class MemeInteractions {
     // Optimistic UI update
     this.isProcessing = true;
     likeBtn?.classList.add('btn-processing');
+    
+    // Immediately update UI (optimistic)
     this.updateLikeButton(!wasLiked, true);
     this.triggerHaptic(wasLiked ? 'light' : 'success');
     
     try {
       const response = await fetch('/like', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ url: memeUrl })
       });
       
       if (response.ok) {
         const data = await response.json();
         console.log('[MemeInteractions] Like success:', data);
+        
+        // Confirm the state matches server
         this.updateLikeButton(data.liked, false);
         this.showToast(data.liked ? '❤️ Liked!' : 'Unliked', 'success');
-        if (data.likes !== undefined) this.updateLikeCount(data.likes);
+        
+        // Update like count if available
+        if (data.likes !== undefined) {
+          this.updateLikeCount(data.likes);
+        }
+        
       } else {
+        // Revert optimistic update on error
         this.updateLikeButton(wasLiked, false);
         const error = await response.json();
         console.error('[MemeInteractions] Like failed:', error);
@@ -157,6 +204,7 @@ export class MemeInteractions {
         this.triggerHaptic('heavy');
       }
     } catch (error) {
+      // Revert optimistic update on error
       this.updateLikeButton(wasLiked, false);
       console.error('[MemeInteractions] Like request failed:', error);
       this.showToast('Network error', 'error');
@@ -189,6 +237,8 @@ export class MemeInteractions {
     // Optimistic UI update
     this.isProcessing = true;
     saveBtn?.classList.add('btn-processing');
+    
+    // Immediately update UI (optimistic)
     this.updateSaveButton(!wasSaved, true);
     this.triggerHaptic(wasSaved ? 'light' : 'success');
     
@@ -200,16 +250,22 @@ export class MemeInteractions {
       
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(body)
       });
       
       if (response.ok) {
         const data = await response.json();
         console.log('[MemeInteractions] Save success:', data);
+        
+        // Confirm the state
         this.updateSaveButton(!wasSaved, false);
         this.showToast(wasSaved ? 'Removed from saved' : '🔖 Saved to profile!', 'success');
+        
       } else {
+        // Revert optimistic update on error
         this.updateSaveButton(wasSaved, false);
         const error = await response.json();
         console.error('[MemeInteractions] Save failed:', error);
@@ -217,6 +273,7 @@ export class MemeInteractions {
         this.triggerHaptic('heavy');
       }
     } catch (error) {
+      // Revert optimistic update on error
       this.updateSaveButton(wasSaved, false);
       console.error('[MemeInteractions] Save request failed:', error);
       this.showToast('Network error', 'error');
@@ -264,8 +321,12 @@ export class MemeInteractions {
       }
       likeBtn.classList.toggle('liked', liked);
       likeBtn.setAttribute('aria-pressed', liked);
+      
+      // Update icon if exists
       const icon = likeBtn.querySelector('i, svg');
-      if (icon) icon.style.color = liked ? '#e74c3c' : '';
+      if (icon) {
+        icon.style.color = liked ? '#e74c3c' : '';
+      }
     }
   }
   
@@ -278,8 +339,12 @@ export class MemeInteractions {
       }
       saveBtn.classList.toggle('saved', saved);
       saveBtn.setAttribute('aria-pressed', saved);
+      
+      // Update icon if exists
       const icon = saveBtn.querySelector('i, svg');
-      if (icon) icon.style.color = saved ? '#f39c12' : '';
+      if (icon) {
+        icon.style.color = saved ? '#f39c12' : '';
+      }
     }
   }
   
@@ -287,26 +352,29 @@ export class MemeInteractions {
     const likeCountEl = document.getElementById('like-count');
     if (likeCountEl) {
       likeCountEl.textContent = count;
+      // Animate count change
       likeCountEl.style.transform = 'scale(1.2)';
-      setTimeout(() => { likeCountEl.style.transform = 'scale(1)'; }, 200);
+      setTimeout(() => {
+        likeCountEl.style.transform = 'scale(1)';
+      }, 200);
     }
   }
   
   checkInitialStates() {
-    // Check if meme is already liked/saved and update buttons
     const likeBtn = document.getElementById('like-btn');
     const saveBtn = document.getElementById('save-btn');
     
     if (likeBtn && likeBtn.dataset.liked === 'true') {
-      this.updateLikeButton(true);
+      this.updateLikeButton(true, false);
     }
     
     if (saveBtn && saveBtn.dataset.saved === 'true') {
-      this.updateSaveButton(true);
+      this.updateSaveButton(true, false);
     }
   }
   
   showToast(message, type = 'info') {
+    // Remove existing toasts
     document.querySelectorAll('.toast-notification').forEach(t => t.remove());
     
     const toast = document.createElement('div');
@@ -335,11 +403,11 @@ export class MemeInteractions {
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transition: transform 0.2s ease;
-      animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
     `;
     
     document.body.appendChild(toast);
     
+    // Hover effect
     toast.addEventListener('mouseenter', () => {
       toast.style.transform = 'translateX(-50%) translateY(-4px)';
     });
@@ -352,4 +420,13 @@ export class MemeInteractions {
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
+}
+
+// Auto-initialize if DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.memeInteractions = new MemeInteractionsEnhanced();
+  });
+} else {
+  window.memeInteractions = new MemeInteractionsEnhanced();
 }

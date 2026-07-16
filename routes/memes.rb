@@ -6,8 +6,25 @@ module Routes
     def self.registered(app)
         app.post "/like" do
           content_type :json
-          url = params[:url]
-          halt 400, { error: "No URL provided" }.to_json unless url
+          
+          # ✅ FIX: Parse JSON body properly (Sinatra doesn't auto-parse!)
+          begin
+            request.body.rewind
+            data = JSON.parse(request.body.read)
+          rescue JSON::ParserError => e
+            AppLogger.error("❌ [Like] Invalid JSON: #{e.message}")
+            halt 400, { error: "Invalid JSON" }.to_json
+          end
+          
+          # Accept both 'url' and 'meme_url' for backwards compatibility
+          url = data['url'] || data['meme_url'] || params[:url]
+          
+          unless url
+            AppLogger.warn("⚠️  [Like] No URL provided in request")
+            halt 400, { error: "No URL provided" }.to_json
+          end
+          
+          AppLogger.debug("✅ [Like] Request for URL: #{url}")
 
           # For anonymous users: use session (temporary)
           unless current_user_id
