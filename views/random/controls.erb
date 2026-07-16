@@ -1,10 +1,10 @@
 <!-- Meme Controls Partial -->
-<button class="control-btn" id="like-btn" title="Like this meme">
+<button class="control-btn" id="like-btn" title="Like this meme" data-liked="<%= @liked ? 'true' : 'false' %>">
   ❤️
   <span class="control-count" id="like-count"><%= @likes %></span>
 </button>
 
-<button class="control-btn" id="save-btn" title="Save to profile">
+<button class="control-btn" id="save-btn" title="Save to profile" data-saved="<%= @saved ? 'true' : 'false' %>">
   🔖
   <span class="control-count">Save</span>
 </button>

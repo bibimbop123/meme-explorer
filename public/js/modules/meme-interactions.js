@@ -13,6 +13,7 @@ export class MemeInteractions {
     this.bindLikeButton();
     this.bindSaveButton();
     this.bindShareButton();
+    this.checkInitialStates();
   }
   
   bindLikeButton() {
@@ -118,6 +119,20 @@ export class MemeInteractions {
     const saveBtn = document.getElementById('save-btn');
     if (saveBtn) {
       saveBtn.classList.toggle('saved', saved);
+    }
+  }
+  
+  checkInitialStates() {
+    // Check if meme is already liked/saved and update buttons
+    const likeBtn = document.getElementById('like-btn');
+    const saveBtn = document.getElementById('save-btn');
+    
+    if (likeBtn && likeBtn.dataset.liked === 'true') {
+      this.updateLikeButton(true);
+    }
+    
+    if (saveBtn && saveBtn.dataset.saved === 'true') {
+      this.updateSaveButton(true);
     }
   }
   
