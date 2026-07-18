@@ -1,0 +1,160 @@
+/* Gallery Indicators & Polish - Phase 3 */
+
+/* Dot Indicators */
+.gallery-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 1rem 0;
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  padding: 8px 16px;
+}
+
+.gallery-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.gallery-dot:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.2);
+}
+
+.gallery-dot.active {
+  background: #fff;
+  border-color: #4a90e2;
+  transform: scale(1.3);
+}
+
+/* Gallery Counter */
+.gallery-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  z-index: 20;
+  display: none;
+}
+
+.gallery-counter.visible {
+  display: block;
+}
+
+/* Smooth Slide Transitions */
+.gallery-slide {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  opacity: 0;
+  transform: scale(0.95);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+.gallery-slide.active {
+  opacity: 1;
+  transform: scale(1);
+  display: block;
+  position: relative;
+}
+
+/* Gallery Container */
+.gallery-carousel {
+  position: relative;
+  min-height: 400px;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Navigation Arrows Enhancement */
+.carousel-arrow {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  padding: 20px 15px;
+  font-size: 2rem;
+  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+  transition: all 0.3s ease;
+  border-radius: 0;
+}
+
+.carousel-arrow:hover {
+  background: rgba(0, 0, 0, 0.9);
+  padding: 20px 20px;
+}
+
+.carousel-arrow-left {
+  left: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.carousel-arrow-right {
+  right: 0;
+  border-radius: 8px 0 0 8px;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .gallery-dots {
+    padding: 6px 12px;
+    gap: 6px;
+  }
+  
+  .gallery-dot {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .gallery-counter {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+  
+  .carousel-arrow {
+    padding: 15px 10px;
+    font-size: 1.5rem;
+  }
+}
+
+/* Touch Feedback */
+.gallery-slide img {
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Loading State */
+.gallery-slide.loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

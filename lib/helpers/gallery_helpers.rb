@@ -356,4 +356,39 @@ module GalleryHelpers
       </script>
     }
   end
+
+# Enhanced gallery carousel with dot indicators
+def render_enhanced_gallery_carousel(images, title)
+  return '' unless images && images.any?
+  
+  html = '<div class="gallery-carousel">'
+  
+  # Slides
+  images.each_with_index do |image, index|
+    active_class = index == 0 ? 'active' : ''
+    loading = index == 0 ? 'eager' : 'lazy'
+    html += '<div class="gallery-slide ' + active_class + '" data-index="' + index.to_s + '">'
+    html += '<img src="' + image["url"].to_s + '" '
+    html += 'alt="' + title.to_s + ' - Image ' + (index + 1).to_s + '" '
+    html += 'loading="' + loading + '" '
+    html += 'class="meme-content-image">'
+    html += '</div>'
+  end
+  
+  # Dot indicators
+  if images.length > 1
+    html += '<div class="gallery-dots">'
+    images.each_with_index do |_, index|
+      active_class = index == 0 ? 'active' : ''
+      html += '<div class="gallery-dot ' + active_class + '" data-index="' + index.to_s + '"></div>'
+    end
+    html += '</div>'
+    
+    # Counter
+    html += '<div class="gallery-counter visible">1 / ' + images.length.to_s + '</div>'
+  end
+  
+  html += '</div>'
+  html
+end
 end
