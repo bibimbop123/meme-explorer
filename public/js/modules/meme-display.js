@@ -57,8 +57,25 @@ export class MemeDisplay {
       counter.textContent = `${this.currentIndex + 1}/${this.images.length}`;
     }
     
-    // TODO: Actually update the displayed image
-    console.log('[MemeDisplay] Showing image', this.currentIndex);
+    // Update slide visibility
+document.querySelectorAll('.gallery-slide').forEach((slide, index) => {
+  slide.classList.toggle('active', index === this.currentIndex);
+});
+
+// Update dots
+document.querySelectorAll('.gallery-dot').forEach((dot, index) => {
+  dot.classList.toggle('active', index === this.currentIndex);
+});
+
+// Update counter
+const counter = document.getElementById('carousel-counter') ||
+               document.querySelector('.gallery-counter');
+if (counter && this.images.length > 1) {
+  counter.textContent = `${this.currentIndex + 1} / ${this.images.length}`;
+  counter.style.display = 'block';
+}
+
+console.log(`[MemeDisplay] Showing image ${this.currentIndex + 1}/${this.images.length}`);
   }
   
   handleImageError() {

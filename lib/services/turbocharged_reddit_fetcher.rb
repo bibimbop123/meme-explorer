@@ -299,7 +299,28 @@ class TurbochargedRedditFetcher
       next unless post_data
       
       # Quick filtering - skip text-only posts
-      next if post_data["is_self"]
+next if post_data["is_self"]
+
+# PHASE 2: Handle crossposts FIRST
+source_data, is_crosspost = extract_crosspost_data(post_data)
+
+# Extract media comprehensively (images, videos, galleries)
+media = extract_media_comprehensive(source_data)
+next unless media  # Only skip if NO media found
+
+# PHASE 2: Handle crossposts FIRST
+source_data, is_crosspost = extract_crosspost_data(post_data)
+
+# Extract media comprehensively (images, videos, galleries)
+media = extract_media_comprehensive(source_data)
+next unless media  # Only skip if NO media found
+
+# PHASE 2: Handle crossposts FIRST
+source_data, is_crosspost = extract_crosspost_data(post_data)
+
+# Extract media comprehensively (images, videos, galleries)
+media = extract_media_comprehensive(source_data)
+next unless media  # Only skip if NO media found
       
       # CROSSPOST FIX: Extract data from original post if this is a crosspost
       if post_data["is_crosspost"] && post_data["crosspost_parent_list"]&.any?
@@ -339,12 +360,28 @@ class TurbochargedRedditFetcher
       # Skip if URL points to video player (not an image)
       next if is_video && !image_url.match?(/\.(jpg|jpeg|png|gif|webp)/i)
       
-      # Build meme object with variety-preserving data
-      meme = {
+      # Build comprehensive meme object with all media types
+meme = {
         "title" => post_data["title"],
-        "url" => image_url,
+        "url" => media[:primary_url],
+"media_type" => media[:type],
         "subreddit" => post_data["subreddit"],
         "likes" => post_data["ups"] || 0,
+"video_url" => media[:video_url],
+"thumbnail_url" => media[:thumbnail_url],
+"is_reddit_video" => media[:is_reddit_video],
+"is_crosspost" => is_crosspost,
+"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
+"video_url" => media[:video_url],
+"thumbnail_url" => media[:thumbnail_url],
+"is_reddit_video" => media[:is_reddit_video],
+"is_crosspost" => is_crosspost,
+"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
+"video_url" => media[:video_url],
+"thumbnail_url" => media[:thumbnail_url],
+"is_reddit_video" => media[:is_reddit_video],
+"is_crosspost" => is_crosspost,
+"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
         "permalink" => post_data["permalink"],
         "created_utc" => post_data["created_utc"]
       }
@@ -450,7 +487,8 @@ class TurbochargedRedditFetcher
       image_url = image_url.gsub('&amp;', '&')
       
       images << {
-        "url" => image_url,
+        "url" => media[:primary_url],
+"media_type" => media[:type],
         "caption" => item["caption"] || "",
         "media_id" => media_id
       }
@@ -495,4 +533,86 @@ class TurbochargedRedditFetcher
       AppLogger.info("   • Efficiency: #{efficiency} memes/request")
     end
   end
+
+# PHASE 2: Comprehensive media extraction
+def extract_media_comprehensive(post_data)
+  # Priority 1: Gallery
+  if post_data["is_gallery"]
+    gallery = extract_gallery_images(post_data)
+    return {
+      type: 'gallery',
+      primary_url: gallery.first["url"],
+      images: gallery
+    } if gallery&.any?
+  end
+  
+  # Priority 2: Reddit Video (v.redd.it)
+  if post_data["is_video"] && post_data["secure_media"]
+    reddit_video = post_data.dig("secure_media", "reddit_video")
+    if reddit_video
+      return {
+        type: 'video',
+        primary_url: reddit_video["fallback_url"],
+        video_url: reddit_video["fallback_url"],
+        thumbnail_url: extract_video_preview(post_data),
+        is_reddit_video: true,
+        formats: {
+          dash: reddit_video["dash_url"],
+          hls: reddit_video["hls_url"],
+          fallback: reddit_video["fallback_url"]
+        }
+      }
+    end
+  end
+  
+  # Priority 3: Direct video links (mp4, webm)
+  url = post_data["url"]
+  if url&.match?(/\.(mp4|webm|mov)(\?|$)/i)
+    return {
+      type: 'video',
+      primary_url: url,
+      video_url: url,
+      thumbnail_url: url.gsub(/\.(mp4|webm|mov)/, '.jpg'),
+      is_reddit_video: false
+    }
+  end
+  
+  # Priority 4: GIF (treat as video for performance)
+  if url&.match?(/\.gif(\?|$)/i)
+    return {
+      type: 'gif',
+      primary_url: url,
+      video_url: url,
+      thumbnail_url: url
+    }
+  end
+  
+  # Priority 5: Standard images
+  if url && valid_image_url?(url)
+    return {
+      type: 'image',
+      primary_url: url
+    }
+  end
+  
+  # Priority 6: Extract from preview metadata
+  preview_url = extract_video_preview(post_data)
+  return { type: 'image', primary_url: preview_url } if preview_url
+  
+  nil  # No displayable media
+end
+
+def valid_image_url?(url)
+  return false unless url.is_a?(String)
+  url.match?(/\.(jpg|jpeg|png|webp)(\?|$)/i) || 
+    url.include?('i.redd.it') || 
+    url.include?('i.imgur.com')
+end
+
+def extract_crosspost_data(post_data)
+  if post_data["crosspost_parent_list"]&.any?
+    return [post_data["crosspost_parent_list"].first, true]
+  end
+  [post_data, false]
+end
 end

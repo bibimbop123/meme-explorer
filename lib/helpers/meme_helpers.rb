@@ -318,4 +318,25 @@ module MemeHelpers
     return false unless meme.is_a?(Hash)
     meme["is_placeholder"] == true
   end
+
+# Render video player with proper configuration
+def render_video_player(meme)
+  video_url = meme["video_url"] || meme["url"]
+  thumb = meme["thumbnail_url"]
+  
+  html = '<video class="meme-content-video" controls autoplay loop muted playsinline'
+  html += ' poster="' + thumb + '"' if thumb
+  html += '><source src="' + video_url.to_s + '" type="video/mp4">'
+  html += 'Your browser does not support video playback.</video>'
+  html
+end
+
+# Check if meme is a video
+def is_video?(meme)
+  return false unless meme
+  meme["media_type"] == 'video' || 
+    meme["is_video"] || 
+    meme["video_url"] ||
+    meme["url"]&.match?(/\.(mp4|webm|mov)(\?|$)/i)
+end
 end

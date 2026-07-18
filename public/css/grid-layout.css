@@ -42,15 +42,16 @@
 .meme-container .meme-display {
   grid-area: meme;
   width: 100% !important;
-  min-height: calc(100vh - 200px) !important;
-  max-height: calc(100vh - 180px) !important;
+  min-height: 60vh !important;
+  max-height: none !important;  /* CRITICAL FIX: Allow full content height */
   display: flex !important;
-  align-items: center !important;
+  align-items: flex-start !important;  /* Top-align, not center */
   justify-content: center !important;
   position: relative !important;
   background: #000;
   border-radius: 0 !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;  /* Enable scrolling for tall content */
+  overflow-x: hidden !important;
   box-shadow: none !important;
   z-index: 1;
   margin: 0 !important;
