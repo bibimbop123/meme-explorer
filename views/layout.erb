@@ -33,8 +33,6 @@
   <meta property="og:image:type" content="image/svg+xml">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:width" content="195">
-  <meta property="og:image:height" content="258">
   <meta property="og:image:alt" content="Tattoo Annie from The Simpsons - Meme Explorer mascot representing the fun and entertaining world of internet memes">
   <meta property="og:site_name" content="Meme Explorer">
   <meta property="og:locale" content="en_US">
@@ -238,7 +236,7 @@
           <span class="level-badge" title="Your level">⭐ Lv <%= @user_level[:level] %></span>
         <% end %>
         <a href="/profile">👤 Profile</a>
-        <% if session[:reddit_username] == "brianhkim13@gmail.com" %>
+        <% if session[:user_id] && is_admin?(session[:user_id]) %>
           <a href="/admin" style="background: #ff6b00;">🔒 Admin</a>
         <% end %>
         <a href="/logout">🚪 Logout</a>
@@ -250,9 +248,7 @@
   </header>
 
   <!-- ================= MAIN CONTENT ================= -->
-  <main>
-    <main id="main-content" role="main"><%= yield %></main>
-  </main>
+  <main id="main-content" role="main"><%= yield %></main>
 
   <!-- ================= FOOTER ================= -->
   <footer>

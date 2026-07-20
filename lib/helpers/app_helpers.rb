@@ -113,4 +113,28 @@ module AppHelpers
   def get_user(user_id)
     DB.execute("SELECT * FROM users WHERE id = ?", [user_id]).first
   end
+
+# Admin role check - added during audit Week 1 fixes
+def is_admin?(user_id)
+  return false unless user_id
+  
+  # Check admin status from database
+  if defined?(DB)
+    result = DB[:users].where(id: user_id).select(:admin).first
+    return result && result[:admin] == true
+  end
+  
+  # Fallback for development
+  if ENV['RACK_ENV'] == 'development'
+    # You can hardcode dev admin IDs here temporarily
+    dev_admin_ids = [1]
+    return dev_admin_ids.include?(user_id.to_i)
+  end
+  
+  false
+rescue => e
+  AppLogger.error('[AdminCheck] Error checking admin status', error: e.message)
+  false
+end
+
 end
