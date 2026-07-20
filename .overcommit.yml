@@ -1,0 +1,56 @@
+# Pre-commit hooks configuration
+# Install: gem install overcommit && overcommit --install
+# Run: overcommit --run
+
+# Overcommit configuration
+PreCommit:
+  ALL:
+    quiet: false
+  
+  RuboCop:
+    enabled: true
+    command: ['bundle', 'exec', 'rubocop']
+    on_warn: fail
+  
+  BundleAudit:
+    enabled: true
+    command: ['bundle', 'audit', 'check', '--update']
+  
+  RSpec:
+    enabled: false  # Too slow for pre-commit
+    description: 'Run RSpec test suite'
+  
+  TrailingWhitespace:
+    enabled: true
+    exclude:
+      - '**/*.md'
+  
+  YamlSyntax:
+    enabled: true
+    description: 'Check YAML syntax'
+  
+  JsonSyntax:
+    enabled: true
+    description: 'Check JSON syntax'
+
+# Git commit message format
+CommitMsg:
+  TextWidth:
+    enabled: true
+    max_subject_width: 72
+    max_body_width: 100
+  
+  TrailingPeriod:
+    enabled: true
+
+# Pre-push hooks
+PrePush:
+  RSpec:
+    enabled: true
+    command: ['bundle', 'exec', 'rspec']
+    description: 'Run full test suite before push'
+  
+  Brakeman:
+    enabled: true
+    command: ['bundle', 'exec', 'brakeman', '--no-pager']
+    description: 'Security vulnerability scanner'
