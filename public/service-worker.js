@@ -94,8 +94,11 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(request, cacheName) {
   try {
     const response = await fetch(request);
-    const cache = await caches.open(cacheName);
-    cache.put(request, response.clone());
+    // Only cache GET requests (Cache API doesn't support POST, PUT, etc.)
+    if (request.method === 'GET') {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
     return response;
   } catch (error) {
     const cached = await caches.match(request);

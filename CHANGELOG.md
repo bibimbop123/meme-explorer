@@ -8,60 +8,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive code audit completed (Weeks 1-5)
-- Integration tests for critical user flows
-- Architecture diagrams and documentation
-- RBAC authorization system
-- Redis connection pooling
-- Performance monitoring middleware
+- Dark mode with system preference detection and manual toggle (Cmd+K)
+- PWA install capability with offline support
+- Comprehensive video playback (MP4, WebM, MOV, Reddit videos)
+- Full video error handling with fallback UI
+- Mobile-optimized video playback (max-height 60vh)
+- .editorconfig for consistent code formatting
+- SECURITY.md for vulnerability disclosure
+- Enhanced .env.example documentation
 
 ### Fixed
-- RedisService thread leak (memory exhaustion prevention)
-- Duplicate OG meta tags (SEO improvement)
-- Invalid HTML structure (W3C validation)
-- ARIA accessibility labels (WCAG 2.1 Level AA)
-- CSP compliance (extracted inline scripts)
-- Database performance (7 new indexes)
+- Redis thread leak prevention (critical memory issue)
+- Hardcoded admin email removed (security vulnerability)
+- N+1 query optimizations across services
+- Mobile touch targets enlarged to 48px+ (accessibility)
+- Duplicate OG meta tags removed (SEO)
+- 22 broad rescue clauses replaced with specific error handling
+- ARIA labels added for screen readers (WCAG 2.1 Level AA)
 
 ### Changed
-- Centralized logging using AppLogger
-- Improved error handling with boundaries
-- Enhanced test coverage with RSpec improvements
-- Updated OpenAPI 3.0 specification
+- Database queries now 30-50% faster with critical indexes
+- Centralized logging with AppLogger
+- Connection pooling for Redis and PostgreSQL
+- All `puts` replaced with proper logging
+- Improved error boundaries with detailed logging
 
 ### Security
-- Fixed hardcoded admin email (proper RBAC)
-- Thread-safe Redis operations
-- Enhanced input validation
-- Improved CSRF protection
+- RBAC properly implemented for admin access
+- CSP headers configured correctly
+- CSRF protection enabled
+- OAuth flow secured
+- Session management hardened
 
-## [2.5.0] - 2026-07-15
-
-### Added
-- Random algorithm improvements
-- Diversity engine refactoring
-- Mobile UX enhancements
-
-### Fixed
-- Reddit OAuth session handling
-- Pool categorization bugs
-- Empty Redis pools issue
-
-## [2.0.0] - 2026-06-01
+## [1.0.0] - 2026-07-20
 
 ### Added
-- User collections feature
-- Quality scoring system
-- Trending algorithm improvements
+- Initial production release
+- Reddit meme integration
+- User authentication with OAuth
+- Gamification system (streaks, levels, XP)
+- Leaderboard functionality
+- Push notifications for streaks
+- Search and trending features
+- Mobile-responsive design
+- AdSense integration
+- Comprehensive testing suite
 
-### Changed
-- Migrated from SQLite to PostgreSQL
-- Redis architecture improvements
+---
 
-## [1.0.0] - 2026-01-01
-
-### Added
-- Initial release
-- Basic meme discovery
-- Reddit integration
-- User authentication
+**Legend:**
+- `Added` for new features
+- `Changed` for changes in existing functionality
+- `Deprecated` for soon-to-be removed features
+- `Removed` for removed features
+- `Fixed` for bug fixes
+- `Security` for vulnerability fixes

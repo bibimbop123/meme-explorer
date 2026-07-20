@@ -2,141 +2,124 @@
 
 ## Supported Versions
 
-We actively support and provide security updates for the following versions:
+We take security seriously and provide security updates for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.5.x   | :white_check_mark: |
-| 2.0.x   | :white_check_mark: |
-| < 2.0   | :x:                |
+| 1.x.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-We take security seriously at Meme Explorer. If you discover a security vulnerability, please follow these steps:
+We appreciate the security research community's efforts to help keep Meme Explorer secure.
 
-### 1. **DO NOT** open a public GitHub issue
+### How to Report
 
-Security vulnerabilities should be reported privately to prevent exploitation.
+**Please DO NOT file a public GitHub issue for security vulnerabilities.**
 
-### 2. Email Security Team
+Instead, please report security vulnerabilities via one of the following methods:
 
-Send details to: **security@memeexplorer.com** (or create private security advisory on GitHub)
+1. **Email:** Send details to `security@your-domain.com`
+2. **Private Advisory:** Use [GitHub Security Advisories](https://github.com/your-username/meme-explorer/security/advisories/new)
 
-Include in your report:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if available)
+### What to Include
 
-### 3. Response Timeline
+When reporting a vulnerability, please include:
 
-- **Initial Response:** Within 48 hours
-- **Status Update:** Within 7 days
-- **Fix Timeline:** Critical issues within 30 days
+- **Description:** Clear description of the vulnerability
+- **Impact:** Potential impact and attack scenario
+- **Steps to Reproduce:** Detailed steps to reproduce the issue
+- **Proof of Concept:** Code, screenshots, or video demonstration
+- **Suggested Fix:** If you have recommendations (optional)
+- **Your Contact Info:** How we can reach you for follow-up
 
-### 4. Disclosure Policy
+###Response Timeline
 
-- We will acknowledge your report within 48 hours
-- We will provide regular updates on fix progress
-- We will credit you in the security advisory (unless you prefer to remain anonymous)
-- We request 90 days before public disclosure
+We commit to the following response times:
 
-## Security Best Practices
+- **Initial Response:** Within 48 hours of report
+- **Status Update:** Within 7 days with assessment
+- **Resolution Timeline:** Depends on severity
+  - **Critical:** 7 days
+  - **High:** 14 days
+  - **Medium:** 30 days
+  - **Low:** 90 days
 
-### For Users
+## Security Measures
 
-1. **Keep Dependencies Updated**
-   ```bash
-   bundle update
-   ```
+Meme Explorer implements the following security practices:
 
-2. **Use Environment Variables**
-   - Never commit `.env` files
-   - Rotate secrets regularly
-   - Use strong passwords
+### Application Security
 
-3. **Enable Security Headers**
-   - CSP (Content Security Policy)
-   - HSTS (HTTP Strict Transport Security)
-   - X-Frame-Options
+- **Authentication:** Secure OAuth 2.0 flow with Reddit
+- **Authorization:** Role-based access control (RBAC)
+- **Session Management:** Secure session tokens with HttpOnly cookies
+- **CSRF Protection:** CSRF tokens on all state-changing operations
+- **Input Validation:** Comprehensive input sanitization
+- **Output Encoding:** Protection against XSS attacks
+- **SQL Injection Prevention:** Parameterized queries throughout
 
-### For Developers
+### Infrastructure Security
 
-1. **Code Review Requirements**
-   - All PRs require review
-   - Security-sensitive changes require 2+ reviews
-   - Run `bundle audit` before merging
+- **HTTPS Only:** TLS 1.2+ for all connections
+- **Security Headers:** CSP, HSTS, X-Frame-Options, etc.
+- **Rate Limiting:** Rack::Attack prevents brute force and DDoS
+- **Dependency Scanning:** Regular Bundler audit checks
+- **Environment Isolation:** Separate dev/staging/production environments
 
-2. **Dependency Scanning**
-   ```bash
-   bundle audit check --update
-   ```
+### Data Protection
 
-3. **Static Analysis**
-   ```bash
-   rubocop --only Security
-   brakeman --run
-   ```
+- **Password Hashing:** BCrypt with appropriate work factor
+- **Sensitive Data:** OAuth tokens encrypted at rest
+- **PII Handling:** Minimal collection, secure storage
+- **Data Retention:** Automatic cleanup of old sessions/logs
 
 ## Known Security Considerations
 
-### Authentication
-- Sessions expire after 24 hours of inactivity
-- Passwords hashed with bcrypt (cost factor 12)
-- CSRF protection enabled on all state-changing requests
+### Third-Party Services
 
-### Rate Limiting
-- API endpoints: 100 requests/minute per IP
-- Auth endpoints: 5 attempts/minute per IP
-- Configurable in `config/rack_attack.rb`
+- **Reddit API:** OAuth tokens stored securely, refreshed automatically
+- **Google AdSense:** Policies followed for data collection
+- **Redis:** Connection authentication required, not exposed publicly
+- **PostgreSQL:** Strong passwords, connection pooling with SSL
 
-### Data Protection
-- User data encrypted at rest (PostgreSQL TDE)
-- Redis connections secured with AUTH
-- Secrets managed via environment variables
+### Recommended Practices
 
-## Security Hardening Checklist
+For users deploying Meme Explorer:
 
-- [ ] HTTPS enforced in production
-- [ ] Security headers configured
-- [ ] Input validation on all user inputs
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (escaped output)
-- [ ] CSRF tokens on forms
-- [ ] Rate limiting enabled
-- [ ] Dependency scanning automated
-- [ ] Secrets rotated quarterly
-- [ ] Access logs monitored
+1. **Use Environment Variables:** Never commit secrets to git
+2. **Enable 2FA:** On all admin accounts
+3. **Regular Updates:** Keep dependencies up to date
+4. **Monitor Logs:** Review security logs regularly
+5. **Backup Data:** Regular encrypted backups
+6. **Limit Admin Access:** Principle of least privilege
 
-## Third-Party Security
+## Security Checklist for Deployment
 
-### Dependencies
-We use automated tools to monitor dependencies:
-- Dependabot for GitHub
-- Bundle Audit for Ruby gems
-- Snyk for container scanning
+- [ ] All environment variables properly configured
+- [ ] HTTPS enabled with valid SSL certificate
+- [ ] Database credentials strong and rotated regularly
+- [ ] Redis password set and connections encrypted
+- [ ] Session secrets are random and secure
+- [ ] Admin accounts use strong passwords + 2FA
+- [ ] Rate limiting configured appropriately
+- [ ] Security headers verified (securityheaders.com)
+- [ ] Dependency vulnerabilities checked (`bundle audit`)
+- [ ] Logs configured and monitored
+- [ ] Backups automated and tested
+- [ ] Incident response plan documented
 
-### External Services
-- **Reddit API:** OAuth 2.0, scoped access
-- **Redis:** AUTH enabled, network isolated
-- **PostgreSQL:** SSL connections, least privilege
+## Past Security Issues
 
-## Incident Response
+No security vulnerabilities have been publicly disclosed for version 1.x.
 
-See [INCIDENT_RESPONSE.md](./docs/INCIDENT_RESPONSE.md) for our incident response playbook.
+## Security Credits
 
-## Contact
+We appreciate responsible disclosure and will credit security researchers in our release notes (with permission).
 
-- Security Email: security@memeexplorer.com
-- PGP Key: [Available on request]
-- Bug Bounty: Not currently available
-
-## Hall of Fame
-
-We acknowledge security researchers who responsibly disclose vulnerabilities:
-
-(List will be updated as reports are received and resolved)
+Thank you for helping keep Meme Explorer secure!
 
 ---
 
-**Last Updated:** July 19, 2026
+**Last Updated:** July 20, 2026  
+**Next Review:** October 20, 2026

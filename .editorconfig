@@ -8,22 +8,25 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+[*.{rb,rake}]
 indent_style = space
 indent_size = 2
 
-[*.rb]
-indent_size = 2
-
 [*.{js,jsx,ts,tsx}]
-indent_size = 2
-
-[*.{yml,yaml}]
+indent_style = space
 indent_size = 2
 
 [*.{css,scss}]
+indent_style = space
 indent_size = 2
 
-[*.erb]
+[*.{html,erb}]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
 indent_size = 2
 
 [*.md]
@@ -32,8 +35,6 @@ trim_trailing_whitespace = false
 [Makefile]
 indent_style = tab
 
-[*.{sql,SQL}]
-indent_size = 2
-
-[{Gemfile,Rakefile,config.ru}]
+[*.{json,json5}]
+indent_style = space
 indent_size = 2
