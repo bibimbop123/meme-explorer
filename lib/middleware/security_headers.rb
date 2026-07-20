@@ -105,7 +105,7 @@ class SecurityHeaders
       # Fonts: self + data URIs + Google Fonts
       "font-src 'self' data: https://fonts.gstatic.com",
       
-      # Connections: self + API endpoints + analytics + service worker resources
+      # Connections: self + API endpoints + analytics + service worker resources + CDNs
       "connect-src 'self' " \
         "https://www.reddit.com " \
         "https://oauth.reddit.com " \
@@ -116,7 +116,8 @@ class SecurityHeaders
         "https://external-preview.redd.it " \
         "https://fonts.googleapis.com " \
         "https://fonts.gstatic.com " \
-        "https://pagead2.googlesyndication.com",
+        "https://pagead2.googlesyndication.com " \
+        "https://cdn.jsdelivr.net",
       
       # Frames: Google AdSense + YouTube embeds
       "frame-src 'self' " \
