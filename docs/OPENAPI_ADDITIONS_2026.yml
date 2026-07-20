@@ -1,0 +1,140 @@
+/api/random-meme:
+  get:
+    summary: Get random meme
+    description: Returns a random meme avoiding recently viewed content
+    tags:
+      - Memes
+    parameters:
+      - name: category
+        in: query
+        schema:
+          type: string
+          enum: [funny, wholesome, selfcare, dank]
+      - name: exclude_nsfw
+        in: query
+        schema:
+          type: boolean
+          default: true
+    responses:
+      '200':
+        description: Random meme data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                meme:
+                  $ref: '#/components/schemas/Meme'
+                pool_stats:
+                  type: object
+                  properties:
+                    pool_size:
+                      type: integer
+                    tier:
+                      type: string
+      '429':
+        description: Rate limit exceeded
+        
+/api/memes/{id}/like:
+  post:
+    summary: Like a meme
+    tags:
+      - Interactions
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Like recorded
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                total_likes:
+                  type: integer
+      '401':
+        description: Unauthorized
+        
+/api/viewing-history:
+  get:
+    summary: Get user's viewing history
+    tags:
+      - User
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+          maximum: 100
+    responses:
+      '200':
+        description: Viewing history
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      meme_id:
+                        type: integer
+                      viewed_at:
+                        type: string
+                        format: date-time
+                      
+components:
+schemas:
+  Meme:
+    type: object
+    required:
+      - id
+      - title
+      - url
+    properties:
+      id:
+        type: integer
+        example: 12345
+      reddit_id:
+        type: string
+        example: "abc123"
+      title:
+        type: string
+        example: "Funny cat meme"
+      url:
+        type: string
+        format: uri
+        example: "https://i.redd.it/example.jpg"
+      subreddit:
+        type: string
+        example: "memes"
+      category:
+        type: string
+        enum: [funny, wholesome, selfcare, dank]
+      score:
+        type: integer
+        example: 5420
+      is_video:
+        type: boolean
+      is_gallery:
+        type: boolean
+      created_at:
+        type: string
+        format: date-time
+        
+securitySchemes:
+  sessionCookie:
+    type: apiKey
+    in: cookie
+    name: rack.session
