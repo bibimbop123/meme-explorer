@@ -291,22 +291,41 @@ class AuthRoutes
           end
         end
 
+        # ✅ CRITICAL FIX: Logout route - Proper Redis session destruction
         app.get "/logout" do
-          # Clear all session data
-          session.clear
-          
-          # Add cache-control headers to prevent cached logout
-          headers(
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma' => 'no-cache',
-            'Expires' => '0'
-          )
-          
-          # Log the logout
-          AppLogger.info("User logged out", ip: request.ip)
-          
-          # Redirect to home page
-          redirect "/", 303
+          begin
+            # Get session ID before clearing (for logging)
+            session_id = request.session_options[:id] rescue 'unknown'
+            user_id = session[:user_id]
+            
+            # Clear all session data (works with both Cookie and Redis sessions)
+            session.clear
+            
+            # For Rack::Session::Redis, also destroy the session completely
+            # This ensures Redis key is deleted, not just emptied
+            request.session_options[:drop] = true if request.session_options
+            
+            # Add cache-control headers to prevent cached logout
+            headers(
+              'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0, private',
+              'Pragma' => 'no-cache',
+              'Expires' => '0'
+            )
+            
+            # Log the logout
+            AppLogger.info("User logged out", 
+              user_id: user_id,
+              session_id: session_id,
+              ip: request.ip
+            )
+            
+            # Redirect to home page with 303 See Other (forces GET)
+            redirect "/", 303
+          rescue => e
+            AppLogger.error("Logout error: #{e.message}")
+            # Even if error, still redirect to home
+            redirect "/", 303
+          end
         end
   end
 end
