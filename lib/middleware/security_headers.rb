@@ -114,6 +114,8 @@ class SecurityHeaders
         "https://v.redd.it " \
         "https://preview.redd.it " \
         "https://external-preview.redd.it " \
+        "https://i.imgur.com " \
+        "https://imgur.com " \
         "https://fonts.googleapis.com " \
         "https://fonts.gstatic.com " \
         "https://pagead2.googlesyndication.com " \
