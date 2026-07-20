@@ -8,7 +8,7 @@ class ImageHealthWorker
   sidekiq_options queue: :low_priority, retry: 2, backtrace: true
   
   def perform
-    puts "🏥 [IMAGE HEALTH] Starting proactive validation at #{Time.now}"
+    AppLogger.info("🏥 [IMAGE HEALTH] Starting proactive validation at #{Time.now}")
     
     start_time = Time.now
     
@@ -16,11 +16,10 @@ class ImageHealthWorker
     cached_memes = MEME_CACHE.get(:memes) || []
     
     if cached_memes.empty?
-      puts "⚠️ [IMAGE HEALTH] No memes in cache to validate"
+    AppLogger.info("⚠️ [IMAGE HEALTH] No memes in cache to validate")
       return
     end
-    
-    puts "🔍 [IMAGE HEALTH] Validating #{cached_memes.size} cached memes..."
+    AppLogger.info("🔍 [IMAGE HEALTH] Validating #{cached_memes.size} cached memes...")
     
     validated_count = 0
     failed_count = 0
@@ -48,7 +47,7 @@ class ImageHealthWorker
       
       # Log progress every 50 memes
       if (index + 1) % 50 == 0
-        puts "   Progress: #{index + 1}/#{cached_memes.size} checked"
+    AppLogger.info("   Progress: #{index + 1}/#{cached_memes.size} checked")
       end
       
       # Be nice to external servers - small delay
@@ -65,30 +64,29 @@ class ImageHealthWorker
       
       if removed > 0
         MEME_CACHE.set(:memes, clean_memes.shuffle)
-        puts "🧹 [IMAGE HEALTH] Removed #{removed} blacklisted memes from cache"
+    AppLogger.info("🧹 [IMAGE HEALTH] Removed #{removed} blacklisted memes from cache")
       end
     end
-    
-    puts "✅ [IMAGE HEALTH] Validation complete in #{duration}s:"
-    puts "   - Validated: #{validated_count}"
-    puts "   - Failed: #{failed_count}"
-    puts "   - Already blacklisted: #{blacklisted_count}"
+    AppLogger.info("✅ [IMAGE HEALTH] Validation complete in #{duration}s:")
+    AppLogger.info("   - Validated: #{validated_count}")
+    AppLogger.info("   - Failed: #{failed_count}")
+    AppLogger.info("   - Already blacklisted: #{blacklisted_count}")
     
     # Clean up old records
     if defined?(ImageHealthService)
       cleaned = ImageHealthService.cleanup_old_records
-      puts "🧹 [IMAGE HEALTH] Cleaned up #{cleaned} old tracking records" if cleaned > 0
+    AppLogger.info("🧹 [IMAGE HEALTH] Cleaned up #{cleaned} old tracking records") if cleaned > 0
     end
     
     # Log statistics
     if defined?(ImageHealthService)
       stats = ImageHealthService.stats
-      puts "📊 [IMAGE HEALTH] Current stats: #{stats.inspect}"
+    AppLogger.info("📊 [IMAGE HEALTH] Current stats: #{stats.inspect}")
     end
     
   rescue => e
-    puts "❌ [IMAGE HEALTH] Error: #{e.message}"
-    puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [IMAGE HEALTH] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
     Sentry.capture_exception(e) if defined?(Sentry)
     raise  # Re-raise for Sidekiq retry
   end

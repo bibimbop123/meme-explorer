@@ -12,8 +12,7 @@ class SessionCleanupWorker
     
     begin
       require_relative '../../lib/services/session_tracker_service'
-      
-      puts "🧹 [SESSION CLEANUP WORKER] Starting cleanup..."
+    AppLogger.info("🧹 [SESSION CLEANUP WORKER] Starting cleanup...")
       
       # Cleanup expired and zombie sessions
       cleaned_count = SessionTrackerService.cleanup_expired_sessions!
@@ -22,12 +21,11 @@ class SessionCleanupWorker
       stats = SessionTrackerService.session_stats
       
       duration = (Time.now - start_time).round(2)
-      
-      puts "✅ [SESSION CLEANUP WORKER] Completed in #{duration}s"
-      puts "   - Cleaned: #{cleaned_count} sessions"
-      puts "   - Active: #{stats[:active_sessions]} sessions"
-      puts "   - Engaged: #{stats[:engaged_sessions]} sessions"
-      puts "   - Idle: #{stats[:idle_sessions]} sessions"
+    AppLogger.info("✅ [SESSION CLEANUP WORKER] Completed in #{duration}s")
+    AppLogger.info("   - Cleaned: #{cleaned_count} sessions")
+    AppLogger.info("   - Active: #{stats[:active_sessions]} sessions")
+    AppLogger.info("   - Engaged: #{stats[:engaged_sessions]} sessions")
+    AppLogger.info("   - Idle: #{stats[:idle_sessions]} sessions")
       
       # Return stats for monitoring
       {
@@ -38,8 +36,8 @@ class SessionCleanupWorker
       }
       
     rescue => e
-      puts "❌ [SESSION CLEANUP WORKER] Error: #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [SESSION CLEANUP WORKER] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
       raise e # Re-raise to trigger Sidekiq retry
     end
   end

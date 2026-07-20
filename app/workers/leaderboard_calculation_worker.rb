@@ -4,7 +4,7 @@ class LeaderboardCalculationWorker
   sidekiq_options queue: :critical, retry: 5, backtrace: true
   
   def perform
-    puts "🏆 [LEADERBOARD WORKER] Calculating leaderboard scores at #{Time.now}"
+    AppLogger.info("🏆 [LEADERBOARD WORKER] Calculating leaderboard scores at #{Time.now}")
     
     # Get current week and month periods
     current_week = Time.now.strftime('%Y%U').to_i
@@ -28,15 +28,14 @@ class LeaderboardCalculationWorker
     # Recalculate ranks after all scores are updated
     recalculate_weekly_ranks(current_week)
     recalculate_monthly_ranks(current_month)
-    
-    puts "✅ [LEADERBOARD WORKER] Updated #{updated_count} users and recalculated ranks"
+    AppLogger.info("✅ [LEADERBOARD WORKER] Updated #{updated_count} users and recalculated ranks")
     
     # Invalidate leaderboard cache
     invalidate_leaderboard_cache
     
   rescue => e
-    puts "❌ [LEADERBOARD WORKER] Error: #{e.message}"
-    puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [LEADERBOARD WORKER] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
     Sentry.capture_exception(e) if defined?(Sentry)
     raise  # Re-raise for Sidekiq retry
   end
@@ -62,7 +61,7 @@ class LeaderboardCalculationWorker
       [user_id, week_number, total_xp]
     )
   rescue => e
-    puts "⚠️  Error calculating weekly score for user #{user_id}: #{e.message}"
+    AppLogger.info("⚠️  Error calculating weekly score for user #{user_id}: #{e.message}")
   end
   
   def calculate_monthly_score(user_id, month_number)
@@ -83,7 +82,7 @@ class LeaderboardCalculationWorker
       [user_id, month_number, total_xp]
     )
   rescue => e
-    puts "⚠️  Error calculating monthly score for user #{user_id}: #{e.message}"
+    AppLogger.info("⚠️  Error calculating monthly score for user #{user_id}: #{e.message}")
   end
   
   def recalculate_weekly_ranks(week_number)
@@ -98,10 +97,9 @@ class LeaderboardCalculationWorker
       )
       WHERE week_number = ?
     ", [week_number])
-    
-    puts "✅ Recalculated weekly ranks for week #{week_number}"
+    AppLogger.info("✅ Recalculated weekly ranks for week #{week_number}")
   rescue => e
-    puts "⚠️  Error recalculating weekly ranks: #{e.message}"
+    AppLogger.info("⚠️  Error recalculating weekly ranks: #{e.message}")
   end
   
   def recalculate_monthly_ranks(month_number)
@@ -116,19 +114,18 @@ class LeaderboardCalculationWorker
       )
       WHERE month_number = ?
     ", [month_number])
-    
-    puts "✅ Recalculated monthly ranks for month #{month_number}"
+    AppLogger.info("✅ Recalculated monthly ranks for month #{month_number}")
   rescue => e
-    puts "⚠️  Error recalculating monthly ranks: #{e.message}"
+    AppLogger.info("⚠️  Error recalculating monthly ranks: #{e.message}")
   end
   
   def invalidate_leaderboard_cache
     # Clear Redis cache for leaderboards
     if defined?(MEME_CACHE)
       MEME_CACHE.delete_matched('leaderboard:*')
-      puts "🔄 Invalidated leaderboard cache"
+    AppLogger.info("🔄 Invalidated leaderboard cache")
     end
   rescue => e
-    puts "⚠️  Error invalidating cache: #{e.message}"
+    AppLogger.info("⚠️  Error invalidating cache: #{e.message}")
   end
 end

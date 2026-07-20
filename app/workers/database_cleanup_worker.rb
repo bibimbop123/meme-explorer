@@ -4,7 +4,7 @@ class DatabaseCleanupWorker
   sidekiq_options queue: :low, retry: 3
   
   def perform
-    puts "🧹 [CLEANUP WORKER] Starting database cleanup at #{Time.now}"
+    AppLogger.info("🧹 [CLEANUP WORKER] Starting database cleanup at #{Time.now}")
     
     cleanup_stats = {
       broken_images: 0,
@@ -35,15 +35,14 @@ class DatabaseCleanupWorker
        WHERE #{DbHelpers.date_ago('assigned_at', days: 30)}"
     )
     cleanup_stats[:expired_experiments] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
-    
-    puts "✅ [CLEANUP WORKER] Cleaned up:"
-    puts "   - #{cleanup_stats[:broken_images]} broken images"
-    puts "   - #{cleanup_stats[:old_meme_stats]} old meme stats"
-    puts "   - #{cleanup_stats[:expired_experiments]} expired experiments"
+    AppLogger.info("✅ [CLEANUP WORKER] Cleaned up:")
+    AppLogger.info("   - #{cleanup_stats[:broken_images]} broken images")
+    AppLogger.info("   - #{cleanup_stats[:old_meme_stats]} old meme stats")
+    AppLogger.info("   - #{cleanup_stats[:expired_experiments]} expired experiments")
     
   rescue => e
-    puts "❌ [CLEANUP WORKER] Error: #{e.message}"
-    puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [CLEANUP WORKER] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
     Sentry.capture_exception(e) if defined?(Sentry)
     # Don't raise - cleanup is not critical
   end

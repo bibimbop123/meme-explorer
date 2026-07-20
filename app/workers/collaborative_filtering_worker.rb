@@ -10,7 +10,7 @@ class CollaborativeFilteringWorker
   
   def perform
     start_time = Time.now
-    puts "🔄 Starting collaborative filtering calculations..."
+    AppLogger.info("🔄 Starting collaborative filtering calculations...")
     
     # Calculate user similarities
     updated_similarities = calculate_user_similarities
@@ -22,8 +22,8 @@ class CollaborativeFilteringWorker
     cleanup_expired_recommendations
     
     duration = (Time.now - start_time).round(2)
-    puts "✅ Collaborative filtering complete in #{duration}s"
-    puts "   - Updated #{updated_similarities} user similarities"
+    AppLogger.info("✅ Collaborative filtering complete in #{duration}s")
+    AppLogger.info("   - Updated #{updated_similarities} user similarities")
   end
   
   private
@@ -43,8 +43,7 @@ class CollaborativeFilteringWorker
          ORDER BY user_id
          LIMIT 500"
       ).map { |r| r['user_id'] }
-      
-      puts "   Processing #{active_users.size} active users..."
+    AppLogger.info("   Processing #{active_users.size} active users...")
       
       # Calculate pairwise similarities (limit to avoid explosion)
       active_users.each_with_index do |user_a, i|
@@ -69,7 +68,7 @@ class CollaborativeFilteringWorker
       
       updated
     rescue => e
-      puts "❌ User similarity calculation error: #{e.message}"
+    AppLogger.info("❌ User similarity calculation error: #{e.message}")
       0
     end
   end
@@ -135,7 +134,7 @@ class CollaborativeFilteringWorker
   
   def refresh_recommendations_view
     # PostgreSQL only - skip for SQLite
-    puts "   ⚠️ Materialized view refresh skipped (SQLite)"
+    AppLogger.info("   ⚠️ Materialized view refresh skipped (SQLite)")
   end
   
   def cleanup_expired_recommendations
@@ -145,10 +144,9 @@ class CollaborativeFilteringWorker
       DB.execute(
         "DELETE FROM meme_recommendations WHERE expires_at < datetime('now')"
       )
-      
-      puts "   ✓ Cleaned up expired recommendations"
+    AppLogger.info("   ✓ Cleaned up expired recommendations")
     rescue => e
-      puts "   ⚠️ Cleanup skipped: #{e.message}"
+    AppLogger.info("   ⚠️ Cleanup skipped: #{e.message}")
     end
   end
 end

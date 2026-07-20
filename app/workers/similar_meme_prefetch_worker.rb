@@ -11,18 +11,17 @@ class SimilarMemePrefetchWorker
   sidekiq_options queue: :default, retry: 2, backtrace: true
   
   def perform
-    puts "🔄 [SimilarMemePrefetch] Starting prefetch job at #{Time.now}"
+    AppLogger.info("🔄 [SimilarMemePrefetch] Starting prefetch job at #{Time.now}")
     
     # Load and prefetch similar memes
     require_relative '../../lib/services/similar_meme_cache'
     
     result = SimilarMemeCache.prefetch_all_popular!
-    
-    puts "✅ [SimilarMemePrefetch] Job complete: #{result[:prefetched]} cached, #{result[:failed]} failed"
+    AppLogger.info("✅ [SimilarMemePrefetch] Job complete: #{result[:prefetched]} cached, #{result[:failed]} failed")
     
   rescue => e
-    puts "❌ [SimilarMemePrefetch] Error: #{e.message}"
-    puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [SimilarMemePrefetch] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
     Sentry.capture_exception(e) if defined?(Sentry)
     raise  # Re-raise for Sidekiq retry
   end

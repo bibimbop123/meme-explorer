@@ -4,7 +4,7 @@ class ActivityAggregationWorker
   sidekiq_options queue: :default, retry: 3
   
   def perform
-    puts "📊 [ACTIVITY WORKER] Aggregating activity stats at #{Time.now}"
+    AppLogger.info("📊 [ACTIVITY WORKER] Aggregating activity stats at #{Time.now}")
     
     return unless defined?(REDIS) && REDIS
     
@@ -28,12 +28,11 @@ class ActivityAggregationWorker
     total = REDIS.hget(hour_key, "active_users").to_i
     avg = samples > 0 ? (total.to_f / samples).round(1) : 0
     REDIS.hset(hour_key, "average", avg)
-    
-    puts "✅ [ACTIVITY WORKER] Logged #{active_count} active users (avg: #{avg})"
+    AppLogger.info("✅ [ACTIVITY WORKER] Logged #{active_count} active users (avg: #{avg})")
     
   rescue => e
-    puts "❌ [ACTIVITY WORKER] Error: #{e.message}"
-    puts e.backtrace.first(5).join("\n")
+    AppLogger.info("❌ [ACTIVITY WORKER] Error: #{e.message}")
+    AppLogger.info(e.backtrace.first(5).join("\n"))
     # Don't raise - not critical
   end
 end
