@@ -1,0 +1,55 @@
+/* Video Player Styling */
+.meme-content-video {
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #000;
+  object-fit: contain;
+}
+
+.meme-content-video:fullscreen {
+  object-fit: contain;
+}
+
+/* Video container */
+.video-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Video loading state */
+.video-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 1.2rem;
+}
+
+/* Video controls enhancement */
+video::-webkit-media-controls-panel {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Mobile video optimization */
+@media (max-width: 768px) {
+  .meme-content-video {
+    max-height: 60vh;
+  }
+}
+
+/* Dark mode video support */
+@media (prefers-color-scheme: dark) {
+  .video-container {
+    border: 1px solid #333;
+  }
+}
+
+[data-theme="dark"] .video-container {
+  border: 1px solid #333;
+}

@@ -339,4 +339,41 @@ def is_video?(meme)
     meme["video_url"] ||
     meme["url"]&.match?(/\.(mp4|webm|mov)(\?|$)/i)
 end
+
+
+# Comprehensive media type detection with video support
+def detect_media_type_comprehensive(meme)
+  return nil unless meme
+  
+  # Priority 1: Check explicit media_type field
+  return meme["media_type"] if meme["media_type"]
+  
+  # Priority 2: Check video indicators
+  return 'video' if meme["is_video"] == true
+  return 'video' if meme["video_url"].to_s.length > 0
+  return 'video' if meme["is_reddit_video"] == true
+  
+  # Priority 3: Check URL patterns
+  url = meme["url"].to_s.downcase
+  return 'video' if url.match?(/\.(mp4|webm|mov|avi|m4v)(\?|$|&)/)
+  return 'video' if url.include?('v.redd.it')
+  return 'video' if url.include?('redgifs.com') && url.include?('watch')
+  
+  # Priority 4: Gallery detection
+  return 'gallery' if meme["is_gallery"] == true
+  return 'gallery' if meme["gallery_images"]&.any?
+  
+  # Priority 5: GIF detection
+  return 'gif' if url.match?(/\.gif(\?|$|&)/)
+  return 'gif' if url.match?(/\.gifv(\?|$|&)/)
+  
+  # Default: image
+  'image'
+end
+
+# Backward compatibility alias
+def detect_media_type(meme)
+  detect_media_type_comprehensive(meme)
+end
+
 end
