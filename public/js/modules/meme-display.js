@@ -51,12 +51,6 @@ export class MemeDisplay {
   }
   
   updateDisplay() {
-    // Update carousel counter
-    const counter = document.getElementById('carousel-counter');
-    if (counter) {
-      counter.textContent = `${this.currentIndex + 1}/${this.images.length}`;
-    }
-    
     // Update slide visibility
 document.querySelectorAll('.gallery-slide').forEach((slide, index) => {
   slide.classList.toggle('active', index === this.currentIndex);

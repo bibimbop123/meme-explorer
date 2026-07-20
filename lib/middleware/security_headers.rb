@@ -111,7 +111,9 @@ class SecurityHeaders
         "https://oauth.reddit.com " \
         "https://www.google-analytics.com " \
         "https://i.redd.it " \
+        "https://v.redd.it " \
         "https://preview.redd.it " \
+        "https://external-preview.redd.it " \
         "https://fonts.googleapis.com " \
         "https://fonts.gstatic.com " \
         "https://pagead2.googlesyndication.com",
