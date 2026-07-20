@@ -288,6 +288,7 @@ class TurbochargedRedditFetcher
   end
   
   # Parse Reddit API response with video preview extraction
+  # Parse Reddit API response with video preview extraction
   def parse_reddit_response(data)
     return [] unless data.is_a?(Hash) && data["data"]
     
@@ -299,110 +300,44 @@ class TurbochargedRedditFetcher
       next unless post_data
       
       # Quick filtering - skip text-only posts
-next if post_data["is_self"]
-
-# PHASE 2: Handle crossposts FIRST
-source_data, is_crosspost = extract_crosspost_data(post_data)
-
-# Extract media comprehensively (images, videos, galleries)
-media = extract_media_comprehensive(source_data)
-next unless media  # Only skip if NO media found
-
-# PHASE 2: Handle crossposts FIRST
-source_data, is_crosspost = extract_crosspost_data(post_data)
-
-# Extract media comprehensively (images, videos, galleries)
-media = extract_media_comprehensive(source_data)
-next unless media  # Only skip if NO media found
-
-# PHASE 2: Handle crossposts FIRST
-source_data, is_crosspost = extract_crosspost_data(post_data)
-
-# Extract media comprehensively (images, videos, galleries)
-media = extract_media_comprehensive(source_data)
-next unless media  # Only skip if NO media found
+      next if post_data["is_self"]
       
-      # CROSSPOST FIX: Extract data from original post if this is a crosspost
-      if post_data["is_crosspost"] && post_data["crosspost_parent_list"]&.any?
-        original_post = post_data["crosspost_parent_list"].first
-        
-        # Use original post data for media extraction
-        # But keep current post's subreddit/title for context
-        source_data = original_post
-        is_crosspost = true
-        crosspost_subreddit = post_data["subreddit"]
-        original_subreddit = original_post["subreddit"]
-      else
-        source_data = post_data
-        is_crosspost = false
-      end
+      # PHASE 2: Handle crossposts FIRST
+      source_data, is_crosspost = extract_crosspost_data(post_data)
       
-      # IMPROVED VIDEO HANDLING: Try to extract preview image from videos
-      is_video = source_data["is_video"] == true
-      
-      # Get image URL efficiently from the right source
-      is_gallery = source_data["is_gallery"] == true
-      gallery_images = is_gallery ? extract_gallery_images(source_data) : nil
-      
-      image_url = if gallery_images && gallery_images.any?
-                    gallery_images.first["url"]
-                  elsif is_video
-                    # NEW: Extract video preview/thumbnail
-                    extract_video_preview(source_data)
-                  else
-                    source_data["url"]
-                  end
-      
-      # Skip if no displayable content found
-      next unless image_url
-      next if image_url.to_s.strip.empty?
-      
-      # Skip if URL points to video player (not an image)
-      next if is_video && !image_url.match?(/\.(jpg|jpeg|png|gif|webp)/i)
+      # Extract media comprehensively (images, videos, galleries)
+      media = extract_media_comprehensive(source_data)
+      next unless media  # Only skip if NO media found
       
       # Build comprehensive meme object with all media types
-meme = {
+      meme = {
         "title" => post_data["title"],
         "url" => media[:primary_url],
-"media_type" => media[:type],
+        "media_type" => media[:type],
         "subreddit" => post_data["subreddit"],
         "likes" => post_data["ups"] || 0,
-"video_url" => media[:video_url],
-"thumbnail_url" => media[:thumbnail_url],
-"is_reddit_video" => media[:is_reddit_video],
-"is_crosspost" => is_crosspost,
-"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
-"video_url" => media[:video_url],
-"thumbnail_url" => media[:thumbnail_url],
-"is_reddit_video" => media[:is_reddit_video],
-"is_crosspost" => is_crosspost,
-"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
-"video_url" => media[:video_url],
-"thumbnail_url" => media[:thumbnail_url],
-"is_reddit_video" => media[:is_reddit_video],
-"is_crosspost" => is_crosspost,
-"original_subreddit" => (is_crosspost ? source_data["subreddit"] : nil),
         "permalink" => post_data["permalink"],
         "created_utc" => post_data["created_utc"]
       }
       
+      # Add video metadata if present
+      if media[:video_url]
+        meme["video_url"] = media[:video_url]
+        meme["thumbnail_url"] = media[:thumbnail_url]
+        meme["is_reddit_video"] = media[:is_reddit_video] || false
+      end
+      
       # Add crosspost metadata if this is a crosspost
       if is_crosspost
         meme["is_crosspost"] = true
-        meme["original_subreddit"] = original_subreddit
-        meme["crossposted_from"] = "r/#{original_subreddit}"
-      end
-      
-      # Mark if this was originally a video (for context)
-      if is_video
-        meme["was_video"] = true
-        meme["video_preview"] = true
+        meme["original_subreddit"] = source_data["subreddit"]
+        meme["crossposted_from"] = "r/#{source_data['subreddit']}"
       end
       
       # Add gallery data if present
-      if is_gallery && gallery_images && gallery_images.any?
+      if media[:type] == 'gallery' && media[:images]
         meme["is_gallery"] = true
-        meme["gallery_images"] = gallery_images
+        meme["gallery_images"] = media[:images]
       end
       
       memes << meme
@@ -410,7 +345,7 @@ meme = {
     
     memes
   end
-  
+
   # Extract preview image from video posts
   def extract_video_preview(post_data)
     # Try multiple sources for video preview images
@@ -462,6 +397,57 @@ meme = {
     nil
   end
   
+  def extract_video_preview(post_data)
+    # Try multiple sources for video preview images
+    
+    # 1. Check for preview images (most common)
+    if post_data["preview"] && post_data["preview"]["images"]
+      images = post_data["preview"]["images"]
+      if images.any?
+        # Get the highest resolution preview
+        source = images.first["source"]
+        if source && source["url"]
+          # Decode HTML entities in URL
+          return source["url"].gsub('&amp;', '&')
+        end
+        
+        # Fallback to resolutions array
+        resolutions = images.first["resolutions"]
+        if resolutions && resolutions.any?
+          # Get highest resolution
+          best = resolutions.last
+          return best["url"].gsub('&amp;', '&') if best && best["url"]
+        end
+      end
+    end
+    
+    # 2. Check thumbnail
+    thumbnail = post_data["thumbnail"]
+    if thumbnail && thumbnail.start_with?("http") && !thumbnail.include?("self")
+      return thumbnail
+    end
+    
+    # 3. Check secure media (some videos have preview here)
+    if post_data["secure_media"] && post_data["secure_media"]["oembed"]
+      oembed = post_data["secure_media"]["oembed"]
+      if oembed["thumbnail_url"]
+        return oembed["thumbnail_url"]
+      end
+    end
+    
+    # 4. Check media
+    if post_data["media"] && post_data["media"]["oembed"]
+      oembed = post_data["media"]["oembed"]
+      if oembed["thumbnail_url"]
+        return oembed["thumbnail_url"]
+      end
+    end
+    
+    # No preview found
+    nil
+  end
+  
+
   # Extract gallery images (same as original)
   def extract_gallery_images(post_data)
     return nil unless post_data["is_gallery"] && 
@@ -487,8 +473,7 @@ meme = {
       image_url = image_url.gsub('&amp;', '&')
       
       images << {
-        "url" => media[:primary_url],
-"media_type" => media[:type],
+        "url" => image_url,
         "caption" => item["caption"] || "",
         "media_id" => media_id
       }
@@ -496,7 +481,7 @@ meme = {
     
     images.any? ? images : nil
   end
-  
+
   # Logging helpers
   def log_info(message)
     AppLogger.info("[TurboFetcher] #{message}")
