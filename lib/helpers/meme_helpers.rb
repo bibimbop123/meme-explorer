@@ -69,7 +69,7 @@ module MemeHelpers
             "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count)
              VALUES (?, ?, 1)
              ON CONFLICT(user_id, meme_url) DO UPDATE SET
-             shown_count = shown_count + 1, last_shown = CURRENT_TIMESTAMP",
+             shown_count = user_meme_exposure.shown_count + 1, last_shown = CURRENT_TIMESTAMP",
             [user_id, identifier]
           )
         end

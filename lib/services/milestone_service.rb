@@ -92,8 +92,8 @@ module MemeExplorer
         begin
           # Store in user_achievements table
           DB.execute(
-            "INSERT INTO user_achievements (user_id, achievement_type, achievement_data, earned_at) VALUES (?, ?, ?, ?)",
-            [user_id, 'milestone', milestone_data.to_json, Time.now]
+            "INSERT INTO user_achievements (user_id, achievement_type, earned_at) VALUES (?, ?, ?)",
+          [user_id, 'milestone', Time.now]
           )
           
           # Add XP reward
@@ -122,14 +122,15 @@ module MemeExplorer
         
         begin
           results = DB.execute(
-            "SELECT achievement_data, earned_at FROM user_achievements WHERE user_id = ? AND achievement_type = 'milestone' ORDER BY earned_at DESC",
+            "SELECT earned_at FROM user_achievements WHERE user_id = ? AND achievement_type = 'milestone' ORDER BY earned_at DESC",
             [user_id]
           )
           
           results.map do |row|
-            data = JSON.parse(row['achievement_data'])
-            data['earned_at'] = row['earned_at']
-            data
+            {
+          'earned_at' => row['earned_at'],
+          'milestone' => milestone
+        }
           end
         rescue => e
           AppLogger.error("Get milestones error: #{e.message}")
