@@ -12,7 +12,7 @@ module Routes
       app.get "/random" do
         begin
           # Initialize session history
-          # Removed: using ViewingHistoryService instead
+          session[:meme_history] ||= []
           
           # Get meme pool
           meme_pool = if MemeExplorer::App::MEME_CACHE[:memes].is_a?(Array) && !MemeExplorer::App::MEME_CACHE[:memes].empty?

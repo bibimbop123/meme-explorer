@@ -93,8 +93,8 @@ module MemeHelpers
   def add_to_history(identifier, session, max_size: 100)
     return unless identifier
     
-    # Removed: using ViewingHistoryService instead
-    # Removed: using ViewingHistoryService instead
+    session[:meme_history] ||= []
+    session[:meme_history] << identifier
     session[:meme_history] = session[:meme_history].last(max_size)
   end
   

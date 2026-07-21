@@ -59,7 +59,7 @@ def navigate_meme_unified(direction: "next")
   return nil if memes.empty?
 
   # Initialize session tracking
-  # Removed: using ViewingHistoryService instead
+  session[:meme_history] ||= []
   session[:last_subreddit] ||= nil
   last_meme_url = session[:meme_history].last
 
@@ -132,8 +132,8 @@ def navigate_meme_unified(direction: "next")
   end
   
   # Update session history
-  # Removed: using ViewingHistoryService instead
-  # Removed: using ViewingHistoryService instead  # Hard cap: 50 (reduced from 100)
+  session[:meme_history] << meme_identifier
+  session[:meme_history] = session[:meme_history].last(10)  # Hard cap: 50 (reduced from 100)
   session[:last_subreddit] = meme_subreddit&.downcase
 
   # Track exposure for analytics and spaced repetition
@@ -399,7 +399,7 @@ def get_next_valid_meme
   memes = random_memes_pool
   return nil if memes.empty?
 
-  # Removed: using ViewingHistoryService instead
+  session[:meme_history] ||= []
   last_meme_url = session[:meme_history].last
 
   # Try to find a meme with working image
@@ -413,8 +413,8 @@ def get_next_valid_meme
     # Skip if already shown or image is broken
     if candidate_id != last_meme_url && is_valid_meme?(candidate) && !is_image_broken?(candidate_id)
       meme_identifier = candidate_id
-      # Removed: using ViewingHistoryService instead
-      # Removed: using ViewingHistoryService instead
+      session[:meme_history] << meme_identifier
+      session[:meme_history] = session[:meme_history].last(30)
       return candidate
     end
     attempts += 1

@@ -30,7 +30,7 @@ module MemeExplorer
       result = Result.new
       
       # 1. Initialize session
-      # Removed: using ViewingHistoryService instead
+      session[:meme_history] ||= []
       session_id = session[:session_id]
       
       # 2. Get meme pool

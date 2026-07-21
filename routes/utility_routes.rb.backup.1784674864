@@ -29,7 +29,7 @@ module Routes
       headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
 
       # Track in session history and pick from pool
-      # Removed: using ViewingHistoryService instead
+      session[:meme_history] ||= []
       session[:last_subreddit] ||= nil
       last_meme_url = session[:meme_history].last
 
@@ -54,9 +54,9 @@ module Routes
 
       # Track in session history (guard: initialize if nil)
       meme_identifier = @meme["url"] || @meme["file"]
-      # Removed: using ViewingHistoryService instead
-      # Removed: using ViewingHistoryService instead
-      # Removed: using ViewingHistoryService instead
+      session[:meme_history] ||= []
+      session[:meme_history] << meme_identifier
+      session[:meme_history] = session[:meme_history].last(10)
       session[:last_subreddit] = @meme["subreddit"]&.downcase
 
       image_url = @meme["url"] || @meme["file"]
