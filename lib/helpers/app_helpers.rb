@@ -115,23 +115,17 @@ module AppHelpers
   end
 
 # Admin role check - added during audit Week 1 fixes
+# FIXED: July 21, 2026 - Use DBWrapper SQL syntax instead of Sequel
 def is_admin?(user_id)
   return false unless user_id
   
-  # Check admin status from database
-  if defined?(DB)
-    result = DB[:users].where(id: user_id).select(:admin).first
-    return result && result[:admin] == true
-  end
+  # Query admin status using DBWrapper's execute method
+  result = DB.execute("SELECT admin FROM users WHERE id = ?", [user_id])
+  return false if result.nil? || result.empty?
   
-  # Fallback for development
-  if ENV['RACK_ENV'] == 'development'
-    # You can hardcode dev admin IDs here temporarily
-    dev_admin_ids = [1]
-    return dev_admin_ids.include?(user_id.to_i)
-  end
-  
-  false
+  # PostgreSQL returns boolean as true/false or 't'/'f' string
+  admin_value = result.first['admin']
+  admin_value == true || admin_value == 't' || admin_value == 1
 rescue => e
   AppLogger.error('[AdminCheck] Error checking admin status', error: e.message)
   false
