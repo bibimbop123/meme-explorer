@@ -5,6 +5,17 @@
 # Implements intelligent selection with diversity and quality scoring
 
 class SimilarMemeService
+  # Related subreddits for expansion
+  SUBREDDIT_RELATIONSHIPS = {
+    'memes' => ['dankmemes', 'funny', 'me_irl'],
+    'dankmemes' => ['memes', 'funny'],
+    'wholesomememes' => ['aww', 'mademesmile'],
+    'meirl' => ['me_irl', 'memes'],
+    'funny' => ['memes', 'dankmemes'],
+    'aww' => ['wholesomememes', 'eyebleach'],
+    'programmerhumor' => ['programmingmemes', 'coding']
+  }.freeze
+
   class << self
     # Find similar memes based on source meme characteristics
     # @param source_meme [Hash] The meme to find similar content for
@@ -201,17 +212,6 @@ class SimilarMemeService
         # Fallback to top candidate
         top_candidates.first[:meme]
       end
-
-      # Related subreddits for expansion
-      SUBREDDIT_RELATIONSHIPS = {
-        'memes' => ['dankmemes', 'funny', 'me_irl'],
-        'dankmemes' => ['memes', 'funny'],
-        'wholesomememes' => ['aww', 'mademesmile'],
-        'meirl' => ['me_irl', 'memes'],
-        'funny' => ['memes', 'dankmemes'],
-        'aww' => ['wholesomememes', 'eyebleach'],
-        'programmerhumor' => ['programmingmemes', 'coding']
-      }.freeze
     end
   end
 end
