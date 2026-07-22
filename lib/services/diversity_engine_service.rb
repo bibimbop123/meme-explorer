@@ -61,11 +61,11 @@ module MemeExplorer
         
         selected
       end
-        
-        private
-        
-        # Pool rotation (unchanged)
-        def determine_next_pool(session_id)
+      
+      private
+      
+      # Pool rotation (unchanged)
+      def determine_next_pool(session_id)
           recent_pools = get_recent_pools(session_id)
           last_pool = recent_pools.last
           
