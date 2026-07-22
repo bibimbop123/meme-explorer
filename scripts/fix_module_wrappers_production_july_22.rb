@@ -1,0 +1,209 @@
+#!/usr/bin/env ruby
+# Fix production NameError issues - Module Wrapper Fix
+# Fixes ViewingHistoryService module wrapper and ensures proper loading
+
+puts "🔧 Fixing Module Wrappers for Production..."
+
+# ============================================================================
+# FIX 1: Add MemeExplorer module wrapper to ViewingHistoryService
+# ============================================================================
+
+viewing_history_fix = <<~RUBY
+# lib/services/viewing_history_service.rb
+# Service for tracking meme viewing history using Redis (not sessions!)
+# This fixes the "session cookie exceeds 4K" error
+
+module MemeExplorer
+  class ViewingHistoryService
+    # TTL for viewing history (2 hours)
+    HISTORY_TTL = 7200
+    
+    # Maximum history size per user
+    MAX_HISTORY_SIZE = 200
+    
+    class << self
+      # Mark a meme as seen
+      def mark_seen(visitor_id, meme_identifier)
+        return unless visitor_id && meme_identifier
+        
+        key = history_key(visitor_id)
+        
+        RedisService.with_redis do |redis|
+          # Add to sorted set with timestamp score
+          redis.zadd(key, Time.now.to_i, meme_identifier)
+          
+          # Keep only last MAX_HISTORY_SIZE memes
+          redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
+          
+          # Set expiry
+          redis.expire(key, HISTORY_TTL)
+          
+          AppLogger.debug("📝 Marked meme as seen: #{meme_identifier} for #{visitor_id}")
+        end
+      rescue => e
+        AppLogger.error("Failed to mark meme as seen: #{e.message}")
+      end
+      
+      # Get list of seen meme identifiers
+      def get_seen_memes(visitor_id)
+        return [] unless visitor_id
+        
+        key = history_key(visitor_id)
+        
+        seen = RedisService.with_redis do |redis|
+          # Get all seen memes (returns array of strings)
+          redis.zrange(key, 0, -1)
+        end
+        
+        seen ||= []
+        AppLogger.debug("📊 Retrieved #{seen.size} seen memes for #{visitor_id}")
+        seen
+      rescue => e
+        AppLogger.error("Failed to get seen memes: #{e.message}")
+        []
+      end
+      
+      # Check if a meme has been seen
+      def seen?(visitor_id, meme_identifier)
+        return false unless visitor_id && meme_identifier
+        
+        key = history_key(visitor_id)
+        
+        score = RedisService.with_redis do |redis|
+          redis.zscore(key, meme_identifier)
+        end
+        
+        !score.nil?
+      rescue => e
+        AppLogger.error("Failed to check if meme seen: #{e.message}")
+        false
+      end
+      
+      # Get count of seen memes
+      def seen_count(visitor_id)
+        return 0 unless visitor_id
+        
+        key = history_key(visitor_id)
+        
+        count = RedisService.with_redis do |redis|
+          redis.zcard(key)
+        end
+        
+        count.to_i
+      rescue => e
+        AppLogger.error("Failed to get seen count: #{e.message}")
+        0
+      end
+      
+      # Clear viewing history for a visitor
+      def clear_history(visitor_id)
+        return unless visitor_id
+        
+        key = history_key(visitor_id)
+        
+        RedisService.with_redis do |redis|
+          redis.del(key)
+        end
+        
+        AppLogger.info("🗑️  Cleared viewing history for #{visitor_id}")
+      rescue => e
+        AppLogger.error("Failed to clear history: #{e.message}")
+      end
+      
+      # Get viewing stats for debugging
+      def get_stats(visitor_id)
+        return {} unless visitor_id
+        
+        key = history_key(visitor_id)
+        
+        stats = RedisService.with_redis do |redis|
+          count = redis.zcard(key).to_i
+          ttl = redis.ttl(key).to_i
+          
+          {
+            total_seen: count,
+            ttl_seconds: ttl,
+            ttl_minutes: (ttl / 60.0).round(1)
+          }
+        end
+        
+        stats || {}
+      rescue => e
+        AppLogger.error("Failed to get stats: #{e.message}")
+        {}
+      end
+      
+      private
+      
+      def history_key(visitor_id)
+        "viewing_history:#{visitor_id}"
+      end
+    end
+  end
+end
+RUBY
+
+File.write('lib/services/viewing_history_service.rb', viewing_history_fix)
+puts "✅ Fixed ViewingHistoryService module wrapper"
+
+# ============================================================================
+# FIX 2: Ensure app.rb loads all required services
+# ============================================================================
+
+app_rb_content = File.read('app.rb')
+
+# Find the services section and add missing requires if needed
+services_to_add = [
+  'diversity_engine_service',
+  'viewing_history_service',
+  'meme_selection_service'
+]
+
+services_section_exists = app_rb_content.include?('require_relative "./lib/services/milestone_service"')
+
+if services_section_exists
+  # Add missing services after milestone_service
+  insert_point = app_rb_content.index('require_relative "./lib/services/milestone_service"')
+  
+  if insert_point
+    lines_to_add = []
+    
+    unless app_rb_content.include?('diversity_engine_service')
+      lines_to_add << 'require_relative "./lib/services/diversity_engine_service"'
+    end
+    
+    unless app_rb_content.include?('viewing_history_service')
+      lines_to_add << 'require_relative "./lib/services/viewing_history_service"'
+    end
+    
+    unless app_rb_content.include?('meme_selection_service')
+      lines_to_add << 'require_relative "./lib/services/meme_selection_service"'
+    end
+    
+    if lines_to_add.any?
+      # Find the end of the milestone_service line
+      line_end = app_rb_content.index("\n", insert_point)
+      
+      # Insert the new requires
+      new_content = app_rb_content[0..line_end] + "\n" + lines_to_add.join("\n") + app_rb_content[line_end+1..-1]
+      
+      File.write('app.rb', new_content)
+      puts "✅ Added missing service requires to app.rb:"
+      lines_to_add.each { |line| puts "   - #{line}" }
+    else
+      puts "✅ All services already required in app.rb"
+    end
+  end
+end
+
+puts "\n" + "="*80
+puts "✅ MODULE WRAPPER FIX COMPLETE"
+puts "="*80
+puts "\nFixed Issues:"
+puts "1. ✅ Added MemeExplorer module wrapper to ViewingHistoryService"
+puts "2. ✅ Ensured all services are required in app.rb"
+puts "\nNext Steps:"
+puts "1. Test locally: bundle exec ruby app.rb"
+puts "2. Commit changes"
+puts "3. Deploy to production"
+puts "\n"
