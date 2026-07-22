@@ -1,23 +1,21 @@
 # Surprise Mechanics Service
 # Implements variable ratio reinforcement for addictive UX
 
-module MemeExplorer
-  class SurpriseMechanicsService
-    class << self
-      # Determine if this selection should be a "surprise"
-      def should_trigger_surprise?(session_id = nil)
-        config = AlgorithmConfigService.surprise_config
-        base_chance = config['base_chance']  # 15% default
+class SurpriseMechanicsService
+  class << self
+    # Determine if this selection should be a "surprise"
+    def should_trigger_surprise?(session_id = nil)
+      config = AlgorithmConfigService.surprise_config
+      base_chance = config['base_chance']  # 15% default
+      
+      # Increase chance during hot streaks
+      if session_id
+        recent_actions = fetch_recent_actions(session_id)
+        consecutive_likes = count_consecutive_likes(recent_actions)
         
-        # Increase chance during hot streaks
-        if session_id
-          recent_actions = fetch_recent_actions(session_id)
-          consecutive_likes = count_consecutive_likes(recent_actions)
-          
-          if consecutive_likes >= 3
-            # Hot streak multiplier
-            base_chance *= config['hot_streak_multiplier']  # 1.5x
-          end
+        if consecutive_likes >= 3
+          # Hot streak multiplier
+          base_chance *= config['hot_streak_multiplier']  # 1.5x
         end
         
         # Late night multiplier (11pm - 3am)

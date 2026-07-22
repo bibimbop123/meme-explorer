@@ -1,30 +1,28 @@
 # Humor Optimizer Service
 # Phase 5: Make the experience funnier through intentional sequencing
 
-module MemeExplorer
-  class HumorOptimizerService
-    class << self
-      # Optimize humor sequence for maximum laughs
-      def optimize_humor_sequence(memes, session_id)
-        return memes unless session_id && memes.is_a?(Array) && memes.any?
-        
-        recent_types = get_recent_humor_types(session_id)
-        return memes if recent_types.empty?
-        
-        # Comedy rule: Vary intensity
-        if recent_types.last(3).all? { |t| t == 'wholesome' }
-          # Switch to unexpected/absurd for contrast
-          prioritize_humor_types(memes, ['unexpected', 'absurdist', 'dark'])
-        elsif recent_types.last(2).all? { |t| ['dark', 'dank'].include?(t) }
-          # Lighten mood with wholesome
-          prioritize_humor_types(memes, ['wholesome', 'funny'])
-        elsif recent_types.count('relatable') >= 3
-          # Break pattern with surprise
-          prioritize_humor_types(memes, ['unexpected', 'cringe'])
-        else
-          # Continue normal selection
-          memes
-        end
+class HumorOptimizerService
+  class << self
+    # Optimize humor sequence for maximum laughs
+    def optimize_humor_sequence(memes, session_id)
+      return memes unless session_id && memes.is_a?(Array) && memes.any?
+      
+      recent_types = get_recent_humor_types(session_id)
+      return memes if recent_types.empty?
+      
+      # Comedy rule: Vary intensity
+      if recent_types.last(3).all? { |t| t == 'wholesome' }
+        # Switch to unexpected/absurd for contrast
+        prioritize_humor_types(memes, ['unexpected', 'absurdist', 'dark'])
+      elsif recent_types.last(2).all? { |t| ['dark', 'dank'].include?(t) }
+        # Lighten mood with wholesome
+        prioritize_humor_types(memes, ['wholesome', 'funny'])
+      elsif recent_types.count('relatable') >= 3
+        # Break pattern with surprise
+        prioritize_humor_types(memes, ['unexpected', 'cringe'])
+      else
+        # Continue normal selection
+        memes
       end
       
       # Create comedy arc with setup → payoff

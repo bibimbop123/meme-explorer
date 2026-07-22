@@ -28,23 +28,21 @@
 # Date: July 21, 2026
 # Author: Senior Developer Audit
 
-module MemeExplorer
-  class SimpleMemeSelector
-    class << self
-      # Main selection method
-      # @param all_memes [Array] Pool of all available memes
-      # @param session_id [String] User session identifier
-      # @param options [Hash] Optional configuration
-      # @return [Hash] Selected meme
-      def select(all_memes, session_id, options = {})
-        return all_memes.sample if all_memes.empty?
-        
-        # 1. Filter out previously seen memes
-        seen = ViewingHistoryService.get_seen_memes(session_id)
-        unseen = all_memes.reject do |meme|
-          meme_id = meme['url'] || meme[:url] || meme['id'] || meme[:id]
-          seen.include?(meme_id.to_s)
-        end
+class SimpleMemeSelector
+  class << self
+    # Main selection method
+    # @param all_memes [Array] Pool of all available memes
+    # @param session_id [String] User session identifier
+    # @param options [Hash] Optional configuration
+    # @return [Hash] Selected meme
+    def select(all_memes, session_id, options = {})
+      return all_memes.sample if all_memes.empty?
+      
+      # 1. Filter out previously seen memes
+      seen = ViewingHistoryService.get_seen_memes(session_id)
+      unseen = all_memes.reject do |meme|
+        meme_id = meme['url'] || meme[:url] || meme['id'] || meme[:id]
+        seen.include?(meme_id.to_s)
         
         # 2. Reset if everything has been seen
         if unseen.empty?

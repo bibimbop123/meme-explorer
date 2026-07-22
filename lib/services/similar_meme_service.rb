@@ -4,28 +4,26 @@
 # Service for finding similar memes based on subreddit, tags, and user preferences
 # Implements intelligent selection with diversity and quality scoring
 
-module MemeExplorer
-  class SimilarMemeService
-    class << self
-      # Find similar memes based on source meme characteristics
-      # @param source_meme [Hash] The meme to find similar content for
-      # @param meme_pool [Array<Hash>] Available memes to select from
-      # @param session_id [String] User session identifier
-      # @param options [Hash] Additional options
-      # @return [Hash, nil] Selected similar meme or nil
-      def find_similar(source_meme, meme_pool, session_id:, options: {})
-        return nil if source_meme.nil? || meme_pool.empty?
+class SimilarMemeService
+  class << self
+    # Find similar memes based on source meme characteristics
+    # @param source_meme [Hash] The meme to find similar content for
+    # @param meme_pool [Array<Hash>] Available memes to select from
+    # @param session_id [String] User session identifier
+    # @param options [Hash] Additional options
+    # @return [Hash, nil] Selected similar meme or nil
+    def find_similar(source_meme, meme_pool, session_id:, options: {})
+      return nil if source_meme.nil? || meme_pool.empty?
 
-        subreddit = normalize_subreddit(source_meme['subreddit'])
-        return nil if subreddit.nil?
+      subreddit = normalize_subreddit(source_meme['subreddit'])
+      return nil if subreddit.nil?
 
-        # Filter candidates by subreddit
-        candidates = filter_by_subreddit(meme_pool, subreddit)
-        
-        # If too few candidates, expand to related subreddits
-        if candidates.size < 5
-          candidates = expand_to_related_subreddits(meme_pool, subreddit)
-        end
+      # Filter candidates by subreddit
+      candidates = filter_by_subreddit(meme_pool, subreddit)
+      
+      # If too few candidates, expand to related subreddits
+      if candidates.size < 5
+        candidates = expand_to_related_subreddits(meme_pool, subreddit)
 
         return nil if candidates.empty?
 

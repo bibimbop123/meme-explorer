@@ -2,31 +2,29 @@
 # Service for tracking meme viewing history using Redis (not sessions!)
 # This fixes the "session cookie exceeds 4K" error
 
-module MemeExplorer
-  class ViewingHistoryService
-    # TTL for viewing history (2 hours)
-    HISTORY_TTL = 7200
-    
-    # Maximum history size per user
-    MAX_HISTORY_SIZE = 200
-    
-    class << self
-      # Mark a meme as seen
-      def mark_seen(visitor_id, meme_identifier)
-        return unless visitor_id && meme_identifier
+class ViewingHistoryService
+  # TTL for viewing history (2 hours)
+  HISTORY_TTL = 7200
+  
+  # Maximum history size per user
+  MAX_HISTORY_SIZE = 200
+  
+  class << self
+    # Mark a meme as seen
+    def mark_seen(visitor_id, meme_identifier)
+      return unless visitor_id && meme_identifier
+      
+      key = history_key(visitor_id)
+      
+      RedisService.with_redis do |redis|
+        # Add to sorted set with timestamp score
+        redis.zadd(key, Time.now.to_i, meme_identifier)
         
-        key = history_key(visitor_id)
+        # Keep only last MAX_HISTORY_SIZE memes
+        redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
         
-        RedisService.with_redis do |redis|
-          # Add to sorted set with timestamp score
-          redis.zadd(key, Time.now.to_i, meme_identifier)
-          
-          # Keep only last MAX_HISTORY_SIZE memes
-          redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
-          
-          # Set expiry
-          redis.expire(key, HISTORY_TTL)
-        end
+        # Set expiry
+        redis.expire(key, HISTORY_TTL)
         
         AppLogger.debug("📝 Marked meme as seen: #{meme_identifier} for #{visitor_id}")
       rescue => e

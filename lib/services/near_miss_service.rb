@@ -1,20 +1,18 @@
 # Near-Miss Service
 # Creates anticipation by teasing premium content "coming up"
 
-module MemeExplorer
-  class NearMissService
-    class << self
-      # Check if we should show a near-miss tease
-      def should_show_tease?(pool, session_id = nil)
-        return false unless pool.is_a?(Array) && pool.any?
-        
-        # 20% chance to show tease
-        return false unless rand < 0.20
-        
-        # Must have legendary content in pool
-        legendary_count = pool.count { |m| m['likes'].to_i >= 50000 }
-        legendary_count > 0
-      end
+class NearMissService
+  class << self
+    # Check if we should show a near-miss tease
+    def should_show_tease?(pool, session_id = nil)
+      return false unless pool.is_a?(Array) && pool.any?
+      
+      # 20% chance to show tease
+      return false unless rand < 0.20
+      
+      # Must have legendary content in pool
+      legendary_count = pool.count { |m| m['likes'].to_i >= 50000 }
+      legendary_count > 0
       
       # Generate near-miss message
       def generate_tease(pool, session_id = nil)

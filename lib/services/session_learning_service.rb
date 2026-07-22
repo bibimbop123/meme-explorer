@@ -2,29 +2,27 @@
 # Learns user preferences during a session and adapts recommendations in real-time
 # Uses both database and Redis for fast learning
 
-module MemeExplorer
-  class SessionLearningService
-    class << self
+class SessionLearningService
+  class << self
+    
+    # Learn from user interaction in real-time
+    def learn_from_interaction(session_id, meme, interaction_type, user_id: nil, duration: 0)
+      # Extract learning signals
+      subreddit = (meme['subreddit'] || '').downcase
+      humor_type = detect_humor_type(meme)
+      hour_of_day = Time.now.hour
       
-      # Learn from user interaction in real-time
-      def learn_from_interaction(session_id, meme, interaction_type, user_id: nil, duration: 0)
-        # Extract learning signals
-        subreddit = (meme['subreddit'] || '').downcase
-        humor_type = detect_humor_type(meme)
-        hour_of_day = Time.now.hour
-        
-        # Update session preferences (Redis for speed)
-        update_session_preferences_redis(session_id, subreddit, humor_type, interaction_type)
-        
-        # Update database for persistence
-        update_session_preferences_db(session_id, user_id, subreddit, humor_type, interaction_type, hour_of_day)
-        
-        # Track in user_interactions table
-        track_detailed_interaction(session_id, user_id, meme, interaction_type, duration, humor_type)
-        
-        # Update user engagement patterns if logged in
-        update_engagement_patterns(user_id, hour_of_day, interaction_type) if user_id
-      end
+      # Update session preferences (Redis for speed)
+      update_session_preferences_redis(session_id, subreddit, humor_type, interaction_type)
+      
+      # Update database for persistence
+      update_session_preferences_db(session_id, user_id, subreddit, humor_type, interaction_type, hour_of_day)
+      
+      # Track in user_interactions table
+      track_detailed_interaction(session_id, user_id, meme, interaction_type, duration, humor_type)
+      
+      # Update user engagement patterns if logged in
+      update_engagement_patterns(user_id, hour_of_day, interaction_type) if user_id
       
       # Get current session preferences
       def get_session_preferences(session_id)

@@ -25,64 +25,62 @@
 #   MemeSelectionService.select(pool, strategy: :weighted)
 #   MemeSelectionService.select(pool, strategy: :diverse, session_id: 'abc')
 
-module MemeExplorer
-  class MemeSelectionService
-    # Content safety filters
-    EXCLUDED_CATEGORIES = %w[
-      explicit_adult_content graphic_violence hate_speech harassment
-      political_extremism violent_extremism self_harm illegal_activity
-      lgbtq trans political_extreme incest
-    ].freeze
+class MemeSelectionService
+  # Content safety filters
+  EXCLUDED_CATEGORIES = %w[
+    explicit_adult_content graphic_violence hate_speech harassment
+    political_extremism violent_extremism self_harm illegal_activity
+    lgbtq trans political_extreme incest
+  ].freeze
 
-    # Humor category weights (optimized for engagement)
-    HUMOR_WEIGHTS = {
-      'relationship' => 2.0,
-      'dating_fail' => 1.9,
-      'absurdist' => 1.7,
-      'dank' => 1.6,
-      'funny' => 1.5,
-      'dark' => 1.4,
-      'wholesome' => 1.2,
-      'relatable' => 1.8,
-      'cringe' => 1.6,
-      'unexpected' => 1.7
-    }.freeze
+  # Humor category weights (optimized for engagement)
+  HUMOR_WEIGHTS = {
+    'relationship' => 2.0,
+    'dating_fail' => 1.9,
+    'absurdist' => 1.7,
+    'dank' => 1.6,
+    'funny' => 1.5,
+    'dark' => 1.4,
+    'wholesome' => 1.2,
+    'relatable' => 1.8,
+    'cringe' => 1.6,
+    'unexpected' => 1.7
+  }.freeze
 
-    # Source quality tiers
-    SOURCE_QUALITY = {
-      # Tier S: Best sources
-      'dankmemes' => 2.0, 'me_irl' => 2.0, 'meirl' => 2.0,
-      'Tinder' => 1.9, 'Bumble' => 1.9, 'ComedyHeaven' => 1.9,
-      # Tier A: Excellent
-      'relationship_memes' => 1.8, 'HolUp' => 1.8, '2meirl4meirl' => 1.8,
-      'cursedcomments' => 1.7, 'blursedimages' => 1.7,
-      # Tier B: Very good
-      'memes' => 1.5, 'funny' => 1.5, 'OkBuddyRetard' => 1.6,
-      'shitposting' => 1.6, 'niceguys' => 1.5, 'Nicegirls' => 1.5
-    }.freeze
+  # Source quality tiers
+  SOURCE_QUALITY = {
+    # Tier S: Best sources
+    'dankmemes' => 2.0, 'me_irl' => 2.0, 'meirl' => 2.0,
+    'Tinder' => 1.9, 'Bumble' => 1.9, 'ComedyHeaven' => 1.9,
+    # Tier A: Excellent
+    'relationship_memes' => 1.8, 'HolUp' => 1.8, '2meirl4meirl' => 1.8,
+    'cursedcomments' => 1.7, 'blursedimages' => 1.7,
+    # Tier B: Very good
+    'memes' => 1.5, 'funny' => 1.5, 'OkBuddyRetard' => 1.6,
+    'shitposting' => 1.6, 'niceguys' => 1.5, 'Nicegirls' => 1.5
+  }.freeze
 
-    # Media reliability scores
-    MEDIA_DOMAIN_SCORES = {
-      'i.redd.it' => 1.0,
-      'i.imgur.com' => 0.95,
-      'preview.redd.it' => 0.90,
-      'v.redd.it' => 0.85,
-      'tenor.com' => 0.80,
-      'giphy.com' => 0.80,
-      'imgur.com/a/' => 0.75,
-      'gfycat.com' => 0.70,
-      'redgifs.com' => 0.65
-    }.freeze
+  # Media reliability scores
+  MEDIA_DOMAIN_SCORES = {
+    'i.redd.it' => 1.0,
+    'i.imgur.com' => 0.95,
+    'preview.redd.it' => 0.90,
+    'v.redd.it' => 0.85,
+    'tenor.com' => 0.80,
+    'giphy.com' => 0.80,
+    'imgur.com/a/' => 0.75,
+    'gfycat.com' => 0.70,
+    'redgifs.com' => 0.65
+  }.freeze
 
-    class << self
-      # Bridge method: drop-in replacement for RandomSelectorService.select_random_meme
-      # Existing callsites can migrate without changing their argument signature.
-      def select_random_meme(memes, session_id: nil, preferences: {}, **_opts)
-        select(memes,
-               strategy:    :intelligent,
-               session_id:  session_id,
-               preferences: preferences)
-      end
+  class << self
+    # Bridge method: drop-in replacement for RandomSelectorService.select_random_meme
+    # Existing callsites can migrate without changing their argument signature.
+    def select_random_meme(memes, session_id: nil, preferences: {}, **_opts)
+      select(memes,
+             strategy:    :intelligent,
+             session_id:  session_id,
+             preferences: preferences)
 
       # Main selection interface with strategy pattern
       #

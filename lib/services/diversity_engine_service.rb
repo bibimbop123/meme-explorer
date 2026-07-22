@@ -2,22 +2,20 @@
 # Fix: Dramatically relaxed filters for 10x larger pools
 # Goal: Users should NEVER see the same meme twice in a session
 
-module MemeExplorer
-  class DiversityEngineService
-    class << self
-      # CORE: Select from MUCH larger, less restrictive pools
-      def select_diverse_meme(all_memes, session_id:, preferences: {})
-        return all_memes.sample if all_memes.empty?
-        
-        # Use ViewingHistoryService for consistent tracking
-        # session_id is used as visitor_id for unified tracking
-        seen_memes = MemeExplorer::ViewingHistoryService.get_seen_memes(session_id)
-        
-        # CRITICAL: Remove ALL previously seen memes
-        unseen_memes = all_memes.reject do |meme|
-          meme_id = meme['url'] || meme['file'] || meme['id']
-          seen_memes.include?(meme_id)
-        end
+class DiversityEngineService
+  class << self
+    # CORE: Select from MUCH larger, less restrictive pools
+    def select_diverse_meme(all_memes, session_id:, preferences: {})
+      return all_memes.sample if all_memes.empty?
+      
+      # Use ViewingHistoryService for consistent tracking
+      # session_id is used as visitor_id for unified tracking
+      seen_memes = MemeExplorer::ViewingHistoryService.get_seen_memes(session_id)
+      
+      # CRITICAL: Remove ALL previously seen memes
+      unseen_memes = all_memes.reject do |meme|
+        meme_id = meme['url'] || meme['file'] || meme['id']
+        seen_memes.include?(meme_id)
         
         # If we've seen everything, reset history and start fresh
         if unseen_memes.empty?

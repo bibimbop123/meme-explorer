@@ -2,27 +2,25 @@
 
 require_relative '../app_logger'
 
-module MemeExplorer
-  # Unified meme pool management service
-  # Single source of truth for meme pool retrieval
-  # Hierarchy: Redis → Bootstrap → Local Files
-  class MemePool
-    class << self
-      # Get meme pool with fallback hierarchy
-      def get
-        # 1. Try Redis/MemePoolManager (authoritative)
-        pool = from_pool_manager
-        return pool if pool&.any?
-        
-        # 2. Fallback to bootstrap
-        AppLogger.warn("Pool empty, attempting bootstrap...")
-        pool = bootstrap_pool
-        return pool if pool&.any?
-        
-        # 3. Emergency: local static memes
-        AppLogger.error("Bootstrap failed, using local memes")
-        from_local_files
-      end
+# Unified meme pool management service
+# Single source of truth for meme pool retrieval
+# Hierarchy: Redis → Bootstrap → Local Files
+class MemePool
+  class << self
+    # Get meme pool with fallback hierarchy
+    def get
+      # 1. Try Redis/MemePoolManager (authoritative)
+      pool = from_pool_manager
+      return pool if pool&.any?
+      
+      # 2. Fallback to bootstrap
+      AppLogger.warn("Pool empty, attempting bootstrap...")
+      pool = bootstrap_pool
+      return pool if pool&.any?
+      
+      # 3. Emergency: local static memes
+      AppLogger.error("Bootstrap failed, using local memes")
+      from_local_files
       
       private
       

@@ -1,33 +1,31 @@
 # Retention Service
 # Phase 6: Get users to come back tomorrow
 
-module MemeExplorer
-  class RetentionService
-    class << self
-      # Track daily streak
-      def track_daily_streak(user_id)
-        return unless user_id && defined?(DB) && DB
+class RetentionService
+  class << self
+    # Track daily streak
+    def track_daily_streak(user_id)
+      return unless user_id && defined?(DB) && DB
+      
+      begin
+        last_visit = get_last_visit_date(user_id)
+        current_streak = get_current_streak(user_id)
+        today = Date.today
         
-        begin
-          last_visit = get_last_visit_date(user_id)
-          current_streak = get_current_streak(user_id)
-          today = Date.today
+        if last_visit.nil?
+          # First visit
+          current_streak = 1
+        elsif last_visit == today - 1
+          # Continued streak
+          current_streak += 1
           
-          if last_visit.nil?
-            # First visit
-            current_streak = 1
-          elsif last_visit == today - 1
-            # Continued streak
-            current_streak += 1
-            
-            # Streak rewards
-            if current_streak == 7
-              reward_user(user_id, type: 'weekly_streak', bonus: '+2x XP for today')
-            elsif current_streak == 30
-              reward_user(user_id, type: 'monthly_legend', bonus: 'Exclusive badge')
-            elsif current_streak == 100
-              reward_user(user_id, type: 'legendary_streak', bonus: 'Legendary status')
-            end
+          # Streak rewards
+          if current_streak == 7
+            reward_user(user_id, type: 'weekly_streak', bonus: '+2x XP for today')
+          elsif current_streak == 30
+            reward_user(user_id, type: 'monthly_legend', bonus: 'Exclusive badge')
+          elsif current_streak == 100
+            reward_user(user_id, type: 'legendary_streak', bonus: 'Legendary status')
           elsif last_visit < today - 1
             # Streak broken
             if current_streak >= 3

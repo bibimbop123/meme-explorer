@@ -1,27 +1,25 @@
 # Quality Control Service
 # Phase 4: Never show a bad meme again
 
-module MemeExplorer
-  class QualityControlService
-    class << self
-      # Quality gate - reject low-quality memes
-      def passes_quality_gate?(meme)
-        return false unless meme.is_a?(Hash)
-        
-        config = AlgorithmConfigService.quality_config
-        
-        # Check upvote ratio
-        upvote_ratio = meme['upvote_ratio'] || meme['ratio'] || 1.0
-        return false if upvote_ratio < config['min_upvote_ratio']
-        
-        # Check age (penalize very old content)
-        if meme['created_at']
-          begin
-            age_days = (Time.now - Time.parse(meme['created_at'].to_s)) / 86400
-            return false if age_days > 365  # No memes older than 1 year
-          rescue
-            # If date parsing fails, allow it
-          end
+class QualityControlService
+  class << self
+    # Quality gate - reject low-quality memes
+    def passes_quality_gate?(meme)
+      return false unless meme.is_a?(Hash)
+      
+      config = AlgorithmConfigService.quality_config
+      
+      # Check upvote ratio
+      upvote_ratio = meme['upvote_ratio'] || meme['ratio'] || 1.0
+      return false if upvote_ratio < config['min_upvote_ratio']
+      
+      # Check age (penalize very old content)
+      if meme['created_at']
+        begin
+          age_days = (Time.now - Time.parse(meme['created_at'].to_s)) / 86400
+          return false if age_days > 365  # No memes older than 1 year
+        rescue
+          # If date parsing fails, allow it
         end
         
         # Check minimum engagement

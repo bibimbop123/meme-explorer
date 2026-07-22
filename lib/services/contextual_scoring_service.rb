@@ -10,123 +10,121 @@
 # Created: June 28, 2026
 # Impact: Better content match for user's current context
 
-module MemeExplorer
-  class ContextualScoringService
-    # Time-of-day content preferences (learned from user behavior patterns)
-    TIME_PREFERENCES = {
-      morning: {      # 6am-12pm: Start day positive
-        'wholesome' => 2.0,
-        'motivational' => 1.8,
-        'cute' => 1.7,
-        'relatable' => 1.5,
-        'funny' => 1.3,
-        'dark' => 0.5,
-        'absurdist' => 0.7,
-        'edgy' => 0.6
-      },
-      afternoon: {    # 12pm-6pm: Midday entertainment
-        'funny' => 1.8,
-        'relatable' => 1.6,
-        'dank' => 1.4,
-        'wholesome' => 1.2,
-        'relationship' => 1.5,
-        'work' => 1.6,
-        'dark' => 1.0
-      },
-      evening: {      # 6pm-12am: Peak social/entertainment time
-        'dank' => 2.0,
-        'dark' => 1.8,
-        'absurdist' => 1.7,
-        'funny' => 1.6,
-        'relationship' => 1.9,
-        'edgy' => 1.7,
-        'wholesome' => 1.0
-      },
-      night: {        # 12am-6am: Late night browsing
-        'dark' => 2.0,
-        'absurdist' => 1.9,
-        'existential' => 1.8,
-        'deep' => 1.7,
-        'surreal' => 1.8,
-        'wholesome' => 0.8,
-        'motivational' => 0.5
-      }
-    }.freeze
+class ContextualScoringService
+  # Time-of-day content preferences (learned from user behavior patterns)
+  TIME_PREFERENCES = {
+    morning: {      # 6am-12pm: Start day positive
+      'wholesome' => 2.0,
+      'motivational' => 1.8,
+      'cute' => 1.7,
+      'relatable' => 1.5,
+      'funny' => 1.3,
+      'dark' => 0.5,
+      'absurdist' => 0.7,
+      'edgy' => 0.6
+    },
+    afternoon: {    # 12pm-6pm: Midday entertainment
+      'funny' => 1.8,
+      'relatable' => 1.6,
+      'dank' => 1.4,
+      'wholesome' => 1.2,
+      'relationship' => 1.5,
+      'work' => 1.6,
+      'dark' => 1.0
+    },
+    evening: {      # 6pm-12am: Peak social/entertainment time
+      'dank' => 2.0,
+      'dark' => 1.8,
+      'absurdist' => 1.7,
+      'funny' => 1.6,
+      'relationship' => 1.9,
+      'edgy' => 1.7,
+      'wholesome' => 1.0
+    },
+    night: {        # 12am-6am: Late night browsing
+      'dark' => 2.0,
+      'absurdist' => 1.9,
+      'existential' => 1.8,
+      'deep' => 1.7,
+      'surreal' => 1.8,
+      'wholesome' => 0.8,
+      'motivational' => 0.5
+    }
+  }.freeze
 
-    # Day-of-week emotional patterns
-    DAY_PREFERENCES = {
-      monday: {
-        'motivational' => 1.5,
-        'relatable' => 1.8,      # Monday struggles are relatable
-        'work' => 1.6,
-        'dark' => 1.3,
-        'coffee' => 1.9
-      },
-      tuesday: {
-        'work' => 1.4,
-        'relatable' => 1.5,
-        'funny' => 1.3
-      },
-      wednesday: {
-        'relatable' => 1.6,
-        'funny' => 1.4,
-        'wholesome' => 1.3
-      },
-      thursday: {
-        'funny' => 1.5,
-        'relationship' => 1.4,
-        'wholesome' => 1.3
-      },
-      friday: {
-        'funny' => 1.8,
-        'relationship' => 1.6,
-        'wholesome' => 1.5,
-        'party' => 1.9,
-        'weekend' => 1.8
-      },
-      saturday: {
-        'absurdist' => 1.6,
-        'dank' => 1.7,
-        'funny' => 1.6,
-        'wholesome' => 1.5,
-        'relationship' => 1.7
-      },
-      sunday: {
-        'wholesome' => 1.8,
-        'relatable' => 1.7,      # Sunday scaries
-        'existential' => 1.5,
-        'work' => 0.7            # Nobody wants work memes on Sunday
-      }
-    }.freeze
+  # Day-of-week emotional patterns
+  DAY_PREFERENCES = {
+    monday: {
+      'motivational' => 1.5,
+      'relatable' => 1.8,      # Monday struggles are relatable
+      'work' => 1.6,
+      'dark' => 1.3,
+      'coffee' => 1.9
+    },
+    tuesday: {
+      'work' => 1.4,
+      'relatable' => 1.5,
+      'funny' => 1.3
+    },
+    wednesday: {
+      'relatable' => 1.6,
+      'funny' => 1.4,
+      'wholesome' => 1.3
+    },
+    thursday: {
+      'funny' => 1.5,
+      'relationship' => 1.4,
+      'wholesome' => 1.3
+    },
+    friday: {
+      'funny' => 1.8,
+      'relationship' => 1.6,
+      'wholesome' => 1.5,
+      'party' => 1.9,
+      'weekend' => 1.8
+    },
+    saturday: {
+      'absurdist' => 1.6,
+      'dank' => 1.7,
+      'funny' => 1.6,
+      'wholesome' => 1.5,
+      'relationship' => 1.7
+    },
+    sunday: {
+      'wholesome' => 1.8,
+      'relatable' => 1.7,      # Sunday scaries
+      'existential' => 1.5,
+      'work' => 0.7            # Nobody wants work memes on Sunday
+    }
+  }.freeze
 
-    class << self
-      # Main method: Calculate contextual boost for a meme
-      def calculate_contextual_boost(meme)
-        return 1.0 unless meme
+  class << self
+    # Main method: Calculate contextual boost for a meme
+    def calculate_contextual_boost(meme)
+      return 1.0 unless meme
 
-        categories = extract_categories(meme)
-        return 1.0 if categories.empty?
+      categories = extract_categories(meme)
+      return 1.0 if categories.empty?
 
-        time_period = get_time_period
-        day = get_day_of_week
+      time_period = get_time_period
+      day = get_day_of_week
 
-        # Get time-based boost
-        time_boost = calculate_time_boost(categories, time_period)
+      # Get time-based boost
+      time_boost = calculate_time_boost(categories, time_period)
 
-        # Get day-based boost
-        day_boost = calculate_day_boost(categories, day)
+      # Get day-based boost
+      day_boost = calculate_day_boost(categories, day)
 
-        # Combine (weighted average: 60% time, 40% day)
-        combined_boost = (time_boost * 0.6) + (day_boost * 0.4)
+      # Combine (weighted average: 60% time, 40% day)
+      combined_boost = (time_boost * 0.6) + (day_boost * 0.4)
 
-        # Log for debugging (can disable in production)
-        log_boost(meme, time_period, day, combined_boost) if should_log?
+      # Log for debugging (can disable in production)
+      log_boost(meme, time_period, day, combined_boost) if should_log?
 
-        combined_boost
-      rescue => e
-        AppLogger.warn("[ContextualScoring] Error calculating boost: #{e.message}")
-        1.0 # Fail gracefully
-      end
+      combined_boost
+    rescue => e
+      AppLogger.warn("[ContextualScoring] Error calculating boost: #{e.message}")
+      1.0 # Fail gracefully
 
       # Get current time period
       def get_time_period
