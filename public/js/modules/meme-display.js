@@ -8,8 +8,27 @@ export class MemeDisplay {
     this.currentIndex = 0;
     this.images = [];
     this.init();
-  }
   
+
+// Image error handler - shows fallback when image fails to load
+function handleMediaError(img) {
+  if (!img.dataset.errorHandled) {
+    img.dataset.errorHandled = 'true';
+    
+    // Try fallback URL first if available
+    const fallbackUrl = img.dataset.fallback;
+    if (fallbackUrl && img.src !== fallbackUrl) {
+      img.src = fallbackUrl;
+      return;
+    }
+    
+    // Show placeholder
+    img.src = '/images/meme-placeholder.svg';
+    img.alt = 'Image failed to load';
+    console.warn('Image failed to load:', img.dataset.originalSrc || img.src);
+  }
+}
+}
   init() {
     console.log('[MemeDisplay] Initializing...');
     this.bindCarouselControls();
