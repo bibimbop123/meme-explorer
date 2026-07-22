@@ -12,7 +12,7 @@ module MemeExplorer
         
         # Use ViewingHistoryService for consistent tracking
         # session_id is used as visitor_id for unified tracking
-        seen_memes = MemeExplorer::ViewingHistoryService.get_seen_memes(session_id)
+        seen_memes = MemeExplorer::ViewingHistoryService.get_seen_memes(session_id) || []
         
         # CRITICAL: Remove ALL previously seen memes
         unseen_memes = all_memes.reject do |meme|
@@ -41,12 +41,8 @@ module MemeExplorer
           pool_memes = unseen_memes
         end
         
-        # Select using existing selection service
-        selected = MemeExplorer::MemeSelectionService.select_random_meme(
-          pool_memes,
-          session_id: session_id,
-          preferences: preferences
-        )
+        # Select random meme from the pool
+        selected = pool_memes.sample
         
         # Track usage
         track_pool_usage(session_id, pool_type)
