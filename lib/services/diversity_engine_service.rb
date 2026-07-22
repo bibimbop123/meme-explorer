@@ -18,48 +18,49 @@ module MemeExplorer
         unseen_memes = all_memes.reject do |meme|
           meme_id = meme['url'] || meme['file'] || meme['id']
           seen_memes.include?(meme_id)
-          
-          # If we've seen everything, reset history and start fresh
-          if unseen_memes.empty?
-            AppLogger.debug("🔄 User has seen all #{all_memes.size} memes! Resetting history...")
-            MemeExplorer::ViewingHistoryService.clear_history(session_id)
-            unseen_memes = all_memes
-          end
-          
-          AppLogger.debug("📊 Pool stats: #{all_memes.size} total, #{unseen_memes.size} unseen (#{seen_memes.size} seen)")
-          
-          # Determine pool type
-          pool_type = determine_next_pool(session_id)
-          
-          # Get pool with RELAXED filters
-          pool_memes = get_pool_memes(unseen_memes, pool_type, session_id)
-          
-          # If pool still too small, use ALL unseen memes
-          if pool_memes.size < 20
-            AppLogger.debug("⚠️  Pool '#{pool_type}' only has #{pool_memes.size} memes, using all unseen (#{unseen_memes.size})")
-            pool_memes = unseen_memes
-          end
-          
-          # Select using existing selection service
-          selected = MemeExplorer::MemeSelectionService.select_random_meme(
-            pool_memes,
-            session_id: session_id,
-            preferences: preferences
-          )
-          
-          # Track usage
-          track_pool_usage(session_id, pool_type)
-          
-          # DON'T mark as seen here! Let the route do it after successful delivery
-          # This prevents marking memes that fail to load or aren't actually shown
-          
-          # Add metadata
-          selected['diversity_pool'] = pool_type if selected
-          selected['pool_size'] = pool_memes.size if selected
-          selected['total_unseen'] = unseen_memes.size if selected
-          
-          selected
         end
+        
+        # If we've seen everything, reset history and start fresh
+        if unseen_memes.empty?
+          AppLogger.debug("🔄 User has seen all #{all_memes.size} memes! Resetting history...")
+          MemeExplorer::ViewingHistoryService.clear_history(session_id)
+          unseen_memes = all_memes
+        end
+        
+        AppLogger.debug("📊 Pool stats: #{all_memes.size} total, #{unseen_memes.size} unseen (#{seen_memes.size} seen)")
+        
+        # Determine pool type
+        pool_type = determine_next_pool(session_id)
+        
+        # Get pool with RELAXED filters
+        pool_memes = get_pool_memes(unseen_memes, pool_type, session_id)
+        
+        # If pool still too small, use ALL unseen memes
+        if pool_memes.size < 20
+          AppLogger.debug("⚠️  Pool '#{pool_type}' only has #{pool_memes.size} memes, using all unseen (#{unseen_memes.size})")
+          pool_memes = unseen_memes
+        end
+        
+        # Select using existing selection service
+        selected = MemeExplorer::MemeSelectionService.select_random_meme(
+          pool_memes,
+          session_id: session_id,
+          preferences: preferences
+        )
+        
+        # Track usage
+        track_pool_usage(session_id, pool_type)
+        
+        # DON'T mark as seen here! Let the route do it after successful delivery
+        # This prevents marking memes that fail to load or aren't actually shown
+        
+        # Add metadata
+        selected['diversity_pool'] = pool_type if selected
+        selected['pool_size'] = pool_memes.size if selected
+        selected['total_unseen'] = unseen_memes.size if selected
+        
+        selected
+      end
         
         private
         
