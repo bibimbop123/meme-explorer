@@ -38,6 +38,9 @@ gem "sentry-ruby", "~> 5.0"
 # Push Notifications
 gem "web-push"
 
+# Payments
+gem "stripe", "~> 10.0"
+
 # Background jobs & scheduling
 # NOTE: sidekiq-scheduler manages cron via Redis (see config/sidekiq.yml)
 # whenever (cron-based) was removed — sidekiq-scheduler is the single scheduler
