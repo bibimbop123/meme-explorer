@@ -288,4 +288,4 @@ module MemeExplorer
         end
       end
     end
-  endend
+  end
