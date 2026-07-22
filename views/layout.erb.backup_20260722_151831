@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meme Explorer 😎 - Best Memes from Reddit</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Discover trending memes from Reddit! Keyboard shortcuts: Space=Random, Cmd+K=Dark Mode. Browse funny, wholesome, and dank memes featuring Tattoo Annie.">
+  <meta name="keywords" content="memes, reddit memes, funny memes, wholesome memes, dank memes, meme explorer, tattoo annie, simpsons memes">
+  <meta name="author" content="Meme Explorer">
+  <meta name="theme-color" content="#e52e71">
+  
+  <!-- Google Site Verification for AdSense -->
+  <meta name="google-site-verification" content="<%= ENV['GOOGLE_SITE_VERIFICATION'] || '' %>" />
+  
+  <!-- Open Graph / Facebook Meta Tags -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= request.base_url %>">
+  <% if @meme && @meme['title'] %>
+    <!-- 🎬 CRITERION COLLECTION: Enhanced sharing for specific memes -->
+    <% collection = collection_name_for_subreddit(@meme['subreddit']) rescue "Meme Explorer" %>
+    <% signal = generate_curation_signal(@meme) rescue {message: "A curated selection"} %>
+    <meta property="og:title" content="From <%= collection %> | Meme Explorer">
+    <meta property="og:description" content="<%= signal[:message] %>: <%= @meme['title'].gsub('"', "'")[0..150] %>">
+    <meta property="og:image" content="<%= @meme['url'] || @image_src %>">
+  <% else %>
+    <meta property="og:title" content="Meme Explorer 😎 - Discover the Best Memes from Reddit">
+    <meta property="og:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from top Reddit communities.">
+    <meta property="og:image" content="<%= request.base_url %>/images/meme-placeholder-social.svg">
+  <% end %>
+  <meta property="og:image:secure_url" content="<%= request.base_url.gsub('http:', 'https:') %>/images/meme-placeholder-social.svg">
+  <meta property="og:image:type" content="image/svg+xml">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Tattoo Annie from The Simpsons - Meme Explorer mascot representing the fun and entertaining world of internet memes">
+  <meta property="og:site_name" content="Meme Explorer">
+  <meta property="og:locale" content="en_US">
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="<%= request.base_url %>">
+  <meta name="twitter:title" content="Meme Explorer 😎 - Discover the Best Memes">
+  <meta name="twitter:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from Reddit.">
+  <meta name="twitter:image" content="<%= request.base_url %>/images/meme-placeholder-social.svg">
+  <meta name="twitter:image:alt" content="Meme Explorer - Discover the funniest memes from Reddit">
+  <meta name="twitter:creator" content="@MemeExplorer">
+  
+  <!-- Additional Meta Tags -->
+  <meta name="robots" content="index, follow">
+  <meta name="googlebot" content="index, follow">
+  <meta name="google" content="nositelinkssearchbox">
+  <link rel="canonical" href="<%= request.base_url %><%= request.path %>">
+  
+  <!-- Favicon and Icons -->
+  <link rel="icon" href="/images/favicon.png">
+  <link rel="apple-touch-icon" href="/images/favicon.png">
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- 🚀 LCP OPTIMIZATION: Preconnect to external domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
+  <link rel="preconnect" href="https://pagead2.googlesyndication.com">
+  <% end %>
+  
+  <!-- 🚀 LCP OPTIMIZATION: Preload critical resources -->
+  <link rel="preload" href="/css/theme.css" as="style">
+  <link rel="preload" href="/css/meme_explorer.css" as="style">
+  <% if @image_src %>
+  <link rel="preload" href="<%= @image_src %>" as="image" fetchpriority="high">
+  <% end %>
+  
+  <!-- Load font with font-display swap for faster render -->
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/meme_explorer.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  <!-- Refined Aesthetic CSS - Criterion Collection Style -->
+  <link rel="stylesheet" href="/css/refined-aesthetic.css">
+  <link rel="stylesheet" href="/css/ads.css">
+  <link rel="stylesheet" href="/css/grid-layout-v3.css">
+  <link rel="stylesheet" href="/css/placeholder.css">
+  <link rel="stylesheet" href="/css/mobile-optimizations-v2.css">
+  <link rel="stylesheet" href="/css/image-optimization.css">
+  
+  <!-- Week 6 UX Enhancements: Dark Mode, PWA, Video Player -->
+  <link rel="stylesheet" href="/css/dark-mode.css">
+  <link rel="stylesheet" href="/css/pwa.css">
+  <link rel="stylesheet" href="/css/video-player.css">
+  
+  <script src="/js/ifunny-tracking.js" defer></link>
+  <script src="/js/share-system.js" defer></script>
+  
+  <!-- Engagement Enhancement Systems -->
+  <link rel="stylesheet" href="/css/session-stats.css">
+
+  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= ENV['GOOGLE_ADSENSE_CLIENT'] %>"
+          crossorigin="anonymous"></script>
+  <% end %>
+  
+  <style>
+    /* Gamification UI Styles */
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      transition: transform 0.2s;
+    }
+    .streak-badge:hover {
+      transform: scale(1.05);
+    }
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+      transition: transform 0.2s;
+    }
+    .level-badge:hover {
+      transform: scale(1.05);
+    }
+    .xp-notification {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: slideInRight 0.3s ease-out;
+      z-index: 1000;
+      font-weight: bold;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .level-up-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .level-up-content {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      padding: 3rem;
+      border-radius: 20px;
+      text-align: center;
+      color: white;
+      animation: bounceIn 0.5s ease-out;
+    }
+    .level-up-content h2 {
+      font-size: 3rem;
+      margin: 0 0 1rem 0;
+    }
+    .level-up-content p {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* Mobile navbar optimization - hide non-essential items on mobile */
+    @media (max-width: 768px) {
+      nav a[href*="/category/"],
+      nav a[href="/profile"],
+      nav a[href="/admin"] {
+        display: none;
+      }
+      
+      nav {
+        gap: 0.5rem;
+      }
+      
+      nav a {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+  <script>
+    // Initialize theme on page load
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark-mode');
+    } else if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark-mode');
+    } else if (prefersDark) {
+      document.documentElement.classList.add('dark-mode');
+    }
+  </script>
+<!-- Phase 2: Global Error Handler -->
+<script src="/js/error-handler.js"></script>
+    <link rel="stylesheet" href="/css/phase2-improvements.css">
+    
+<!-- Phase 3: Resource Hints for Performance -->
+<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
+<link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+<link rel="dns-prefetch" href="https://www.googletagmanager.com">
+<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com">
+<link rel="dns-prefetch" href="https://www.google-analytics.com">
+      <link rel="stylesheet" href="/css/gallery-polish.css">
+</head>
+<body>
+  <!-- Phase 2: Accessibility - Skip to Content -->
+  <a href="#main-content" class="skip-to-content">Skip to content</a>
+  <!-- ================= HEADER ================= -->
+  <header>
+    <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
+    <nav>
+      <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">🌙</button>
+      <button class="sound-toggle" id="soundToggle" title="Toggle sound effects">🔊</button>
+      <a href="/trending">Trending</a>
+      <a href="/leaderboard">🏆 Leaderboard</a>
+      <a href="/blog">📝 Blog</a>
+      <a href="/guides">📚 Guides</a>
+      <a href="/metrics">📈 Metrics</a>
+      <a href="/random">Random 🎲</a>
+      <% if session[:user_id] %>
+        <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
+          <span class="streak-badge" title="Current streak">🔥 <%= @streak_data[:current_streak] %></span>
+        <% end %>
+        <% if @user_level %>
+          <span class="level-badge" title="Your level">⭐ Lv <%= @user_level[:level] %></span>
+        <% end %>
+        <a href="/profile">👤 Profile</a>
+        <% if session[:user_id] && is_admin?(session[:user_id]) %>
+          <a href="/admin" style="background: #ff6b00;">🔒 Admin</a>
+        <% end %>
+        <a href="/logout">🚪 Logout</a>
+      <% else %>
+        <a href="/login">Login</a>
+        <a href="/signup">Sign Up</a>
+      <% end %>
+    </nav>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main id="main-content" role="main"><%= yield %></main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div class="footer-content">
+      <p>Built with Sinatra | &copy; 2026 Meme Explorer</p>
+      <nav class="footer-links">
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/dmca">DMCA</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <p class="footer-note">Content sourced from <a href="https://www.reddit.com" target="_blank" rel="noopener">Reddit</a> | Not affiliated with Reddit, Inc.</p>
+    </div>
+  </footer>
+  
+  <style>
+    footer {
+      background: #2c2c2c;
+      color: #e0e0e0;
+      padding: 2rem 1rem;
+      margin-top: 4rem;
+      text-align: center;
+    }
+    
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+    
+    .footer-links a {
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: #667eea;
+    }
+    
+    .footer-note {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 1rem;
+    }
+    
+    .footer-note a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    
+    .footer-note a:hover {
+      text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+      .footer-links {
+        gap: 1rem;
+      }
+      
+      .footer-links a {
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+
+  <!-- ================= SESSION DATA & GAMIFICATION ================= -->
+  <script>
+    window.sessionLikedMemes = <%= (session[:liked_memes] || []).to_json %>;
+    
+    // Level-up celebration with screen shake and confetti
+    <% if session[:last_xp_gain] && session[:last_xp_gain][:leveled_up] %>
+      setTimeout(() => {
+        // Screen shake for impact!
+        document.body.classList.add('screen-shake');
+        setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+        
+        // Confetti celebration!
+        if (window.particleSystem) {
+          window.particleSystem.confetti(window.innerWidth / 2, window.innerHeight / 2, 60);
+        }
+        
+        // Level up sound!
+        if (window.soundSystem) {
+          window.soundSystem.play('levelUp');
+        }
+        
+        const modal = document.createElement('div');
+        modal.className = 'level-up-modal';
+        modal.innerHTML = `
+          <div class="level-up-content">
+            <h2>🎉 LEVEL UP! 🎉</h2>
+            <p>You're now Level <%= session[:last_xp_gain][:level] %>!</p>
+            <p class="level-title" style="font-size: 1.3rem; margin: 0.5rem 0;"><%= session[:last_xp_gain][:title] %></p>
+            <p>+<%= session[:last_xp_gain][:xp_gained] %> XP</p>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; padding: 0.75rem 2rem; font-size: 1.1rem; border: none; background: white; color: #f5576c; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Let's GOOO! 🚀</button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) modal.remove();
+        });
+      }, 500);
+      <% session.delete(:last_xp_gain) %>
+    <% elsif session[:last_xp_gain] %>
+      setTimeout(() => {
+        const notification = document.createElement('div');
+        notification.className = 'xp-notification';
+        notification.textContent = '+<%= session[:last_xp_gain][:xp_gained] %> XP';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+      }, 300);
+      <% session.delete(:last_xp_gain) %>
+    <% end %>
+    
+    // Dark mode toggle for entire UI
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+      // Set initial button state
+      const isDarkMode = document.documentElement.classList.contains('dark-mode');
+      darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+      
+      // Toggle on click
+      darkModeToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const html = document.documentElement;
+        const newIsDark = !html.classList.contains('dark-mode');
+        
+        html.classList.toggle('dark-mode');
+        localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+        darkModeToggle.textContent = newIsDark ? '☀️' : '🌙';
+      });
+    }
+  </script>
+
+  <!-- ================= NAVIGATION JS ================= -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const prevBtn = document.getElementById("prev-btn");
+      const nextBtn = document.getElementById("next-btn");
+
+      prevBtn?.addEventListener("click", () => {
+        window.location.href = "/random";
+      });
+      nextBtn?.addEventListener("click", () => {
+        window.location.href = "/random";
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        // Space bar = load random meme
+        if ((e.code === "Space" || e.key === " ") && document.activeElement.tagName !== "INPUT") {
+          e.preventDefault();
+          window.location.href = "/random";
+        }
+        
+        // Cmd+K (Mac) or Ctrl+K (Windows/Linux) = toggle dark mode
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          const darkModeToggle = document.getElementById('darkModeToggle');
+          if (darkModeToggle) {
+            darkModeToggle.click();
+          }
+        }
+      });
+    });
+  </script>
+  
+  <!-- ================= GALLERY SCRIPT (if galleries are present) ================= -->
+  <% if defined?(gallery_script) %>
+    <%= gallery_script %>
+  <% end %>
+  
+  <!-- ================= SOUND, HAPTIC & PARTICLE SYSTEMS ================= -->
+  <script src="/js/sound-system.js"></script>
+  <script src="/js/haptic-system.js"></script>
+  <script src="/js/particle-effects.js"></script>
+  <script>
+    // Sound toggle functionality
+    const soundToggle = document.getElementById('soundToggle');
+    if (soundToggle) {
+      // Set initial button state
+      soundToggle.textContent = window.soundSystem.isMuted() ? '🔇' : '🔊';
+      
+      // Toggle on click
+      soundToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isMuted = window.soundSystem.toggleMute();
+        soundToggle.textContent = isMuted ? '🔇' : '🔊';
+        
+        // Play test sound if unmuted
+        if (!isMuted) {
+          window.soundSystem.play('achievement');
+        }
+        
+        // Haptic feedback
+        window.hapticSystem.trigger('light');
+      });
+    }
+  </script>
+  
+  <!-- ================= ACTIVITY TRACKER (real-time user counts) ================= -->
+  <script src="/js/activity-tracker.js"></script>
+  
+  <!-- ================= SURPRISE REWARDS (Priority 2) ================= -->
+  <script src="/js/surprise-rewards.js"></script>
+  
+  <!-- ================= AD SYSTEM CONFIGURATION ================= -->
+  <script>
+    // Ad configuration from environment
+    window.AD_FREQUENCY = <%= ENV['AD_FREQUENCY'] || 12 %>;
+    window.GOOGLE_ADSENSE_CLIENT = <%= ENV['GOOGLE_ADSENSE_CLIENT'].to_json %>;
+    window.GOOGLE_AD_SLOT_SQUARE = <%= ENV['GOOGLE_AD_SLOT_SQUARE'].to_json %>;
+    window.GOOGLE_AD_SLOT_BANNER = <%= ENV['GOOGLE_AD_SLOT_BANNER'].to_json %>;
+    window.GOOGLE_AD_SLOT_NATIVE = <%= ENV['GOOGLE_AD_SLOT_NATIVE'].to_json %>;
+  </script>
+  <script src="/js/ad-manager.js"></script>
+  
+  <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->
+  <% if session[:user_id] %>
+  <script>
+  // Push Notification Registration System
+  (function() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('⚠️ Push notifications not supported');
+      return;
+    }
+    
+    // Check if user already granted permission
+    if (Notification.permission === 'granted') {
+      registerPushNotifications();
+    } else if (Notification.permission !== 'denied') {
+      // Show friendly prompt after user is engaged (3 seconds delay)
+      setTimeout(showPushPrompt, 3000);
+    }
+    
+    function showPushPrompt() {
+      const banner = document.createElement('div');
+      banner.id = 'push-prompt-banner';
+      banner.innerHTML = `
+        <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; padding: 16px 24px; border-radius: 12px; 
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10000;
+                    max-width: 400px; text-align: center; animation: slideUp 0.5s ease-out;">
+          <p style="margin: 0 0 12px 0; font-weight: 600;">🔥 Never lose your streak!</p>
+          <p style="margin: 0 0 16px 0; font-size: 0.9rem; opacity: 0.9;">
+            Get reminded when your streak is about to break
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="window.enablePushNotifications()" 
+                    style="background: white; color: #667eea; border: none; 
+                           padding: 10px 20px; border-radius: 8px; font-weight: 600;
+                           cursor: pointer; transition: transform 0.2s;">
+              Enable Notifications ✨
+            </button>
+            <button onclick="window.closePushPrompt()" 
+                    style="background: rgba(255,255,255,0.2); color: white; 
+                           border: none; padding: 10px 20px; border-radius: 8px;
+                           cursor: pointer; transition: transform 0.2s;">
+              Maybe Later
+            </button>
+          </div>
+        </div>
+        <style>
+          @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+          }
+          #push-prompt-banner button:hover { transform: scale(1.05); }
+        </style>
+      `;
+      document.body.appendChild(banner);
+    }
+    
+    window.closePushPrompt = function() {
+      const banner = document.getElementById('push-prompt-banner');
+      if (banner) banner.remove();
+    };
+    
+    window.enablePushNotifications = async function() {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          window.closePushPrompt();
+          await registerPushNotifications();
+          showSuccessMessage('🎉 Notifications enabled! We\'ll keep your streak safe.');
+        }
+      } catch (error) {
+        console.error('❌ Push notification error:', error);
+      }
+    };
+    
+    async function registerPushNotifications() {
+      try {
+        console.log('🔔 Registering service worker...');
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        console.log('✅ Service Worker registered');
+        
+        // Wait for service worker to be ready
+        await navigator.serviceWorker.ready;
+        
+        // Check if VAPID key is configured
+        const vapidKey = '<%= ENV["VAPID_PUBLIC_KEY"] || "" %>';
+        if (!vapidKey || vapidKey === '' || vapidKey === 'undefined') {
+          console.log('⚠️ Push notifications not configured (missing VAPID_PUBLIC_KEY)');
+          return;
+        }
+        
+        // Subscribe to push notifications
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey
+        });
+        
+        console.log('🔔 Push subscription obtained, saving to server...');
+        
+        // Send subscription to server
+        const response = await fetch('/api/subscribe-push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+          },
+          body: JSON.stringify(subscription)
+        });
+        
+        if (response.ok) {
+          console.log('✅ Push subscription saved successfully');
+        } else {
+          console.error('❌ Failed to save push subscription:', await response.text());
+        }
+      } catch (error) {
+        console.error('❌ Push registration error:', error);
+      }
+    }
+    
+    function showSuccessMessage(message) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed; top: 80px; right: 20px; 
+        background: #4CAF50; color: white; 
+        padding: 16px 24px; border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001; animation: slideInRight 0.3s ease-out;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+  })();
+  </script>
+  
+  <style>
+  @keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  </style>
+  <% end %>
+  
+  <!-- Content Feedback System (Chunk 4) -->
+  <script src="/js/content-feedback.js"></script>
+  
+  <!-- Reactions System -->
+  <script src="/js/reactions-v2.js" defer></script>
+  
+<!-- Phase 2: Lazy Loading -->
+<script src="/js/ad-lazy-load.js" defer></script>
+<script src="/js/image-lazy-load.js" defer></script>
+<!-- Phase 3 Chunk 2: Core Web Vitals Tracking -->
+<script src="/js/web-vitals.js" defer></script>
+<!-- Phase 3 Chunk 3: Enhanced Lazy Loading -->
+<script src="/js/enhanced-lazy-load.js" defer></script>
+
+<!-- Week 1: Performance & Mobile Optimizations -->
+<link rel="stylesheet" href="/css/loading-skeletons.css">
+
+<!-- Week 2: UI Simplification -->
+<link rel="stylesheet" href="/css/simplified-ui.css">
+<script src="/js/keyboard-shortcuts.js" defer></script>
+<script src="/js/progressive-disclosure.js" defer></script>
+<script src="/js/collapsible-gamification.js" defer></script>
+
+<!-- Week 6: UX Enhancements - Dark Mode, PWA, Video Player -->
+<script src="/js/dark-mode.js" defer></script>
+<script src="/js/pwa-install.js" defer></script>
+<script src="/js/video-player.js" defer></script>
+
+<!-- Media Performance Monitoring -->
+<script src="/js/media-performance.js"></script>
+  </body>
+</html>

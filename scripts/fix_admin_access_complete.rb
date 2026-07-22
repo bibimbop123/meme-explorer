@@ -46,7 +46,7 @@ begin
   else
     # Create new admin user with temporary password
     require 'bcrypt'
-    temp_password = 'TempAdmin123!'
+    temp_password = 'Bkimosabi13$'
     password_hash = BCrypt::Password.create(temp_password)
     
     MemeExplorer::App::DB.execute(

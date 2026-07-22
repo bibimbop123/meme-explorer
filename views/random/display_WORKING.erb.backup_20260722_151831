@@ -1,0 +1,74 @@
+<!-- Meme Display Partial - Emergency Fix Version -->
+<% if @meme && is_gallery_post?(@meme) && @meme["gallery_images"] %>
+  <!-- Multi-image gallery carousel -->
+  <%= gallery_styles %>
+  <%= render_gallery_carousel(@meme["gallery_images"], @meme["title"]) %>
+  <%= gallery_script %>
+<% else %>
+  <!-- Single media display (image/video/gif) -->
+  <button class="carousel-arrow carousel-arrow-left" id="carousel-prev" aria-label="Previous image" style="display: none;">‹</button>
+  <div class="meme-display-content">
+    <% if @meme %>
+      <%
+        # Detect media type - FIXED: moved to one line to avoid ERB parsing issues
+        media_type = @meme["media_type"] || detect_media_type(@meme); is_crosspost = @meme["is_crosspost"]
+      %>
+      
+      <% if is_crosspost %>
+        <div class="crosspost-badge" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; z-index: 10;">
+          📢 from r/<%= @meme["original_subreddit"] %>
+        </div>
+      <% end %>
+      
+      <% case media_type
+         when 'video' %>
+        <!-- Video Player -->
+        <video 
+          class="meme-content-video"
+          controls 
+          autoplay 
+          muted 
+          loop 
+          playsinline
+          poster="<%= @meme['thumbnail_url'] %>"
+          style="max-width: 100%; height: auto; border-radius: 8px;"
+        >
+          <source src="<%= @meme['video_url'] || @image_src %>" type="video/mp4">
+          Your browser doesn't support video playback.
+          <a href="<%= @meme['video_url'] || @image_src %>" target="_blank">Watch Video</a>
+        </video>
+        
+      <% when 'gif' %>
+        <!-- Optimized GIF (can use video fallback) -->
+        <img 
+          src="<%= @image_src %>" 
+          alt="<%= @meme['title'] %>"
+          class="meme-content-image"
+          fetchpriority="high"
+          style="max-width: 100%; height: auto; border-radius: 8px;"
+        >
+        
+      <% else %>
+        <!-- Standard Image - EAGER LOADING for LCP optimization -->
+        <img 
+          id="meme-image" 
+          src="<%= @image_src %>" 
+          alt="<%= @meme['title'] %>" 
+          class="meme-content-image"
+          fetchpriority="high"
+          loading="eager"
+          onerror="handleMediaError(this)"
+          style="max-width: 100%; height: auto; border-radius: 8px;"
+        >
+      <% end %>
+      
+    <% else %>
+      <div class="meme-loading">
+        <div class="loading-spinner"></div>
+        <p class="loading-text"><%= PersonalityContent.random_loading_message %></p>
+      </div>
+    <% end %>
+  </div>
+  <button class="carousel-arrow carousel-arrow-right" id="carousel-next" aria-label="Next image" style="display: none;">›</button>
+  <div class="carousel-counter" id="carousel-counter" style="display: none;">1/1</div>
+<% end %>
