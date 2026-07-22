@@ -7,10 +7,10 @@
  * - Push notification support (existing)
  */
 
-const CACHE_VERSION = 'meme-explorer-v2.0';
-const STATIC_CACHE = 'static-v2.0';
-const API_CACHE = 'api-v2.0';
-const IMAGE_CACHE = 'images-v2.0';
+const CACHE_VERSION = 'meme-explorer-v2.1';
+const STATIC_CACHE = 'static-v2.1';
+const API_CACHE = 'api-v2.1';
+const IMAGE_CACHE = 'images-v2.1';
 
 const STATIC_ASSETS = [
   '/',
