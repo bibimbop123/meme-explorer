@@ -114,18 +114,17 @@ module AppHelpers
     DB.execute("SELECT * FROM users WHERE id = ?", [user_id]).first
   end
 
-# Admin role check - added during audit Week 1 fixes
-# FIXED: July 21, 2026 - Use DBWrapper SQL syntax instead of Sequel
+# Admin role check - FIXED July 22, 2026 to use 'role' column
 def is_admin?(user_id)
   return false unless user_id
   
-  # Query admin status using DBWrapper's execute method
-  result = DB.execute("SELECT admin FROM users WHERE id = ?", [user_id])
+  # Query role using DBWrapper's execute method
+  result = DB.execute("SELECT role FROM users WHERE id = ?", [user_id])
   return false if result.nil? || result.empty?
   
-  # PostgreSQL returns boolean as true/false or 't'/'f' string
-  admin_value = result.first['admin']
-  admin_value == true || admin_value == 't' || admin_value == 1
+  # Check if role is 'admin'
+  role_value = result.first['role']
+  role_value == 'admin'
 rescue => e
   AppLogger.error('[AdminCheck] Error checking admin status', error: e.message)
   false
