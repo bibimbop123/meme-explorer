@@ -290,4 +290,3 @@ module MemeExplorer
       end
     end
   end
-end
