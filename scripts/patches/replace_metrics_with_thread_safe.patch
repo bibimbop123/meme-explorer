@@ -1,0 +1,25 @@
+# Patch Instructions for app.rb
+# 
+# FIND (around line 165):
+#   METRICS = Hash.new(0).merge(avg_request_time_ms: 0.0)
+#
+# REPLACE WITH:
+#   require_relative 'lib/concerns/thread_safe_metrics'
+#
+# FIND (in after block, around line 329-335):
+#   METRICS[:total_requests] += 1
+#   total = METRICS[:total_requests]
+#   avg = METRICS[:avg_request_time_ms]
+#   duration = (Time.now - request_start) * 1000
+#   METRICS[:avg_request_time_ms] = ((avg * (total - 1)) + duration) / total.to_f
+#
+# REPLACE WITH:
+#   ThreadSafeMetrics.increment(:total_requests)
+#   duration_ms = ((Time.now - request_start) * 1000).to_i
+#   ThreadSafeMetrics.increment(:total_duration_ms, duration_ms)
+#
+# FIND (in metrics endpoint):
+#   METRICS
+#
+# REPLACE WITH:
+#   ThreadSafeMetrics.get_all

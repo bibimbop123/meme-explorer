@@ -1,0 +1,40 @@
+# Database Configuration with Proper Connection Pooling
+# Created: July 22, 2026
+# Impact: Prevents connection exhaustion under load
+
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # Connection pool sized for Puma with 5 threads, 5 workers = 25 total
+  # Rule: pool = (max_threads * worker_count) + buffer
+  pool: 30
+  timeout: 5000
+  # Reap connections that have been idle for 10 seconds
+  reaping_frequency: 10
+  # Verify connections are still valid before using
+  checkout_timeout: 5
+  variables:
+    statement_timeout: 15000  # 15 seconds max query time
+    idle_in_transaction_session_timeout: 60000  # 60 seconds max idle in transaction
+
+development:
+  <<: *default
+  database: meme_explorer_development
+  pool: 10  # Smaller pool for dev
+
+test:
+  <<: *default
+  database: meme_explorer_test
+  pool: 5
+
+production:
+  <<: *default
+  database: <%= ENV['DATABASE_NAME'] || 'meme_explorer_production' %>
+  username: <%= ENV['DATABASE_USER'] %>
+  password: <%= ENV['DATABASE_PASSWORD'] %>
+  host: <%= ENV['DATABASE_HOST'] %>
+  port: <%= ENV['DATABASE_PORT'] || 5432 %>
+  pool: <%= ENV['DB_POOL'] || 30 %>
+  # Production-specific settings
+  prepared_statements: true
+  advisory_locks: true

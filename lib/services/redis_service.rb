@@ -365,14 +365,11 @@ class RedisService
       @redis_available = false
       @redis_check_time = Time.now
       
-      # Schedule availability re-check after 30 seconds (named thread — intentional long-lived)
-      @reconnect_thread = Thread.new do
-        Thread.current.name = 'redis-reconnect'
-        sleep 30
+      # Schedule availability re-check after 30 seconds using Concurrent::ScheduledTask
+      Concurrent::ScheduledTask.execute(30) do
         refresh_availability!
         AppLogger.info("Redis availability re-checked", available: @redis_available)
       end
-      @reconnect_thread.abort_on_exception = false
     end
   end
 end

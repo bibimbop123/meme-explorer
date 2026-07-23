@@ -125,9 +125,10 @@ class ContextualScoringService
     rescue => e
       AppLogger.warn("[ContextualScoring] Error calculating boost: #{e.message}")
       1.0 # Fail gracefully
+    end
 
-      # Get current time period
-      def get_time_period
+  # Get current time period
+  def get_time_period
         hour = Time.now.hour
         case hour
         when 6...12  then :morning
@@ -244,5 +245,4 @@ class ContextualScoringService
         )
       end
     end # class << self
-  end # class ContextualScoringService
-end # module MemeExplorer
+end # class ContextualScoringService
