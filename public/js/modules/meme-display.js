@@ -3,15 +3,9 @@
  * Handles image/video rendering and carousel functionality
  */
 
-export class MemeDisplay {
-  constructor() {
-    this.currentIndex = 0;
-    this.images = [];
-    this.init();
-  
-
 // Image error handler - shows fallback when image fails to load
-function handleMediaError(img) {
+// Global function so it can be called from inline HTML event handlers
+window.handleMediaError = function(img) {
   if (!img.dataset.errorHandled) {
     img.dataset.errorHandled = 'true';
     
@@ -27,8 +21,14 @@ function handleMediaError(img) {
     img.alt = 'Image failed to load';
     console.warn('Image failed to load:', img.dataset.originalSrc || img.src);
   }
-}
-}
+};
+
+export class MemeDisplay {
+  constructor() {
+    this.currentIndex = 0;
+    this.images = [];
+    this.init();
+  }
   init() {
     console.log('[MemeDisplay] Initializing...');
     this.bindCarouselControls();
