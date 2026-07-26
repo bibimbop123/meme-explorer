@@ -126,6 +126,11 @@ class SecurityHeaders
         "https://pagead2.googlesyndication.com " \
         "https://www.youtube.com",
       
+      # Media: Allow Reddit videos and audio
+      "media-src 'self' " \
+        "https://v.redd.it " \
+        "https://i.redd.it",
+      
       # Frame ancestors: prevent embedding except same origin
       "frame-ancestors 'self'",
       
