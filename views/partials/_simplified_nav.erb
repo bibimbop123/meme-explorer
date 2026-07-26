@@ -1,0 +1,31 @@
+<!-- Simplified Navigation: Max 5 core items -->
+<nav class="main-nav">
+  <a href="/" class="logo">🎭 Meme Explorer</a>
+  
+  <div class="nav-items">
+    <a href="/random">Random</a>
+    <a href="/trending">Trending</a>
+    <button id="darkModeToggle" title="Toggle theme" aria-label="Toggle dark mode">🌙</button>
+    
+    <% if session[:user_id] %>
+      <a href="/profile">Profile</a>
+    <% else %>
+      <a href="/login">Login</a>
+    <% end %>
+    
+    <button id="menuToggle" class="hamburger" aria-label="Menu">☰</button>
+  </div>
+</nav>
+
+<!-- Hidden hamburger menu for secondary items -->
+<div id="hamburgerMenu" class="hamburger-menu">
+  <% if FeatureFlags.enabled?('gamification.features.leaderboards') %>
+    <a href="/leaderboard">🏆 Leaderboard</a>
+  <% end %>
+  <a href="/guides">📚 Guides</a>
+  <a href="/about">About</a>
+  <a href="/contact">Contact</a>
+  <% if session[:user_id] && admin? %>
+    <a href="/admin">⚙️ Admin</a>
+  <% end %>
+</div>

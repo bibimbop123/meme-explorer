@@ -107,6 +107,8 @@ require_relative "./routes/admin_inline_routes"
 require_relative "./lib/middleware/request_timer"
 require_relative "./lib/middleware/security_headers"
 require_relative 'lib/helpers/cdn_helpers'
+require_relative 'lib/helpers/progressive_disclosure_helper'
+require_relative 'lib/feature_flags'
 require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
 require_relative 'lib/services/health_check_service'

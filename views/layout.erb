@@ -223,6 +223,8 @@
       document.documentElement.classList.add('dark-mode');
     }
   </script>
+<link rel="stylesheet" href="/css/navigation.css">
+
 <!-- Phase 2: Global Error Handler -->
 <script src="/js/error-handler.js"></script>
     <link rel="stylesheet" href="/css/phase2-improvements.css">
@@ -240,33 +242,7 @@
   <a href="#main-content" class="skip-to-content">Skip to content</a>
   <!-- ================= HEADER ================= -->
   <header>
-    <h1><a href="/" class="logo">Meme Explorer 😎</a></h1>
-    <nav>
-      <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">🌙</button>
-      <button class="sound-toggle" id="soundToggle" title="Toggle sound effects">🔊</button>
-      <a href="/trending">Trending</a>
-      <a href="/leaderboard">🏆 Leaderboard</a>
-      <a href="/blog">📝 Blog</a>
-      <a href="/guides">📚 Guides</a>
-      <a href="/metrics">📈 Metrics</a>
-      <a href="/random">Random 🎲</a>
-      <% if session[:user_id] %>
-        <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
-          <span class="streak-badge" title="Current streak">🔥 <%= @streak_data[:current_streak] %></span>
-        <% end %>
-        <% if @user_level %>
-          <span class="level-badge" title="Your level">⭐ Lv <%= @user_level[:level] %></span>
-        <% end %>
-        <a href="/profile">👤 Profile</a>
-        <% if session[:user_id] && is_admin?(session[:user_id]) %>
-          <a href="/admin" style="background: #ff6b00;">🔒 Admin</a>
-        <% end %>
-        <a href="/logout">🚪 Logout</a>
-      <% else %>
-        <a href="/login">Login</a>
-        <a href="/signup">Sign Up</a>
-      <% end %>
-    </nav>
+    <%= erb :'partials/_simplified_nav' %>
   </header>
 
   <!-- ================= MAIN CONTENT ================= -->
@@ -668,6 +644,8 @@
 <script src="/js/dark-mode.js" defer></script>
 <script src="/js/pwa-install.js" defer></script>
 <script src="/js/video-player.js" defer></script>
+<script src="/js/hamburger-menu.js" defer></script>
+
 
 <!-- Media Performance Monitoring -->
 <script src="/js/media-performance.js"></script>

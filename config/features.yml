@@ -1,0 +1,55 @@
+# Feature Flags Configuration
+# Toggle features for A/B testing and gradual rollout
+
+features:
+  # Core features (always on)
+  core:
+    random_memes: true
+    trending: true
+    like_button: true
+    dark_mode: true
+    search: true
+  
+  # Gamification (progressive disclosure)
+  gamification:
+    enabled: <%= ENV['FEATURE_GAMIFICATION'] != 'false' %>
+    min_session_count: 5
+    features:
+      streaks: true
+      levels: true
+      xp_system: true
+      leaderboards: true
+      achievements: false  # Low engagement - disabled
+      daily_challenges: false  # Low completion rate - disabled
+      
+  # Engagement features
+  engagement:
+    push_notifications:
+      enabled: <%= ENV['FEATURE_PUSH'] == 'true' %>
+      min_session_count: 10
+    
+    sound_effects:
+      enabled: <%= ENV['FEATURE_SOUNDS'] == 'true' %>
+      min_session_count: 20
+      
+    haptic_feedback:
+      enabled: false  # Device-specific, low adoption
+      
+    particle_effects:
+      enabled: false  # Visual noise, negligible engagement
+      
+    screen_shake:
+      enabled: false  # Jarring, doesn't add value
+      
+  # Social features  
+  social:
+    meme_battles:
+      enabled: false  # Low usage
+    near_miss_mechanics:
+      enabled: false  # Manipulative, low trust
+      
+  # Analytics
+  analytics:
+    activity_tracking: true
+    performance_monitoring: true
+    ab_testing: true

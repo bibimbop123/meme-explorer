@@ -24,7 +24,7 @@ class ActivityTracker {
   createActivityElement() {
     const element = document.createElement('div');
     element.className = 'live-activity';
-    element.innerHTML = '🔥 <span class="count">...</span> people viewing memes right now';
+    element.innerHTML = '<strong>🔥 <span class="count">...</span> people</strong> online now';
     
     // Add to header or create floating badge
     const header = document.querySelector('header nav');
@@ -185,11 +185,24 @@ style.textContent = `
   
   .live-activity {
     transition: all 0.3s ease;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: inline-block;
   }
   
   .live-activity:hover {
     transform: scale(1.05);
     cursor: default;
+  }
+  
+  .live-activity .count {
+    color: #fff !important;
+    font-weight: 700;
   }
 `;
 document.head.appendChild(style);

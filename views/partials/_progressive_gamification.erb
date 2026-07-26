@@ -1,0 +1,51 @@
+<%
+# Progressive disclosure of gamification features
+# Based on session count - don't overwhelm new users
+tier = show_gamification_tier(session[:session_count] || 0)
+user_id = session[:user_id]
+%>
+
+<% if tier == :minimal %>
+  <!-- Sessions 1-4: Just the essentials -->
+  <!-- No gamification distractions for new users -->
+  
+<% elsif tier == :basic %>
+  <!-- Sessions 5-9: Introduce streaks (they're coming back!) -->
+  <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
+    <div class="streak-indicator">
+      <span class="streak-badge" title="Current streak">
+        🔥 <%= @streak_data[:current_streak] %> day streak
+      </span>
+    </div>
+  <% end %>
+  
+<% elsif tier == :intermediate %>
+  <!-- Sessions 10-19: Show level progress -->
+  <% if @user_level %>
+    <div class="gamification-compact">
+      <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
+        <span class="streak-badge">🔥 <%= @streak_data[:current_streak] %></span>
+      <% end %>
+      <span class="level-badge">⭐ Lv <%= @user_level[:level] %></span>
+    </div>
+  <% end %>
+  
+<% else %>
+  <!-- Sessions 20+: Full gamification experience -->
+  <div class="gamification-full">
+    <% if @streak_data && @streak_data[:current_streak].to_i > 0 %>
+      <span class="streak-badge">🔥 <%= @streak_data[:current_streak] %></span>
+    <% end %>
+    
+    <% if @user_level %>
+      <span class="level-badge">⭐ Lv <%= @user_level[:level] %></span>
+      <div class="xp-progress">
+        <div class="xp-bar" style="width: <%= @user_level[:progress] %>%"></div>
+      </div>
+    <% end %>
+    
+    <% if FeatureFlags.enabled?('gamification.features.leaderboards') %>
+      <a href="/leaderboard" class="leaderboard-link">🏆</a>
+    <% end %>
+  </div>
+<% end %>
