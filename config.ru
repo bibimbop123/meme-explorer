@@ -26,6 +26,10 @@ use Rack::Session::Redis,
     end
   end)
 
+# Authorization middleware - protects routes based on permissions
+require_relative 'lib/middleware/authorization'
+use AuthorizationMiddleware
+
 # Enable gzip compression for all responses (60-70% bandwidth savings!)
 use Rack::Deflater
 
