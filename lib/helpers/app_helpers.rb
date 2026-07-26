@@ -76,6 +76,40 @@ module AppHelpers
   def verify_password(password, hash)
     BCrypt::Password.new(hash) == password
   end
+  
+  # ====================
+  # AUTHENTICATION & AUTHORIZATION HELPERS
+  # ====================
+  
+  # Check if user is logged in
+  def logged_in?
+    !session[:user_id].nil?
+  end
+  
+  # Check if current user is admin
+  def admin?
+    session[:user_id] && session[:role] == 'admin'
+  end
+  
+  # Get current user ID
+  def current_user_id
+    session[:user_id]
+  end
+  
+  # Get current user role
+  def current_user_role
+    session[:role] || 'user'
+  end
+  
+  # Require user to be logged in (middleware-style)
+  def require_login!
+    halt 401, { error: "Login required" }.to_json unless logged_in?
+  end
+  
+  # Require user to be admin (middleware-style)
+  def require_admin!
+    halt 403, { error: "Admin access required" }.to_json unless admin?
+  end
 
   # ====================
   # USER MANAGEMENT
