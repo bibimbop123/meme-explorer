@@ -11,8 +11,8 @@
   <meta name="author" content="Meme Explorer">
   <meta name="theme-color" content="#e52e71">
   
-  <!-- Google Site Verification for AdSense -->
-  <meta name="google-site-verification" content="<%= ENV['GOOGLE_SITE_VERIFICATION'] || '' %>" />
+  <!-- Site Verification -->
+  <meta name="site-verification" content="propellerads-verified" />
   
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:type" content="website">
@@ -60,9 +60,9 @@
   <!-- 🚀 LCP OPTIMIZATION: Preconnect to external domains -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
-  <link rel="preconnect" href="https://pagead2.googlesyndication.com">
-  <% end %>
+  <!-- PropellerAds preconnect for faster ad loading -->
+  <link rel="preconnect" href="https://quge5.com">
+  <link rel="preconnect" href="https://3nbf4.com">
   
   <!-- 🚀 LCP OPTIMIZATION: Preload critical resources -->
   <link rel="preload" href="/css/theme.css" as="style">
@@ -95,11 +95,8 @@
   <!-- Engagement Enhancement Systems -->
   <link rel="stylesheet" href="/css/session-stats.css">
 
-  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= ENV['GOOGLE_ADSENSE_CLIENT'] %>"
-          crossorigin="anonymous"></script>
-  <% end %>
+  <!-- PropellerAds - Monetization Made Simple -->
+  <script src="https://quge5.com/88/tag.min.js" data-zone="271359" async data-cfasync="false"></script>
   
   <style>
     /* Gamification UI Styles */
@@ -229,12 +226,6 @@
 <script src="/js/error-handler.js"></script>
     <link rel="stylesheet" href="/css/phase2-improvements.css">
     
-<!-- Phase 3: Resource Hints for Performance -->
-<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
-<link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
-<link rel="dns-prefetch" href="https://www.googletagmanager.com">
-<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com">
-<link rel="dns-prefetch" href="https://www.google-analytics.com">
       <link rel="stylesheet" href="/css/gallery-polish.css">
 </head>
 <body>
