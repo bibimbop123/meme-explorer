@@ -60,43 +60,7 @@
   <!-- 🚀 LCP OPTIMIZATION: Preconnect to external domains -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- PropellerAds preconnect for faster ad loading -->
-  <link rel="preconnect" href="https://quge5.com">
-  <link rel="preconnect" href="https://3nbf4.com">
-  
-  <!-- 🚀 LCP OPTIMIZATION: Preload critical resources -->
-  <link rel="preload" href="/css/theme.css" as="style">
-  <link rel="preload" href="/css/meme_explorer.css" as="style">
-  <% if @image_src %>
-  <link rel="preload" href="<%= @image_src %>" as="image" fetchpriority="high">
-  <% end %>
-  
-  <!-- Load font with font-display swap for faster render -->
-  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/theme.css">
-  <link rel="stylesheet" href="/css/meme_explorer.css">
-  <link rel="stylesheet" href="/css/animations.css">
-  <!-- Refined Aesthetic CSS - Criterion Collection Style -->
-  <link rel="stylesheet" href="/css/refined-aesthetic.css">
-  <link rel="stylesheet" href="/css/ads.css">
-  <link rel="stylesheet" href="/css/grid-layout-v3.css">
-  <link rel="stylesheet" href="/css/placeholder.css">
-  <link rel="stylesheet" href="/css/mobile-optimizations-v2.css">
-  <link rel="stylesheet" href="/css/image-optimization.css">
-  
-  <!-- Week 6 UX Enhancements: Dark Mode, PWA, Video Player -->
-  <link rel="stylesheet" href="/css/dark-mode.css">
-  <link rel="stylesheet" href="/css/pwa.css">
-  <link rel="stylesheet" href="/css/video-player.css">
-  
-  <script src="/js/ifunny-tracking.js" defer></link>
-  <script src="/js/share-system.js" defer></script>
-  
-  <!-- Engagement Enhancement Systems -->
-  <link rel="stylesheet" href="/css/session-stats.css">
-
-  <!-- PropellerAds - Monetization Made Simple -->
-  <script src="https://quge5.com/88/tag.min.js" data-zone="271359" async data-cfasync="false"></script>
+  <!-- PropellerAds loaded conditionally via cookie-consent.js (GDPR compliance) -->
   
   <style>
     /* Gamification UI Styles */
@@ -227,6 +191,11 @@
     <link rel="stylesheet" href="/css/phase2-improvements.css">
     
       <link rel="stylesheet" href="/css/gallery-polish.css">
+
+<!-- 🍪 EU Cookie Consent - Monetag GDPR Compliance (Section 9) -->
+<link rel="stylesheet" href="/css/cookie-consent.css">
+<script src="/js/cookie-consent.js"></script>
+
 </head>
 <body>
   <!-- Phase 2: Accessibility - Skip to Content -->
