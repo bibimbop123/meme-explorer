@@ -1,0 +1,33 @@
+/* Content Visibility - Reduce Layout Calculations */
+
+/* Off-screen content optimization */
+.meme-list-item:not(:nth-child(-n+3)),
+.leaderboard-row:not(:nth-child(-n+10)),
+.achievement-card:not(:nth-child(-n+6)) {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 300px; /* Estimated height */
+}
+
+/* Grid items */
+.meme-grid .meme-card:not(:nth-child(-n+6)) {
+  content-visibility: auto;
+  contain-intrinsic-size: 300px 400px;
+}
+
+/* Comments/replies that are collapsed */
+.comment-thread.collapsed,
+.reply-container.hidden {
+  content-visibility: hidden;
+}
+
+/* Footer - usually off-screen on load */
+footer {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px;
+}
+
+/* Sidebar widgets */
+.sidebar-widget:not(:first-child) {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 150px;
+}

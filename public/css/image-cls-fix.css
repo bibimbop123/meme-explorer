@@ -1,0 +1,54 @@
+/* Image Aspect Ratio - CLS Prevention */
+
+/* Meme images - common aspect ratios */
+.meme-image,
+.meme-container img,
+.random-meme-image,
+img[src*="reddit"],
+img[src*="imgur"] {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: #f5f5f5;
+  contain: layout style;
+}
+
+/* Square images (profile pics, icons) */
+.profile-image,
+.achievement-icon,
+.badge-icon {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  contain: layout style;
+}
+
+/* Vertical/portrait memes */
+.meme-image.portrait,
+.meme-container.portrait img {
+  aspect-ratio: 9 / 16;
+}
+
+/* Placeholder while loading */
+img:not([src]),
+img[src=""],
+img.loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  min-height: 200px;
+}
+
+/* Lazy loaded images */
+img[loading="lazy"] {
+  contain: layout style;
+}
+
+/* Dark mode placeholders */
+.dark-mode img:not([src]),
+.dark-mode img[src=""],
+.dark-mode img.loading {
+  background: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
+}

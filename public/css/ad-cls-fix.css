@@ -1,0 +1,72 @@
+/* Ad Space Reservation - CLS Fix for Monetag Ads */
+
+/* Reserve space for push notification subscriber placeholder */
+.onesignal-slidedown-container,
+.onesignal-bell-container {
+  contain: layout style;
+  min-height: 80px; /* Reserve space before load */
+}
+
+/* Reserve space for banner ads */
+[data-zone],
+[id*="propeller"],
+[id*="monetag"],
+.ad-container,
+.ad-placement {
+  contain: layout style paint;
+  min-height: 250px; /* Standard banner height */
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  position: relative;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Ad loaded state - remove skeleton */
+[data-zone].ad-loaded,
+[id*="propeller"].ad-loaded,
+[id*="monetag"].ad-loaded,
+.ad-container.ad-loaded,
+.ad-placement.ad-loaded {
+  background: none;
+  animation: none;
+  min-height: auto;
+}
+
+/* Specific Monetag ad zones */
+#monetag-zone-271359 {
+  min-height: 250px;
+  contain: layout style;
+}
+
+/* Interstitial ads - no CLS impact (overlay) */
+.interstitial-ad,
+.overlay-ad {
+  position: fixed !important;
+  contain: layout style;
+}
+
+/* Mobile ad adjustments */
+@media (max-width: 768px) {
+  [data-zone],
+  [id*="propeller"],
+  [id*="monetag"],
+  .ad-container,
+  .ad-placement {
+    min-height: 50px; /* Mobile banner height */
+  }
+}
+
+/* Dark mode skeleton */
+.dark-mode [data-zone],
+.dark-mode [id*="propeller"],
+.dark-mode [id*="monetag"],
+.dark-mode .ad-container,
+.dark-mode .ad-placement {
+  background: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+}
