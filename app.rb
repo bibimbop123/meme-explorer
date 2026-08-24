@@ -43,15 +43,15 @@ require_relative "./lib/helpers/meme_helpers"
 # require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/ad_helpers"
-require_relative "./lib/helpers/seo_helpers"
-require_relative "./lib/helpers/curated_collections_helper"
-require_relative "./lib/helpers/refined_meme_helper"
+# require_relative "./lib/helpers/seo_helpers"  # Removed during Elon audit
+# require_relative "./lib/helpers/curated_collections_helper"  # Removed during Elon audit
+# require_relative "./lib/helpers/refined_meme_helper"  # Removed during Elon audit
 require_relative "./lib/helpers/app_helpers"
 require_relative "./lib/helpers/meme_pool_helpers"
 require_relative "./lib/helpers/reddit_media_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
-require_relative "./lib/helpers/session_stats_helper"
+# require_relative "./lib/helpers/session_stats_helper"  # Removed during Elon audit
 require_relative "./lib/services/seo_service"
 require_relative "./lib/services/metrics_tracker_service"
 require_relative "./lib/middleware/request_id_middleware"
@@ -419,14 +419,14 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # helpers GamificationHelpers  # Removed during Elon audit
   helpers GalleryHelpers
   helpers AdHelpers
-  helpers SeoHelpers
-  helpers RefinedMemeHelper
+  # helpers SeoHelpers  # Removed during Elon audit
+  # helpers RefinedMemeHelper  # Removed during Elon audit
   helpers CDNHelpers
   helpers HTTPCaching
   helpers AppHelpers
   helpers MemePoolHelpers
   helpers RedditMediaHelpers
-  helpers SessionStatsHelper
+  # helpers SessionStatsHelper  # Removed during Elon audit
 
 
   # -----------------------
