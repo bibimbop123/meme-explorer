@@ -52,7 +52,7 @@ require_relative "./lib/helpers/reddit_media_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
 # require_relative "./lib/helpers/session_stats_helper"  # Removed during Elon audit
-require_relative "./lib/services/seo_service"
+# require_relative "./lib/services/seo_service"  # Removed during Elon audit
 require_relative "./lib/services/metrics_tracker_service"
 require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
