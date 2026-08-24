@@ -121,12 +121,12 @@ require "digest"
 begin
   require_relative "./config/initializers/sidekiq"
   require_relative "./app/workers/cache_refresh_worker"
-  require_relative "./app/workers/image_health_worker"
-  require_relative "./app/workers/leaderboard_calculation_worker"
+  # require_relative "./app/workers/image_health_worker"  # ELON AUDIT: File not found
+  # require_relative "./app/workers/leaderboard_calculation_worker"  # ELON AUDIT: File not found
   require_relative "./app/workers/database_cleanup_worker"
-  require_relative "./app/workers/activity_aggregation_worker"
-  require_relative "./app/workers/streak_reminder_worker"
-  require_relative "./app/workers/session_cleanup_worker"
+  # require_relative "./app/workers/activity_aggregation_worker"  # ELON AUDIT: File not found
+  # require_relative "./app/workers/streak_reminder_worker"  # ELON AUDIT: File not found
+  # require_relative "./app/workers/session_cleanup_worker"  # ELON AUDIT: File not found
   AppLogger.info("✅ Sidekiq workers loaded")
 rescue LoadError => e
   AppLogger.warn("⚠️  Sidekiq not available: #{e.message}")
