@@ -434,8 +434,8 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # Every route lives in routes/*.rb — all use the self.registered(app) pattern
   # -----------------------
   AuthRoutes.register(self)
-  ReactionsRoutes.register(self)
-  BattlesRoutes.register(self)
+  #   ReactionsRoutes.register(self)
+  #   BattlesRoutes.register(self)
   LegalRoutes.register(self)
   register Routes::ABTesting
   register Routes::HealthRoutes
@@ -451,7 +451,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   register Routes::TrendingAPI
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
-  register Routes::MetricsRoutes
+  #   register Routes::MetricsRoutes
   register Routes::BehavioralTracking
   register Routes::AlgorithmMetrics
   register Routes::Seo
