@@ -4,6 +4,7 @@
 # require_relative '../lib/services/diversity_engine_service' # ELON AUDIT: File not found
 # require_relative '../lib/services/similar_meme_service' # ELON AUDIT: File not found
 require_relative '../lib/services/viewing_history_service'
+require_relative '../lib/services/simple_meme_selector'
 
 module Routes
   module RandomMeme
@@ -27,11 +28,7 @@ module Routes
           user_prefs = {}
           
           # Use sophisticated diversity system V2 (ANTI-REPETITION)
-          @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
-            meme_pool,
-            session_id: session_id,
-            preferences: user_prefs
-          )
+          @meme = MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id)
           
           # Fallback if something goes wrong
           @meme ||= fallback_meme
@@ -192,18 +189,13 @@ module Routes
           source_meme = { 'subreddit' => subreddit }
           session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
           
-          # Find similar meme
-          @meme = MemeExplorer::SimilarMemeService.find_similar(
-            source_meme,
-            meme_pool,
-            session_id: session_id
-          )
+          # Find similar meme (same subreddit)
+        similar_pool = meme_pool.select { |m| m['subreddit']&.downcase == subreddit }
+        similar_pool = meme_pool if similar_pool.empty? # Fallback to all if no matches
+        
+        @meme = MemeExplorer::SimpleMemeSelector.select(similar_pool, session_id)
           
           halt 404, { error: "No similar memes found for #{subreddit}" }.to_json if @meme.nil?
-          
-          # Track the request for learning
-          MemeExplorer::SimilarMemeService.track_similar_request(subreddit, session_id)
-          
           # ✅ Track in Redis (NOT session)
           meme_identifier = @meme["url"] || @meme["file"]
           if meme_identifier
@@ -287,15 +279,11 @@ module Routes
         user_prefs = {}
         
         # Use sophisticated diversity system V2 (ANTI-REPETITION)
-        @meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
-          memes,
-          session_id: session_id,
-          preferences: user_prefs
-        )
+        @meme = MemeExplorer::SimpleMemeSelector.select(memes, session_id)
         
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
         
-        AppLogger.info("✅ [/random.json] Selected meme via Diversity Engine: #{@meme['title']} (Pool: #{@meme['diversity_pool']})")
+        AppLogger.info("✅ [/random.json] Selected meme: #{@meme['title']}")
         
         # ✅ Track in Redis (NOT session)
         meme_identifier = @meme["url"] || @meme["file"]
