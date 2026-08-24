@@ -42,11 +42,7 @@ module AppHelpers
   
   # Wrapper for generate_curation_signal (used in views/random.erb and layout.erb)
   def generate_curation_signal(meme)
-    # Pass nil for user since we don't have user hash/object loaded
-    # The service handles nil gracefully and will skip personalized signals
-    signal = refined_curation_signal(meme, nil)
-    return signal if signal
-    
+    # refined_curation_signal removed - return simple default signal
     # Default curation signal
     { type: 'default', icon: '✨', message: 'Curated for you' }
   end
