@@ -56,50 +56,50 @@ require_relative "./lib/helpers/query_optimization_helpers"
 # require_relative "./lib/services/metrics_tracker_service"  # Removed during Elon audit
 require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
-require_relative "./lib/services/placeholder_image_service"
-require_relative "./lib/services/image_health_service"
-require_relative "./lib/services/activity_tracker_service"
-require_relative "./lib/services/view_tracker_service"
+# require_relative "./lib/services/placeholder_image_service"  # Removed during Elon audit - file not found
+# require_relative "./lib/services/image_health_service"  # Removed during Elon audit - file not found
+# require_relative "./lib/services/activity_tracker_service"  # Removed during Elon audit - file not found
+# require_relative "./lib/services/view_tracker_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/engagement_service"
-require_relative "./lib/services/leaderboard_service"
+# require_relative "./lib/services/leaderboard_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/auth_service"
 require_relative "./lib/services/user_service"
 require_relative "./lib/services/redis_service"
-require_relative "./lib/services/ab_testing_service"
+# require_relative "./lib/services/ab_testing_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/trending_service"
 require_relative "./lib/services/meme_service"
-require_relative "./lib/services/milestone_service"
-require_relative "./lib/services/push_notification_service"
-require_relative "./lib/services/surprise_rewards_service"
+# require_relative "./lib/services/milestone_service"  # Removed during Elon audit - file not found
+# require_relative "./lib/services/push_notification_service"  # Removed during Elon audit - file not found
+# require_relative "./lib/services/surprise_rewards_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/services/inline_reddit_fetcher"
 # Route files — loaded before registration block
 require_relative "./routes/auth"
-require_relative "./routes/reactions"
-require_relative "./routes/battles"
+# require_relative "./routes/reactions"  # Removed during Elon audit - file not found
+# require_relative "./routes/battles"  # Removed during Elon audit - file not found
 require_relative "./routes/legal_routes"
-require_relative "./routes/ab_testing"
+# require_relative "./routes/ab_testing"  # Removed during Elon audit - file not found
 require_relative "./routes/home"
 require_relative "./routes/random_meme"
 require_relative "./routes/memes"
-require_relative "./routes/meme_stats"
+# require_relative "./routes/meme_stats"  # Removed during Elon audit - file not found
 require_relative "./routes/search_routes"
 require_relative "./routes/trending_routes"
-require_relative "./routes/trending_api"
+# require_relative "./routes/trending_api"  # Removed during Elon audit - file not found
 require_relative "./routes/profile_routes"
 require_relative "./routes/admin_routes"
-require_relative "./routes/metrics_routes"
-require_relative "./routes/behavioral_tracking"
-require_relative "./routes/algorithm_metrics"
+# require_relative "./routes/metrics_routes"  # Removed during Elon audit - file not found
+# require_relative "./routes/behavioral_tracking"  # Removed during Elon audit - file not found
+# require_relative "./routes/algorithm_metrics"  # Removed during Elon audit - file not found
 require_relative "./routes/seo_routes"
-require_relative "./routes/enhanced_random"
-require_relative "./routes/session_metrics"
+# require_relative "./routes/enhanced_random"  # Removed during Elon audit - file not found
+# require_relative "./routes/session_metrics"  # Removed during Elon audit - file not found
 require_relative "./routes/health"
-require_relative "./routes/web_vitals"
-require_relative "./routes/collections"
+# require_relative "./routes/web_vitals"  # Removed during Elon audit - file not found
+# require_relative "./routes/collections"  # Removed during Elon audit - file not found
 require_relative "./routes/personalization"
 require_relative "./routes/utility_routes"
-require_relative "./routes/guides"
+# require_relative "./routes/guides"  # Removed during Elon audit - file not found
 require_relative "./routes/blog_routes"  # AdSense: Blog system
 require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
