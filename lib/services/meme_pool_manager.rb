@@ -95,7 +95,22 @@ class MemePoolManager
     
     # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
     def bootstrap_pool
-  AppLogger.info("🚀 [Bootstrap] AGGRESSIVE fetch from ALL 5 tiers for variety...")
+    AppLogger.info("🚀 [Bootstrap] Attempting bootstrap (will fail fast if rate-limited)...")
+    
+    # CRITICAL: Fail fast if Reddit is completely rate-limited
+    # Try just 3 subreddits first to check if we're getting 429s
+    test_subs = load_tier_subreddits(:tier_1).first(3)
+    fetcher = create_fetcher
+    test_memes = fetcher.fetch_memes(test_subs, limit: 5)
+    
+    # If we got ZERO memes from 3 attempts, Reddit is rate-limited
+    # Don't waste 25 seconds trying 80 more subreddits
+    if test_memes.empty?
+      AppLogger.warn("⚠️  [Bootstrap] Reddit rate-limited - skipping full bootstrap, using local fallback")
+      return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
+    end
+    
+    AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with full fetch...")
   
   # CRITICAL FIX: Fetch from ALL tiers, not just 1-2 (July 5, 2026)
   # This increases pool from 40 → 400-600 memes
