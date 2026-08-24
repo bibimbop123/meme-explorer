@@ -1,0 +1,98 @@
+/* Reactions V2 Styles */
+
+.reactions-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  user-select: none;
+}
+
+.reaction-btn:hover {
+  background: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.reaction-btn.active {
+  background: #ffc107;
+  border-color: #ff9800;
+  transform: scale(1.1);
+}
+
+.reaction-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.reaction-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.reaction-btn.active .reaction-count {
+  color: #ff6f00;
+}
+
+/* Animated particles */
+.reaction-particle {
+  position: absolute;
+  font-size: 32px;
+  pointer-events: none;
+  animation: float-up 1s ease-out forwards;
+  z-index: 1000;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100px) scale(1.5);
+  }
+}
+
+/* Real-time pulse effect */
+@keyframes reaction-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.reaction-btn.animating {
+  animation: reaction-pulse 0.3s ease;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .reactions-container {
+    gap: 6px;
+  }
+  
+  .reaction-btn {
+    padding: 4px 10px;
+    font-size: 14px;
+  }
+  
+  .reaction-emoji {
+    font-size: 18px;
+  }
+}

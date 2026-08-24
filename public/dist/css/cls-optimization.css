@@ -1,0 +1,317 @@
+/**
+ * CLS (Cumulative Layout Shift) Optimization
+ * Target: Reduce CLS from ~0.3 to <0.1 for better Google rankings
+ * 
+ * Impact: Better Core Web Vitals = Higher search rankings
+ */
+
+/* ==================== IMAGE OPTIMIZATION ==================== */
+
+/* Reserve space for meme images to prevent layout shift */
+.meme-image-container,
+.meme-img-wrapper {
+  position: relative;
+  width: 100%;
+  /* Default aspect ratio for most memes (can be overridden) */
+  aspect-ratio: 1 / 1;
+  min-height: 400px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.meme-image-container img,
+.meme-img-wrapper img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Specific aspect ratios for common meme types */
+.meme-image-container[data-aspect="wide"] {
+  aspect-ratio: 16 / 9;
+}
+
+.meme-image-container[data-aspect="tall"] {
+  aspect-ratio: 9 / 16;
+}
+
+.meme-image-container[data-aspect="square"] {
+  aspect-ratio: 1 / 1;
+}
+
+/* Loading skeleton to show while image loads */
+.meme-image-container.loading::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ==================== AD SLOT OPTIMIZATION ==================== */
+
+/* Reserve space for ad units before they load */
+.ad-container,
+.ad-slot {
+  position: relative;
+  background: #f8f9fa;
+  border: 1px dashed #dee2e6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+/* Square ad (300x250) */
+.ad-slot[data-format="square"],
+.ad-container[data-format="square"] {
+  width: 300px;
+  height: 250px;
+  min-height: 250px;
+}
+
+/* Banner ad (728x90) */
+.ad-slot[data-format="banner"],
+.ad-container[data-format="banner"] {
+  width: 100%;
+  max-width: 728px;
+  height: 90px;
+  min-height: 90px;
+}
+
+/* Leaderboard (970x90) */
+.ad-slot[data-format="leaderboard"],
+.ad-container[data-format="leaderboard"] {
+  width: 100%;
+  max-width: 970px;
+  height: 90px;
+  min-height: 90px;
+}
+
+/* Native ad (responsive) */
+.ad-slot[data-format="native"],
+.ad-container[data-format="native"] {
+  width: 100%;
+  min-height: 200px;
+}
+
+/* Loading state for ads */
+.ad-container:empty::after {
+  content: 'Advertisement';
+  color: #adb5bd;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ==================== FONT OPTIMIZATION ==================== */
+
+/* Preload critical fonts to prevent FOIT (Flash of Invisible Text) */
+@font-face {
+  font-family: 'System';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Arial'), local('Helvetica'), local('sans-serif');
+  font-display: swap; /* Show fallback immediately, swap when loaded */
+}
+
+/* Ensure text is visible during font load */
+body {
+  font-display: swap;
+}
+
+/* ==================== LAYOUT STABILITY ==================== **/
+
+/* Prevent shifts from navigation */
+nav {
+  min-height: 60px; /* Reserve space */
+}
+
+/* Prevent shifts from footer */
+footer {
+  min-height: 120px; /* Reserve space */
+}
+
+/* Prevent shifts from buttons */
+button,
+.btn {
+  min-height: 40px;
+  min-width: 80px;
+}
+
+/* Prevent shifts from loading states */
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ==================== MOBILE OPTIMIZATION ==================== */
+
+@media (max-width: 768px) {
+  /* Adjust ad sizes for mobile */
+  .ad-slot[data-format="square"],
+  .ad-container[data-format="square"] {
+    width: 100%;
+    max-width: 300px;
+    height: 250px;
+  }
+  
+  .ad-slot[data-format="banner"],
+  .ad-container[data-format="banner"] {
+    width: 100%;
+    height: 50px;
+    min-height: 50px;
+  }
+  
+  /* Smaller image containers on mobile */
+  .meme-image-container {
+    min-height: 300px;
+  }
+}
+
+/* ==================== VIDEO OPTIMIZATION ==================== */
+
+/* Reserve space for video players */
+.video-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-container video,
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==================== GALLERY OPTIMIZATION ==================== */
+
+/* Reserve space for gallery items */
+.gallery-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ==================== TOOLTIP/MODAL OPTIMIZATION ==================== */
+
+/* Prevent layout shifts from tooltips */
+.tooltip,
+.popover {
+  position: fixed; /* Use fixed instead of absolute */
+  z-index: 9999;
+}
+
+/* Prevent layout shifts from modals */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==================== PERFORMANCE HINTS ==================== */
+
+/* Use GPU acceleration for smooth animations */
+.animated,
+.transition {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Contain layout changes */
+.contain-layout {
+  contain: layout;
+}
+
+/* Contain paint operations */
+.contain-paint {
+  contain: paint;
+}
+
+/* ==================== ACCESSIBILITY + CLS ==================== */
+
+/* Skip links should not cause layout shift */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+}
+
+.skip-to-content:focus {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+
+/* ==================== DEBUG MODE ==================== */
+
+/* Add this class to body to visualize CLS issues */
+body.debug-cls * {
+  outline: 1px solid rgba(255, 0, 0, 0.3) !important;
+}
+
+body.debug-cls *::before {
+  content: attr(class);
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 10px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 2px 4px;
+  z-index: 99999;
+}
+
+/* ==================== CRITICAL CSS INLINING ==================== */
+
+/*
+ * Note: For production, consider inlining the most critical parts
+ * of this CSS in <head> for immediate rendering:
+ * - Image containers
+ * - Ad slot dimensions
+ * - Layout structure
+ */

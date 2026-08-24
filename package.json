@@ -1,0 +1,17 @@
+{
+  "name": "meme-explorer",
+  "version": "1.0.0",
+  "description": "Endless feed of high-quality memes, organized, personalized, and optimized for pure entertainment",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

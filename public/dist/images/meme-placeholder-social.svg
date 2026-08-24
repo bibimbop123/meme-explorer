@@ -1,0 +1,37 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="socialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#socialGrad)"/>
+  <circle cx="200" cy="150" r="120" fill="rgba(79,172,254,0.3)"/>
+  <circle cx="1000" cy="480" r="150" fill="rgba(79,172,254,0.2)"/>
+  <circle cx="900" cy="100" r="80" fill="rgba(79,172,254,0.4)"/>
+  <g transform="translate(350, 315)">
+    <circle cx="0" cy="0" r="140" fill="#FFD93D" stroke="#FFB800" stroke-width="8"/>
+    <path d="M -55,-28 Q -55,-56 -28,-56 Q 0,-56 0,-28 Q 0,0 -28,0 Q -55,0 -55,-28 Z" fill="#4A4A4A"/>
+    <circle cx="-35" cy="-35" r="11" fill="#FFFFFF"/>
+    <path d="M 28,-28 Q 28,-56 55,-56 Q 83,-56 83,-28 Q 83,0 55,0 Q 28,0 28,-28 Z" fill="#4A4A4A"/>
+    <circle cx="49" cy="-35" r="11" fill="#FFFFFF"/>
+    <path d="M -70,28 Q 0,98 70,28" fill="none" stroke="#4A4A4A" stroke-width="8" stroke-linecap="round"/>
+    <path d="M -70,28 Q 0,84 70,28 L 70,35 Q 0,98 -70,35 Z" fill="#4A4A4A"/>
+    <rect x="-49" y="28" width="19" height="21" fill="#FFFFFF" rx="2"/>
+    <rect x="-25" y="35" width="19" height="21" fill="#FFFFFF" rx="2"/>
+    <rect x="-1" y="39" width="19" height="21" fill="#FFFFFF" rx="2"/>
+    <rect x="22" y="35" width="19" height="21" fill="#FFFFFF" rx="2"/>
+  </g>
+  <text x="650" y="220" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#FFFFFF" text-anchor="start">Meme Explorer</text>
+  <text x="650" y="280" font-family="Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.95)" text-anchor="start">Discover the funniest memes</text>
+  <text x="650" y="330" font-family="Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.95)" text-anchor="start">from Reddit's best communities</text>
+  <g transform="translate(650, 380)">
+    <rect x="0" y="0" width="160" height="50" rx="25" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+    <text x="80" y="33" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF" text-anchor="middle">😂 Funny</text>
+  </g>
+  <g transform="translate(830, 380)">
+    <rect x="0" y="0" width="180" height="50" rx="25" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+    <text x="90" y="33" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF" text-anchor="middle">❤️ Wholesome</text>
+  </g>
+</svg>

@@ -1,0 +1,158 @@
+/* =========================
+   COMPREHENSIVE THEME SYSTEM
+   Light & Dark Mode Support
+   ========================= */
+
+/* CSS Variables for theming */
+:root {
+  /* Light mode (default) */
+  --bg-primary: #fefefe;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #888888;
+  --border-color: #dddddd;
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+  --shadow-heavy: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode via manual toggle */
+html.dark-mode {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #333333;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #888888;
+  --border-color: #444444;
+  --shadow-light: rgba(0, 0, 0, 0.3);
+  --shadow-medium: rgba(0, 0, 0, 0.5);
+  --shadow-heavy: rgba(0, 0, 0, 0.7);
+}
+
+/* Dark mode via system preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #333333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #888888;
+    --border-color: #444444;
+    --shadow-light: rgba(0, 0, 0, 0.3);
+    --shadow-medium: rgba(0, 0, 0, 0.5);
+    --shadow-heavy: rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* Apply theme variables globally */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* =========================
+   COMPONENT THEMING
+   ========================= */
+
+/* Cards & Containers */
+.card,
+.info-card,
+.stat-card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+/* Inputs & Forms */
+input,
+textarea,
+select {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #e52e71;
+  background-color: var(--bg-tertiary);
+}
+
+/* =========================
+   DARK MODE TOGGLE BUTTON
+   ========================= */
+
+.dark-mode-toggle {
+  position: relative;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.15) rotate(15deg);
+  opacity: 1;
+}
+
+.dark-mode-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Keyboard shortcut hint */
+.dark-mode-toggle::after {
+  content: 'Cmd+K';
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.dark-mode-toggle:hover::after {
+  opacity: 1;
+}
+
+/* =========================
+   SMOOTH TRANSITIONS
+   ========================= */
+
+* {
+  transition: background-color 0.3s ease, 
+              color 0.3s ease, 
+              border-color 0.3s ease;
+}
+
+/* Prevent transition on page load */
+.preload * {
+  transition: none !important;
+}
+
+/* =========================
+   ACCESSIBILITY
+   ========================= */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: currentColor;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

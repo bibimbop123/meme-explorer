@@ -1,0 +1,23 @@
+# Robots.txt for Meme Explorer
+# Allow all crawlers access to content
+
+User-agent: *
+Allow: /
+Allow: /memes/
+Allow: /trending
+Allow: /search
+Allow: /random
+Allow: /blog/
+
+# Disallow admin and private pages
+Disallow: /admin/
+Disallow: /sidekiq/
+Disallow: /metrics
+Disallow: /auth/
+Disallow: /profile
+
+# Sitemap location
+Sitemap: https://meme-explorer.onrender.com/sitemap.xml
+
+# Crawl-delay (be nice to servers)
+Crawl-delay: 1

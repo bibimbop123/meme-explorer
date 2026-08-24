@@ -1,0 +1,109 @@
+/* Lazy Loading Improvements - Phase 4 */
+
+/* Skeleton loaders for images */
+.meme-content-image[loading="lazy"] {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  min-height: 300px;
+}
+
+.meme-content-image[loading="lazy"].loaded {
+  animation: none;
+  background: none;
+}
+
+/* Video loading states */
+.meme-video-container.loading {
+  position: relative;
+}
+
+.meme-video-container.loading::after {
+  content: "Loading video...";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Gallery loading state */
+.gallery-carousel.loading {
+  min-height: 400px;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-carousel.loading::before {
+  content: "Loading gallery...";
+  font-size: 16px;
+  color: #666;
+}
+
+/* Fade-in animation for loaded media */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.meme-content-image.loaded,
+.meme-video.loaded {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Error states */
+.media-error {
+  background: #fee;
+  border: 2px solid #fcc;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #c33;
+}
+
+.media-error::before {
+  content: "⚠️";
+  font-size: 48px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* Retry button */
+.media-retry-btn {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.media-retry-btn:hover {
+  background: #357abd;
+}
