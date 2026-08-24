@@ -16,8 +16,8 @@ module MemePoolHelpers
     # CRITICAL FIX: If DB is empty, fallback to local memes
     if pool.empty?
       local_memes = begin
-        if MEMES.is_a?(Hash)
-          MEMES.values.flatten.compact.map do |m|
+        if MemeExplorer::App::MEMES.is_a?(Hash)
+          MemeExplorer::App::MEMES.values.flatten.compact.map do |m|
             # Convert file paths: remove leading / so File.join works correctly
             m_copy = m.dup
             if m_copy["file"] && m_copy["file"].start_with?("/")
@@ -25,8 +25,8 @@ module MemePoolHelpers
             end
             m_copy
           end
-        elsif MEMES.is_a?(Array)
-          MEMES.map do |m|
+        elsif MemeExplorer::App::MEMES.is_a?(Array)
+          MemeExplorer::App::MEMES.map do |m|
             m_copy = m.dup
             if m_copy["file"] && m_copy["file"].start_with?("/")
               m_copy["file"] = m_copy["file"][1..-1]
@@ -153,7 +153,7 @@ module MemePoolHelpers
     end
     
     # Fallback to old cache system (backward compatible)
-    cache_memes = MEME_CACHE.get(:memes)
+    cache_memes = MemeExplorer::App::MEME_CACHE.get(:memes)
     if cache_memes.is_a?(Array) && !cache_memes.empty?
       valid_memes = cache_memes.select { |m| has_valid_media?(m) }
       AppLogger.info("[POOL FALLBACK] Using legacy cache: #{valid_memes.size} memes")
@@ -168,8 +168,8 @@ module MemePoolHelpers
         subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
         fresh_memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
         if fresh_memes.any?
-          MEME_CACHE.set(:memes, fresh_memes)
-          MEME_CACHE.set(:last_refresh, Time.now)
+          MemeExplorer::App::MEME_CACHE.set(:memes, fresh_memes)
+          MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)
           AppLogger.info("[POOL] Fetched and cached #{fresh_memes.size} memes from Reddit")
           return fresh_memes
         end
@@ -180,10 +180,10 @@ module MemePoolHelpers
 
     # Last resort: local memes
     local_memes = begin
-      if MEMES.is_a?(Hash)
-        MEMES.values.flatten.compact
-      elsif MEMES.is_a?(Array)
-        MEMES
+      if MemeExplorer::App::MEMES.is_a?(Hash)
+        MemeExplorer::App::MEMES.values.flatten.compact
+      elsif MemeExplorer::App::MEMES.is_a?(Array)
+        MemeExplorer::App::MEMES
       else
         []
       end
