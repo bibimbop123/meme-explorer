@@ -19,7 +19,8 @@ module AppHelpers
   
   # Wrapper for collection_name_for_subreddit (views expect this method name)
   def collection_name_for_subreddit(subreddit)
-    CuratedCollectionsHelper.collection_name_for(subreddit)
+    # CuratedCollectionsHelper removed - return subreddit as-is
+    subreddit.to_s.capitalize
   end
   
   # Wrapper for calculate_rarity (used in views/random.erb)

@@ -60,15 +60,15 @@ module Routes
           session[:view_count] ||= 0
           session[:view_count] += 1
           
-          # Check if milestone reached
-          milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
-          if milestone
-            @milestone = milestone
-            # Only award to DB if logged in
-            if current_user_id
-              MemeExplorer::MilestoneService.award_milestone(current_user_id, milestone) rescue nil
-            end
-          end
+          # Check if milestone reached (DISABLED - MilestoneService removed)
+      # milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
+      # if milestone
+      #   @milestone = milestone
+      #   # Only award to DB if logged in
+      #   if current_user_id
+      #     MemeExplorer::MilestoneService.award_milestone(current_user_id, milestone) rescue nil
+      #   end
+      # end
           
           # Get progress to next milestone
           @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
