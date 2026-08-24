@@ -5,7 +5,7 @@
 require 'concurrent'
 require_relative 'reddit_fetcher_service'
 require_relative 'turbocharged_reddit_fetcher'
-require_relative 'quality_pipeline_service'
+# require_relative 'quality_pipeline_service'  # Removed during Elon audit - file not found
 require_relative 'redis_service'
 require 'yaml'
 
