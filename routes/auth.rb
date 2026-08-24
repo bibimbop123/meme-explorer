@@ -98,7 +98,13 @@ class AuthRoutes
             # Store token in Redis (non-critical, degrades gracefully if Redis unavailable)
             AuthService.store_oauth_token(settings.redis, result[:token])
             
-            # Set session data (session fixation prevented by Rack::Session)
+            # ✅ SECURITY FIX: Prevent session fixation attacks by regenerating session ID
+            # Clear old session and create new one with different ID
+            old_session_data = session.to_hash
+            env['rack.session'].clear
+            env['rack.session'].options[:renew] = true
+            
+            # Set session data with new session ID
             session[:user_id] = user_id
             session[:reddit_username] = result[:username]
             session[:login_timestamp] = Time.now.to_i
