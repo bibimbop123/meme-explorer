@@ -39,7 +39,8 @@ require_relative "./lib/helpers/auth_helpers"
 require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/meme_navigation_helpers"
 require_relative "./lib/helpers/meme_helpers"
-require_relative "./lib/helpers/gamification_helpers"
+# Gamification helpers removed during Elon audit
+# require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/ad_helpers"
 require_relative "./lib/helpers/seo_helpers"
@@ -415,7 +416,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   helpers AuthHelpers           # current_user, require_auth!, require_admin!
   helpers PersonalityContent    # personality-based content helpers
   helpers MemeNavigationHelpers # navigate_meme_unified, is_valid_meme?, get_time_based_pools, etc.
-  helpers GamificationHelpers
+  # helpers GamificationHelpers  # Removed during Elon audit
   helpers GalleryHelpers
   helpers AdHelpers
   helpers SeoHelpers
