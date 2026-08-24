@@ -70,43 +70,12 @@ module Routes
       #   end
       # end
           
-          # Get progress to next milestone
-          @progress = MemeExplorer::MilestoneService.get_progress(session[:view_count])
-          
-          # PHASE 6: Track daily streak for retention
-          if current_user_id && defined?(MemeExplorer::RetentionService)
-            current_streak = MemeExplorer::RetentionService.track_daily_streak(current_user_id) rescue nil
-            begin
-              @streak_status = MemeExplorer::RetentionService.get_streak_status(current_user_id)
-            rescue => e
-              AppLogger.warn("Failed to get streak status", error: e.message, user_id: current_user_id)
-              @streak_status = nil
-            end
-            begin
-              @social_proof = MemeExplorer::RetentionService.get_social_proof
-            rescue => e
-              AppLogger.warn("Failed to get social proof", error: e.message)
-              @social_proof = nil
-            end
-          end
-          
-          # PHASE 3: Check for near-miss tease
-          if defined?(MemeExplorer::NearMissService)
-            pool = MemeExplorer::App::MEME_CACHE[:memes] || []
-            if MemeExplorer::NearMissService.should_show_tease?(pool, current_user_id)
-              @tease = MemeExplorer::NearMissService.generate_tease(pool, current_user_id)
-              MemeExplorer::NearMissService.track_tease_shown(@tease, current_user_id) if @tease
-            end
-          end
-          
-          # Check for surprise rewards (10% chance)
-          if rand < 0.10
-            @surprise_reward = {
-              icon: ["🎁", "⚡", "🛡️", "🔥", "💎"].sample,
-              title: ["Bonus XP!", "Double XP!", "Streak Freeze!", "Lucky You!", "Jackpot!"].sample,
-              message: ["You earned bonus points!", "Your next meme counts double!", "Your streak is protected!", "Keep the momentum going!", "Fortune favors the bold!"].sample
-            }
-          end
+          # GAMIFICATION DISABLED: All milestone/streak/reward services removed during audit
+          @progress = nil
+          @streak_status = nil
+          @social_proof = nil
+          @tease = nil
+          @surprise_reward = nil
         rescue => e
           AppLogger.error("⚠️  Gamification error: #{e.class} - #{e.message}")
           AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))

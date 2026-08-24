@@ -338,7 +338,7 @@ end
         
         # Format 1: JSON blob (for legacy DiversityEngine v1 code)
         json_key = "meme_pool:#{pool_name}"
-        RedisService.set(json_key, pool_memes.to_json, ttl: 86400) # 24 hours
+        RedisService.set(json_key, pool_memes.to_json, ttl: 21600) # 6 hours
         
         # Format 2: Redis Lists (for new architecture)
         list_key = "meme_pool:#{pool_name}_ids"
@@ -356,20 +356,20 @@ end
           RedisService.rpush(list_key, meme_id)
         end
         
-        RedisService.expire(list_key, 86400)  # 24 hour TTL
+        RedisService.expire(list_key, 21600)  # 6 hour TTL
         
         AppLogger.info("   ✅ Stored #{pool_memes.size} memes in '#{pool_name}' pool (JSON + Lists)")
         total_stored += pool_memes.size
       end
       
       # Update metadata with extended TTL
-      RedisService.set("meme_pool:count", total_stored, ttl: 86400)
-      RedisService.set("meme_pool:initialized", "true", ttl: 86400)
-      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 86400)
+      RedisService.set("meme_pool:count", total_stored, ttl: 21600)
+      RedisService.set("meme_pool:initialized", "true", ttl: 21600)
+      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 21600)
       
       # Store complete pool for legacy code (backward compatibility)
       all_memes = categorized.values.flatten.uniq { |m| m['url'] }
-      RedisService.set("meme_pool", all_memes.to_json, ttl: 86400)
+      RedisService.set("meme_pool", all_memes.to_json, ttl: 21600)
       
       total_stored
     rescue => e
