@@ -437,29 +437,29 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   #   ReactionsRoutes.register(self)
   #   BattlesRoutes.register(self)
   LegalRoutes.register(self)
-  register Routes::ABTesting
+  # register Routes::ABTesting # ELON AUDIT: Route file not found
   register Routes::HealthRoutes
-      register Routes::WebVitals
-  register Routes::CollectionRoutes
-  register Routes::PersonalizationRoutes
+      # register Routes::WebVitals # ELON AUDIT: Route file not found
+  # register Routes::CollectionRoutes # ELON AUDIT: Route file not found
+  # register Routes::PersonalizationRoutes # ELON AUDIT: Route file not found
   register Routes::Home
   register Routes::RandomMeme
   register Routes::Memes
-  register Routes::MemeStats
+  # register Routes::MemeStats # ELON AUDIT: Route file not found
   register Routes::SearchRoutes
   register Routes::TrendingRoutes
-  register Routes::TrendingAPI
+  # register Routes::TrendingAPI # ELON AUDIT: Route file not found
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
   #   register Routes::MetricsRoutes
-  register Routes::BehavioralTracking
-  register Routes::AlgorithmMetrics
+  # register Routes::BehavioralTracking # ELON AUDIT: Route file not found
+  # register Routes::AlgorithmMetrics # ELON AUDIT: Route file not found
   register Routes::Seo
-  register Routes::EnhancedRandom
-  register Routes::SessionMetrics
+  # register Routes::EnhancedRandom # ELON AUDIT: Route file not found
+  # register Routes::SessionMetrics # ELON AUDIT: Route file not found
   register Routes::UtilityRoutes
-  register Routes::Guides
-  register Routes::Blog  # AdSense: Original content blog
+  # register Routes::Guides # ELON AUDIT: Route file not found
+  # register Routes::Blog # ELON AUDIT: Route file not found  # AdSense: Original content blog
   register Routes::LeaderboardRoutes
   register Routes::UserApiRoutes
   register Routes::SystemRoutes
