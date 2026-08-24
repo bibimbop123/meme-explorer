@@ -72,7 +72,7 @@ require_relative "./lib/services/meme_service"
 # require_relative "./lib/services/push_notification_service"  # Removed during Elon audit - file not found
 # require_relative "./lib/services/surprise_rewards_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/reddit_fetcher_service"
-require_relative "./lib/services/inline_reddit_fetcher"
+# require_relative "./lib/services/inline_reddit_fetcher"  # Deleted during service cleanup
 # Route files — loaded before registration block
 require_relative "./routes/auth"
 # require_relative "./routes/reactions"  # Removed during Elon audit - file not found

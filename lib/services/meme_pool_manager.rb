@@ -4,7 +4,7 @@
 
 require 'concurrent'
 require_relative 'reddit_fetcher_service'
-require_relative 'turbocharged_reddit_fetcher'
+# require_relative 'turbocharged_reddit_fetcher'  # Deleted during service cleanup - use reddit_fetcher_service instead
 # require_relative 'quality_pipeline_service'  # Removed during Elon audit - file not found
 require_relative 'redis_service'
 require 'yaml'
@@ -447,12 +447,12 @@ end
     end
     
     # Create Reddit fetcher with appropriate auth
-    # USE TURBOCHARGED FETCHER FOR 5-10x PERFORMANCE BOOST
-    def create_fetcher(use_turbo: true)
+    # Using standard RedditFetcherService (TurbochargedRedditFetcher deleted during cleanup)
+    def create_fetcher(use_turbo: false)
       client_id = ENV['REDDIT_CLIENT_ID'].to_s.strip
       client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
       
-      fetcher_class = use_turbo ? TurbochargedRedditFetcher : RedditFetcherService
+      fetcher_class = RedditFetcherService  # Always use standard fetcher
       
       if !client_id.empty? && !client_secret.empty?
         require 'oauth2'

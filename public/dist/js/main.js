@@ -1,5 +1,5 @@
 // Meme Explorer - Main Entry Point (Vite Bundler)
-// Simplified to only include .js files that exist
+// Only imports .js files that exist (not .min.js versions)
 
 // Core modules
 import './modules/meme-utils.js';
@@ -25,12 +25,8 @@ import './share-system.js';
 import './dark-mode.js';
 import './error-boundary.js';
 import './error-handler.js';
-import './pwa-install.js';
 import './sw-refresh.js';
-import './hamburger-menu.js';
-import './keyboard-shortcuts.js';
 import './layout-utils.js';
-import './video-player.js';
 import './cookie-consent.js';
 
-console.log('✅ Meme Explorer - 78→18 JS files = Single Bundle');
+console.log('✅ Meme Explorer bundled - 74→23 JS files');

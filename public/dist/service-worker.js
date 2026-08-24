@@ -7,10 +7,10 @@
  * - Push notification support (existing)
  */
 
-const CACHE_VERSION = 'meme-explorer-v2.1';
-const STATIC_CACHE = 'static-v2.1';
-const API_CACHE = 'api-v2.1';
-const IMAGE_CACHE = 'images-v2.1';
+const CACHE_VERSION = 'meme-explorer-v2.2';
+const STATIC_CACHE = 'static-v2.2';
+const API_CACHE = 'api-v2.2';
+const IMAGE_CACHE = 'images-v2.2';
 
 const STATIC_ASSETS = [
   '/',
@@ -86,8 +86,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Default - network first
-  event.respondWith(fetch(request));
+  // Default - network first with error handling
+  event.respondWith(
+    fetch(request).catch((error) => {
+      console.warn('[SW] Fetch failed for:', request.url, error.message);
+      // Return a basic error response instead of throwing
+      return new Response('Network error', {
+        status: 408,
+        statusText: 'Request Timeout',
+        headers: new Headers({
+          'Content-Type': 'text/plain'
+        })
+      });
+    })
+  );
 });
 
 // Network-first strategy
