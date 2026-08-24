@@ -58,7 +58,7 @@ require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
 # require_relative "./lib/services/placeholder_image_service"  # Removed during Elon audit - file not found
 # require_relative "./lib/services/image_health_service"  # Removed during Elon audit - file not found
-# require_relative "./lib/services/activity_tracker_service"  # Removed during Elon audit - file not found
+require_relative "./lib/services/activity_tracker_service"  # Stub for graceful degradation
 # require_relative "./lib/services/view_tracker_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/engagement_service"
 # require_relative "./lib/services/leaderboard_service"  # Removed during Elon audit - file not found
@@ -312,13 +312,13 @@ METRICS = {
       []
     end || []
     
-    # GAMIFICATION: Track streak and level for logged-in users
+    # GAMIFICATION: Disabled during Elon audit - features removed for simplicity
+    # Streak and level tracking removed along with GamificationHelpers
     if session[:user_id]
       begin
-        # Ensure user_id is an integer for DB queries
-        user_id = current_user_id
-        @streak_data = update_streak(user_id)
-        @user_level = get_user_level(user_id)
+        # Gamification features disabled
+        @streak_data = nil
+        @user_level = nil
       rescue => e
         AppLogger.error("⚠️ Gamification error: #{e.message}")
         @streak_data = nil

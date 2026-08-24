@@ -58,7 +58,8 @@ class EngagementService
         update_weekly_leaderboard(user_id, 'like', db) if user_id
         
         # 6. Record in ActivityTrackerService (Redis for real-time stats)
-        ActivityTrackerService.record_action('like', user_id) if user_id && liked_now
+        # ActivityTrackerService removed during Elon audit
+        # ActivityTrackerService.record_action('like', user_id) if user_id && liked_now
         
         result[:success] = true
         result
@@ -132,7 +133,8 @@ class EngagementService
         update_weekly_leaderboard(user_id, 'save', db) if saved_now
         
         # 5. Record in ActivityTrackerService (Redis)
-        ActivityTrackerService.record_action('save', user_id) if saved_now
+        # ActivityTrackerService removed during Elon audit
+        # ActivityTrackerService.record_action('save', user_id) if saved_now
         
         # 6. Check collection progress (badges/achievements)
         check_collections(user_id, db) if saved_now

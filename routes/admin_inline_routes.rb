@@ -72,7 +72,8 @@ module Routes
       content_type :json
 
       begin
-        stats = ActivityTrackerService.stats
+        # ActivityTrackerService removed during Elon audit
+        stats = { active_users: 0, viewing_users: 0, redis_available: false }
         stats.to_json
       rescue => e
         AppLogger.error("❌ [Activity Stats] Error: #{e.message}")
