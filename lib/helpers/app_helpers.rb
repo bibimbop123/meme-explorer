@@ -25,11 +25,19 @@ module AppHelpers
   
   # Wrapper for calculate_rarity (used in views/random.erb)
   def calculate_rarity(meme)
-    rarity = refined_rarity_badge(meme)
-    return rarity if rarity
+    # refined_rarity_badge removed - return simple rarity based on engagement
+    likes = meme['likes'].to_i
+    upvote_ratio = meme['upvote_ratio'].to_f
     
-    # Default rarity for common memes
-    { label: 'Common', icon: '•' }
+    if likes > 10000
+      { label: 'Legendary', icon: '⭐' }
+    elsif likes > 5000
+      { label: 'Epic', icon: '💎' }
+    elsif likes > 1000
+      { label: 'Rare', icon: '✨' }
+    else
+      { label: 'Common', icon: '•' }
+    end
   end
   
   # Wrapper for generate_curation_signal (used in views/random.erb and layout.erb)
@@ -149,20 +157,20 @@ module AppHelpers
     DB.execute("SELECT * FROM users WHERE id = ?", [user_id]).first
   end
 
-# Admin role check - FIXED July 22, 2026 to use 'role' column
-def is_admin?(user_id)
-  return false unless user_id
-  
-  # Query role using DBWrapper's execute method
-  result = DB.execute("SELECT role FROM users WHERE id = ?", [user_id])
-  return false if result.nil? || result.empty?
-  
-  # Check if role is 'admin'
-  role_value = result.first['role']
-  role_value == 'admin'
-rescue => e
-  AppLogger.error('[AdminCheck] Error checking admin status', error: e.message)
-  false
-end
+  # Admin role check - FIXED July 22, 2026 to use 'role' column
+  def is_admin?(user_id)
+    return false unless user_id
+    
+    # Query role using DBWrapper's execute method
+    result = DB.execute("SELECT role FROM users WHERE id = ?", [user_id])
+    return false if result.nil? || result.empty?
+    
+    # Check if role is 'admin'
+    role_value = result.first['role']
+    role_value == 'admin'
+  rescue => e
+    AppLogger.error('[AdminCheck] Error checking admin status', error: e.message)
+    false
+  end
 
 end
