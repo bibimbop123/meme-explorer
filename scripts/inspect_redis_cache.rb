@@ -8,10 +8,10 @@ puts "🔍 REDIS CACHE INSPECTION"
 puts "=" * 60
 
 begin
-  redis = RedisService.client
-  
   # Test connection
-  redis.ping
+  RedisService.with_redis do |redis|
+    redis.ping
+  end
   puts "✅ Connected to Redis"
   puts ""
   
@@ -22,33 +22,35 @@ begin
   puts "📊 MEME POOLS:"
   puts "-" * 60
   
-  pools.each do |pool|
-    # Check both JSON storage and list storage
-    json_key = "pool:#{pool}"
-    list_key = "pool:#{pool}:ids"
-    
-    json_exists = redis.exists(json_key) > 0
-    list_count = redis.llen(list_key)
-    
-    if json_exists || list_count > 0
-      # Try to get actual count from JSON
-      if json_exists
-        json_data = redis.get(json_key)
-        begin
-          memes = JSON.parse(json_data) rescue []
-          count = memes.is_a?(Array) ? memes.length : 0
-        rescue
+  RedisService.with_redis do |redis|
+    pools.each do |pool|
+      # Check both JSON storage and list storage
+      json_key = "pool:#{pool}"
+      list_key = "pool:#{pool}:ids"
+      
+      json_exists = redis.exists(json_key) > 0
+      list_count = redis.llen(list_key)
+      
+      if json_exists || list_count > 0
+        # Try to get actual count from JSON
+        if json_exists
+          json_data = redis.get(json_key)
+          begin
+            memes = JSON.parse(json_data) rescue []
+            count = memes.is_a?(Array) ? memes.length : 0
+          rescue
+            count = list_count
+          end
+        else
           count = list_count
         end
+        
+        total_memes += count
+        status = count > 0 ? "✅" : "⚠️ "
+        puts "#{status} #{pool.ljust(15)}: #{count.to_s.rjust(4)} memes"
       else
-        count = list_count
+        puts "❌ #{pool.ljust(15)}:    0 memes (empty)"
       end
-      
-      total_memes += count
-      status = count > 0 ? "✅" : "⚠️ "
-      puts "#{status} #{pool.ljust(15)}: #{count.to_s.rjust(4)} memes"
-    else
-      puts "❌ #{pool.ljust(15)}:    0 memes (empty)"
     end
   end
   
@@ -60,19 +62,21 @@ begin
   puts "🔑 OTHER REDIS KEYS:"
   puts "-" * 60
   
-  all_keys = redis.keys('*meme*')
-  other_keys = all_keys.reject { |k| k.start_with?('pool:') }
-  
-  if other_keys.any?
-    other_keys.first(10).each do |key|
-      type = redis.type(key)
-      ttl = redis.ttl(key)
-      ttl_str = ttl == -1 ? "no expiry" : "#{ttl}s TTL"
-      puts "  #{key} (#{type}, #{ttl_str})"
+  RedisService.with_redis do |redis|
+    all_keys = redis.keys('*meme*')
+    other_keys = all_keys.reject { |k| k.start_with?('pool:') }
+    
+    if other_keys.any?
+      other_keys.first(10).each do |key|
+        type = redis.type(key)
+        ttl = redis.ttl(key)
+        ttl_str = ttl == -1 ? "no expiry" : "#{ttl}s TTL"
+        puts "  #{key} (#{type}, #{ttl_str})"
+      end
+      puts "  ... and #{other_keys.length - 10} more" if other_keys.length > 10
+    else
+      puts "  No other meme-related keys found"
     end
-    puts "  ... and #{other_keys.length - 10} more" if other_keys.length > 10
-  else
-    puts "  No other meme-related keys found"
   end
   
   puts ""
