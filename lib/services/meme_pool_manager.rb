@@ -29,8 +29,21 @@ class MemePoolManager
   # finish within a web request, and (b) raising this TTL to a safe margin
   # above that new expected duration.
   BOOTSTRAP_LOCK_TTL = 30 # seconds - safe margin above the new ~15-20s expected duration
-  BOOTSTRAP_WAIT_RETRIES = 15 # how many times a waiting request re-polls for the pool
-  BOOTSTRAP_WAIT_INTERVAL = 1.0 # seconds between poll attempts (15s max wait)
+  # UX FIX (Aug 25, 2026): This used to be 15 retries x 1.0s (a full 15s of
+  # blocked wait per follower request). Since bootstrap realistically takes
+  # 15-30s, EVERY follower request always burned its full wait budget before
+  # timing out and falling back anyway - production logs showed every single
+  # page load taking ~15.1s, and with a fixed 32-thread Puma pool that's
+  # enough concurrent 15s-blocked requests to exhaust all worker threads
+  # under even light traffic. Waiting at all trades a guaranteed-fast local
+  # fallback for a coin flip on catching someone else's in-flight fetch, and
+  # for an already-instant local fallback that trade is never worth it.
+  # Now we do one cheap immediate re-check and bail straight to the fast
+  # local fallback if the pool still isn't there - the bootstrapping
+  # request's fetch keeps running in the background regardless and will
+  # populate Redis for the *next* request.
+  BOOTSTRAP_WAIT_RETRIES = 1 # a single quick re-check, not a long blocking poll
+  BOOTSTRAP_WAIT_INTERVAL = 0.2 # seconds - just enough to catch an already-almost-done bootstrap
 
   # Subreddit counts per tier for the on-demand (synchronous, request-time)
   # bootstrap - deliberately much smaller than the full pool build performed
@@ -117,50 +130,59 @@ class MemePoolManager
       # independently launches its own ~30s Reddit fetch (a thundering herd),
       # each burning a full OAuth token + dozens of subreddit requests for
       # the same outcome. Only the request that acquires the lock actually
-      # bootstraps; everyone else waits briefly and reuses the result.
+      # bootstraps; everyone else gets a quick single re-check and, if the
+      # pool still isn't ready, falls straight back to the fast local pool
+      # instead of blocking the request thread.
       unless RedisService.acquire_lock(BOOTSTRAP_LOCK_KEY, ttl: BOOTSTRAP_LOCK_TTL)
-        AppLogger.info("⏳ [PoolManager] Another request is already bootstrapping - waiting for it to finish...")
         waited = wait_for_pool(BOOTSTRAP_WAIT_RETRIES, BOOTSTRAP_WAIT_INTERVAL)
         return waited if waited
 
-        AppLogger.warn("⚠️  [PoolManager] Timed out waiting for concurrent bootstrap - using local fallback")
+        AppLogger.info("⏳ [PoolManager] Another request is bootstrapping - using local fallback for now")
         return {
           success: false,
           memes: [],
           pool_size: 0,
-          error: "Timed out waiting for concurrent bootstrap"
+          error: "Bootstrap in progress - using local fallback"
         }
       end
 
-      begin
-        # Pool empty - bootstrap with small quick fetch
-        AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes...")
-        bootstrap_result = bootstrap_pool
-      ensure
-        RedisService.delete(BOOTSTRAP_LOCK_KEY)
+      # UX FIX (Aug 25, 2026): Bootstrapping synchronously here used to make
+      # the *first* unlucky visitor after a cold cache eat the entire 15-30s
+      # Reddit fetch themselves, on top of every follower request separately
+      # blocking on wait_for_pool above. Nobody should ever wait tens of
+      # seconds for a page load. Instead, kick the real fetch off in a
+      # background thread (same pattern already used for the config.ru
+      # startup cache warm) and let this request return the fast local
+      # fallback immediately - the pool will be populated in Redis for the
+      # *next* request by the time the fetch finishes.
+      Thread.new do
+        Thread.current.name = 'meme-pool-bootstrap'
+        Thread.current.abort_on_exception = false
+
+        begin
+          AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with quick fetch (background)...")
+          bootstrap_result = bootstrap_pool
+
+          if bootstrap_result[:success]
+            AppLogger.info("✅ [PoolManager] Background bootstrap complete: #{bootstrap_result[:size]} memes")
+            # Trigger background expansion to 5K (non-blocking)
+            trigger_background_expansion
+          else
+            AppLogger.error("⚠️  [PoolManager] Background bootstrap failed: #{bootstrap_result[:error]}")
+          end
+        rescue => e
+          log_error("Background bootstrap error", e)
+        ensure
+          RedisService.delete(BOOTSTRAP_LOCK_KEY)
+        end
       end
-      
-      if bootstrap_result[:success]
-        AppLogger.info("✅ [Pool] Using MemePoolManager: #{bootstrap_result[:size]} memes (tier-distributed)")
-        # Trigger background expansion to 5K (non-blocking)
-        trigger_background_expansion
-        
-        # Return memes directly from bootstrap (avoid Redis re-fetch)
-        return {
-          success: true,
-          memes: bootstrap_result[:memes],
-          pool_size: bootstrap_result[:size],
-          error: nil
-        }
-      else
-        AppLogger.error("⚠️  [PoolManager] Bootstrap failed: #{bootstrap_result[:error]}")
-        return {
-          success: false,
-          memes: [],
-          pool_size: 0,
-          error: "Bootstrap failed, using local fallback"
-        }
-      end
+
+      {
+        success: false,
+        memes: [],
+        pool_size: 0,
+        error: "Bootstrap started in background - using local fallback"
+      }
     rescue => e
       log_error("Get pool error", e)
       { success: false, memes: [], pool_size: 0, error: e.message }
