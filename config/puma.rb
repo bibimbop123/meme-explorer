@@ -2,7 +2,18 @@
 # Configure puma to start in cluster mode
 
 # Binding
-bind "tcp://0.0.0.0:3000"
+#
+# NOTE (Aug 25, 2026): Never hardcode the port here. Render (and most PaaS
+# providers) inject their own $PORT value per-instance and expect the app
+# to bind to whatever they assign; a mismatched fixed port causes the
+# platform to detect the discrepancy and force-restart the service to
+# reconcile its network routing ("New primary port detected: XXXX.
+# Restarting deploy..."), producing 502s for any request in flight during
+# that restart. This currently only matters if something invokes Puma
+# directly via this config file (the deployed startCommand instead runs
+# `rackup config.ru -p $PORT`, which already binds correctly), but keep
+# this dynamic so switching invocation methods doesn't reintroduce the bug.
+bind "tcp://0.0.0.0:#{ENV.fetch('PORT', 3000)}"
 
 # Disable cluster mode - use single process to consolidate in-memory cache
 # Background thread loads 150+ API memes into shared MEME_CACHE

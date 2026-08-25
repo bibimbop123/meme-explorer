@@ -9,8 +9,16 @@ services:
     envVars:
       - key: RACK_ENV
         value: production
-      - key: PORT
-        value: 3000
+      # NOTE (Aug 25, 2026): Do NOT hardcode PORT here. Render auto-injects
+      # its own $PORT value per-instance and expects the app to bind to
+      # whatever it assigns. A fixed value here conflicts with what Render's
+      # edge proxy actually expects, which produces the
+      # "New primary port detected: XXXX. Restarting deploy to update
+      # network configuration..." cycle - Render force-restarts the running
+      # service to reconcile the mismatch, and any request in flight during
+      # that restart window gets a 502. startCommand already binds to
+      # whatever $PORT Render provides at runtime, so no explicit value is
+      # needed (or wanted) here.
       - key: BUNDLE_WITHOUT
         value: development:test
       - key: REDDIT_CLIENT_ID
