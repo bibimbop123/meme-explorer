@@ -88,7 +88,7 @@ require_relative "./routes/trending_routes"
 # require_relative "./routes/trending_api"  # Removed during Elon audit - file not found
 require_relative "./routes/profile_routes"
 require_relative "./routes/admin_routes"
-# require_relative "./routes/metrics_routes"  # Removed during Elon audit - file not found
+require_relative "./routes/metrics_routes"
 # require_relative "./routes/behavioral_tracking"  # Removed during Elon audit - file not found
 # require_relative "./routes/algorithm_metrics"  # Removed during Elon audit - file not found
 require_relative "./routes/seo_routes"
@@ -453,7 +453,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # register Routes::TrendingAPI # ELON AUDIT: Route file not found
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
-  #   register Routes::MetricsRoutes
+  register Routes::MetricsRoutes
   # register Routes::BehavioralTracking # ELON AUDIT: Route file not found
   # register Routes::AlgorithmMetrics # ELON AUDIT: Route file not found
   register Routes::Seo
