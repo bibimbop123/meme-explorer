@@ -133,6 +133,29 @@ RSpec.describe MemePoolManager do
       described_class.send(:bootstrap_pool)
     end
 
+    # Regression test for the production incident (Aug 25, 2026, round 11):
+    # fetch_batch used to launch 5 concurrent Concurrent::Future tasks (one
+    # per tier), and fetch_from_tier called create_fetcher independently in
+    # each - meaning every fetch_batch call fired 5 simultaneous OAuth
+    # token requests plus 5 concurrent waves of subreddit fetches at
+    # Reddit. This self-inflicted thundering herd made it far more likely
+    # to trip Reddit's rate limiter, which then blocked ALL bootstrap
+    # attempts (including the safe sequential on-demand ones) for 5
+    # minutes via BOOTSTRAP_COOLDOWN_KEY - explaining the observed
+    # "pool works great, then goes empty for a while" production pattern.
+    it 'creates the Reddit fetcher only once per fetch_batch call, reusing it across all tiers' do
+      allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes'])
+      allow(described_class).to receive(:quality_filter) { |memes| memes }
+      allow(described_class).to receive(:store_in_pool).and_return(0)
+
+      fetcher_double = instance_double(RedditFetcherService)
+      allow(fetcher_double).to receive(:fetch_memes).and_return([])
+
+      expect(described_class).to receive(:create_fetcher).once.and_return(fetcher_double)
+
+      described_class.send(:fetch_batch, size: 100)
+    end
+
     it 'sets a rate-limit cooldown and stops early when the probe returns zero memes' do
       allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
       fetcher_double = instance_double(RedditFetcherService)
@@ -170,6 +193,38 @@ RSpec.describe MemePoolManager do
 
       expect(result[:success]).to eq(true)
       expect(result[:memes]).not_to be_empty
+    end
+  end
+
+  describe '.trigger_background_expansion (private)' do
+    before { stub_const('MemePoolMaintenanceWorker', Class.new) }
+
+    # Regression test for the production incident (Aug 25, 2026, round 11)
+    # where this fired MemePoolMaintenanceWorker.perform_async immediately
+    # after every successful on-demand bootstrap, stacking a large
+    # 1000-meme expansion fetch right on top of the quick bootstrap that
+    # had just completed seconds earlier - doubling Reddit API pressure in
+    # a short window and increasing the odds of tripping the rate-limit
+    # cooldown that then blocks all future bootstrap attempts.
+    it 'schedules the expansion with a delay instead of enqueuing it immediately' do
+      allow(MemePoolMaintenanceWorker).to receive(:perform_in)
+      allow(MemePoolMaintenanceWorker).to receive(:respond_to?).and_call_original
+      allow(MemePoolMaintenanceWorker).to receive(:respond_to?).with(:perform_in).and_return(true)
+
+      expect(MemePoolMaintenanceWorker).to receive(:perform_in).with(60)
+      expect(MemePoolMaintenanceWorker).not_to receive(:perform_async)
+
+      described_class.send(:trigger_background_expansion)
+    end
+
+    it 'falls back to perform_async if the worker does not support perform_in' do
+      allow(MemePoolMaintenanceWorker).to receive(:respond_to?).and_call_original
+      allow(MemePoolMaintenanceWorker).to receive(:respond_to?).with(:perform_in).and_return(false)
+      allow(MemePoolMaintenanceWorker).to receive(:perform_async)
+
+      expect(MemePoolMaintenanceWorker).to receive(:perform_async)
+
+      described_class.send(:trigger_background_expansion)
     end
   end
 

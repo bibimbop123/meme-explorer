@@ -418,8 +418,22 @@ class MemePoolManager
     # config/initializers/sidekiq.rb.)
     def trigger_background_expansion
       if defined?(MemePoolMaintenanceWorker)
-        MemePoolMaintenanceWorker.perform_async
-        AppLogger.info("✅ [PoolManager] Triggered background expansion to 5,000 memes")
+        # BUG FIX (Aug 25, 2026, round 11): this used to enqueue the full
+        # expansion job immediately (perform_async), stacking a large
+        # 1000-meme fetch right on top of the quick bootstrap that had
+        # just completed seconds earlier - doubling Reddit API pressure in
+        # a short window and increasing the odds of tripping a rate-limit
+        # cooldown that then blocks ALL bootstrap attempts (including
+        # future safe on-demand ones) for 5 minutes. A short delay lets
+        # Reddit "breathe" between the two fetches; the scheduled 5-minute
+        # cron (config/sidekiq.yml) would eventually pick this up anyway,
+        # so this is purely about spacing out the immediate case.
+        if MemePoolMaintenanceWorker.respond_to?(:perform_in)
+          MemePoolMaintenanceWorker.perform_in(60)
+        else
+          MemePoolMaintenanceWorker.perform_async
+        end
+        AppLogger.info("✅ [PoolManager] Scheduled background expansion to 5,000 memes")
       else
         AppLogger.debug("ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size")
       end
@@ -434,6 +448,26 @@ class MemePoolManager
     end
     
     # Fetch a batch of memes with tier-based distribution
+    #
+    # BUG FIX (Aug 25, 2026, round 11): this used to launch 5 concurrent
+    # Concurrent::Future tasks (one per tier), and fetch_from_tier called
+    # create_fetcher independently in each - meaning every single
+    # fetch_batch call (triggered on a schedule every 5 minutes via
+    # MemePoolMaintenanceWorker, AND immediately after every successful
+    # on-demand bootstrap via trigger_background_expansion) fired 5
+    # simultaneous OAuth token requests plus 5 concurrent waves of
+    # subreddit fetches at Reddit. That's a self-inflicted thundering herd
+    # far more aggressive than the careful, sequential, single-fetcher
+    # on-demand bootstrap path (see bootstrap_pool). When Reddit rate-
+    # limited this burst, it tripped BOOTSTRAP_COOLDOWN_KEY for 5 minutes -
+    # blocking ALL subsequent bootstrap attempts (including the safe
+    # on-demand ones) - and with the pool's 6-hour Redis TTL, once it went
+    # empty there was nothing to reliably refill it, explaining the
+    # observed "pool works great, then goes to 0 for a while, then
+    # sporadically recovers" pattern in production.
+    #
+    # Fix: create ONE shared fetcher (one OAuth token) and reuse it
+    # sequentially across tiers, matching bootstrap_pool's approach.
     def fetch_batch(size:, priority: :normal)
       AppLogger.info("📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})")
       
@@ -441,14 +475,12 @@ class MemePoolManager
       tier_counts = TIER_DISTRIBUTION.map do |tier, percentage|
         [tier, (size * percentage).to_i]
       end.to_h
-      
-      # Parallel fetch from all tiers using Concurrent::Future (bounded, no raw Thread.new)
-      futures = tier_counts.map do |tier, count|
-        Concurrent::Future.execute { fetch_from_tier(tier, count) }
-      end
 
-      # Collect results with a per-tier timeout — never blocks forever
-      all_memes = futures.flat_map { |f| f.value(30) || [] }
+      fetcher = create_fetcher
+
+      all_memes = tier_counts.flat_map do |tier, count|
+        fetch_from_tier(tier, count, fetcher: fetcher)
+      end
       AppLogger.info("📦 [PoolManager] Fetched #{all_memes.size} memes total")
       
       # Apply quality pipeline
@@ -547,8 +579,12 @@ class MemePoolManager
     
     private
     
-    # Fetch memes from a specific tier
-    def fetch_from_tier(tier, count)
+    # Fetch memes from a specific tier.
+    #
+    # Accepts an optional pre-built `fetcher:` so callers doing multiple
+    # tier fetches in one batch (see fetch_batch) can share a single OAuth
+    # token instead of each tier independently authenticating with Reddit.
+    def fetch_from_tier(tier, count, fetcher: nil)
       AppLogger.info("  📍 [PoolManager] Fetching #{count} memes from #{tier}")
       
       subreddits = load_tier_subreddits(tier)
@@ -558,7 +594,7 @@ class MemePoolManager
       memes_per_sub = [count / subreddits.size, 1].max
       
       # Use Reddit Fetcher Service
-      fetcher = create_fetcher
+      fetcher ||= create_fetcher
       memes = fetcher.fetch_memes(subreddits, limit: memes_per_sub)
       
       AppLogger.info("  ✅ [PoolManager] Got #{memes.size} memes from #{tier}")
