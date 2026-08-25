@@ -4,6 +4,41 @@
 
 require_relative '../config/application'
 require_relative '../lib/services/reddit_fetcher_service'
+require 'net/http'
+require 'json'
+
+# Obtain an OAuth access token via client-credentials grant
+def get_reddit_oauth_token
+  client_id = ENV['REDDIT_CLIENT_ID']
+  client_secret = ENV['REDDIT_CLIENT_SECRET']
+  user_agent = ENV['REDDIT_USER_AGENT'] || 'MemeExplorer/1.0'
+
+  unless client_id && client_secret
+    puts "❌ ERROR: REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET not set"
+    return nil
+  end
+
+  uri = URI('https://www.reddit.com/api/v1/access_token')
+  request = Net::HTTP::Post.new(uri)
+  request.basic_auth(client_id, client_secret)
+  request['User-Agent'] = user_agent
+  request.set_form_data('grant_type' => 'client_credentials')
+
+  response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true,
+                              open_timeout: 5, read_timeout: 5) do |http|
+    http.request(request)
+  end
+
+  if response.code == '200'
+    JSON.parse(response.body)['access_token']
+  else
+    puts "❌ Failed to get OAuth token (HTTP #{response.code})"
+    nil
+  end
+rescue => e
+  puts "❌ Error fetching OAuth token: #{e.message}"
+  nil
+end
 
 puts "🚀 TURBO FETCH: Fetching fresh Reddit memes..."
 puts "   Strategy: 5 subreddits, 2-second delays, max quality"
@@ -17,7 +52,16 @@ top_subreddits = [
   'AdviceAnimals'
 ]
 
-fetcher = RedditFetcherService.new(auth_strategy: :oauth)
+access_token = get_reddit_oauth_token
+
+unless access_token
+  puts "\n❌ Could not obtain Reddit OAuth token. Aborting."
+  exit 1
+end
+
+puts "✅ Got OAuth token"
+
+fetcher = RedditFetcherService.new(auth_strategy: :oauth, access_token: access_token)
 all_memes = []
 
 top_subreddits.each_with_index do |sub, idx|
