@@ -293,9 +293,20 @@ class MemePoolManager
     # Poll for a pool becoming available while another request holds the
     # bootstrap lock. Returns the get_pool-shaped success hash as soon as the
     # pool is populated, or nil if it times out (caller should fall back).
+    #
+    # Also bails out early (instead of burning the full wait window) if the
+    # in-progress bootstrap already confirmed a Reddit rate limit and set the
+    # cooldown flag - no point waiting the rest of the timeout for a pool that
+    # we already know isn't coming.
     def wait_for_pool(retries, interval)
       retries.times do
         sleep interval
+
+        if RedisService.get(BOOTSTRAP_COOLDOWN_KEY)
+          AppLogger.info("⏳ [PoolManager] Concurrent bootstrap hit rate limit - stopping wait early")
+          return nil
+        end
+
         pool = get_current_pool
         next if pool.empty?
 
