@@ -32,13 +32,32 @@ module Routes
       end
       
       # Redis health
+      #
+      # BUG FIX (Aug 25, 2026, round 7): this used to unconditionally merge
+      # `status: 'healthy', connected: true` on top of whatever
+      # RedisService.stats returned - so even when Redis was genuinely
+      # unreachable (stats returns `{ available: false, error: 'Redis not
+      # available' }`), the response was overwritten to claim
+      # `status: 'healthy'` and `connected: true` anyway, producing a
+      # self-contradictory payload like
+      # `{"available":false,"error":"Redis not available","status":"healthy","connected":true}`.
+      # That masked the real signal and made this endpoint useless for
+      # diagnosing the actual Redis outage that caused MemePoolManager's
+      # bootstrap lock to never succeed (see meme_pool_manager.rb round 6).
       begin
         if defined?(RedisService)
+          # Force a fresh check rather than trusting the 30s-cached
+          # redis_available? flag, so /health always reflects Redis's
+          # CURRENT reachability instead of a potentially stale reading
+          # from a transient blip minutes ago.
+          RedisService.refresh_availability!
           redis_stats = RedisService.stats
-          health_status[:checks][:redis] = redis_stats.merge(
-            status: 'healthy',
-            connected: true
-          )
+          if redis_stats[:available]
+            health_status[:checks][:redis] = redis_stats.merge(status: 'healthy')
+          else
+            health_status[:checks][:redis] = redis_stats.merge(status: 'unhealthy')
+            health_status[:status] = 'degraded'
+          end
         else
           health_status[:checks][:redis] = {
             status: 'disabled',
