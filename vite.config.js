@@ -8,6 +8,7 @@ export default defineConfig({
         main: 'public/js/main.js'
       },
       output: {
+        format: 'iife',
         entryFileNames: 'bundle.js',
         chunkFileNames: '[name].js',  
         assetFileNames: '[name].[ext]'
