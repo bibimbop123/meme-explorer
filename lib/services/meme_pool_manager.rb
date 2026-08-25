@@ -764,9 +764,27 @@ end
     end
     
     # Get current pool from Redis
+    #
+    # BUG FIX (Aug 25, 2026, round 12): this used to call JSON.parse(cached)
+    # on the result of RedisService.get('meme_pool') - but RedisService#get
+    # already parses JSON internally via its private parse_value helper
+    # before returning (see redis_service.rb), so `cached` here is already
+    # a plain Ruby Array, not a JSON string. Calling JSON.parse on an Array
+    # raises "no implicit conversion of Array into String" - and since this
+    # is the ONLY way get_pool ever reads a populated pool back out of
+    # Redis, this meant that as soon as store_in_pool successfully wrote a
+    # real pool (confirmed by the "✅ Stored N memes" log lines), every
+    # subsequent get_current_pool call blew up, size fell back to 0, and
+    # get_pool treated the pool as perpetually empty - triggering another
+    # bootstrap attempt on every single request, which then hit "another
+    # request is bootstrapping" or the on-demand cooldown, and fell all
+    # the way back to the 10-meme local pool. The real pool was being
+    # written successfully the whole time; it could just never be read
+    # back.
     def get_current_pool
       cached = RedisService.get('meme_pool')
-      return JSON.parse(cached) if cached
+      return cached if cached.is_a?(Array)
+      return JSON.parse(cached) if cached.is_a?(String)
       
       []
     rescue => e

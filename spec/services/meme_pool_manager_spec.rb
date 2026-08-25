@@ -11,6 +11,54 @@ RSpec.describe MemePoolManager do
     end
   end
 
+  describe '.get_current_pool' do
+    # Regression test for the production incident (Aug 25, 2026, round 12)
+    # - the actual root cause of the "pool works for a moment, then goes
+    # back to serving only local memes on every request" pattern observed
+    # across every prior round of this investigation. RedisService#get
+    # already parses JSON internally (via its private parse_value helper)
+    # before returning a value, so the Array stored under the 'meme_pool'
+    # key came back from RedisService.get as an already-parsed Ruby Array
+    # - NOT a JSON string. get_current_pool then called JSON.parse on that
+    # Array, raising "no implicit conversion of Array into String" on
+    # EVERY read. Since this is the only way get_pool ever reads a
+    # populated pool back out of Redis, the pool appeared perpetually
+    # empty to every single request even immediately after store_in_pool
+    # successfully wrote hundreds of memes (confirmed by the "✅ Stored N
+    # memes" log lines appearing right before this error). Every request
+    # then re-triggered a fresh bootstrap attempt, hit "another request is
+    # bootstrapping" or the on-demand cooldown, and fell all the way back
+    # to the 10-meme local pool - even though the real Reddit-sourced pool
+    # was sitting right there in Redis the whole time, just unreadable.
+    it 'does not raise when RedisService.get returns an already-parsed Array' do
+      allow(RedisService).to receive(:get).with('meme_pool').and_return(
+        [{ 'url' => 'a' }, { 'url' => 'b' }, { 'url' => 'c' }]
+      )
+
+      result = described_class.send(:get_current_pool)
+
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(3)
+    end
+
+    it 'still handles a raw JSON string for backward compatibility' do
+      allow(RedisService).to receive(:get).with('meme_pool').and_return(
+        [{ 'url' => 'a' }, { 'url' => 'b' }].to_json
+      )
+
+      result = described_class.send(:get_current_pool)
+
+      expect(result).to be_an(Array)
+      expect(result.size).to eq(2)
+    end
+
+    it 'returns an empty array when the pool is not cached' do
+      allow(RedisService).to receive(:get).with('meme_pool').and_return(nil)
+
+      expect(described_class.send(:get_current_pool)).to eq([])
+    end
+  end
+
   describe '.get_pool' do
     after do
       # Don't leak lock/cooldown state between examples.
