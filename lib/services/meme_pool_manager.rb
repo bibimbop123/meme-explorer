@@ -14,6 +14,10 @@ class MemePoolManager
   MIN_POOL_SIZE = 1000
   BOOTSTRAP_COOLDOWN_KEY = "meme_pool:bootstrap_cooldown"
   BOOTSTRAP_COOLDOWN_TTL = 300 # 5 minutes - avoid hammering Reddit while rate-limited
+  BOOTSTRAP_LOCK_KEY = "lock:meme_pool:bootstrap"
+  BOOTSTRAP_LOCK_TTL = 45 # seconds - slightly longer than a full bootstrap fetch can take
+  BOOTSTRAP_WAIT_RETRIES = 8 # how many times a waiting request re-polls for the pool
+  BOOTSTRAP_WAIT_INTERVAL = 0.5 # seconds between poll attempts
   
   # Tier distribution for balanced variety
   TIER_DISTRIBUTION = {
@@ -87,9 +91,33 @@ class MemePoolManager
         }
       end
 
-      # Pool empty - bootstrap with small quick fetch
-      AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes...")
-      bootstrap_result = bootstrap_pool
+      # Pool empty - try to become the single request that bootstraps it.
+      # Without this lock, every concurrent request that sees an empty pool
+      # independently launches its own ~30s Reddit fetch (a thundering herd),
+      # each burning a full OAuth token + dozens of subreddit requests for
+      # the same outcome. Only the request that acquires the lock actually
+      # bootstraps; everyone else waits briefly and reuses the result.
+      unless RedisService.acquire_lock(BOOTSTRAP_LOCK_KEY, ttl: BOOTSTRAP_LOCK_TTL)
+        AppLogger.info("⏳ [PoolManager] Another request is already bootstrapping - waiting for it to finish...")
+        waited = wait_for_pool(BOOTSTRAP_WAIT_RETRIES, BOOTSTRAP_WAIT_INTERVAL)
+        return waited if waited
+
+        AppLogger.warn("⚠️  [PoolManager] Timed out waiting for concurrent bootstrap - using local fallback")
+        return {
+          success: false,
+          memes: [],
+          pool_size: 0,
+          error: "Timed out waiting for concurrent bootstrap"
+        }
+      end
+
+      begin
+        # Pool empty - bootstrap with small quick fetch
+        AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes...")
+        bootstrap_result = bootstrap_pool
+      ensure
+        RedisService.delete(BOOTSTRAP_LOCK_KEY)
+      end
       
       if bootstrap_result[:success]
         AppLogger.info("✅ [Pool] Using MemePoolManager: #{bootstrap_result[:size]} memes (tier-distributed)")
@@ -260,6 +288,24 @@ class MemePoolManager
     rescue => e
       log_error("Replace stale error", e)
       { replaced: 0, error: e.message }
+    end
+
+    # Poll for a pool becoming available while another request holds the
+    # bootstrap lock. Returns the get_pool-shaped success hash as soon as the
+    # pool is populated, or nil if it times out (caller should fall back).
+    def wait_for_pool(retries, interval)
+      retries.times do
+        sleep interval
+        pool = get_current_pool
+        next if pool.empty?
+
+        AppLogger.info("✅ [PoolManager] Concurrent bootstrap finished - reusing #{pool.size} memes")
+        return { success: true, memes: pool, pool_size: pool.size, error: nil }
+      end
+      nil
+    rescue => e
+      log_error("Wait for pool error", e)
+      nil
     end
     
     private

@@ -72,6 +72,23 @@ class RedisService
       false
     end
     
+    # Atomically acquire a short-lived lock using SET NX EX (set-if-not-exists
+    # with expiry). Returns true if the lock was acquired, false if someone
+    # else already holds it (or Redis is unavailable).
+    # @param key [String] Lock key (caller should prefix, e.g. "lock:foo")
+    # @param ttl [Integer] Lock TTL in seconds - auto-expires if never released
+    # @return [Boolean] true if lock acquired, false otherwise
+    def acquire_lock(key, ttl: 30)
+      return false unless redis_available?
+
+      REDIS_POOL.with do |redis|
+        !!redis.set(key, "1", nx: true, ex: ttl)
+      end
+    rescue Redis::BaseError, ConnectionPool::TimeoutError => e
+      handle_error(e, operation: 'acquire_lock', key: key)
+      false
+    end
+
     # Delete key from Redis
     # @param key [String] Redis key
     # @return [Boolean] Success status
