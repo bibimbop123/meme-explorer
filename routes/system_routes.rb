@@ -18,13 +18,13 @@ module Routes
 
     # Performance metrics (admin only)
     app.get "/metrics/performance" do
-      halt 403, { error: "Forbidden" }.to_json unless is_admin?
+      halt 403, { error: "Forbidden" }.to_json unless is_admin?(session[:user_id])
       content_type :json
       PerformanceProfiler.summary.to_json
     end
 
     app.get "/errors" do
-      halt 403, "Forbidden" unless is_admin?
+      halt 403, "Forbidden" unless is_admin?(session[:user_id])
       content_type :json
       {
         recent_errors: ErrorHandler::Logger.recent(50),
