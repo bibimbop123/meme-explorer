@@ -28,7 +28,23 @@ class MemePoolManager
   # count (see BOOTSTRAP_QUICK_TIER_LIMITS below) so it can realistically
   # finish within a web request, and (b) raising this TTL to a safe margin
   # above that new expected duration.
-  BOOTSTRAP_LOCK_TTL = 30 # seconds - safe margin above the new ~15-20s expected duration
+  # BUG FIX (Aug 25, 2026, round 2): 30s was still nowhere near enough.
+  # bootstrap_pool makes up to 15 sequential Reddit requests (3 for the
+  # rate-limit probe + 12 for the real fetch), each with up to a 15s
+  # HTTP timeout plus a throttle sleep between requests - worst case
+  # ~240s, and even a "normal" case with real-world latency (especially
+  # on a shared/throttled Render free-tier CPU) routinely exceeds 30s.
+  # When the lock expired mid-fetch, a brand-new request would see no
+  # lock, acquire it, and spawn ANOTHER overlapping background bootstrap
+  # thread - multiple concurrent threads hammering Reddit's OAuth +
+  # subreddit endpoints at once, none of them ever finishing cleanly,
+  # recreating the exact thundering-herd this lock exists to prevent.
+  # Production logs showed this exact symptom: an endless stream of
+  # "Another request is bootstrapping..." with no bootstrap ever actually
+  # completing. Raised to a generous ceiling; bootstrap_pool also no
+  # longer pays for two separate OAuth round-trips (see create_fetcher
+  # reuse below), which was needlessly adding to the real duration.
+  BOOTSTRAP_LOCK_TTL = 120 # seconds - real safety margin for worst-case sequential fetch time
   # UX FIX (Aug 25, 2026): This used to be 15 retries x 1.0s (a full 15s of
   # blocked wait per follower request). Since bootstrap realistically takes
   # 15-30s, EVERY follower request always burned its full wait budget before
@@ -190,48 +206,65 @@ class MemePoolManager
     
     # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
     def bootstrap_pool
-    AppLogger.info("🚀 [Bootstrap] Attempting bootstrap (will fail fast if rate-limited)...")
-    
-    # CRITICAL: Fail fast if Reddit is completely rate-limited
-    # Try just 3 subreddits first to check if we're getting 429s
-    test_subs = load_tier_subreddits(:tier_1).first(3)
-    fetcher = create_fetcher
-    test_memes = fetcher.fetch_memes(test_subs, limit: 5)
-    
-    # If we got ZERO memes from 3 attempts, Reddit is rate-limited
-    # Don't waste 25 seconds trying 80 more subreddits
-    if test_memes.empty?
-      AppLogger.warn("⚠️  [Bootstrap] Reddit rate-limited - skipping full bootstrap, using local fallback")
-      # Set cooldown so subsequent requests don't re-hammer Reddit (and re-request
-      # OAuth tokens) until the cooldown expires. Without this, every incoming
-      # request independently re-triggers bootstrap_pool, multiplying 429s.
-      RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
-      return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
-    end
-    
-    AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with quick fetch...")
+      AppLogger.info("🚀 [Bootstrap] Attempting bootstrap (will fail fast if rate-limited)...")
 
-  # Quick, request-time-friendly fetch: a small number of subreddits per
-  # tier so this can realistically finish inside a web request instead of
-  # the ~80-subreddit / ~100s full build (that full build is handled by the
-  # scheduled MemePoolMaintenanceWorker via fetch_batch/build_pool!, which
-  # isn't time-constrained the way an inline request is).
-  all_subs = BOOTSTRAP_QUICK_TIER_LIMITS.flat_map do |tier, count|
-    load_tier_subreddits(tier).first(count)
-  end
+      # BUG FIX (Aug 25, 2026, round 2): create_fetcher was being called
+      # TWICE per bootstrap - once for the rate-limit probe, once for the
+      # real fetch - and each call performs its own full OAuth
+      # client-credentials round-trip to Reddit. That's a second,
+      # unnecessary network round-trip (plus a second short-lived token)
+      # added to every single bootstrap, on top of already being tight
+      # against BOOTSTRAP_LOCK_TTL. Create the fetcher once and reuse it
+      # for both the probe and the real fetch.
+      fetcher = create_fetcher
 
-  fetcher = create_fetcher
-  memes = fetcher.fetch_memes(all_subs, limit: 20)
-      
+      # CRITICAL: Fail fast if Reddit is completely rate-limited
+      # Try just 3 subreddits first to check if we're getting 429s
+      test_subs = load_tier_subreddits(:tier_1).first(3)
+      test_memes = fetcher.fetch_memes(test_subs, limit: 5)
+
+      # If we got ZERO memes from 3 attempts, Reddit is rate-limited
+      # Don't waste 25 seconds trying 80 more subreddits
+      if test_memes.empty?
+        AppLogger.warn("⚠️  [Bootstrap] Reddit rate-limited - skipping full bootstrap, using local fallback")
+        # Set cooldown so subsequent requests don't re-hammer Reddit (and re-request
+        # OAuth tokens) until the cooldown expires. Without this, every incoming
+        # request independently re-triggers bootstrap_pool, multiplying 429s.
+        RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
+        return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
+      end
+
+      AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with quick fetch...")
+
+      # Quick, request-time-friendly fetch: a small number of subreddits per
+      # tier so this can realistically finish inside a web request instead of
+      # the ~80-subreddit / ~100s full build (that full build is handled by the
+      # scheduled MemePoolMaintenanceWorker via fetch_batch/build_pool!, which
+      # isn't time-constrained the way an inline request is).
+      #
+      # NOTE: tier_1's first 3 subreddits were already fetched above by the
+      # rate-limit probe (test_subs) - skip re-fetching them here so we
+      # don't hit the same 3 subreddits twice in one bootstrap.
+      remaining_tier_limits = BOOTSTRAP_QUICK_TIER_LIMITS.merge(tier_1: BOOTSTRAP_QUICK_TIER_LIMITS[:tier_1] - test_subs.size)
+      remaining_subs = remaining_tier_limits.flat_map do |tier, count|
+        next [] if count <= 0
+        subs = load_tier_subreddits(tier)
+        subs = subs.drop(test_subs.size) if tier == :tier_1
+        subs.first(count)
+      end
+
+      remaining_memes = remaining_subs.empty? ? [] : fetcher.fetch_memes(remaining_subs, limit: 20)
+      memes = test_memes + remaining_memes
+
       # SKIP quality filter on bootstrap for speed (basic validation only)
       validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
       stored = store_in_pool(validated)
-      
+
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
-      
+
       # Bootstrap succeeded - clear any prior rate-limit cooldown
       RedisService.delete(BOOTSTRAP_COOLDOWN_KEY) if stored > 0
-      
+
       # Return memes directly (don't re-fetch from Redis)
       { success: stored > 0, size: stored, memes: validated, error: stored == 0 ? "No memes passed validation" : nil }
     rescue => e

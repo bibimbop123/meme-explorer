@@ -110,5 +110,43 @@ RSpec.describe MemePoolManager do
       expect(fetcher.instance_variable_get(:@auth_strategy)).to eq(:static)
     end
   end
+
+  describe '.bootstrap_pool (private)' do
+    # Regression test for the production incident (Aug 25, 2026, round 2)
+    # where bootstrap_pool called create_fetcher TWICE per run (once for the
+    # rate-limit probe, once for the real fetch), each performing its own
+    # full OAuth round-trip to Reddit - needlessly doubling network latency
+    # on every single bootstrap attempt, on top of already being tight
+    # against BOOTSTRAP_LOCK_TTL. Only one fetcher (and therefore one OAuth
+    # token request) should ever be created per bootstrap_pool call.
+    it 'creates the Reddit fetcher only once per bootstrap attempt' do
+      allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
+      allow(described_class).to receive(:store_in_pool).and_return(3)
+
+      fetcher_double = instance_double(RedditFetcherService)
+      allow(fetcher_double).to receive(:fetch_memes).and_return(
+        [{ 'url' => 'a', 'title' => 't', 'subreddit' => 'funny' }]
+      )
+
+      expect(described_class).to receive(:create_fetcher).once.and_return(fetcher_double)
+
+      described_class.send(:bootstrap_pool)
+    end
+
+    it 'sets a rate-limit cooldown and stops early when the probe returns zero memes' do
+      allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
+      fetcher_double = instance_double(RedditFetcherService)
+      allow(fetcher_double).to receive(:fetch_memes).and_return([])
+      allow(described_class).to receive(:create_fetcher).and_return(fetcher_double)
+
+      expect(RedisService).to receive(:set).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY, 'true', ttl: MemePoolManager::BOOTSTRAP_COOLDOWN_TTL)
+      # Only the 3-subreddit probe call should happen - no second fetch_memes call for the full tier fetch.
+      expect(fetcher_double).to receive(:fetch_memes).once
+
+      result = described_class.send(:bootstrap_pool)
+      expect(result[:success]).to eq(false)
+      expect(result[:error]).to match(/rate limited/i)
+    end
+  end
 end
 
