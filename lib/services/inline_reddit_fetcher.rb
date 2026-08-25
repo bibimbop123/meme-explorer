@@ -57,6 +57,23 @@ class InlineRedditFetcher
       client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
       return nil if client_id.empty? || client_secret.empty?
 
+      # BUG FIX (Aug 25, 2026): See lib/services/meme_pool_manager.rb#create_fetcher
+      # for the full explanation - a misconfigured render.yaml previously set
+      # these to the literal, unresolved string "${REDDIT_CLIENT_ID}" instead
+      # of a real secret (Render Blueprints don't shell-interpolate `value:`).
+      # Fail fast with a clear diagnostic instead of quietly attempting (and
+      # always failing) an OAuth request with garbage credentials.
+      if client_id.match?(/\A\$\{.*\}\z/) || client_secret.match?(/\A\$\{.*\}\z/)
+        if defined?(AppLogger)
+          AppLogger.error(
+            "⚠️  [InlineRedditFetcher] REDDIT_CLIENT_ID/SECRET look like " \
+            "unresolved placeholder strings, not real credentials - check " \
+            "your deployment platform's env var config."
+          )
+        end
+        return nil
+      end
+
       require 'net/http'
       require 'json'
 

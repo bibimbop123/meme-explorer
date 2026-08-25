@@ -75,5 +75,40 @@ RSpec.describe MemePoolManager do
       expect(@result[:memes]).to eq([])
     end
   end
+
+  describe '.create_fetcher (private)' do
+    around do |example|
+      original_id = ENV['REDDIT_CLIENT_ID']
+      original_secret = ENV['REDDIT_CLIENT_SECRET']
+      example.run
+      ENV['REDDIT_CLIENT_ID'] = original_id
+      ENV['REDDIT_CLIENT_SECRET'] = original_secret
+    end
+
+    # Regression test for the production incident (Aug 25, 2026) where
+    # render.yaml set REDDIT_CLIENT_ID/SECRET via `value: ${REDDIT_CLIENT_ID}`
+    # - which Render Blueprints do NOT shell-interpolate, so the app received
+    # the literal placeholder string as a "configured" credential, attempted
+    # (and always failed) OAuth, and silently degraded to the unauthenticated,
+    # heavily rate-limited Reddit endpoint - resulting in only the 10-meme
+    # local fallback pool ever being served (API memes never rendered).
+    it 'treats unresolved placeholder-style credentials as absent and falls back to static auth' do
+      ENV['REDDIT_CLIENT_ID'] = '${REDDIT_CLIENT_ID}'
+      ENV['REDDIT_CLIENT_SECRET'] = '${REDDIT_CLIENT_SECRET}'
+
+      expect(OAuth2::Client).not_to receive(:new) if defined?(OAuth2::Client)
+
+      fetcher = described_class.send(:create_fetcher)
+      expect(fetcher.instance_variable_get(:@auth_strategy)).to eq(:static)
+    end
+
+    it 'uses static auth when credentials are genuinely absent' do
+      ENV['REDDIT_CLIENT_ID'] = ''
+      ENV['REDDIT_CLIENT_SECRET'] = ''
+
+      fetcher = described_class.send(:create_fetcher)
+      expect(fetcher.instance_variable_get(:@auth_strategy)).to eq(:static)
+    end
+  end
 end
 

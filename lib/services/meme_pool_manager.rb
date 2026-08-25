@@ -617,6 +617,31 @@ end
       client_secret = ENV['REDDIT_CLIENT_SECRET'].to_s.strip
       
       fetcher_class = RedditFetcherService  # Always use standard fetcher
+
+      # BUG FIX (Aug 25, 2026): render.yaml previously set these via
+      # `value: ${REDDIT_CLIENT_ID}`, which a Render Blueprint does NOT
+      # shell-interpolate - it stores the literal placeholder string. That
+      # made ENV['REDDIT_CLIENT_ID'] non-empty but garbage, so this method
+      # believed OAuth was configured, attempted (and always failed) a
+      # token request, and silently fell back to the aggressively
+      # rate-limited unauthenticated endpoint - the app then only ever
+      # served the 10-meme local fallback pool with API memes never
+      # rendering. Detect this specific misconfiguration shape explicitly
+      # so it surfaces as a clear, actionable log line instead of a vague
+      # downstream "0 memes" symptom. (Fixed properly at the source in
+      # render.yaml via `sync: false`, but this guard protects against the
+      # same class of copy/paste mistake in any environment.)
+      if client_id.match?(/\A\$\{.*\}\z/) || client_secret.match?(/\A\$\{.*\}\z/)
+        AppLogger.error(
+          "⚠️  [PoolManager] REDDIT_CLIENT_ID/SECRET look like unresolved " \
+          "placeholder strings (e.g. \"\#{REDDIT_CLIENT_ID}\") rather than real " \
+          "credentials - check your deployment platform's env var config " \
+          "(Render Blueprints require `sync: false` for secrets, not " \
+          "`value: \#{VAR}` shell interpolation, which isn't supported)."
+        )
+        client_id = ''
+        client_secret = ''
+      end
       
       if !client_id.empty? && !client_secret.empty?
         require 'oauth2'

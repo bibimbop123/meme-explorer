@@ -21,10 +21,24 @@ services:
       # needed (or wanted) here.
       - key: BUNDLE_WITHOUT
         value: development:test
+      # BUG FIX (Aug 25, 2026): `value: ${REDDIT_CLIENT_ID}` is NOT shell
+      # interpolation in a Render Blueprint - Render stores it as the
+      # literal string "${REDDIT_CLIENT_ID}", not the actual secret. That
+      # meant ENV['REDDIT_CLIENT_ID']/['REDDIT_CLIENT_SECRET'] in production
+      # were always set to garbage non-empty placeholder text, so
+      # create_fetcher/fetch_oauth_token believed credentials were present,
+      # attempted an OAuth token request that always failed, and silently
+      # fell back to Reddit's unauthenticated endpoint - which is
+      # aggressively rate-limited and kept returning 0 memes (see the
+      # repeated "Reddit fetch returned 0 memes" log lines), leaving only
+      # the 10-meme local fallback pool to ever render. `sync: false` is
+      # the correct way to declare a secret that must be entered manually
+      # in the Render dashboard (Environment tab) rather than hardcoded in
+      # this file.
       - key: REDDIT_CLIENT_ID
-        value: ${REDDIT_CLIENT_ID}
+        sync: false
       - key: REDDIT_CLIENT_SECRET
-        value: ${REDDIT_CLIENT_SECRET}
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
@@ -48,10 +62,13 @@ services:
         value: production
       - key: BUNDLE_WITHOUT
         value: development:test
+      # Same fix as the web service above - sync: false prompts for the
+      # actual secret in the Render dashboard instead of storing the
+      # literal, non-interpolated string "${REDDIT_CLIENT_ID}".
       - key: REDDIT_CLIENT_ID
-        value: ${REDDIT_CLIENT_ID}
+        sync: false
       - key: REDDIT_CLIENT_SECRET
-        value: ${REDDIT_CLIENT_SECRET}
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
