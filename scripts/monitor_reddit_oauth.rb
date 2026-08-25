@@ -1,3 +1,4 @@
+
 #!/usr/bin/env ruby
 # Reddit OAuth Monitor - Shows countdown to rate limit reset with live testing
 
