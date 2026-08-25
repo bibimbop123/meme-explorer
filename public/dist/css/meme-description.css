@@ -1,0 +1,201 @@
+/* Meme Description / Title legibility improvements.
+ *
+ * BUG FIX: /random only links navigation.css, image-cls-fix.css,
+ * content-visibility.css, cls-optimization.css, and meme-transition.css.
+ * None of those (nor any inline <style> block on that page) style
+ * .meme-title / .meme-meta / .curation-signal / .refined-collection-badge -
+ * they were rendering as unstyled plain <div>s with the browser default
+ * font size (~16px, regular weight, no contrast tuning), which is exactly
+ * why the photo description text was small and hard to read.
+ */
+
+#meme-info {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 0.5rem;
+}
+
+.meme-info-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* The photo description itself - large, high-contrast, easy to read */
+.meme-title {
+  font-size: 1.5rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111;
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
+}
+
+html.dark-mode .meme-title {
+  color: #f5f5f5;
+}
+
+.title-toggle-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.title-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+html.dark-mode .title-toggle-btn {
+  color: #aaa;
+}
+
+html.dark-mode .title-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.refined-collection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #444;
+  margin-top: 0.5rem;
+}
+
+html.dark-mode .refined-collection-badge {
+  color: #ccc;
+}
+
+.rarity-indicator {
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html.dark-mode .rarity-indicator {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.curation-signal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  margin-top: 0.6rem;
+}
+
+html.dark-mode .curation-signal {
+  color: #ddd;
+}
+
+.meme-meta-wrapper {
+  margin-top: 0.75rem;
+}
+
+.reddit-link {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #d91c63;
+  text-decoration: none;
+}
+
+.reddit-link:hover {
+  text-decoration: underline;
+}
+
+html.dark-mode .reddit-link {
+  color: #ff5c8d;
+}
+
+/* AJAX (Space-bar) navigation renders .meme-meta with these sub-elements
+ * instead of the server-rendered .refined-collection-badge/.curation-signal -
+ * style them the same way for consistent legibility either way. */
+.meme-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  margin-top: 0.5rem;
+}
+
+html.dark-mode .meme-meta {
+  color: #ddd;
+}
+
+.meme-meta .meme-subreddit a {
+  font-weight: 700;
+  color: #d91c63;
+  text-decoration: none;
+}
+
+.meme-meta .meme-subreddit a:hover {
+  text-decoration: underline;
+}
+
+html.dark-mode .meme-meta .meme-subreddit a {
+  color: #ff5c8d;
+}
+
+.meme-divider {
+  color: #999;
+}
+
+.meme-pool-type.badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html.dark-mode .meme-pool-type.badge {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.memes-remaining {
+  font-size: 0.95rem;
+  color: #666;
+  margin-top: 0.4rem;
+}
+
+html.dark-mode .memes-remaining {
+  color: #aaa;
+}
+
+/* Slightly larger everything on bigger screens, since there's more room */
+@media (min-width: 769px) {
+  .meme-title {
+    font-size: 1.75rem;
+  }
+
+  .refined-collection-badge,
+  .curation-signal,
+  .reddit-link {
+    font-size: 1.05rem;
+  }
+}
+
+/* Keep it readable but not overwhelming on small phones */
+@media (max-width: 480px) {
+  .meme-title {
+    font-size: 1.3rem;
+  }
+}
