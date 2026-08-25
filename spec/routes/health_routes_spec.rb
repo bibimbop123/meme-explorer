@@ -75,4 +75,35 @@ describe "GET /health (routes/health.rb)" do
     expect(data["checks"]["cache"]).to have_key("status")
     expect(data["checks"]["meme_pool"]).to have_key("status")
   end
+
+  # Regression test for the production incident (Aug 25, 2026, round 10)
+  # where the meme_pool check only ever read
+  # MemeExplorer::App::MEME_CACHE (the legacy in-process cache) - a
+  # completely separate data source from MemePoolManager's Redis-backed
+  # pool that actually serves production traffic. This made /health
+  # report meme_count: 0 / status: warning even while MemePoolManager had
+  # a full, healthy pool actively serving every request, making /health
+  # useless for diagnosing real meme pool problems.
+  describe "meme_pool check (round 10 regression)" do
+    it "reports MemePoolManager's real pool size when it has memes" do
+      allow(MemePoolManager).to receive(:get_pool_size).and_return(170)
+      allow(RedisService).to receive(:get).with('meme_pool:last_refresh').and_return(Time.now.to_i.to_s)
+
+      get "/health"
+      data = JSON.parse(last_response.body)
+
+      expect(data["checks"]["meme_pool"]["status"]).to eq("healthy")
+      expect(data["checks"]["meme_pool"]["meme_count"]).to eq(170)
+      expect(data["checks"]["meme_pool"]["source"]).to eq("MemePoolManager")
+    end
+
+    it "falls back to the legacy cache when MemePoolManager's pool is empty" do
+      allow(MemePoolManager).to receive(:get_pool_size).and_return(0)
+
+      get "/health"
+      data = JSON.parse(last_response.body)
+
+      expect(data["checks"]["meme_pool"]["source"]).to eq("legacy_cache")
+    end
+  end
 end

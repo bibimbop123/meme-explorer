@@ -1,6 +1,8 @@
 # Health Check Endpoint
 # Comprehensive health monitoring for production
 
+require_relative '../lib/services/meme_pool_manager'
+
 module Routes
   module HealthRoutes
     def self.registered(app)
@@ -99,18 +101,49 @@ module Routes
       end
       
       # Meme pool health
+      #
+      # BUG FIX (Aug 25, 2026, round 10): this only ever checked
+      # MemeExplorer::App::MEME_CACHE (the legacy in-process cache), which
+      # is a completely separate data source from MemePoolManager's
+      # Redis-backed pool that actually serves production traffic (see
+      # lib/helpers/meme_pool_helpers.rb#random_memes_pool, which checks
+      # MemePoolManager FIRST). MEME_CACHE is now largely unused/empty in
+      # normal operation, so this check reported meme_count: 0 / status:
+      # warning even while MemePoolManager had a full, healthy 170+ meme
+      # pool actively serving every request - making /health useless for
+      # actually diagnosing meme pool problems. Check MemePoolManager's
+      # real pool size first, falling back to the legacy cache only if
+      # MemePoolManager itself is unavailable.
       begin
-        meme_count = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
-        last_refresh = MemeExplorer::App::MEME_CACHE.get(:last_refresh)
-        
-        health_status[:checks][:meme_pool] = {
-          status: meme_count > 0 ? 'healthy' : 'warning',
-          meme_count: meme_count,
-          last_refresh: last_refresh&.iso8601,
-          age_minutes: last_refresh ? ((Time.now - last_refresh) / 60).round(1) : nil
-        }
-        
-        health_status[:status] = 'warning' if meme_count == 0
+        pool_size = defined?(MemePoolManager) ? MemePoolManager.get_pool_size : 0
+        last_refresh = if pool_size > 0
+          Time.at(RedisService.get('meme_pool:last_refresh').to_i) rescue nil
+        end
+
+        if pool_size > 0
+          health_status[:checks][:meme_pool] = {
+            status: 'healthy',
+            meme_count: pool_size,
+            source: 'MemePoolManager',
+            last_refresh: last_refresh&.iso8601,
+            age_minutes: last_refresh ? ((Time.now - last_refresh) / 60).round(1) : nil
+          }
+        else
+          # Fall back to the legacy in-process cache for backward
+          # compatibility, in case MemePoolManager is unavailable/disabled.
+          meme_count = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
+          legacy_last_refresh = MemeExplorer::App::MEME_CACHE.get(:last_refresh)
+
+          health_status[:checks][:meme_pool] = {
+            status: meme_count > 0 ? 'healthy' : 'warning',
+            meme_count: meme_count,
+            source: 'legacy_cache',
+            last_refresh: legacy_last_refresh&.iso8601,
+            age_minutes: legacy_last_refresh ? ((Time.now - legacy_last_refresh) / 60).round(1) : nil
+          }
+
+          health_status[:status] = 'warning' if meme_count == 0
+        end
       rescue => e
         health_status[:checks][:meme_pool] = {
           status: 'unhealthy',

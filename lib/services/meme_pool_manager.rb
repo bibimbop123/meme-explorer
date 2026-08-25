@@ -525,6 +525,25 @@ class MemePoolManager
       log_error("Wait for pool error", e)
       nil
     end
+
+    # Get current pool size (public - used by /health and other diagnostics).
+    #
+    # BUG FIX (Aug 25, 2026, round 10): this was accidentally defined below
+    # the `private` marker further down in this file, even though it's a
+    # legitimate public API used by routes/health.rb's meme_pool check
+    # (which previously had no way to see MemePoolManager's real pool size
+    # at all, and instead reported on a wholly separate, largely-unused
+    # legacy cache - see the matching fix in routes/health.rb).
+    def get_pool_size
+      cached_count = RedisService.get('meme_pool:count')
+      return cached_count.to_i if cached_count
+      
+      pool = get_current_pool
+      pool.size
+    rescue => e
+      log_error("Get pool size error", e)
+      0
+    end
     
     private
     
@@ -705,18 +724,6 @@ end
       total_stored
     rescue => e
       log_error("Store in pool error", e)
-      0
-    end
-    
-    # Get current pool size
-    def get_pool_size
-      cached_count = RedisService.get('meme_pool:count')
-      return cached_count.to_i if cached_count
-      
-      pool = get_current_pool
-      pool.size
-    rescue => e
-      log_error("Get pool size error", e)
       0
     end
     
