@@ -77,6 +77,16 @@ export class MemeNavigation {
       return;
     }
     
+    // Ignore OS/browser key-repeat events. Holding a key down (even briefly,
+    // which is very easy to do with the space bar) fires many synthetic
+    // keydown events per second with event.repeat === true. Without this
+    // guard, one "held" Space press fires loadNextMeme() over and over in
+    // rapid succession - which looks exactly like an auto-playing carousel
+    // instead of a single, deliberate meme change per press.
+    if (event.repeat) {
+      return;
+    }
+    
     switch(event.code) {
       case 'Space':
       case 'ArrowRight':
