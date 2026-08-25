@@ -50,7 +50,15 @@ module AppHelpers
   # Wrapper for rendering taste profile (used in views/profile.erb)
   def render_taste_profile(user_id)
     return '' unless user_id
-    
+
+    # TasteProfileService was removed in a previous cleanup pass but this
+    # caller was never updated. Fail soft (empty profile section) instead of
+    # raising NameError on every /profile view until the service is rebuilt.
+    unless defined?(TasteProfileService)
+      AppLogger.debug("ℹ️  [AppHelpers] TasteProfileService not available - skipping taste profile")
+      return ''
+    end
+
     begin
       # Fetch user data
       user = get_user(user_id)
@@ -63,7 +71,7 @@ module AppHelpers
       erb :_taste_profile, locals: { profile: profile }
     rescue => e
       AppLogger.error("⚠️ Error rendering taste profile: #{e.class} - #{e.message}")
-      AppLogger.error("backtrace", lines: (e.backtrace.first(3).join("\n") if e.backtrace)&.join("\n"))
+      AppLogger.error("backtrace", lines: e.backtrace&.first(3)&.join("\n"))
       ''  # Return empty string on error to prevent page crash
     end
   end

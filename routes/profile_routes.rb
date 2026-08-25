@@ -21,7 +21,7 @@ module Routes
           # Get user's saved memes from saved_memes table
           @saved_memes = begin
             results = MemeExplorer::App::DB.execute(
-              "SELECT id, meme_url, meme_title, meme_subreddit, created_at as saved_at FROM saved_memes WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
+              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC LIMIT 50",
               [user_id]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
