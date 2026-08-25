@@ -199,36 +199,35 @@ module MemePoolHelpers
     end
 
     # BUG FIX (Aug 25, 2026, round 3): This on-demand inline fetch used to
-    # fire unconditionally on EVERY request that reached this point - with
-    # zero coordination with MemePoolManager's own bootstrap lock/cooldown.
-    # In production this meant every single incoming request independently
-    # launched its own synchronous Reddit fetch AT THE SAME TIME as
-    # MemePoolManager's legitimate background bootstrap thread, all from
-    # the same server/IP. Reddit's rate limiter (429) responds almost
-    # instantly - far faster than a real timeout - which is exactly why
-    # these requests were completing in ~300ms with "0 memes" and no
-    # visible exception (a 429 isn't an exception; fetch_static/
-    # fetch_authenticated just silently return no results). Worse, this
-    # was actively sabotaging the real bootstrap: piling on extra
-    # concurrent Reddit calls from the same IP made it more likely Reddit
-    # would rate-limit the whole server, including the one fetch that
-    # actually mattered.
+    # fire unconditionally on EVERY request that reached this point, with
+    # zero rate-limit awareness of its own. In production this meant every
+    # single incoming request independently launched its own synchronous
+    # Reddit fetch, all from the same server/IP within seconds of each
+    # other - Reddit's rate limiter (429) responds almost instantly, far
+    # faster than a real timeout, which is exactly why these requests kept
+    # completing in ~300ms with "0 memes" and no visible exception (a 429
+    # isn't an exception; fetch_static/fetch_authenticated just silently
+    # return no results). This also piled additional concurrent Reddit
+    # calls on top of MemePoolManager's own coordinated background
+    # bootstrap, from the same IP, making Reddit more likely to rate-limit
+    # the whole server.
     #
-    # Fix: skip this redundant on-demand fetch entirely whenever
-    # MemePoolManager already has a bootstrap in flight (or is in a
-    # rate-limit cooldown) - just fall straight through to the fast local
-    # fallback below and let the coordinated background bootstrap do its
-    # job without interference.
-    bootstrap_in_progress = begin
-      require_relative '../services/meme_pool_manager'
-      RedisService.get(MemePoolManager::BOOTSTRAP_LOCK_KEY) ||
-        RedisService.get(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY)
-    rescue
-      false
-    end
+    # ROUND 3 FOLLOW-UP: peeking at MemePoolManager's own bootstrap lock
+    # from here turned out to be an unreliable signal - that lock is only
+    # held for as long as bootstrap_pool's rate-limit probe takes, which
+    # can be well under a second when Reddit is already rate-limiting us,
+    # so nearly every other request's check simply missed the tiny window
+    # where the lock existed. Instead, this on-demand path now owns and
+    # respects its OWN dedicated cooldown key: the moment it discovers
+    # Reddit is rate-limiting it, it sets a cooldown so every subsequent
+    # request skips the fetch entirely (falling straight to the fast local
+    # pool) until the cooldown expires - no racing against another
+    # subsystem's transient lock required.
+    on_demand_cooldown_key = "meme_pool:on_demand_fetch_cooldown"
+    on_demand_cooldown_ttl = 60 # seconds - short enough to retry soon after Reddit calms down
 
-    if bootstrap_in_progress
-      AppLogger.info("[POOL] Cache empty, but a bootstrap/cooldown is already active - skipping redundant on-demand fetch")
+    if RedisService.get(on_demand_cooldown_key)
+      AppLogger.info("[POOL] Cache empty, but on-demand fetch is cooling down after a recent rate limit - skipping")
     else
       begin
         if defined?(InlineRedditFetcher)
@@ -241,11 +240,13 @@ module MemePoolHelpers
             AppLogger.info("[POOL] Fetched and cached #{fresh_memes.size} memes from Reddit")
             return fresh_memes
           else
-            AppLogger.warn("[POOL] On-demand Reddit fetch returned zero memes (likely rate-limited)")
+            AppLogger.warn("[POOL] On-demand Reddit fetch returned zero memes (likely rate-limited) - cooling down for #{on_demand_cooldown_ttl}s")
+            RedisService.set(on_demand_cooldown_key, "true", ttl: on_demand_cooldown_ttl)
           end
         end
       rescue => e
         AppLogger.warn("[POOL] On-demand Reddit fetch failed", error: e.message)
+        RedisService.set(on_demand_cooldown_key, "true", ttl: on_demand_cooldown_ttl)
       end
     end
 

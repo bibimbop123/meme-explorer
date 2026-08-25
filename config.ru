@@ -37,31 +37,57 @@ use AuthorizationMiddleware
 # Enable gzip compression for all responses (60-70% bandwidth savings!)
 use Rack::Deflater
 
+# BUG FIX (Aug 25, 2026, round 4): A brand-new process was clearing a
+# BOOTSTRAP_LOCK_KEY that could still be set in Redis from the *previous*
+# process instance, which was killed mid-deploy before its background
+# bootstrap thread reached its `ensure RedisService.delete(...)` cleanup.
+# Redis is an external, persistent store - the lock survives every
+# restart/redeploy until its TTL naturally expires (up to
+# MemePoolManager::BOOTSTRAP_LOCK_TTL seconds), meaning every fresh boot
+# could spend up to that long refusing to bootstrap even though no
+# background thread from THIS process is actually running. A freshly
+# booted process cannot possibly have a legitimate bootstrap already in
+# flight, so it's always safe to clear the lock (and any on-demand-fetch
+# cooldown) here before anything else runs.
+begin
+  require_relative 'lib/services/meme_pool_manager'
+  RedisService.delete(MemePoolManager::BOOTSTRAP_LOCK_KEY)
+  RedisService.delete("meme_pool:on_demand_fetch_cooldown")
+  puts "🧹 [STARTUP] Cleared any stale bootstrap lock/cooldown from a previous process"
+rescue => e
+  puts "⚠️  [STARTUP] Failed to clear stale bootstrap lock: #{e.message}"
+end
+
 # Initialize meme pool cache on startup
-# If Sidekiq is running, queue via worker. Otherwise fetch directly via OAuth.
+# If Sidekiq is running, queue via worker. Otherwise let MemePoolManager's
+# own coordinated get_pool path handle it on the first request - see
+# lib/services/meme_pool_manager.rb#get_pool, which already runs the
+# bootstrap in a background thread and rate-limit-checks itself.
+#
+# BUG FIX (Aug 25, 2026, round 4): this used to call
+# InlineRedditFetcher.fetch directly - a THIRD independent, uncoordinated
+# Reddit-fetch code path (alongside MemePoolManager's bootstrap and the
+# on-demand fetch in meme_pool_helpers.rb#random_memes_pool), competing
+# for the same rate-limited Reddit API with no shared cooldown awareness.
+# Routing through MemePoolManager.get_pool means every fetch path shares
+# the same lock/cooldown coordination instead of three systems
+# independently hammering Reddit.
 Thread.new do
   Thread.current.name = 'startup-cache-warm'
   sleep 1 # Brief pause to let the app fully initialize
 
   begin
-    cache = MemeExplorer::App::MEME_CACHE
-
     if defined?(MemePoolRefreshWorker) && defined?(Sidekiq)
       puts "🚀 [STARTUP] Triggering initial meme pool refresh via Sidekiq..."
       MemePoolRefreshWorker.perform_async(true)
       puts "✅ [STARTUP] Meme pool refresh job queued"
     else
-      # No Sidekiq — fetch directly from Reddit using OAuth (client credentials)
-      puts "🚀 [STARTUP] Fetching memes directly from Reddit (no Sidekiq)..."
-      subreddits = MemeExplorer::App::POPULAR_SUBREDDITS.sample(20)
-      memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
-
-      if memes.any?
-        cache.set(:memes, memes.shuffle)
-        cache.set(:last_refresh, Time.now)
-        puts "✅ [STARTUP] Meme cache warmed: #{memes.size} memes from Reddit"
+      puts "🚀 [STARTUP] Warming meme pool via MemePoolManager (no Sidekiq)..."
+      result = MemePoolManager.get_pool
+      if result[:success]
+        puts "✅ [STARTUP] Meme pool ready: #{result[:pool_size]} memes"
       else
-        puts "⚠️  [STARTUP] Reddit fetch returned 0 memes — will retry on first request"
+        puts "⚠️  [STARTUP] Meme pool not ready yet (#{result[:error]}) — background bootstrap may still be running, will retry on first request"
       end
     end
   rescue => e

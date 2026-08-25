@@ -115,39 +115,62 @@ RSpec.describe MemePoolHelpers do
       allow(MemeExplorer::App::MEMES).to receive(:is_a?).and_call_original
     end
 
-    # Regression test for the production incident (Aug 25, 2026, round 3)
-    # where this on-demand fetch fired unconditionally on EVERY request
-    # that reached this point, with zero coordination with
-    # MemePoolManager's own bootstrap lock. In production this meant every
-    # single incoming request independently launched its own synchronous
-    # Reddit fetch AT THE SAME TIME as MemePoolManager's legitimate
-    # background bootstrap thread, all from the same server/IP - Reddit's
-    # rate limiter kicked in almost instantly, returning zero memes for
-    # every request, and the pile-up of extra concurrent calls actively
-    # sabotaged the one bootstrap fetch that actually mattered.
-    it 'does not attempt an on-demand Reddit fetch while MemePoolManager already holds the bootstrap lock' do
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_LOCK_KEY).and_return('1')
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY).and_return(nil)
+    # Regression test for the production incident (Aug 25, 2026, rounds 3
+    # and 4). Round 3 found this on-demand fetch fired unconditionally on
+    # EVERY request reaching this point, uncoordinated with anything else,
+    # meaning every single incoming request independently launched its own
+    # synchronous Reddit fetch from the same server/IP - Reddit's rate
+    # limiter kicked in almost instantly, returning zero memes for every
+    # request. An initial fix peeked at MemePoolManager's own bootstrap
+    # lock, but that lock is only held for as long as the rate-limit probe
+    # takes (often under a second), so nearly every request's check missed
+    # the tiny window where it existed and the fetch kept firing anyway
+    # (round 4). The fix now uses a dedicated cooldown key that THIS
+    # on-demand path owns and sets itself the moment it discovers Reddit is
+    # rate-limiting it - no racing against another subsystem's transient
+    # lock lifetime.
+    let(:on_demand_cooldown_key) { "meme_pool:on_demand_fetch_cooldown" }
+
+    it 'does not attempt an on-demand Reddit fetch while its own cooldown is active' do
+      allow(RedisService).to receive(:get).with(on_demand_cooldown_key).and_return('true')
 
       expect(InlineRedditFetcher).not_to receive(:fetch)
 
       ctx.random_memes_pool
     end
 
-    it 'does not attempt an on-demand Reddit fetch during a rate-limit cooldown' do
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_LOCK_KEY).and_return(nil)
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY).and_return('true')
-
-      expect(InlineRedditFetcher).not_to receive(:fetch)
-
-      ctx.random_memes_pool
-    end
-
-    it 'still attempts the on-demand fetch when no bootstrap/cooldown is active' do
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_LOCK_KEY).and_return(nil)
-      allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY).and_return(nil)
+    it 'still attempts the on-demand fetch when no cooldown is active' do
+      allow(RedisService).to receive(:get).with(on_demand_cooldown_key).and_return(nil)
 
       expect(InlineRedditFetcher).to receive(:fetch).and_return([])
+
+      ctx.random_memes_pool
+    end
+
+    it 'sets its own cooldown when the fetch comes back empty (likely rate-limited)' do
+      allow(RedisService).to receive(:get).with(on_demand_cooldown_key).and_return(nil)
+      allow(InlineRedditFetcher).to receive(:fetch).and_return([])
+
+      expect(RedisService).to receive(:set).with(on_demand_cooldown_key, "true", ttl: 60)
+
+      ctx.random_memes_pool
+    end
+
+    it 'sets its own cooldown when the fetch raises an error' do
+      allow(RedisService).to receive(:get).with(on_demand_cooldown_key).and_return(nil)
+      allow(InlineRedditFetcher).to receive(:fetch).and_raise(StandardError.new("boom"))
+
+      expect(RedisService).to receive(:set).with(on_demand_cooldown_key, "true", ttl: 60)
+
+      ctx.random_memes_pool
+    end
+
+    it 'does not set a cooldown when the fetch succeeds' do
+      allow(RedisService).to receive(:get).with(on_demand_cooldown_key).and_return(nil)
+      allow(InlineRedditFetcher).to receive(:fetch).and_return([{ 'url' => 'a' }])
+      allow(MemeExplorer::App::MEME_CACHE).to receive(:set)
+
+      expect(RedisService).not_to receive(:set).with(on_demand_cooldown_key, anything, anything)
 
       ctx.random_memes_pool
     end
