@@ -18,53 +18,26 @@
     queue: default
     description: "Refresh meme cache from Reddit API"
     
-  similar_meme_prefetch:
-    cron: '*/10 * * * *'  # PHASE 1: Every 10 minutes for instant "More Like This"
-    class: SimilarMemePrefetchWorker
-    queue: default
-    description: "Prefetch similar memes for popular subreddits (<100ms response)"
-    
+  # NOTE (Aug 25, 2026): similar_meme_prefetch, subreddit_discovery,
+  # image_health_check, leaderboard_update, and activity_aggregation were
+  # removed from this schedule. Their worker classes and backing services
+  # (SimilarMemePrefetchWorker, SubredditDiscoveryService, ImageHealthService/
+  # ImageValidationService, LeaderboardService, activity aggregation) were
+  # never implemented, so these cron entries silently failed with
+  # "uninitialized constant" every time they fired. Re-add them once the
+  # corresponding worker + service files actually exist.
+
   meme_pool_maintenance:
     cron: '*/5 * * * *'  # PHASE 2: Every 5 minutes to maintain 5,000-meme pool
     class: MemePoolMaintenanceWorker
     queue: default
     description: "Intelligent pool management with tier-based distribution"
     
-  subreddit_discovery:
-    cron: '0 0 * * 0'  # PHASE 2: Weekly on Sunday at midnight
-    class: SubredditDiscoveryWorker
-    queue: low
-    description: "Auto-discover new quality subreddits (50+ per week)"
-    
-  image_health_check:
-    cron: '*/30 * * * *'  # Every 30 minutes (proactive validation)
-    class: ImageHealthWorker
-    queue: low_priority
-    description: "Proactively validate cached meme URLs and remove broken content"
-    
-  leaderboard_update:
-    cron: '0 * * * *'  # Every hour
-    class: LeaderboardCalculationWorker
-    queue: critical
-    description: "Calculate leaderboard scores for all users"
-    
   database_cleanup:
     cron: '0 * * * *'  # Every hour (recommended for production stability)
     class: DatabaseCleanupWorker
     queue: low
     description: "Remove old broken images and stale data"
-    
-  activity_aggregation:
-    cron: '*/5 * * * *'  # Every 5 minutes
-    class: ActivityAggregationWorker
-    queue: default
-    description: "Aggregate visitor activity stats"
-    
-  session_cleanup:
-    cron: '*/5 * * * *'  # Every 5 minutes
-    class: SessionCleanupWorker
-    queue: default
-    description: "Cleanup expired and zombie sessions"
 
 production:
   :concurrency: 10

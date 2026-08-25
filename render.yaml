@@ -34,7 +34,7 @@ services:
     region: oregon
     plan: free
     buildCommand: bundle install
-    startCommand: bundle exec sidekiq -C config/sidekiq.yml
+    startCommand: bundle exec sidekiq -r ./app.rb -C config/sidekiq.yml
     envVars:
       - key: RACK_ENV
         value: production

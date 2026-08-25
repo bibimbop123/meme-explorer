@@ -12,6 +12,8 @@ require 'yaml'
 class MemePoolManager
   TARGET_POOL_SIZE = 5000
   MIN_POOL_SIZE = 1000
+  BOOTSTRAP_COOLDOWN_KEY = "meme_pool:bootstrap_cooldown"
+  BOOTSTRAP_COOLDOWN_TTL = 300 # 5 minutes - avoid hammering Reddit while rate-limited
   
   # Tier distribution for balanced variety
   TIER_DISTRIBUTION = {
@@ -26,6 +28,15 @@ class MemePoolManager
     # Main entry point - maintains pool at target size
     def maintain_pool!
       AppLogger.info("🔄 [PoolManager] Starting pool maintenance...")
+
+      # Respect the same rate-limit cooldown used by bootstrap_pool. This runs
+      # on a schedule (every 5 min), so if Reddit was confirmed rate-limited
+      # very recently there's no point re-attempting a large fetch yet.
+      if RedisService.get(BOOTSTRAP_COOLDOWN_KEY)
+        AppLogger.warn("⏳ [PoolManager] Maintenance skipped - still cooling down after recent rate limit")
+        return { success: false, error: "Cooling down after recent rate limit", pool_size: get_pool_size }
+      end
+
       current_size = get_pool_size
       
       if current_size < MIN_POOL_SIZE
@@ -63,6 +74,19 @@ class MemePoolManager
         }
       end
       
+      # Pool empty - check cooldown before hammering Reddit again.
+      # If we recently confirmed Reddit is rate-limiting us, skip straight to
+      # local fallback instead of re-attempting bootstrap on every single request.
+      if RedisService.get(BOOTSTRAP_COOLDOWN_KEY)
+        AppLogger.warn("⏳ [PoolManager] Bootstrap cooling down (recent rate limit) - using local fallback")
+        return {
+          success: false,
+          memes: [],
+          pool_size: 0,
+          error: "Bootstrap cooling down after recent rate limit"
+        }
+      end
+
       # Pool empty - bootstrap with small quick fetch
       AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping with 500 memes...")
       bootstrap_result = bootstrap_pool
@@ -107,6 +131,10 @@ class MemePoolManager
     # Don't waste 25 seconds trying 80 more subreddits
     if test_memes.empty?
       AppLogger.warn("⚠️  [Bootstrap] Reddit rate-limited - skipping full bootstrap, using local fallback")
+      # Set cooldown so subsequent requests don't re-hammer Reddit (and re-request
+      # OAuth tokens) until the cooldown expires. Without this, every incoming
+      # request independently re-triggers bootstrap_pool, multiplying 429s.
+      RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
       return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
     end
     
@@ -132,6 +160,9 @@ class MemePoolManager
       stored = store_in_pool(validated)
       
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
+      
+      # Bootstrap succeeded - clear any prior rate-limit cooldown
+      RedisService.delete(BOOTSTRAP_COOLDOWN_KEY) if stored > 0
       
       # Return memes directly (don't re-fetch from Redis)
       { success: stored > 0, size: stored, memes: validated, error: stored == 0 ? "No memes passed validation" : nil }
@@ -181,6 +212,16 @@ class MemePoolManager
       # Store in pool
       stored_count = store_in_pool(validated_memes)
       AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
+
+      if stored_count > 0
+        # Successful fetch - clear any prior rate-limit cooldown
+        RedisService.delete(BOOTSTRAP_COOLDOWN_KEY)
+      elsif all_memes.empty?
+        # Nothing came back from ANY tier - likely rate-limited across the board.
+        # Set cooldown so the next scheduled/on-demand attempt doesn't immediately retry.
+        AppLogger.warn("⚠️  [PoolManager] Fetch batch returned 0 memes across all tiers - assuming rate limit")
+        RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
+      end
       
       { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count }
     rescue => e

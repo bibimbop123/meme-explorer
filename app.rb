@@ -121,6 +121,8 @@ require "digest"
 begin
   require_relative "./config/initializers/sidekiq"
   require_relative "./app/workers/cache_refresh_worker"
+  require_relative "./app/workers/cache_preload_worker"
+  require_relative "./app/workers/meme_pool_maintenance_worker"
   # require_relative "./app/workers/image_health_worker"  # ELON AUDIT: File not found
   # require_relative "./app/workers/leaderboard_calculation_worker"  # ELON AUDIT: File not found
   require_relative "./app/workers/database_cleanup_worker"
