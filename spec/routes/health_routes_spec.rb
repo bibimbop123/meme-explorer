@@ -35,7 +35,10 @@ describe "GET /health (routes/health.rb)" do
 
     expect(data["checks"]["redis"]["status"]).to eq("unhealthy")
     expect(data["checks"]["redis"]["available"]).to eq(false)
-    expect(data["status"]).to eq("degraded")
+    # Overall status may be further overwritten by later checks (e.g. an
+    # empty meme pool sets 'warning' after this), so just assert it's no
+    # longer the healthy/default 'ok' value.
+    expect(data["status"]).not_to eq("ok")
   end
 
   it "never returns a self-contradictory payload (available: false alongside status: healthy)" do
@@ -51,5 +54,25 @@ describe "GET /health (routes/health.rb)" do
     # This exact contradiction was the production bug: available: false but status: healthy.
     expect(redis_check["available"]).to eq(false)
     expect(redis_check["status"]).not_to eq("healthy")
+  end
+
+  # Regression test for the production incident (Aug 25, 2026, round 7)
+  # where `MEME_CACHE` was referenced unqualified inside the
+  # Routes::HealthRoutes module, raising
+  # "uninitialized constant Routes::HealthRoutes::MEME_CACHE" - silently
+  # caught and reported as `status: 'unhealthy'` for both the cache and
+  # meme_pool checks, regardless of the actual cache state. This made
+  # /health useless for diagnosing real cache/meme-pool problems.
+  it "reports cache and meme_pool checks without raising a NameError for MEME_CACHE" do
+    get "/health"
+    data = JSON.parse(last_response.body)
+
+    cache_error = data["checks"]["cache"]["error"]
+    meme_pool_error = data["checks"]["meme_pool"]["error"]
+
+    expect(cache_error.to_s).not_to match(/uninitialized constant/)
+    expect(meme_pool_error.to_s).not_to match(/uninitialized constant/)
+    expect(data["checks"]["cache"]).to have_key("status")
+    expect(data["checks"]["meme_pool"]).to have_key("status")
   end
 end

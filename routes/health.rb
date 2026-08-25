@@ -73,8 +73,19 @@ module Routes
       end
       
       # Cache health
+      #
+      # BUG FIX (Aug 25, 2026, round 7): `MEME_CACHE` is unqualified here,
+      # but the actual constant lives at `MemeExplorer::App::MEME_CACHE`.
+      # Inside the `Routes::HealthRoutes` module namespace, the bare
+      # constant lookup fails with `NameError: uninitialized constant
+      # Routes::HealthRoutes::MEME_CACHE`, which was being silently caught
+      # by the rescue below and reported as `status: 'unhealthy'` for both
+      # this check and meme_pool below - even when the cache itself was
+      # perfectly fine. This made /health useless for actually diagnosing
+      # real meme pool problems (like the Redis outage in round 6) since
+      # it always showed "unhealthy" regardless of the real cache state.
       begin
-        cache_stats = MEME_CACHE.stats
+        cache_stats = MemeExplorer::App::MEME_CACHE.stats
         health_status[:checks][:cache] = {
           status: 'healthy',
           size: cache_stats[:size],
@@ -89,8 +100,8 @@ module Routes
       
       # Meme pool health
       begin
-        meme_count = MEME_CACHE.get(:memes)&.size || 0
-        last_refresh = MEME_CACHE.get(:last_refresh)
+        meme_count = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
+        last_refresh = MemeExplorer::App::MEME_CACHE.get(:last_refresh)
         
         health_status[:checks][:meme_pool] = {
           status: meme_count > 0 ? 'healthy' : 'warning',
@@ -136,7 +147,7 @@ module Routes
       end
       
       # Must have memes
-      meme_count = MEME_CACHE.get(:memes)&.size || 0
+      meme_count = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
       if meme_count > 0
         checks << { name: 'meme_pool', ready: true }
       else
@@ -284,9 +295,9 @@ module Routes
       
       # Business metrics
       begin
-        health_data[:metrics][:meme_pool_size] = MEME_CACHE.get(:memes)&.size || 0
-        health_data[:metrics][:cache_size] = MEME_CACHE.stats[:size]
-        health_data[:metrics][:last_cache_refresh] = MEME_CACHE.get(:last_refresh)&.iso8601
+        health_data[:metrics][:meme_pool_size] = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
+        health_data[:metrics][:cache_size] = MemeExplorer::App::MEME_CACHE.stats[:size]
+        health_data[:metrics][:last_cache_refresh] = MemeExplorer::App::MEME_CACHE.get(:last_refresh)&.iso8601
       rescue => e
         health_data[:metrics][:error] = e.message
       end
