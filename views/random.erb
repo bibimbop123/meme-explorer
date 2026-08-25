@@ -31,5 +31,13 @@
   </div>
 </div>
 
-<!-- Load modular JavaScript -->
-<script type="module" src="/js/modules/meme-app.js" defer></script>
+<!--
+  NOTE: Do NOT add a second <script src="/js/modules/meme-app.js"> tag here.
+  layout.erb already loads /dist/bundle.js (Vite bundle) on every page, which
+  includes meme-app.js -> MemeNavigation and binds a single Space-bar keydown
+  listener. Loading meme-app.js a second time here previously caused TWO
+  MemeNavigation instances to both handle each Space press, firing
+  loadNextMeme() twice concurrently - two competing fade/fetch/render cycles
+  racing on the same #meme-display element, which looked like an auto-playing
+  carousel instead of a single clean "one meme at a time" transition.
+-->

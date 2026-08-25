@@ -12,7 +12,10 @@ export class MemeNavigation {
   constructor() {
     this.loading = false;
     this.prefetchedMeme = null;
-    this.transitionDuration = 300; // ms
+    // Fast, snappy "one meme at a time" transition. Combined with the
+    // prefetch-ahead pattern below, this keeps Space-bar navigation feeling
+    // instant rather than a slow carousel-style crossfade.
+    this.transitionDuration = 120; // ms
     
     this.init();
   }
