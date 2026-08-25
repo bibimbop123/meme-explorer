@@ -1,4 +1,5 @@
 require_relative "../../spec/spec_helper"
+require_relative "../../lib/services/meme_pool_manager"
 
 describe "Random Meme Routes" do
   describe "GET /random.json (AJAX endpoint)" do
@@ -72,6 +73,32 @@ describe "Random Meme Routes" do
     it "renders the random view" do
       get "/"
       expect(last_response.body).to include("meme")
+    end
+  end
+
+  # Regression test for the production incident (Aug 25, 2026, round 9)
+  # where GET /random trusted MemeExplorer::App::MEME_CACHE[:memes] first
+  # and only called random_memes_pool (which correctly prioritizes
+  # MemePoolManager's Redis-backed, tier-distributed pool) when that
+  # legacy cache was empty. Once MEME_CACHE[:memes] got seeded with just
+  # the 10-item local fallback list, /random kept serving only those 10
+  # local memes forever - even after MemePoolManager's real Reddit-sourced
+  # pool became available and /random.json (which already called
+  # random_memes_pool unconditionally) was serving it correctly.
+  describe "GET /random - MemePoolManager pool preference (round 9 regression)" do
+    it "prefers MemePoolManager over a stale legacy MEME_CACHE snapshot" do
+      stale_local_memes = [{ 'file' => '/images/funny1.jpeg', 'title' => 'stale local meme' }]
+      allow(MemeExplorer::App::MEME_CACHE).to receive(:[]).with(:memes).and_return(stale_local_memes)
+
+      fresh_pool_meme = { 'url' => 'https://i.redd.it/fresh.jpg', 'title' => 'fresh reddit meme', 'subreddit' => 'funny' }
+      allow(MemePoolManager).to receive(:get_pool).and_return(
+        success: true, memes: [fresh_pool_meme], pool_size: 1, error: nil
+      )
+
+      get "/random"
+
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).not_to include('stale local meme')
     end
   end
 end

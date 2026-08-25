@@ -15,12 +15,22 @@ module Routes
           # Initialize session history
           # Removed: using ViewingHistoryService instead
           
-          # Get meme pool
-          meme_pool = if MemeExplorer::App::MEME_CACHE[:memes].is_a?(Array) && !MemeExplorer::App::MEME_CACHE[:memes].empty?
-            MemeExplorer::App::MEME_CACHE[:memes]
-          else
-            random_memes_pool
-          end
+          # BUG FIX (Aug 25, 2026, round 9): this used to trust
+          # MemeExplorer::App::MEME_CACHE[:memes] first, and only call
+          # random_memes_pool (which correctly prioritizes
+          # MemePoolManager's Redis-backed, tier-distributed pool) when
+          # that legacy cache was empty. In production this meant that
+          # once MEME_CACHE[:memes] got seeded with just the 10-item local
+          # fallback list (e.g. during an earlier rate-limited/cold-start
+          # window), /random kept serving only those 10 local memes on
+          # every subsequent request - even after MemePoolManager's real
+          # 170-meme Reddit-sourced pool became available and /random.json
+          # (which already called random_memes_pool unconditionally) was
+          # serving it correctly. Route through random_memes_pool
+          # unconditionally, matching /random.json, so this page always
+          # gets the best available pool instead of a possibly-stale
+          # legacy snapshot.
+          meme_pool = random_memes_pool
           
           # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
           

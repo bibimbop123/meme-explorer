@@ -12,16 +12,21 @@ module Routes
         )
         
         begin
-          # Try pre-warmed cache first (instant when Sidekiq is running)
-          cached = MemeExplorer::App::MEME_CACHE[:memes]
-          if cached.is_a?(Array) && cached.any?
-            @meme = cached.sample
-          else
-            # Cache empty — fetch from Reddit on-demand via random_memes_pool
-            # (triggers OAuth fetch in InlineRedditFetcher when no workers running)
-            pool = random_memes_pool
-            @meme = pool.sample
-          end
+          # BUG FIX (Aug 25, 2026, round 9): this used to trust
+          # MemeExplorer::App::MEME_CACHE[:memes] first and only call
+          # random_memes_pool (which correctly prioritizes
+          # MemePoolManager's Redis-backed, tier-distributed pool) when
+          # that legacy cache was empty. Once MEME_CACHE[:memes] got seeded
+          # with just the 10-item local fallback list (e.g. during an
+          # earlier rate-limited/cold-start window), this route kept
+          # serving only those 10 local memes on every subsequent request
+          # - even after MemePoolManager's real Reddit-sourced pool became
+          # available. random_memes_pool already checks MemePoolManager
+          # first and only falls back to the legacy cache/local memes when
+          # nothing better is available, so call it unconditionally
+          # instead of trusting a possibly-stale MEME_CACHE snapshot.
+          pool = random_memes_pool
+          @meme = pool.sample
           @meme ||= fallback_meme
         rescue => e
           AppLogger.error("Error in root route: #{e.class}: #{e.message}")
