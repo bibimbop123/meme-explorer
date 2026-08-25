@@ -12,10 +12,12 @@ export class MemeNavigation {
   constructor() {
     this.loading = false;
     this.prefetchedMeme = null;
-    // Fast, snappy "one meme at a time" transition. Combined with the
-    // prefetch-ahead pattern below, this keeps Space-bar navigation feeling
-    // instant rather than a slow carousel-style crossfade.
-    this.transitionDuration = 120; // ms
+    // Fast, snappy "one meme at a time" transition. Must match the
+    // "out" keyframe duration in /css/meme-transition.css (memeTransitionOut)
+    // so content swaps exactly when the pop-out animation finishes.
+    // Combined with the prefetch-ahead pattern below, this keeps Space-bar
+    // navigation feeling instant rather than a slow carousel-style crossfade.
+    this.transitionDuration = 140; // ms
     
     this.init();
   }
@@ -209,7 +211,11 @@ export class MemeNavigation {
   }
   
   /**
-   * Render meme with smooth transition
+   * Render meme with an exciting, impressive, GPU-accelerated transition.
+   * Outgoing meme pops out with a blur/rotate; incoming meme springs in
+   * with a slight overshoot, plus a quick full-screen light pulse for
+   * extra "new content just landed" impact. Falls back to a fast plain
+   * crossfade for prefers-reduced-motion users (handled in CSS).
    */
   async renderMeme(meme, pushState = true) {
     const display = document.querySelector('#meme-display');
@@ -220,11 +226,13 @@ export class MemeNavigation {
       return;
     }
     
-    // Fade out old content
-    display.style.opacity = '0';
-    display.style.transition = `opacity ${this.transitionDuration}ms ease-out`;
+    // Play the "out" animation (defined in /css/meme-transition.css)
+    display.classList.remove('meme-transition-in');
+    // Force reflow so re-adding the same class later still restarts the animation
+    void display.offsetWidth;
+    display.classList.add('meme-transition-out');
     
-    // Wait for fade out
+    // Wait for the out-animation to finish before swapping content
     await this.wait(this.transitionDuration);
     
     // Update meme display
@@ -238,8 +246,13 @@ export class MemeNavigation {
     // Update controls state
     this.updateControlsState(meme);
     
-    // Fade in new content
-    display.style.opacity = '1';
+    // Play the springy "in" animation
+    display.classList.remove('meme-transition-out');
+    void display.offsetWidth;
+    display.classList.add('meme-transition-in');
+    
+    // Quick full-viewport light pulse for extra impact on every new meme
+    this.flashPulse();
     
     // Push state for browser history
     if (pushState) {
@@ -506,6 +519,25 @@ export class MemeNavigation {
   
   wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  /**
+   * Brief full-viewport light pulse (CSS-driven, GPU-accelerated) to add
+   * extra "impact" the instant a new meme lands. Reuses a single element
+   * so rapid Space presses don't pile up DOM nodes.
+   */
+  flashPulse() {
+    let pulse = document.querySelector('.meme-flash-pulse');
+    if (!pulse) {
+      pulse = document.createElement('div');
+      pulse.className = 'meme-flash-pulse';
+      document.body.appendChild(pulse);
+    } else {
+      // Restart the animation if it's already mid-flight
+      pulse.style.animation = 'none';
+      void pulse.offsetWidth;
+      pulse.style.animation = '';
+    }
   }
   
   escapeHtml(text) {

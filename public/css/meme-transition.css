@@ -1,0 +1,91 @@
+/* Meme Transition - Exciting, impressive, smooth Space-bar navigation
+ * GPU-accelerated (transform + opacity only) so it stays fast even on
+ * low-end/mobile devices. Respects prefers-reduced-motion.
+ */
+
+#meme-display {
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
+}
+
+/* Outgoing meme: quick pop-out + blur + slight rotation, feels punchy */
+#meme-display.meme-transition-out {
+  animation: memeTransitionOut 140ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+/* Incoming meme: springy pop-in with overshoot, feels alive/impressive */
+#meme-display.meme-transition-in {
+  animation: memeTransitionIn 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes memeTransitionOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotate(0deg);
+    filter: blur(0px) brightness(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-10px) rotate(-1.5deg);
+    filter: blur(6px) brightness(1.15);
+  }
+}
+
+@keyframes memeTransitionIn {
+  0% {
+    opacity: 0;
+    transform: scale(1.08) translateY(14px) rotate(1.5deg);
+    filter: blur(6px) brightness(1.15);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.015) translateY(-2px) rotate(0deg);
+    filter: blur(0px) brightness(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotate(0deg);
+    filter: blur(0px) brightness(1);
+  }
+}
+
+/* Subtle full-viewport flash/glow pulse on each new meme - reinforces the
+ * "new content just landed" feeling without being distracting */
+.meme-flash-pulse {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%);
+  opacity: 0;
+  animation: memeFlashPulse 420ms ease-out forwards;
+}
+
+@keyframes memeFlashPulse {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Respect users who prefer reduced motion: fall back to a simple, fast
+ * crossfade with no scale/blur/rotation gimmicks. */
+@media (prefers-reduced-motion: reduce) {
+  #meme-display.meme-transition-out {
+    animation: memeTransitionOutReduced 80ms linear forwards;
+  }
+  #meme-display.meme-transition-in {
+    animation: memeTransitionInReduced 80ms linear forwards;
+  }
+  .meme-flash-pulse {
+    display: none;
+  }
+}
+
+@keyframes memeTransitionOutReduced {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes memeTransitionInReduced {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
