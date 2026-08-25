@@ -26,6 +26,10 @@ use Rack::Session::Redis,
     end
   end)
 
+# Session validation middleware - validates sessions on each request
+require_relative 'lib/middleware/session_validator'
+use SessionValidator
+
 # Authorization middleware - protects routes based on permissions
 require_relative 'lib/middleware/authorization'
 use AuthorizationMiddleware

@@ -104,8 +104,13 @@ class AuthRoutes
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
             
+            # ✅ CRITICAL FIX: Fetch user role from database and store in session
+            user = UserService.find_by_id(user_id)
+            user_role = user ? (user['role'] || 'user') : 'user'
+            
             # Set session data with new session ID
             session[:user_id] = user_id
+            session[:role] = user_role
             session[:reddit_username] = result[:username]
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
@@ -193,8 +198,18 @@ class AuthRoutes
               # ✅ SECURITY FIX: Clear failed login attempts on successful login
               AuthService.clear_failed_logins(email, redis)
               
-              # Set session data (session fixation prevented by Rack::Session)
+              # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
+              env['rack.session'].clear
+              env['rack.session'].options[:renew] = true
+              
+              # ✅ CRITICAL FIX: Fetch user role from database and store in session
+              user = UserService.find_by_id(user_id)
+              user_role = user ? (user['role'] || 'user') : 'user'
+              
+              # Set session data with new session ID
               session[:user_id] = user_id
+              session[:role] = user_role
+              session[:email] = email
               session[:login_timestamp] = Time.now.to_i
               session[:login_ip] = request.ip
               
@@ -269,14 +284,34 @@ class AuthRoutes
               return { success: false, error: "Passwords do not match" }.to_json
             end
 
+            # ✅ SECURITY FIX: Rate limit signup attempts by IP
+            redis = settings.redis rescue nil
+            signup_key = "signup_attempts:#{request.ip}"
+            if redis
+              attempts = redis.get(signup_key).to_i
+              if attempts >= 5
+                return { success: false, error: "Too many signup attempts. Please try again later." }.to_json
+              end
+              redis.setex(signup_key, 3600, attempts + 1)  # 1 hour window
+            end
+
             # Create user with validated data
             user_id = UserService.create_email_user(email, password)
             unless user_id
               return { success: false, error: "Email already in use" }.to_json
             end
 
-            # Set session data (session fixation prevented by Rack::Session)
+            # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
+            env['rack.session'].clear
+            env['rack.session'].options[:renew] = true
+            
+            # ✅ CRITICAL FIX: Fetch user role from database and store in session
+            user = UserService.find_by_id(user_id)
+            user_role = user ? (user['role'] || 'user') : 'user'
+            
+            # Set session data with new session ID
             session[:user_id] = user_id
+            session[:role] = user_role
             session[:email] = email
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip

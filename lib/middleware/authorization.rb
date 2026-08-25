@@ -14,23 +14,31 @@ class AuthorizationMiddleware
     path = env['PATH_INFO']
     session = env['rack.session']
     
+    # ✅ SECURITY FIX: Always get fresh role from session (synced by SessionValidator)
+    user_id = session[:user_id]
+    user_role = session[:role] || 'user'
+    
     # Check admin routes
     if requires_admin?(path)
-      unless session[:user_id] && session[:role] == 'admin'
+      unless user_id && user_role == 'admin'
+        audit_log_unauthorized(user_id, user_role, path, request.ip, 'admin')
         return unauthorized_response(request, 'Admin access required')
       end
+      audit_log_authorized(user_id, user_role, path, request.ip, 'admin')
     end
     
     # Check moderator routes
     if requires_moderator?(path)
-      unless session[:user_id] && ['admin', 'moderator'].include?(session[:role])
+      unless user_id && ['admin', 'moderator'].include?(user_role)
+        audit_log_unauthorized(user_id, user_role, path, request.ip, 'moderator')
         return unauthorized_response(request, 'Moderator access required')
       end
+      audit_log_authorized(user_id, user_role, path, request.ip, 'moderator')
     end
     
     # Check authenticated routes
     if requires_login?(path)
-      unless session[:user_id]
+      unless user_id
         return unauthenticated_response(request)
       end
     end
@@ -116,5 +124,26 @@ class AuthorizationMiddleware
        {'Location' => "/login?redirect=#{CGI.escape(request.path)}"},
        []]
     end
+  end
+  
+  # ✅ SECURITY: Audit logging for authorization events
+  def audit_log_unauthorized(user_id, role, path, ip, required_role)
+    AppLogger.warn('[Authorization] Access denied',
+      user_id: user_id,
+      role: role,
+      required_role: required_role,
+      path: path,
+      ip: ip
+    )
+  end
+  
+  def audit_log_authorized(user_id, role, path, ip, required_role)
+    AppLogger.info('[Authorization] Access granted',
+      user_id: user_id,
+      role: role,
+      required_role: required_role,
+      path: path,
+      ip: ip
+    )
   end
 end

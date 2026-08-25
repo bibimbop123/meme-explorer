@@ -1,19 +1,21 @@
 # User Service - Handles user-related operations
 class UserService
   def self.create_or_find_from_reddit(reddit_username, reddit_id, reddit_email)
-    existing = DB.execute("SELECT id FROM users WHERE reddit_id = ?", [reddit_id]).first
+    existing = DB.execute("SELECT id, role FROM users WHERE reddit_id = ?", [reddit_id]).first
     return existing["id"] if existing
 
+    # ✅ SECURITY FIX: Set default role when creating user
     DB.last_insert_row_id(
-      "INSERT INTO users (reddit_id, reddit_username, reddit_email) VALUES (?, ?, ?)",
+      "INSERT INTO users (reddit_id, reddit_username, reddit_email, role) VALUES (?, ?, ?, 'user')",
       [reddit_id, reddit_username, reddit_email]
     )
   end
 
   def self.create_email_user(email, password)
     hashed = BCrypt::Password.create(password)
+    # ✅ SECURITY FIX: Set default role when creating user
     DB.last_insert_row_id(
-      "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+      "INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'user')",
       [email, hashed]
     )
   rescue PG::UniqueViolation, StandardError => e
@@ -26,7 +28,7 @@ class UserService
   end
 
   def self.find_by_id(user_id)
-    DB.execute("SELECT id, reddit_username, email, created_at FROM users WHERE id = ?", [user_id]).first
+    DB.execute("SELECT id, reddit_username, email, role, created_at FROM users WHERE id = ?", [user_id]).first
   end
 
   def self.verify_password(password, hash)
