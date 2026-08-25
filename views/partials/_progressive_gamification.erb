@@ -2,7 +2,7 @@
 # Progressive disclosure of gamification features
 # Based on session count - don't overwhelm new users
 tier = show_gamification_tier(session[:session_count] || 0)
-user_id = session[:user_id]
+user_id = current_user_id
 %>
 
 <% if tier == :minimal %>

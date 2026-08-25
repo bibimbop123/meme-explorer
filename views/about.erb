@@ -140,7 +140,7 @@
     <h2>Join the Community</h2>
     <p>Ready to discover amazing memes?</p>
     <div class="cta-buttons">
-      <% if session[:user_id] %>
+      <% if logged_in? %>
         <a href="/trending" class="btn-primary">Browse Memes</a>
       <% else %>
         <a href="/signup" class="btn-primary">Sign Up Free</a>

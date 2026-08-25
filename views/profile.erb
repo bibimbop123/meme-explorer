@@ -15,8 +15,8 @@
   </div>
 
   <!-- 🎬 CRITERION COLLECTION: Taste Profile -->
-  <% if session[:user_id] %>
-    <%= render_taste_profile(session[:user_id]) %>
+  <% if logged_in? %>
+    <%= render_taste_profile(current_user_id) %>
   <% end %>
 
   <h2>My Liked Memes</h2>

@@ -441,7 +441,7 @@ e    }
   <script src="/js/ad-manager.js"></script>
   
   <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->
-  <% if session[:user_id] %>
+  <% if logged_in? %>
   <script>
   // Push Notification Registration System
   (function() {
