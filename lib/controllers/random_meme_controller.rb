@@ -1,11 +1,24 @@
 # frozen_string_literal: true
 
 require_relative '../app_logger'
-require_relative '../services/diversity_engine_service'
+require_relative '../services/simple_meme_selector'
 require_relative '../services/viewing_history_service'
-require_relative '../services/milestone_service'
-require_relative '../services/retention_service'
-require_relative '../services/near_miss_service'
+
+# NOTE: MilestoneService, RetentionService, and NearMissService were removed
+# from the codebase during a prior cleanup ("Elon audit") along with the
+# gamification features they backed. This controller was left referencing
+# them unconditionally, which meant simply `require`-ing this file raised a
+# LoadError. All call sites below already guard usage with
+# `defined?(MemeExplorer::XyzService)`, so it's safe to only require these
+# optionally — if/when those services are reintroduced, drop them back in
+# lib/services/ and they'll be picked up automatically.
+%w[milestone_service retention_service near_miss_service].each do |service|
+  begin
+    require_relative "../services/#{service}"
+  rescue LoadError
+    # Service not present — corresponding gamification features stay disabled.
+  end
+end
 
 module MemeExplorer
   # Controller for handling random meme selection and display
@@ -73,10 +86,6 @@ module MemeExplorer
         end
       end
     end
-      
-      # Emergency fallback
-      random_memes_pool
-    end
     
     def from_pool_manager
       return nil unless defined?(MemeExplorer::MemePoolManager)
@@ -109,7 +118,11 @@ module MemeExplorer
     def select_meme(pool, session_id)
       return fallback_meme if pool.nil? || pool.empty?
       
-      meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+      # NOTE: DiversityEngineService was deprecated/archived (see
+      # docs/archive/diversity_engine_service_v1_deprecated.rb). The live
+      # /random route uses MemeExplorer::SimpleMemeSelector, so this
+      # controller is kept consistent with that production selection logic.
+      meme = MemeExplorer::SimpleMemeSelector.select_random_meme(
         pool,
         session_id: session_id,
         preferences: {}
@@ -277,13 +290,6 @@ module MemeExplorer
         else
           write_analytics(meme_identifier, meme["title"], meme["subreddit"], user_id) rescue nil
         end
-      end
-    rescue => e
-      AppLogger.warn("Analytics tracking error", error: e.message)
-    end
-      else
-        # Synchronous fallback
-        write_analytics(meme_identifier, meme["title"], meme["subreddit"], user_id) rescue nil
       end
     rescue => e
       AppLogger.warn("Analytics tracking error", error: e.message)

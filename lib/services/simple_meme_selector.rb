@@ -63,15 +63,21 @@ module MemeExplorer
           end
         end
         
-        # 4. Simple random selection
-        selected = pool.sample
+        # 4. Selection: weight towards higher-engagement memes (likes/views)
+        # when we have that data, otherwise fall back to pure uniform random.
+        # This surfaces content users are more likely to enjoy without
+        # sacrificing variety — unseen-filtering (step 1) already guarantees
+        # no repeats, and boost_fresh (step 3) still injects new content.
+        selected = weighted_sample(pool)
+        selection_method = selected && has_engagement_data?(pool) ? 'weighted_random' : 'simple_random'
+        selected ||= pool.sample
         
         # 5. Mark as seen (for next time)
         meme_id = selected['url'] || selected[:url] || selected['id'] || selected[:id]
         ViewingHistoryService.mark_seen(session_id, meme_id.to_s)
         
         # 6. Add metadata for debugging
-        selected['selection_method'] = 'simple_random'
+        selected['selection_method'] = selection_method
         selected['pool_size'] = pool.size
         selected['total_unseen'] = unseen.size
         
@@ -86,6 +92,40 @@ module MemeExplorer
       end
       
       private
+
+      # Does this pool actually carry likes/views data worth weighting on?
+      # Local placeholder memes and freshly-fetched Reddit posts often have
+      # no stats yet, in which case weighting would be a no-op anyway.
+      def has_engagement_data?(pool)
+        pool.any? { |m| (m['likes'] || m[:likes]).to_i > 0 || (m['views'] || m[:views]).to_i > 0 }
+      end
+
+      # Weighted random selection by engagement score (likes/views).
+      # score = sqrt(likes * 2 + views), with a floor so untested memes
+      # still have a fair (if smaller) chance of being shown — this keeps
+      # discovery alive instead of only ever surfacing already-popular memes.
+      def weighted_sample(pool)
+        return nil if pool.empty?
+
+        weights = pool.map do |m|
+          likes = (m['likes'] || m[:likes]).to_i
+          views = (m['views'] || m[:views]).to_i
+          score = Math.sqrt((likes * 2 + views).to_f)
+          [score, 0.1].max
+        end
+
+        total_weight = weights.sum
+        return pool.sample if total_weight <= 0
+
+        r = rand * total_weight
+        cumulative = 0
+        pool.each_with_index do |meme, idx|
+          cumulative += weights[idx]
+          return meme if cumulative >= r
+        end
+
+        pool.last
+      end
       
       # Check if meme is fresh (created in last 24 hours)
       def fresh?(meme)

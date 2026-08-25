@@ -245,28 +245,17 @@ rescue => e
   MEME_CACHE.get(:memes) || MEMES
 end
 
-# Phase 1: Weighted random selection by score
+# Phase 1: Weighted random selection by score.
+#
+# This delegates to MemeExplorer::SimpleMemeSelector's weighted sampler so
+# there's a single, tested implementation of "engagement-weighted random
+# selection" shared by both the production /random path and any legacy
+# navigation code that still calls this helper, instead of two copies of
+# the same algorithm silently drifting apart.
 def weighted_random_select(memes)
   return nil if memes.empty?
-  
-  # Calculate weights: score = sqrt(likes * 2 + views)
-  weights = memes.map do |m|
-    score = Math.sqrt((m["likes"].to_i * 2 + m["views"].to_i).to_f)
-    [score, 0.1].max  # Minimum weight of 0.1 for unknown memes
-  end
-  
-  total_weight = weights.sum
-  return memes.sample if total_weight == 0
-  
-  # Normalize weights and select
-  r = rand * total_weight
-  cumulative = 0
-  memes.each_with_index do |meme, idx|
-    cumulative += weights[idx]
-    return meme if cumulative >= r
-  end
-  
-  memes.last
+
+  MemeExplorer::SimpleMemeSelector.send(:weighted_sample, memes) || memes.sample
 end
 
 # Get likes safely - MIGRATED TO RedisService (Phase 3 Week 1)

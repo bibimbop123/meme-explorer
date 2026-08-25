@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../spec_helper'
+require_relative '../../lib/controllers/random_meme_controller'
 
 RSpec.describe "Random Algorithm Integration", type: :integration do
   let(:session) { {} }
@@ -52,8 +53,10 @@ RSpec.describe "Random Algorithm Integration", type: :integration do
 
       it "handles errors gracefully and returns fallback meme" do
         skip "RandomMemeController not yet integrated" unless defined?(MemeExplorer::RandomMemeController)
-        
-        allow(MemeExplorer::DiversityEngineService).to receive(:select_diverse_meme)
+
+        # NOTE: DiversityEngineService was removed from the codebase; the
+        # controller now selects memes via MemeExplorer::SimpleMemeSelector.
+        allow(MemeExplorer::SimpleMemeSelector).to receive(:select_random_meme)
           .and_raise(StandardError.new("Test error"))
 
         result = MemeExplorer::RandomMemeController.handle(

@@ -73,9 +73,14 @@ module MemePoolHelpers
       end
     end
     
-    # Return 60% preferred + 40% neutral for variety
-    ratio = (preferred.size * 0.6 / [preferred.size, 1].max).to_i
-    (preferred.sample(ratio) + neutral.sample((pool.size - ratio))).compact.shuffle
+    # Return up to 60% preferred + remainder neutral for variety.
+    # (Previous formula `preferred.size * 0.6 / preferred.size` always
+    # simplified to 0, so personalization never actually boosted
+    # preferred subreddits — users never saw more of what they liked.)
+    desired_preferred = (pool.size * 0.6).to_i
+    ratio = [desired_preferred, preferred.size].min
+    neutral_count = [pool.size - ratio, neutral.size].min
+    (preferred.sample(ratio) + neutral.sample(neutral_count)).compact.shuffle
   end
 
   # Get time-based pool distribution for personalization
@@ -124,13 +129,46 @@ module MemePoolHelpers
     result || []
   end
 
-  # Get random exploration memes
+  # Get random exploration memes.
+  #
+  # NOTE: This previously used `ORDER BY RANDOM()`, which forces SQLite to
+  # assign a random value to and sort *every* qualifying row on every call.
+  # That's an O(n log n) full-table-scan-and-sort that gets progressively
+  # more expensive as meme_stats grows, and this pool is rebuilt on the hot
+  # /random path. Instead, we grab a bounded candidate window (cheap, uses
+  # the primary key / any index on id) and shuffle it in Ruby — same
+  # "explore something different" feel for users, without the DB cost.
   def get_exploration_pool(limit = 20)
-    result = DB.execute(
-      "SELECT * FROM meme_stats WHERE failure_count IS NULL OR failure_count < 2 ORDER BY RANDOM() LIMIT ?",
-      [limit]
+    candidate_window = [limit * 10, 500].min
+
+    # Pick a random starting point across the id range so exploration
+    # surfaces content from anywhere in the table (not just the newest
+    # rows), while still only ever fetching/sorting a bounded window —
+    # far cheaper than `ORDER BY RANDOM()` over the whole table.
+    max_id_row = DB.execute("SELECT MAX(id) AS max_id FROM meme_stats").first rescue nil
+    max_id = max_id_row ? (max_id_row["max_id"] || max_id_row["MAX(id)"]).to_i : 0
+    random_start = max_id > 0 ? rand(0..max_id) : 0
+
+    candidates = DB.execute(
+      "SELECT * FROM meme_stats WHERE id >= ? AND (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
+      [random_start, candidate_window]
     ) rescue []
-    result || []
+
+    candidates = [] if candidates.nil?
+
+    # If the random window landed near the end of the table and came up
+    # short, wrap around and fill from the start.
+    if candidates.size < limit
+      remaining = limit - candidates.size
+      seen_ids = candidates.map { |m| m["id"] }
+      wrap = DB.execute(
+        "SELECT * FROM meme_stats WHERE (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
+        [candidate_window]
+      ) rescue []
+      candidates += (wrap || []).reject { |m| seen_ids.include?(m["id"]) }.first(remaining)
+    end
+
+    candidates.sample(limit)
   end
 
   # Get meme pool - NOW USING 5,000-MEME INTELLIGENT POOL (Phase 2)
