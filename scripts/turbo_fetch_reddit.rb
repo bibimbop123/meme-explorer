@@ -2,7 +2,7 @@
 # Turbo Fetch Reddit Memes - Bypass rate limit with smart delays
 # Run this to force-fetch fresh memes from Reddit
 
-require_relative '../config/application'
+require_relative '../app'
 require_relative '../lib/services/reddit_fetcher_service'
 require 'net/http'
 require 'json'
