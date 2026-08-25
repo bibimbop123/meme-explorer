@@ -11,6 +11,31 @@ REDIS_CLUSTER_ENABLED = ENV['REDIS_CLUSTER'] == 'true'
 REDIS_POOL_SIZE = (ENV['REDIS_POOL_SIZE'] || 50).to_i
 REDIS_TIMEOUT = (ENV['REDIS_TIMEOUT'] || 5).to_i
 
+# BUG FIX (Aug 25, 2026, round 8): `reconnect_delay:` / `reconnect_delay_max:`
+# are NOT valid keyword arguments for Redis.new in the installed redis gem
+# (5.4.1) - only `reconnect_attempts:` is supported. Passing either one
+# raises `ArgumentError: unknown keyword: :reconnect_delay` (verified
+# locally). Because REDIS_POOL lazily constructs the Redis client inside
+# the ConnectionPool block, this ArgumentError was raised on EVERY single
+# `REDIS_POOL.with { ... }` call in production - i.e. every real attempt to
+# talk to Redis failed immediately, before any network connection was even
+# attempted. RedisService#redis_available?'s bare `rescue` silently
+# swallowed this and reported `false`, which every downstream caller
+# (MemePoolManager's bootstrap lock, the on-demand fetch cooldown, /health)
+# interpreted as "Redis is down" - when in fact Redis itself was never the
+# problem; the client object could never even be constructed. This explains
+# the "redis: available: false" /health reading despite Sidekiq (which uses
+# its own, differently-configured Redis client in config/initializers/
+# sidekiq.rb) connecting successfully at boot.
+# NOTE: the base `redis` gem no longer supports `cluster:` at all - it was
+# moved to the separate `redis-clustering` gem, which is NOT currently in
+# the Gemfile. If REDIS_CLUSTER/REDIS_CLUSTER_URLS are ever set without
+# also adding that gem, Redis.new(cluster: [...]) below will raise
+# `RuntimeError: Redis Cluster support was moved to the redis-clustering
+# gem.` immediately - the exact same failure shape as the reconnect_delay
+# bug fixed above (an unusable client that RedisService's rescue silently
+# reports as "Redis unavailable"). This branch is not exercised today
+# since neither env var is set in production.
 if REDIS_CLUSTER_ENABLED && ENV['REDIS_CLUSTER_URLS']
   # Multiple Redis nodes for clustering
   redis_urls = ENV['REDIS_CLUSTER_URLS'].split(',').map(&:strip)
@@ -19,8 +44,6 @@ if REDIS_CLUSTER_ENABLED && ENV['REDIS_CLUSTER_URLS']
     Redis.new(
       cluster: redis_urls,
       reconnect_attempts: 3,
-      reconnect_delay: 1,
-      reconnect_delay_max: 5,
       timeout: REDIS_TIMEOUT
     )
   end
@@ -35,7 +58,6 @@ else
     Redis.new(
       url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
       reconnect_attempts: 3,
-      reconnect_delay: 1,
       timeout: REDIS_TIMEOUT
     )
   end
