@@ -172,6 +172,15 @@ class MemePoolManager
     end
     
     # Trigger background expansion to full 5K pool
+    #
+    # IMPORTANT: This is a best-effort, fire-and-forget side effect called
+    # right after a successful bootstrap (see get_pool above). It must NEVER
+    # raise — if it does, the exception propagates up through get_pool's
+    # rescue and discards the memes we just successfully fetched from Reddit,
+    # silently degrading every request to the 10-meme local fallback even
+    # though bootstrap actually worked. (This happened in production when
+    # Sidekiq's Redis `namespace:` option broke perform_async - see
+    # config/initializers/sidekiq.rb.)
     def trigger_background_expansion
       if defined?(MemePoolMaintenanceWorker)
         MemePoolMaintenanceWorker.perform_async
@@ -179,6 +188,8 @@ class MemePoolManager
       else
         AppLogger.debug("ℹ️  [PoolManager] Sidekiq unavailable, pool will stay at bootstrap size")
       end
+    rescue => e
+      log_error("Trigger background expansion error (non-fatal, ignoring)", e)
     end
     
     # Build pool from scratch
