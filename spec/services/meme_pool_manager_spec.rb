@@ -147,6 +147,92 @@ RSpec.describe MemePoolManager do
       expect(result[:success]).to eq(false)
       expect(result[:error]).to match(/rate limited/i)
     end
+
+    # Regression test for the production incident (Aug 25, 2026, round 6):
+    # success used to be defined as `stored > 0`, where `stored` comes from
+    # store_in_pool's RedisService.set call. When Redis is genuinely
+    # unreachable, RedisService.set always silently returns false, so
+    # `stored` was always 0 EVEN THOUGH real memes had been fetched and
+    # validated from Reddit - bootstrap_pool always reported failure
+    # despite having good data, making it impossible for any Redis-
+    # independent caller to ever succeed.
+    it 'reports success based on validated memes, not on whether Redis storage succeeded' do
+      allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
+      fetcher_double = instance_double(RedditFetcherService)
+      allow(fetcher_double).to receive(:fetch_memes).and_return(
+        [{ 'url' => 'a', 'title' => 't', 'subreddit' => 'funny' }]
+      )
+      allow(described_class).to receive(:create_fetcher).and_return(fetcher_double)
+      # Simulate Redis being completely unavailable - store_in_pool returns 0.
+      allow(described_class).to receive(:store_in_pool).and_return(0)
+
+      result = described_class.send(:bootstrap_pool)
+
+      expect(result[:success]).to eq(true)
+      expect(result[:memes]).not_to be_empty
+    end
+  end
+
+  describe '.get_pool_via_in_process_fallback (private)' do
+    after { described_class.reset_in_process_state! }
+
+    # Regression tests for the production incident (Aug 25, 2026, round 6)
+    # where /health confirmed Redis was genuinely unreachable
+    # ("redis: available: false"). Since RedisService.acquire_lock always
+    # returns false when Redis is down, no request could ever become the
+    # bootstrapper via the normal Redis-backed path, and the app was
+    # permanently stuck serving only the 10-meme local fallback pool with
+    # zero visible errors. This in-process fallback must let bootstrap
+    # still happen (in degraded, per-worker-process mode) even with Redis
+    # fully down.
+    it 'is used automatically by get_pool when Redis is unavailable' do
+      allow(RedisService).to receive(:redis_available?).and_return(false)
+      allow(described_class).to receive(:get_current_pool).and_return([])
+
+      expect(described_class).to receive(:get_pool_via_in_process_fallback).and_call_original
+
+      described_class.get_pool
+    end
+
+    it 'returns the in-process pool immediately once populated' do
+      described_class.finish_in_process_bootstrap!(memes: [{ 'url' => 'a' }, { 'url' => 'b' }])
+
+      result = described_class.send(:get_pool_via_in_process_fallback)
+
+      expect(result[:success]).to eq(true)
+      expect(result[:memes].size).to eq(2)
+    end
+
+    it 'starts exactly one in-process bootstrap and returns a fast fallback while it runs' do
+      allow(described_class).to receive(:bootstrap_pool) do
+        sleep 2
+        { success: true, size: 1, memes: [{ 'url' => 'fresh' }], error: nil }
+      end
+
+      elapsed = Benchmark.realtime { @result = described_class.send(:get_pool_via_in_process_fallback) }
+
+      expect(elapsed).to be < 1.0
+      expect(@result[:success]).to eq(false)
+    end
+
+    it 'prevents a second concurrent in-process bootstrap while one is already running' do
+      described_class.try_start_in_process_bootstrap!
+
+      result = described_class.send(:get_pool_via_in_process_fallback)
+
+      expect(result[:success]).to eq(false)
+      expect(result[:error]).to match(/in progress/i)
+    end
+
+    it 'respects its own in-process cooldown after a failed bootstrap' do
+      described_class.finish_in_process_bootstrap!(cooldown_ttl: 60)
+
+      expect(described_class).not_to receive(:bootstrap_pool)
+
+      result = described_class.send(:get_pool_via_in_process_fallback)
+      expect(result[:success]).to eq(false)
+      expect(result[:error]).to match(/cooling down/i)
+    end
   end
 end
 

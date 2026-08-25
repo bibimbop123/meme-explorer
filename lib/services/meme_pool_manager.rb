@@ -15,6 +15,70 @@ class MemePoolManager
   BOOTSTRAP_COOLDOWN_KEY = "meme_pool:bootstrap_cooldown"
   BOOTSTRAP_COOLDOWN_TTL = 300 # 5 minutes - avoid hammering Reddit while rate-limited
   BOOTSTRAP_LOCK_KEY = "lock:meme_pool:bootstrap"
+
+  # BUG FIX (Aug 25, 2026, round 6): The entire pool architecture above
+  # (get_current_pool, store_in_pool, the bootstrap lock/cooldown) is built
+  # entirely on Redis. RedisService.acquire_lock/get/set/delete all
+  # early-return a default value whenever redis_available? is false - so
+  # when Redis is genuinely unreachable (confirmed via /health showing
+  # "redis: available: false"), RedisService.acquire_lock(BOOTSTRAP_LOCK_KEY)
+  # ALWAYS returns false. That means no request could ever become "the"
+  # bootstrapper, no background bootstrap thread was ever spawned, and the
+  # app was permanently stuck serving only the 10-meme local fallback pool
+  # with zero visible errors (the log message "Another request is
+  # bootstrapping" was misleading - nobody was actually bootstrapping).
+  #
+  # Fix: keep an in-process (thread-safe) fallback lock/pool so bootstrap
+  # can still happen entirely within a single Puma worker's memory even
+  # when Redis is completely down. This is a degraded mode (each worker
+  # process bootstraps and caches its own copy rather than sharing one
+  # pool via Redis), but it means real Reddit content can still load
+  # instead of being permanently stuck on local placeholders.
+  @in_process_pool = []
+  @in_process_bootstrap_mutex = Mutex.new
+  @in_process_bootstrapping = false
+  @in_process_cooldown_until = nil
+
+  class << self
+    attr_accessor :in_process_pool
+
+    def in_process_pool_available?
+      @in_process_bootstrap_mutex.synchronize { !@in_process_pool.empty? }
+    end
+
+    def in_process_cooling_down?
+      @in_process_bootstrap_mutex.synchronize do
+        !!(@in_process_cooldown_until && Time.now < @in_process_cooldown_until)
+      end
+    end
+
+    # Returns true if this call became the bootstrapper (caller must ensure
+    # `finish_in_process_bootstrap!` runs afterwards, even on error).
+    def try_start_in_process_bootstrap!
+      @in_process_bootstrap_mutex.synchronize do
+        return false if @in_process_bootstrapping
+        @in_process_bootstrapping = true
+        true
+      end
+    end
+
+    def finish_in_process_bootstrap!(memes: nil, cooldown_ttl: nil)
+      @in_process_bootstrap_mutex.synchronize do
+        @in_process_pool = memes if memes
+        @in_process_cooldown_until = Time.now + cooldown_ttl if cooldown_ttl
+        @in_process_bootstrapping = false
+      end
+    end
+
+    # Test/ops helper to reset state between specs or after manual recovery.
+    def reset_in_process_state!
+      @in_process_bootstrap_mutex.synchronize do
+        @in_process_pool = []
+        @in_process_bootstrapping = false
+        @in_process_cooldown_until = nil
+      end
+    end
+  end
   # BUG FIX (Aug 25, 2026): this was 45s, but the on-demand bootstrap fetched
   # from up to 80 subreddits sequentially with a 1s throttle between each
   # (see RedditFetcherService::THROTTLE_DELAY) - realistically 80-120+
@@ -127,6 +191,18 @@ class MemePoolManager
           error: nil
         }
       end
+
+      # BUG FIX (Aug 25, 2026, round 6): if Redis is genuinely unreachable,
+      # every RedisService call below (acquire_lock/get/set/delete) would
+      # otherwise silently no-op, meaning acquire_lock ALWAYS returns false
+      # and no request could ever become the bootstrapper - the app stays
+      # permanently stuck on the 10-meme local fallback with zero errors.
+      # When Redis is down, fall through entirely to an in-process (single
+      # worker memory) bootstrap/lock/pool instead, so real Reddit content
+      # can still load in degraded mode.
+      unless RedisService.redis_available?
+        return get_pool_via_in_process_fallback
+      end
       
       # Pool empty - check cooldown before hammering Reddit again.
       # If we recently confirmed Reddit is rate-limiting us, skip straight to
@@ -203,6 +279,54 @@ class MemePoolManager
       log_error("Get pool error", e)
       { success: false, memes: [], pool_size: 0, error: e.message }
     end
+
+    # Degraded-mode pool retrieval used only when Redis is confirmed
+    # unreachable (see get_pool). Mirrors the same "one bootstrapper,
+    # background thread, fast local fallback for everyone else" shape as
+    # the Redis-backed path above, but coordinated entirely via in-process
+    # memory (Mutex-protected class state) instead of Redis keys - this
+    # pool is per-worker-process rather than shared across the fleet, but
+    # it's the only way to ever load real Reddit content while Redis is
+    # down instead of being permanently stuck on local placeholders.
+    def get_pool_via_in_process_fallback
+      if in_process_pool_available?
+        pool = in_process_pool
+        return { success: true, memes: pool, pool_size: pool.size, error: nil }
+      end
+
+      if in_process_cooling_down?
+        AppLogger.warn("⏳ [PoolManager] In-process bootstrap cooling down (Redis unavailable, recent rate limit) - using local fallback")
+        return { success: false, memes: [], pool_size: 0, error: "In-process bootstrap cooling down after recent rate limit" }
+      end
+
+      unless try_start_in_process_bootstrap!
+        AppLogger.info("⏳ [PoolManager] Another in-process bootstrap already running (Redis unavailable) - using local fallback for now")
+        return { success: false, memes: [], pool_size: 0, error: "In-process bootstrap in progress - using local fallback" }
+      end
+
+      Thread.new do
+        Thread.current.name = 'meme-pool-bootstrap-in-process'
+        Thread.current.abort_on_exception = false
+
+        begin
+          AppLogger.warn("⚠️  [PoolManager] Pool empty, bootstrapping in-process (Redis unavailable)...")
+          bootstrap_result = bootstrap_pool
+
+          if bootstrap_result[:success]
+            AppLogger.info("✅ [PoolManager] In-process background bootstrap complete: #{bootstrap_result[:size]} memes")
+            finish_in_process_bootstrap!(memes: bootstrap_result[:memes])
+          else
+            AppLogger.error("⚠️  [PoolManager] In-process background bootstrap failed: #{bootstrap_result[:error]}")
+            finish_in_process_bootstrap!(cooldown_ttl: BOOTSTRAP_COOLDOWN_TTL)
+          end
+        rescue => e
+          log_error("In-process background bootstrap error", e)
+          finish_in_process_bootstrap!(cooldown_ttl: BOOTSTRAP_COOLDOWN_TTL)
+        end
+      end
+
+      { success: false, memes: [], pool_size: 0, error: "In-process bootstrap started in background - using local fallback" }
+    end
     
     # Bootstrap pool with quick 500-meme fetch (20-30 seconds)
     def bootstrap_pool
@@ -265,8 +389,18 @@ class MemePoolManager
       # Bootstrap succeeded - clear any prior rate-limit cooldown
       RedisService.delete(BOOTSTRAP_COOLDOWN_KEY) if stored > 0
 
-      # Return memes directly (don't re-fetch from Redis)
-      { success: stored > 0, size: stored, memes: validated, error: stored == 0 ? "No memes passed validation" : nil }
+      # BUG FIX (Aug 25, 2026, round 6): success used to be defined as
+      # `stored > 0` - i.e. it depended on RedisService.set succeeding
+      # inside store_in_pool. When Redis is genuinely unreachable,
+      # RedisService.set always silently returns false, so `stored` was
+      # always 0 EVEN WHEN we had genuinely fetched and validated real
+      # memes from Reddit - bootstrap_pool always reported failure despite
+      # having good data in `validated`, and callers like
+      # get_pool_via_in_process_fallback (which read `validated`/`memes`
+      # from this return value, not from Redis) had no way to succeed.
+      # Success should reflect whether we actually have usable memes, not
+      # whether the (optional, best-effort) Redis cache write succeeded.
+      { success: validated.any?, size: validated.size, memes: validated, error: validated.empty? ? "No memes passed validation" : nil }
     rescue => e
       log_error("Bootstrap error", e)
       { success: false, size: 0, memes: [], error: e.message }
