@@ -3,6 +3,40 @@
 # MemePoolHelpers - Extracted from app.rb Phase 3
 # Handles meme pool generation, distribution, and user preference application
 module MemePoolHelpers
+  # In-process cooldown for the on-demand Reddit fetch in #random_memes_pool.
+  #
+  # BUG FIX (Aug 25, 2026, round 5): a Redis-only cooldown was silently
+  # defeated whenever RedisService's 30s-cached `redis_available?` circuit
+  # breaker flipped false (e.g. a transient blip while the Redis connection
+  # pool first connects at boot) - every RedisService.get/set/delete call
+  # would then short-circuit to its default with no error logged, so the
+  # cooldown never actually persisted and the on-demand fetch kept firing
+  # on every single request. This module-level, mutex-protected flag lives
+  # entirely in this process's memory, so it cannot be defeated by Redis
+  # being flaky - it's always the primary signal, with the Redis key kept
+  # as a secondary best-effort signal for cross-process/dyno coordination.
+  @on_demand_cooldown_until = nil
+  @on_demand_cooldown_mutex = Mutex.new
+
+  class << self
+    def on_demand_fetch_cooling_down?
+      @on_demand_cooldown_mutex.synchronize do
+        !!(@on_demand_cooldown_until && Time.now < @on_demand_cooldown_until)
+      end
+    end
+
+    def start_on_demand_fetch_cooldown!(ttl_seconds)
+      @on_demand_cooldown_mutex.synchronize do
+        @on_demand_cooldown_until = Time.now + ttl_seconds
+      end
+    end
+
+    # Test/ops helper to reset state between specs or after manual recovery.
+    def clear_on_demand_fetch_cooldown!
+      @on_demand_cooldown_mutex.synchronize { @on_demand_cooldown_until = nil }
+    end
+  end
+
   # Get intelligent pool with mixed distribution (70% trending, 20% fresh, 10% exploration)
   def get_intelligent_pool(user_id = nil, limit = 100)
     # 70% Trending, 20% Fresh, 10% Exploration
@@ -198,35 +232,49 @@ module MemePoolHelpers
       return valid_memes unless valid_memes.empty?
     end
 
-    # BUG FIX (Aug 25, 2026, round 3): This on-demand inline fetch used to
-    # fire unconditionally on EVERY request that reached this point, with
-    # zero rate-limit awareness of its own. In production this meant every
-    # single incoming request independently launched its own synchronous
-    # Reddit fetch, all from the same server/IP within seconds of each
-    # other - Reddit's rate limiter (429) responds almost instantly, far
-    # faster than a real timeout, which is exactly why these requests kept
-    # completing in ~300ms with "0 memes" and no visible exception (a 429
-    # isn't an exception; fetch_static/fetch_authenticated just silently
-    # return no results). This also piled additional concurrent Reddit
-    # calls on top of MemePoolManager's own coordinated background
-    # bootstrap, from the same IP, making Reddit more likely to rate-limit
-    # the whole server.
+    # BUG FIX (Aug 25, 2026, rounds 3-5). This on-demand inline fetch used
+    # to fire unconditionally on EVERY request that reached this point,
+    # with zero rate-limit awareness of its own. In production this meant
+    # every single incoming request independently launched its own
+    # synchronous Reddit fetch, all from the same server/IP within seconds
+    # of each other - Reddit's rate limiter (429) responds almost
+    # instantly, far faster than a real timeout, which is exactly why these
+    # requests kept completing in ~300ms with "0 memes" and no visible
+    # exception (a 429 isn't an exception; fetch_static/fetch_authenticated
+    # just silently return no results). This also piled additional
+    # concurrent Reddit calls on top of MemePoolManager's own coordinated
+    # background bootstrap, from the same IP, making Reddit more likely to
+    # rate-limit the whole server.
     #
-    # ROUND 3 FOLLOW-UP: peeking at MemePoolManager's own bootstrap lock
-    # from here turned out to be an unreliable signal - that lock is only
-    # held for as long as bootstrap_pool's rate-limit probe takes, which
-    # can be well under a second when Reddit is already rate-limiting us,
-    # so nearly every other request's check simply missed the tiny window
-    # where the lock existed. Instead, this on-demand path now owns and
-    # respects its OWN dedicated cooldown key: the moment it discovers
-    # Reddit is rate-limiting it, it sets a cooldown so every subsequent
-    # request skips the fetch entirely (falling straight to the fast local
-    # pool) until the cooldown expires - no racing against another
-    # subsystem's transient lock required.
+    # ROUND 3: peeking at MemePoolManager's own bootstrap lock turned out to
+    # be an unreliable signal - that lock is only held for as long as
+    # bootstrap_pool's rate-limit probe takes (often under a second), so
+    # nearly every request's check missed the tiny window where it existed.
+    #
+    # ROUND 5: switching to a dedicated Redis cooldown key (round 4) still
+    # didn't stop the fetch from firing on every request in production,
+    # even though the "cooling down for 60s" log line proved the `set` call
+    # was being reached. Root cause: RedisService has a 30s-cached
+    # `redis_available?` circuit breaker - if it ever flips false (e.g. a
+    # transient blip while REDIS_POOL first connects at boot), EVERY
+    # RedisService.get/set/delete call silently short-circuits to its
+    # default value with NO error logged, for the rest of that 30s window
+    # (and potentially longer if another call re-trips it). That means our
+    # `RedisService.set(cooldown_key, ...)` could "succeed" from this
+    # method's point of view while never actually reaching Redis, so the
+    # very next request's `RedisService.get(cooldown_key)` sees nothing and
+    # fires again - forever, with no visible error.
+    #
+    # Fix: keep an in-process cooldown flag (a plain class-level timestamp,
+    # thread-safe via Mutex) as the primary, always-reliable signal within
+    # a single Puma worker - it cannot be silently defeated by Redis
+    # hiccups. The Redis-backed cooldown is kept as a secondary, best-
+    # effort signal so multiple worker processes/dynos still coordinate
+    # when Redis is actually healthy.
     on_demand_cooldown_key = "meme_pool:on_demand_fetch_cooldown"
     on_demand_cooldown_ttl = 60 # seconds - short enough to retry soon after Reddit calms down
 
-    if RedisService.get(on_demand_cooldown_key)
+    if MemePoolHelpers.on_demand_fetch_cooling_down? || RedisService.get(on_demand_cooldown_key)
       AppLogger.info("[POOL] Cache empty, but on-demand fetch is cooling down after a recent rate limit - skipping")
     else
       begin
@@ -241,11 +289,13 @@ module MemePoolHelpers
             return fresh_memes
           else
             AppLogger.warn("[POOL] On-demand Reddit fetch returned zero memes (likely rate-limited) - cooling down for #{on_demand_cooldown_ttl}s")
+            MemePoolHelpers.start_on_demand_fetch_cooldown!(on_demand_cooldown_ttl)
             RedisService.set(on_demand_cooldown_key, "true", ttl: on_demand_cooldown_ttl)
           end
         end
       rescue => e
         AppLogger.warn("[POOL] On-demand Reddit fetch failed", error: e.message)
+        MemePoolHelpers.start_on_demand_fetch_cooldown!(on_demand_cooldown_ttl)
         RedisService.set(on_demand_cooldown_key, "true", ttl: on_demand_cooldown_ttl)
       end
     end

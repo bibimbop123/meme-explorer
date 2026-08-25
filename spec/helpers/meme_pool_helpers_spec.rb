@@ -113,7 +113,10 @@ RSpec.describe MemePoolHelpers do
       allow(MemePoolManager).to receive(:get_pool).and_return(success: false, memes: [], pool_size: 0, error: 'no pool')
       allow(MemeExplorer::App::MEME_CACHE).to receive(:get).with(:memes).and_return(nil)
       allow(MemeExplorer::App::MEMES).to receive(:is_a?).and_call_original
+      MemePoolHelpers.clear_on_demand_fetch_cooldown!
     end
+
+    after { MemePoolHelpers.clear_on_demand_fetch_cooldown! }
 
     # Regression test for the production incident (Aug 25, 2026, rounds 3
     # and 4). Round 3 found this on-demand fetch fired unconditionally on
@@ -173,6 +176,45 @@ RSpec.describe MemePoolHelpers do
       expect(RedisService).not_to receive(:set).with(on_demand_cooldown_key, anything, anything)
 
       ctx.random_memes_pool
+    end
+
+    # Regression test for the production incident (Aug 25, 2026, round 5):
+    # a Redis-only cooldown was silently defeated whenever RedisService's
+    # cached `redis_available?` circuit breaker was false (or Redis was
+    # otherwise flaky) - RedisService.set/get would then no-op with no
+    # error, so the cooldown never actually persisted and the on-demand
+    # fetch kept firing on every request forever. The in-process cooldown
+    # must work as the primary gate completely independently of Redis.
+    context 'when RedisService is entirely unavailable (simulating a circuit-breaker trip)' do
+      before do
+        allow(RedisService).to receive(:get).and_return(nil)
+        allow(RedisService).to receive(:set).and_return(false)
+      end
+
+      it 'still skips the on-demand fetch once the in-process cooldown is active' do
+        MemePoolHelpers.start_on_demand_fetch_cooldown!(60)
+
+        expect(InlineRedditFetcher).not_to receive(:fetch)
+
+        ctx.random_memes_pool
+      end
+
+      it 'still starts an in-process cooldown after a rate-limited fetch, even though Redis silently no-ops' do
+        allow(InlineRedditFetcher).to receive(:fetch).and_return([])
+
+        ctx.random_memes_pool
+
+        expect(MemePoolHelpers.on_demand_fetch_cooling_down?).to eq(true)
+      end
+
+      it 'skips the fetch on the very next call after the in-process cooldown was set, with Redis still unavailable' do
+        allow(InlineRedditFetcher).to receive(:fetch).and_return([])
+
+        ctx.random_memes_pool # first call: fetches, gets rate-limited, starts in-process cooldown
+
+        expect(InlineRedditFetcher).not_to receive(:fetch)
+        ctx.random_memes_pool # second call: must be skipped purely via the in-process flag
+      end
     end
   end
 end
