@@ -198,22 +198,55 @@ module MemePoolHelpers
       return valid_memes unless valid_memes.empty?
     end
 
-    # Cache is empty — fetch directly from Reddit via OAuth (no Sidekiq needed)
-    # This ensures memes load immediately in development without running workers
-    begin
-      if defined?(InlineRedditFetcher)
-        AppLogger.info("[POOL] Cache empty — fetching from Reddit via OAuth...")
-        subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
-        fresh_memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
-        if fresh_memes.any?
-          MemeExplorer::App::MEME_CACHE.set(:memes, fresh_memes)
-          MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)
-          AppLogger.info("[POOL] Fetched and cached #{fresh_memes.size} memes from Reddit")
-          return fresh_memes
+    # BUG FIX (Aug 25, 2026, round 3): This on-demand inline fetch used to
+    # fire unconditionally on EVERY request that reached this point - with
+    # zero coordination with MemePoolManager's own bootstrap lock/cooldown.
+    # In production this meant every single incoming request independently
+    # launched its own synchronous Reddit fetch AT THE SAME TIME as
+    # MemePoolManager's legitimate background bootstrap thread, all from
+    # the same server/IP. Reddit's rate limiter (429) responds almost
+    # instantly - far faster than a real timeout - which is exactly why
+    # these requests were completing in ~300ms with "0 memes" and no
+    # visible exception (a 429 isn't an exception; fetch_static/
+    # fetch_authenticated just silently return no results). Worse, this
+    # was actively sabotaging the real bootstrap: piling on extra
+    # concurrent Reddit calls from the same IP made it more likely Reddit
+    # would rate-limit the whole server, including the one fetch that
+    # actually mattered.
+    #
+    # Fix: skip this redundant on-demand fetch entirely whenever
+    # MemePoolManager already has a bootstrap in flight (or is in a
+    # rate-limit cooldown) - just fall straight through to the fast local
+    # fallback below and let the coordinated background bootstrap do its
+    # job without interference.
+    bootstrap_in_progress = begin
+      require_relative '../services/meme_pool_manager'
+      RedisService.get(MemePoolManager::BOOTSTRAP_LOCK_KEY) ||
+        RedisService.get(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY)
+    rescue
+      false
+    end
+
+    if bootstrap_in_progress
+      AppLogger.info("[POOL] Cache empty, but a bootstrap/cooldown is already active - skipping redundant on-demand fetch")
+    else
+      begin
+        if defined?(InlineRedditFetcher)
+          AppLogger.info("[POOL] Cache empty — fetching from Reddit via OAuth...")
+          subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
+          fresh_memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
+          if fresh_memes.any?
+            MemeExplorer::App::MEME_CACHE.set(:memes, fresh_memes)
+            MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)
+            AppLogger.info("[POOL] Fetched and cached #{fresh_memes.size} memes from Reddit")
+            return fresh_memes
+          else
+            AppLogger.warn("[POOL] On-demand Reddit fetch returned zero memes (likely rate-limited)")
+          end
         end
+      rescue => e
+        AppLogger.warn("[POOL] On-demand Reddit fetch failed", error: e.message)
       end
-    rescue => e
-      AppLogger.warn("[POOL] On-demand Reddit fetch failed", error: e.message)
     end
 
     # Last resort: local memes
