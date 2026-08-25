@@ -15,9 +15,30 @@ class MemePoolManager
   BOOTSTRAP_COOLDOWN_KEY = "meme_pool:bootstrap_cooldown"
   BOOTSTRAP_COOLDOWN_TTL = 300 # 5 minutes - avoid hammering Reddit while rate-limited
   BOOTSTRAP_LOCK_KEY = "lock:meme_pool:bootstrap"
-  BOOTSTRAP_LOCK_TTL = 45 # seconds - slightly longer than a full bootstrap fetch can take
-  BOOTSTRAP_WAIT_RETRIES = 8 # how many times a waiting request re-polls for the pool
-  BOOTSTRAP_WAIT_INTERVAL = 0.5 # seconds between poll attempts
+  # BUG FIX (Aug 25, 2026): this was 45s, but the on-demand bootstrap fetched
+  # from up to 80 subreddits sequentially with a 1s throttle between each
+  # (see RedditFetcherService::THROTTLE_DELAY) - realistically 80-120+
+  # seconds. The lock kept expiring mid-fetch (Redis EX doesn't know the code
+  # is still running), letting new requests acquire it and start a SECOND
+  # concurrent bootstrap - recreating the exact stampede this lock exists to
+  # prevent. Combined with BOOTSTRAP_WAIT_RETRIES/INTERVAL below being far
+  # too short to ever catch a ~100s bootstrap, EVERY request always timed
+  # out and fell back to the 10-meme local pool, even when Reddit was fully
+  # responsive. Fixed by (a) shrinking the on-demand bootstrap's subreddit
+  # count (see BOOTSTRAP_QUICK_TIER_LIMITS below) so it can realistically
+  # finish within a web request, and (b) raising this TTL to a safe margin
+  # above that new expected duration.
+  BOOTSTRAP_LOCK_TTL = 30 # seconds - safe margin above the new ~15-20s expected duration
+  BOOTSTRAP_WAIT_RETRIES = 15 # how many times a waiting request re-polls for the pool
+  BOOTSTRAP_WAIT_INTERVAL = 1.0 # seconds between poll attempts (15s max wait)
+
+  # Subreddit counts per tier for the on-demand (synchronous, request-time)
+  # bootstrap - deliberately much smaller than the full pool build performed
+  # by the scheduled MemePoolMaintenanceWorker, so it can complete within a
+  # reasonable web request timeout (~12 subreddits x 1s throttle + the
+  # 3-subreddit fail-fast test ≈ 15s worst case) instead of blocking on 80
+  # sequential Reddit requests (~100s).
+  BOOTSTRAP_QUICK_TIER_LIMITS = { tier_1: 5, tier_2: 3, tier_3: 2, tier_4: 1, tier_5: 1 }.freeze
   
   # Tier distribution for balanced variety
   TIER_DISTRIBUTION = {
@@ -166,22 +187,19 @@ class MemePoolManager
       return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
     end
     
-    AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with full fetch...")
-  
-  # CRITICAL FIX: Fetch from ALL tiers, not just 1-2 (July 5, 2026)
-  # This increases pool from 40 → 400-600 memes
-  tier_1_subs = load_tier_subreddits(:tier_1).first(30)  # 30 tier 1
-  tier_2_subs = load_tier_subreddits(:tier_2).first(20)  # 20 tier 2
-  tier_3_subs = load_tier_subreddits(:tier_3).first(15)  # 15 tier 3
-  tier_4_subs = load_tier_subreddits(:tier_4).first(10)  # 10 tier 4
-  tier_5_subs = load_tier_subreddits(:tier_5).first(5)   # 5 tier 5
-  
-  all_subs = tier_1_subs + tier_2_subs + tier_3_subs + tier_4_subs + tier_5_subs
-  # Now 80 subreddits * 25 per sub = 2,000 potential memes
-  
+    AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with quick fetch...")
+
+  # Quick, request-time-friendly fetch: a small number of subreddits per
+  # tier so this can realistically finish inside a web request instead of
+  # the ~80-subreddit / ~100s full build (that full build is handled by the
+  # scheduled MemePoolMaintenanceWorker via fetch_batch/build_pool!, which
+  # isn't time-constrained the way an inline request is).
+  all_subs = BOOTSTRAP_QUICK_TIER_LIMITS.flat_map do |tier, count|
+    load_tier_subreddits(tier).first(count)
+  end
+
   fetcher = create_fetcher
-  memes = fetcher.fetch_memes(all_subs, limit: 20)  # 240 subs * 20 = 4,800 potential
-  # 20 per subreddit = ~600 total
+  memes = fetcher.fetch_memes(all_subs, limit: 20)
       
       # SKIP quality filter on bootstrap for speed (basic validation only)
       validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
