@@ -85,7 +85,25 @@ class SecurityHeaders
       "default-src 'self'",
       
       # Scripts: self + specific CDNs + inline for critical path + wasm support
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " \
+      #
+      # SECURITY TRADEOFF - ACCEPTED (documented 2026-09-11):
+      # Monetag/PropellerAds' tag.min.js chain-loads ad-format scripts from
+      # constantly-rotating, unpredictable domains as part of its anti-adblock
+      # design (observed in production: quge5.com -> 6opo.com -> auqot.com,
+      # ekhay.com, b3mny.com, and more over time - these are NOT a fixed set).
+      # A per-domain allowlist cannot keep up with this rotation, so
+      # script-src intentionally allows any https: origin here to let
+      # Monetag ads load reliably. This is a real widening of XSS blast
+      # radius vs. a strict per-domain allowlist: if any other part of the
+      # app ever has an injection point, an attacker-controlled script from
+      # ANY https domain could execute. This was a deliberate, informed
+      # tradeoff in favor of ad revenue reliability. If tightening this back
+      # up later, the correct fix is a nonce + 'strict-dynamic' policy (lets
+      # only scripts descended from an already-trusted nonce'd script load
+      # further scripts, without opening script-src to arbitrary origins),
+      # NOT reverting to a static domain allowlist (that's what broke ads
+      # here in the first place).
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https: " \
         "https://pagead2.googlesyndication.com " \
         "https://www.googletagmanager.com " \
         "https://www.google-analytics.com " \
