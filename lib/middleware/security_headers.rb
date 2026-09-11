@@ -110,7 +110,14 @@ class SecurityHeaders
       "font-src 'self' data: https://fonts.gstatic.com",
       
       # Connections: self + API endpoints + analytics + service worker resources + CDNs
-      "connect-src 'self' " \
+      # NOTE: Monetag/PropellerAds' tag.min.js calls out to constantly-rotating
+      # delivery/anti-adblock domains (e.g. https://6opo.com/88/<zone>?dmn=quge5.com)
+      # that change unpredictably and are NOT the same domain the script was
+      # loaded from. A static per-domain allowlist can never keep up with this
+      # rotation, so connect-src allows any HTTPS endpoint here (same policy
+      # already applied to img-src below) to let ad beacons/delivery calls
+      # through without opening up script-src (where the real XSS risk is).
+      "connect-src 'self' https: " \
         "https://www.reddit.com " \
         "https://oauth.reddit.com " \
         "https://www.google-analytics.com " \
@@ -128,7 +135,8 @@ class SecurityHeaders
         "https://3nbf4.com",
       
       # Frames: Google AdSense + YouTube embeds + Monetag/PropellerAds
-      "frame-src 'self' " \
+      # (same rotating-domain rationale as connect-src above)
+      "frame-src 'self' https: " \
         "https://pagead2.googlesyndication.com " \
         "https://www.youtube.com " \
         "https://quge5.com " \
