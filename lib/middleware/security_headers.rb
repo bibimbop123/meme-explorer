@@ -89,18 +89,22 @@ class SecurityHeaders
         "https://pagead2.googlesyndication.com " \
         "https://www.googletagmanager.com " \
         "https://www.google-analytics.com " \
-        "https://cdn.jsdelivr.net",
+        "https://cdn.jsdelivr.net " \
+        "https://quge5.com " \
+        "https://3nbf4.com",
       
       # Styles: self + inline + Google Fonts
       "style-src 'self' 'unsafe-inline' " \
         "https://fonts.googleapis.com",
       
-      # Images: self + data URIs + Reddit + imgur + Google AdSense
+      # Images: self + data URIs + Reddit + imgur + Google AdSense + Monetag/PropellerAds
       "img-src 'self' data: https: " \
         "https://i.redd.it https://preview.redd.it " \
         "https://i.imgur.com https://imgur.com " \
         "https://pagead2.googlesyndication.com " \
-        "https://www.google-analytics.com",
+        "https://www.google-analytics.com " \
+        "https://quge5.com " \
+        "https://3nbf4.com",
       
       # Fonts: self + data URIs + Google Fonts
       "font-src 'self' data: https://fonts.gstatic.com",
@@ -119,12 +123,16 @@ class SecurityHeaders
         "https://fonts.googleapis.com " \
         "https://fonts.gstatic.com " \
         "https://pagead2.googlesyndication.com " \
-        "https://cdn.jsdelivr.net",
+        "https://cdn.jsdelivr.net " \
+        "https://quge5.com " \
+        "https://3nbf4.com",
       
-      # Frames: Google AdSense + YouTube embeds
+      # Frames: Google AdSense + YouTube embeds + Monetag/PropellerAds
       "frame-src 'self' " \
         "https://pagead2.googlesyndication.com " \
-        "https://www.youtube.com",
+        "https://www.youtube.com " \
+        "https://quge5.com " \
+        "https://3nbf4.com",
       
       # Media: Allow Reddit videos and audio
       "media-src 'self' " \
