@@ -71,6 +71,10 @@ secrets.yml
 *_v2.rb
 *_old.rb
 *.bak
+*.backup
+*.backup.*
+*.backup_*
+*.erb.new
 backups/
 
 # Runtime / generated

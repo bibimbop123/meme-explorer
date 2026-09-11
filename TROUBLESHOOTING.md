@@ -32,17 +32,20 @@ ps aux | grep sidekiq
 -- PostgreSQL
 SELECT count(*) FROM pg_stat_activity;
 
--- Should be < 25 (pool size)
+-- Should be < 35 (see db/setup.rb - pool size is currently 35,
+-- sized for 32 Puma threads; check db/setup.rb directly, this
+-- number changes)
 ```
 
 **Solutions:**
 ```ruby
 # Check connection pool configuration
-DB_POOL.size  # Should return 25
+DB_POOL.size  # Reports the actual configured size (see db/setup.rb)
 
 # Force connection release
 DB_POOL.shutdown { |conn| conn.close }
-DB_POOL = create_new_pool()
+# Then restart the process - DB_POOL is a top-level constant set once
+# at boot in db/setup.rb, it isn't meant to be reassigned at runtime.
 ```
 
 ### Redis Connection Failures
@@ -98,12 +101,12 @@ bundle _2.4.10_ install
 
 **Solutions:**
 ```bash
-# Reset database (development only!)
-rm memes.db
-bundle exec ruby scripts/setup_database.rb
+# Re-run setup (creates tables if missing - see db/setup.rb)
+ruby db/setup.rb
 
-# For PostgreSQL, run migrations
-bundle exec ruby scripts/run_migrations.rb
+# Individual migrations live in db/migrations/ and db/migrate_*.rb -
+# check that directory for the actual current migration files rather
+# than a fixed script name here, as it changes over time
 
 # Check database exists
 psql -l | grep meme_explorer
@@ -117,8 +120,8 @@ psql -l | grep meme_explorer
 # Run with seed for reproducibility
 bundle exec rspec --seed 12345
 
-# Clear test database
-RACK_ENV=test bundle exec ruby scripts/setup_database.rb
+# Re-run setup against the test DB if tables are missing/stale
+RACK_ENV=test ruby db/setup.rb
 
 # Run specific failing test
 bundle exec rspec spec/path/to/spec.rb:42
@@ -170,29 +173,43 @@ curl -X POST https://www.reddit.com/api/v1/access_token \
 
 **Diagnosis:**
 ```ruby
-# Check slow queries
+# If it's specifically /random or /random.json feeling slow, check the
+# real, live latency breakdown first - don't guess:
+#   Visit /metrics (admin-only) and look at "Selection Latency Breakdown"
+#   :pool_lookup vs :selection tells you whether the cost is finding a
+#   meme pool or choosing from it; :pool_manager_lookup vs :reddit_fetch
+#   narrows pool_lookup further into "Redis was slow" vs "the on-demand
+#   Reddit fetch was slow" - see lib/services/selection_benchmark.rb.
+
+# For other routes, check slow queries
 tail -f log/production.log | grep "Slow query"
 
-# Profile a request
+# Or use PerformanceProfiler for ad-hoc profiling (lib/concerns/performance_profiler.rb)
 PerformanceProfiler.profile { visit '/random' }
 ```
 
 **Solutions:**
-1. Check database indexes exist
-2. Review N+1 queries
-3. Increase cache TTL
-4. Enable CDN for static assets
+1. If `/metrics` shows `:reddit_fetch` or `:pool_manager_lookup` p95/p99
+   is high, that's real network I/O - check Reddit API rate limits and
+   Redis connectivity/latency, not the Ruby code
+2. Check database indexes exist
+3. Review N+1 queries
+4. Increase cache TTL
+5. Enable CDN for static assets
 
 ### Sidekiq Jobs Piling Up
 **Symptoms:** Queue depth increasing, jobs not processing
 
 **Diagnosis:**
 ```bash
-# Check Sidekiq stats
-bundle exec sidekiq-cli stats
+# `sidekiq-cli` is not a real command - check the Sidekiq Web UI (if
+# mounted) or query Redis directly:
 
 # Check queue depth
 redis-cli LLEN "queue:default"
+
+# Or use the Sidekiq API from a Ruby console:
+# Sidekiq::Queue.new.size
 ```
 
 **Solutions:**
@@ -200,11 +217,13 @@ redis-cli LLEN "queue:default"
 # Increase concurrency
 # Edit config/sidekiq.yml: concurrency: 10
 
-# Clear failed jobs
-bundle exec sidekiq-cli clear-failed
+# Clear failed jobs - via the Sidekiq API (no "sidekiq-cli" command exists):
+#   Sidekiq::RetrySet.new.clear
+#   Sidekiq::DeadSet.new.clear
 
-# Restart Sidekiq
-sudo systemctl restart sidekiq
+# Restart Sidekiq (adjust to however it's actually run in your environment -
+# this repo's Procfile runs it via `bundle exec sidekiq -r ./app.rb -C config/sidekiq.yml`,
+# not systemd)
 ```
 
 ---
@@ -216,8 +235,8 @@ sudo systemctl restart sidekiq
 
 **Check:**
 ```ruby
-# config/application.rb
-MemeExplorerConfig::SESSION_EXPIRE_AFTER  # Should be 2 weeks
+# config/app_constants.rb
+AppConstants::SESSION_EXPIRE_AFTER
 ```
 
 **Solutions:**
@@ -278,35 +297,30 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" \
 
 **Check:**
 ```bash
-# Locally simulate production build
+# Locally simulate production build - render.yaml's buildCommand is
+# just `bundle install` (no test/build step), so this is genuinely
+# the whole build:
 RACK_ENV=production bundle install
-RACK_ENV=production bundle exec ruby app.rb
+RACK_ENV=production bundle exec rackup config.ru -p 8080
 
-# Check Render logs
-render logs --tail <service-id>
+# Check Render logs via the Render dashboard, or the Render CLI if
+# installed - verify exact current flags against `render --help`
+# rather than trusting a fixed command here; CLI syntax changes.
 ```
 
 ### Rollback Procedure
-```bash
-# Via Render dashboard
-1. Go to service → Deployments
-2. Click "Rollback" on last known good deployment
 
-# Via Render CLI
-render rollback <service-id>
-```
+Via the Render dashboard: go to the service → Deployments → click
+"Rollback" on the last known good deployment. Verify current Render CLI
+rollback support and syntax directly (`render --help`) before relying on
+a specific command here.
 
 ### Environment Variables Missing
 **Error:** "Environment variable not set"
 
-**Check:**
-```bash
-# List all env vars
-render env <service-id>
-
-# Set missing var
-render env:set SESSION_SECRET=<value> <service-id>
-```
+**Check:** Render dashboard → service → Environment tab. Verify current
+Render CLI env-var commands directly (`render --help`) rather than
+trusting a fixed command here.
 
 ---
 

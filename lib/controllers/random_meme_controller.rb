@@ -23,6 +23,20 @@ end
 module MemeExplorer
   # Controller for handling random meme selection and display
   # Extracted from routes/random_meme.rb to improve maintainability
+  #
+  # STATUS: NOT currently wired into the live app. `app.rb` never
+  # requires this file, and the real /random and /random.json routes
+  # (routes/random_meme.rb) implement their own selection logic inline
+  # rather than calling RandomMemeController.handle - verified by
+  # grepping for both across the whole codebase. This class is well
+  # tested (spec/controllers/random_meme_controller_spec.rb,
+  # spec/integration/random_algorithm_integration_spec.rb both pass) and
+  # kept as a candidate for a future refactor that consolidates the
+  # inline route logic into this controller, but treat it as inactive
+  # until something actually requires and calls it. Docs describing this
+  # as the current architecture were moved to docs/archive/ for the same
+  # reason - don't let a `docs/` file (not just docs/archive/) claim this
+  # is live without checking `app.rb` first.
   class RandomMemeController
     # Result object to return data to the route
     class Result

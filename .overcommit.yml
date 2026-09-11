@@ -6,9 +6,14 @@
 PreCommit:
   ALL:
     quiet: false
-  
+
+  # DISABLED: the `rubocop` gem is not currently in this project's
+  # Gemfile (verified - even though .rubocop.yml exists), so this would
+  # fail every single commit with "command not found" the moment anyone
+  # actually installs overcommit per this file's own instructions above.
+  # Add `gem "rubocop"` to the Gemfile's :development group first.
   RuboCop:
-    enabled: true
+    enabled: false
     command: ['bundle', 'exec', 'rubocop']
     on_warn: fail
   
@@ -50,7 +55,13 @@ PrePush:
     command: ['bundle', 'exec', 'rspec']
     description: 'Run full test suite before push'
   
+  # DISABLED: the `brakeman` gem is not currently in this project's
+  # Gemfile, so this would fail every push the moment anyone actually
+  # installs overcommit. Add `gem "brakeman"` to the Gemfile's
+  # :development group first, or rely on BundleAudit's dependency-CVE
+  # scanning (pre-commit, above) plus CI's `bundle audit` job
+  # (.github/workflows/ci.yml) in the meantime.
   Brakeman:
-    enabled: true
+    enabled: false
     command: ['bundle', 'exec', 'brakeman', '--no-pager']
     description: 'Security vulnerability scanner'

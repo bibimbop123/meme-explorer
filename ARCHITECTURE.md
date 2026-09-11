@@ -1,71 +1,64 @@
 # 🏗️ MEME EXPLORER - SYSTEM ARCHITECTURE
 
-**Last Updated:** June 3, 2026  
-**Version:** 2.0 (Post Phase 1 Stabilization)
+**Last verified against the actual codebase:** this session. Every number
+below was checked against real files (`wc -l`, `ls`, `grep`), not carried
+forward from an earlier draft - a previous version of this document
+claimed `app.rb` was 2,644 lines and this app had 55 services and ~500
+concurrent user capacity, none of which were true by the time anyone
+checked. Please keep it that way: if you change something this document
+describes, update this file in the same commit, or delete the claim
+instead of leaving it stale.
 
 ---
 
 ## 📊 OVERVIEW
 
-Meme Explorer is a Ruby/Sinatra application for discovering and sharing memes from Reddit. The architecture follows a service-oriented design with background job processing, caching layers, and PostgreSQL persistence.
+Meme Explorer is a Ruby/Sinatra application for discovering memes from
+Reddit. It runs as a **single Puma worker process by design** (see
+`config/puma.rb`) - the meme pool lives in shared in-process memory
+(`MEME_CACHE`), which only works with one worker. This is not a
+temporary limitation; it's the current architecture, and any change
+proposing multi-worker/multi-region deployment needs to solve that
+constraint first, not assume it away.
 
 ### Tech Stack
 - **Runtime:** Ruby 3.2.1
 - **Framework:** Sinatra 4.0
-- **Database:** PostgreSQL (production), SQLite (development)
+- **Database:** PostgreSQL (production), SQLite (development migration tooling only)
 - **Cache:** Redis
 - **Jobs:** Sidekiq with sidekiq-scheduler
-- **Server:** Puma
-- **Monitoring:** Sentry, custom health checks
+- **Server:** Puma (single worker, `WEB_CONCURRENCY=0`)
+- **Frontend build:** Vite (bundles `public/js/main.js` → `public/dist/bundle.js`)
+- **Monitoring:** Sentry, `/health`, `/metrics`
+
+### Real numbers (verified, not estimated)
+- `app.rb`: 423 lines
+- `lib/services/`: 27 files
+- `routes/`: 24 files
+- `spec/`: 57 spec files
+- Background workers actually required by `app.rb`: `cache_refresh_worker`,
+  `cache_preload_worker`, `meme_pool_maintenance_worker`,
+  `database_cleanup_worker` - four, not more. If a doc or comment
+  mentions a worker not in that list (e.g. an old reference to a
+  "LeaderboardCalculationWorker" or "ImageHealthWorker"), it doesn't
+  exist - it was removed at some point and the doc wasn't updated.
 
 ---
 
 ## 🎯 CORE ARCHITECTURE
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CLIENT LAYER                            │
-│  Browser ────► Rack Middleware ────► Sinatra Routes         │
-└────────────┬────────────────────────────────────────────────┘
-             │
-┌────────────▼────────────────────────────────────────────────┐
-│                   APPLICATION LAYER                          │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Routes     │  │   Helpers    │  │  Controllers │     │
-│  │  /random     │  │ Gamification │  │   (Future)   │     │
-│  │  /trending   │  │  Validation  │  │              │     │
-│  │  /search     │  │   CDN/SEO    │  │              │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────┘     │
-│         │                  │                                │
-│         └──────────┬───────┘                                │
-│                    │                                        │
-│         ┌──────────▼────────────┐                          │
-│         │   SERVICE LAYER (55)   │                          │
-│         │                        │                          │
-│         │  MemeService           │                          │
-│         │  TrendingService       │                          │
-│         │  AuthService           │                          │
-│         │  LeaderboardService    │                          │
-│         │  RedisService          │                          │
-│         │  ... (50 more)         │                          │
-│         └──────────┬─────────────┘                          │
-└────────────────────┼──────────────────────────────────────
-
-│
-┌────────────────────▼──────────────────────────────────────┐
-│                  PERSISTENCE LAYER                         │
-│                                                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │  PostgreSQL  │  │    Redis     │  │  Reddit API  │   │
-│  │              │  │              │  │              │   │
-│  │ Users        │  │ Cache        │  │ Memes        │   │
-│  │ Memes Stats  │  │ Sessions     │  │ Subreddits   │   │
-│  │ Leaderboard  │  │ Rate Limits  │  │              │   │
-│  │ Saved Memes  │  │ Active Users │  │              │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘   │
-└────────────────────────────────────────────────────────────┘
+Browser → Rack Middleware → Sinatra Routes → Helpers → Service Layer (27) → PostgreSQL / Redis / Reddit API
 ```
+
+Routes live in `routes/*.rb` (24 files), registered via the
+`self.registered(app)` pattern from `app.rb`. Helpers live in
+`lib/helpers/`. Services live in `lib/services/` (27 files) - things like
+`MemeService`, `MemePoolManager`, `SelectionBenchmark`, `TrendingService`,
+`AuthService`, `RedisService`. Persistence is PostgreSQL for durable data
+(users, meme_stats, saved memes), Redis for the pool cache, sessions, rate
+limiting, and the selection benchmark's rolling windows, and the Reddit
+API as the upstream content source.
 
 ---
 
@@ -73,253 +66,221 @@ Meme Explorer is a Ruby/Sinatra application for discovering and sharing memes fr
 
 ```
 meme-explorer/
-├── app.rb                    # Main Sinatra application (2,644 lines - TO REFACTOR)
+├── app.rb                    # Main Sinatra application (423 lines)
 ├── config/                   # Configuration files
 │   ├── application.rb        # App config
 │   ├── app_constants.rb      # Constants
-│   ├── sidekiq.yml          # Job scheduling
-│   └── initializers/        # Load order
-├── routes/                   # Modular routes
-│   ├── auth.rb              # Authentication
-│   ├── memes.rb             # Meme endpoints
-│   ├── trending_routes.rb   # Trending
-│   └── ... (15 more)
+│   ├── tuning_parameters.rb  # Extracted magic numbers
+│   ├── sidekiq.yml           # Job scheduling
+│   └── initializers/         # Load order
+├── routes/                   # Modular routes (24 files)
+│   ├── auth.rb
+│   ├── random_meme.rb        # The core product loop - see below
+│   ├── metrics_routes.rb     # /metrics, /metrics.json
+│   ├── trending_routes.rb
+│   └── ...
 ├── lib/
-│   ├── services/            # Business logic (55 services)
+│   ├── services/              # Business logic (27 files)
 │   │   ├── meme_service.rb
+│   │   ├── meme_pool_manager.rb
+│   │   ├── selection_benchmark.rb  # See "Selection Latency" below
 │   │   ├── auth_service.rb
 │   │   ├── redis_service.rb
 │   │   └── ...
-│   ├── helpers/             # View helpers
-│   ├── concerns/            # Mixins
-│   ├── middleware/          # Custom middleware
-│   └── models/              # Data models (minimal)
-├── app/workers/             # Sidekiq background jobs
-│   ├── database_cleanup_worker.rb
-│   ├── cache_refresh_worker.rb
-│   └── ... (8 workers)
+│   ├── helpers/               # View/route helpers
+│   ├── concerns/               # Mixins
+│   ├── middleware/             # Custom middleware
+│   └── models/                 # Data models (minimal)
+├── app/workers/                # Sidekiq background jobs (4 required by app.rb)
 ├── db/
-│   ├── setup.rb             # Database connection
-│   └── migrations/          # Schema migrations
-├── spec/                    # RSpec tests (32 files)
-└── public/                  # Static assets
+│   ├── setup.rb                 # Database connection (hand-rolled DBWrapper, not an ORM)
+│   └── migrations/
+├── spec/                        # RSpec tests (57 files)
+├── docs/archive/                # Historical/point-in-time reports - not guaranteed current
+└── public/                      # Static assets (public/dist/bundle.js is a committed
+                                  #   deploy artifact - see "Deployment" below)
 ```
 
 ---
 
 ## 🔄 REQUEST LIFECYCLE
 
-### 1. HTTP Request Arrives
-```ruby
+```
 Client → Puma → Rack::Attack (rate limiting)
                 → Rack::CSRF (security)
                 → RequestIdMiddleware (tracing)
-                → Sinatra Router
+                → RequestTimer (generic timing, /metrics)
+                → Sinatra Router → Route Handler → Helpers → Service Layer
+                → ERB Template → HTML/JSON Response → Client
 ```
 
-### 2. Route Processing
-```ruby
-Route Handler → Helper Methods → Service Layer → Database/Cache
-```
-
-### 3. Response Generation
-```ruby
-Service Response → ERB Template → HTML Response → Client
-```
-
-### 4. Async Processing (Background)
-```ruby
-Sidekiq Workers (every X minutes):
-- CacheRefreshWorker (30 min)
-- DatabaseCleanupWorker (hourly)
-- LeaderboardCalculationWorker (hourly)
-- ImageHealthWorker (30 min)
-```
+Background jobs actually required by `app.rb`: `CacheRefreshWorker`,
+`CachePreloadWorker`, `MemePoolMaintenanceWorker`, `DatabaseCleanupWorker`.
+Check `config/sidekiq.yml` for the real current schedule rather than
+trusting a fixed list here.
 
 ---
 
-## 💾 DATA FLOW
+## 💾 THE CORE PRODUCT LOOP: `/random`
 
-### Meme Discovery Flow
+This is the one piece of this app worth understanding deeply - everything
+else (leaderboard, blog, admin) is secondary to it.
+
 ```
-1. User hits /random
-2. Check session history (avoid repeats)
-3. Query meme pool:
-   - 70% from trending (high engagement)
-   - 20% from fresh (< 48 hours)
-   - 10% from exploration (random)
-4. Apply user preferences (if logged in)
-5. Track view in meme_stats
-6. Return meme data + metadata
+1. User hits /random or /random.json
+2. session_id resolved from session, falling back to request.ip if the
+   session doesn't respond to .id (see routes/random_meme.rb - this used
+   to crash with NoMethodError before a fix this session)
+3. random_memes_pool (lib/helpers/meme_pool_helpers.rb) tries, in order:
+   a. MemePoolManager.get_pool - Redis-backed, tier-distributed pool
+   b. MEME_CACHE (legacy in-process fallback)
+   c. On-demand Reddit fetch via InlineRedditFetcher, rate-limit-aware
+      with a cooldown (this branch has a documented history of ~300ms
+      latency even on failure - see the file's own "BUG FIX (rounds 3-5)"
+      comments)
+   d. Local YAML memes as the last resort
+4. SimpleMemeSelector.select applies anti-repetition (avoids recently
+   seen memes for this session, tracked via ViewingHistoryService)
+5. View tracked in meme_stats
+6. Response returned
 ```
 
-### Caching Strategy
-```
-Layer 1: Redis (5-30 min TTL)
-  - Meme lists
-  - Trending data
-  - Like counts
-  
-Layer 2: Memory Cache (Thread-safe)
-  - Session data
-  - Recently accessed memes
-  
-Layer 3: Database
-  - Source of truth
-  - Batch operations
-```
+Every step of 3 and 4 is timed by `SelectionBenchmark`
+(`lib/services/selection_benchmark.rb`), broken into stages: `:total`,
+`:pool_lookup`, `:pool_manager_lookup` (step 3a specifically),
+`:reddit_fetch` (step 3c specifically), and `:selection` (step 4). Live
+p50/p95/p99 per stage is visible at `/metrics` (admin-only) and
+`/metrics.json`. **This is the actual, current source of truth for how
+fast this app is** - not a number written into a doc.
 
 ---
 
 ## 🔧 KEY SERVICES
 
-### MemeService
-Handles all meme-related operations:
-- Fetching from Reddit API
-- Filtering and validation
-- Stat tracking
+- **MemeService** - meme pool building, humor scoring, search
+- **MemePoolManager** - Redis-backed, tier-distributed pool with an
+  in-process fallback lock/bootstrap for when Redis is down. See its own
+  extensive "BUG FIX (round N)" comments for the real history here.
+- **SelectionBenchmark** - measures the core selection loop's latency,
+  staged (see above). Deliberately narrow, not a generic APM tool.
+- **TrendingService** - engagement score = (likes × 2) + views, with time
+  decay and subreddit diversity
+- **RedisService** - centralized cache access with a circuit breaker
+  (`redis_available?`) and consistent fallback behavior
 
-### TrendingService  
-Calculates trending memes using:
-- Engagement score = (likes × 2) + views
-- Time decay factor
-- Subreddit diversity
-
-### LeaderboardService
-Manages gamification:
-- Weekly/monthly/all-time rankings
-- XP calculation
-- Streak tracking
-
-### RedisService
-Centralized cache management:
-- Connection pooling
-- Automatic fallback
-- TTL management
+For the full, current list, read `lib/services/` directly - this section
+deliberately doesn't enumerate all 27, because that list changes and a
+partial list here would just be the next stale claim.
 
 ---
 
 ## 🔒 SECURITY LAYERS
 
-1. **Input Validation**
-   - InputSanitizer module
-   - Validators for all user input
-   
-2. **CSRF Protection**
-   - Rack::CSRF middleware
-   - Token validation on POST/PUT/DELETE
-
-3. **Rate Limiting**
-   - Rack::Attack (60 req/min per IP)
-   - Redis-backed
-
-4. **Session Security**
-   - Secure cookies
-   - Configurable expiration
-   - Session secret rotation
-
-5. **SQL Injection Prevention**
-   - Parameterized queries
-   - Input sanitization
+1. **Input Validation** - `lib/validators.rb`
+2. **CSRF Protection** - Rack::CSRF, token validation on POST/PUT/DELETE
+3. **Rate Limiting** - Rack::Attack, Redis-backed (see
+   `config/rack_attack.rb` for actual current limits)
+4. **Session Security** - Secure cookies, Redis-backed session store
+5. **SQL Injection Prevention** - Parameterized queries throughout
 
 ---
 
-## 📈 SCALING CONSIDERATIONS
+## 📈 SCALING: WHAT THIS APP ACTUALLY IS
 
-### Current Capacity
-- **Concurrent Users:** ~500
-- **Requests/sec:** ~50
-- **Database Connections:** 25 pool
-- **Redis Connections:** 40 pool
+This app runs as **one Puma worker**. That is a deliberate design choice
+tied to the in-process `MEME_CACHE`, not a limitation waiting to be lifted.
+Config files describing multi-region active-active replication, load
+balancers, autoscaling, or PostgreSQL read replicas were removed from this
+repo because they contradicted this reality and had zero code paths
+actually using them. If real traffic ever demands horizontal scaling, that
+work starts with solving the in-process cache assumption first - it is not
+a config file away.
 
-### Bottlenecks
-1. **app.rb size** (2,644 lines) - needs modularization
-2. **N+1 queries** in some routes - needs batch loading
-3. **Reddit API rate limits** - using adaptive rate limiter
-
-### Future Improvements
-- Extract controllers from app.rb
-- Implement Sequel ORM
-- Add read replicas for PostgreSQL
-- CDN for static assets
-- Horizontal scaling with load balancer
+Concrete, current bottleneck candidates (informed by `SelectionBenchmark`,
+not guessed): the on-demand Reddit fetch branch in `random_memes_pool`
+(historically ~300ms per the code's own bug-fix comments) and the
+multi-layer pool fallback chain generally. Read `/metrics` for the current
+real numbers before proposing a fix to either.
 
 ---
 
 ## 🐛 ERROR HANDLING
 
-### Strategy
 ```ruby
-ErrorHandler.capture(error, context)
-  ↓
-1. Log to AppLogger
-2. Send to Sentry
-3. Track metrics
-4. Alert if critical
+rescue => e
+  AppLogger.error(...)      # always
+  Sentry.capture_exception  # if configured
+  # return a safe fallback - never a bare rescue that hides the failure
 ```
 
-### Error Levels
-- **CRITICAL:** Database down, Redis unavailable
-- **ERROR:** Failed API calls, validation errors  
-- **WARN:** Slow queries, cache misses
-- **INFO:** Normal operations
+Prefer targeted rescues over bare `rescue => e` / `rescue nil` /
+`rescue []` wherever the surrounding code can reasonably distinguish
+"expected, recoverable" from "a real bug." Several bare rescues were
+found and fixed this session (`lib/helpers/meme_pool_helpers.rb`,
+`lib/services/meme_service.rb`) using a `safe_pool_query`/`safe_fetch`
+pattern that preserves the same fallback behavior while actually logging
+what went wrong.
 
 ---
 
 ## 📊 MONITORING
 
-### Health Checks
-- `/health` - Quick status
-- `/health/detailed` - Full diagnostics (admin only)
+- `/health` - quick status
+- `/metrics` - engagement stats + **selection latency breakdown**
+  (admin-only, see the core product loop section above)
+- `/metrics.json` - same data, JSON
 
-### Metrics Tracked
-- Request rate & latency
-- Error rate by type
-- Cache hit/miss ratio
-- Database query performance
-- Active user count
-- Memory usage
-
-### Alerts
-- Memory leak detection
-- High error rate (>1%)
-- Database connection exhaustion
-- Redis failures
+Don't add a new ad-hoc metrics page for a new concern - extend `/metrics`
+or add a stage to `SelectionBenchmark` if it's about the core loop.
 
 ---
 
 ## 🚀 DEPLOYMENT
 
-### Environments
-- **Development:** SQLite, local Redis
-- **Production:** PostgreSQL, Redis Cloud, Render.com
+**Environments:** SQLite (migration tooling only) or local PostgreSQL +
+local Redis in development; PostgreSQL + Redis + Render.com in production.
 
-### Deploy Process
-```bash
-1. Run tests: bundle exec rspec
-2. Security audit: bundle audit
-3. Push to main branch
-4. Render auto-deploys
-5. Health check verification
-6. Monitor Sentry for errors
-```
+**Deploy process (verified against `render.yaml` and `.github/workflows/`,
+not assumed):**
 
-### Rollback
-```bash
-# Via Render dashboard or CLI
-render rollback <service-name>
-```
+There is exactly one CI workflow: `.github/workflows/ci.yml`. It runs
+`bundle exec rspec` (test job) and `bundle audit check --update`
+(security job) on every push/PR to `main`/`develop`. Its `lint` job is
+currently disabled (commented out) because the `rubocop` gem isn't in
+the Gemfile - see the comment in that file for what's needed to
+re-enable it.
+
+**Critically: CI passing does not gate deployment.** `render.yaml`'s
+`buildCommand` is **just `bundle install`** - Render deploys directly
+from a push to `main` regardless of whether CI has finished or passed.
+That means:
+- A red CI run does not stop a bad commit from reaching production.
+  Don't push to `main` without running `bundle exec rspec` yourself
+  first and confirming it's green.
+- `npm run build` is never run automatically anywhere - not in CI, not
+  by Render. `public/dist/bundle.js` is a **committed deploy artifact**,
+  not disposable build output. If you change anything under
+  `public/js/`, run `npm run build` locally and commit the resulting
+  bundle, or production keeps serving the old one.
+
+**Rollback:** via the Render dashboard (redeploy a previous commit). There
+is no scripted rollback command in this repo.
 
 ---
 
 ## 📚 REFERENCES
 
-- **Main Audit:** `docs/archive/audits_2026/SENIOR_DEV_COMPREHENSIVE_AUDIT_JUNE_3_2026.md`
-- **Roadmap:** `NEXT_90_DAYS_ROADMAP_JUNE_2026.md`
-- **API Docs:** `API_DOCS.md`
-- **Phase 1 Report:** `PHASE_1_CRITICAL_FIXES_COMPLETE.md`
+- **Historical docs (not guaranteed current):** `docs/archive/`
+- **Change history:** `CHANGELOG.md`
+- **Security:** `SECURITY.md`
+- **Contributing:** `CONTRIBUTING.md`
+
+If a reference in this file points at a file that no longer exists,
+that's a bug in this file - delete the reference rather than leave a
+dead link.
 
 ---
 
-**Maintained by:** Development Team  
-**Questions?** See CONTRIBUTING.md for contact info
+**Keep this file honest:** every claim above was checked against the
+actual repository, not carried forward from memory. If you're editing
+code this file describes, update this file in the same PR.

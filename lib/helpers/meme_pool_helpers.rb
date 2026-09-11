@@ -141,26 +141,48 @@ module MemePoolHelpers
     user_id ? apply_user_preferences(pool, user_id) : pool.shuffle
   end
 
+  # Runs a DB.execute query, returning [] and logging loudly (incl. Sentry)
+  # on failure instead of silently swallowing every StandardError.
+  #
+  # BUG FIX: these pool queries previously used a bare `rescue []` /
+  # `rescue nil` modifier, which caught *any* StandardError - a genuine
+  # connection-pool exhaustion or timeout, but just as easily a typo'd
+  # column name or a NoMethodError from bad data. Either way the pool
+  # silently degraded with zero signal that anything was wrong, which is
+  # exactly the kind of failure that's invisible until a user notices
+  # empty/stale pools days later. Now every failure here is logged with
+  # context and reported to Sentry (if configured), and callers still get
+  # the same graceful `[]` fallback they had before.
+  def safe_pool_query(context)
+    yield
+  rescue => e
+    AppLogger.error("⚠️  [POOL] #{context} failed: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e, extra: { context: context }) if defined?(Sentry)
+    []
+  end
+
   # Get trending memes based on engagement score
   def get_trending_pool(limit = 50)
-    result = DB.execute(
-      "SELECT *, (likes * 2 + views) AS score 
-       FROM meme_stats 
-       WHERE failure_count IS NULL OR failure_count < 2 
-       ORDER BY score DESC 
-       LIMIT ?",
-      [limit]
-    ) rescue []
-    result || []
+    safe_pool_query("get_trending_pool") do
+      DB.execute(
+        "SELECT *, (likes * 2 + views) AS score 
+         FROM meme_stats 
+         WHERE failure_count IS NULL OR failure_count < 2 
+         ORDER BY score DESC 
+         LIMIT ?",
+        [limit]
+      ) || []
+    end
   end
 
   # Get fresh memes from recent hours
   def get_fresh_pool(limit = 30, hours_ago = 24)
-    result = DB.execute(
-      "SELECT * FROM meme_stats WHERE updated_at > datetime('now', '-#{hours_ago} hours') AND (failure_count IS NULL OR failure_count < 2) ORDER BY updated_at DESC LIMIT ?",
-      [limit]
-    ) rescue []
-    result || []
+    safe_pool_query("get_fresh_pool") do
+      DB.execute(
+        "SELECT * FROM meme_stats WHERE updated_at > datetime('now', '-#{hours_ago} hours') AND (failure_count IS NULL OR failure_count < 2) ORDER BY updated_at DESC LIMIT ?",
+        [limit]
+      ) || []
+    end
   end
 
   # Get random exploration memes.
@@ -179,27 +201,30 @@ module MemePoolHelpers
     # surfaces content from anywhere in the table (not just the newest
     # rows), while still only ever fetching/sorting a bounded window —
     # far cheaper than `ORDER BY RANDOM()` over the whole table.
-    max_id_row = DB.execute("SELECT MAX(id) AS max_id FROM meme_stats").first rescue nil
+    max_id_rows = safe_pool_query("get_exploration_pool max_id") { DB.execute("SELECT MAX(id) AS max_id FROM meme_stats") || [] }
+    max_id_row = max_id_rows.first
     max_id = max_id_row ? (max_id_row["max_id"] || max_id_row["MAX(id)"]).to_i : 0
     random_start = max_id > 0 ? rand(0..max_id) : 0
 
-    candidates = DB.execute(
-      "SELECT * FROM meme_stats WHERE id >= ? AND (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
-      [random_start, candidate_window]
-    ) rescue []
-
-    candidates = [] if candidates.nil?
+    candidates = safe_pool_query("get_exploration_pool candidates") do
+      DB.execute(
+        "SELECT * FROM meme_stats WHERE id >= ? AND (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
+        [random_start, candidate_window]
+      ) || []
+    end
 
     # If the random window landed near the end of the table and came up
     # short, wrap around and fill from the start.
     if candidates.size < limit
       remaining = limit - candidates.size
       seen_ids = candidates.map { |m| m["id"] }
-      wrap = DB.execute(
-        "SELECT * FROM meme_stats WHERE (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
-        [candidate_window]
-      ) rescue []
-      candidates += (wrap || []).reject { |m| seen_ids.include?(m["id"]) }.first(remaining)
+      wrap = safe_pool_query("get_exploration_pool wraparound") do
+        DB.execute(
+          "SELECT * FROM meme_stats WHERE (failure_count IS NULL OR failure_count < 2) ORDER BY id ASC LIMIT ?",
+          [candidate_window]
+        ) || []
+      end
+      candidates += wrap.reject { |m| seen_ids.include?(m["id"]) }.first(remaining)
     end
 
     candidates.sample(limit)
@@ -211,9 +236,15 @@ module MemePoolHelpers
     # Try new 5,000-meme intelligent pool first
     begin
       require_relative '../services/meme_pool_manager'
-      
-      pool_result = MemePoolManager.get_pool
-      
+
+      # Instrumented separately from :pool_lookup (the whole method) so we
+      # can tell "MemePoolManager's own Redis round-trip was slow" apart
+      # from "the on-demand Reddit fetch further down was slow" apart from
+      # everything else in this method's Ruby-only logic. See
+      # lib/services/selection_benchmark.rb and the :reddit_fetch stage
+      # further down for the sibling measurement.
+      pool_result = SelectionBenchmark.measure(stage: :pool_manager_lookup) { MemePoolManager.get_pool }
+
       if pool_result[:success] && pool_result[:memes]&.any?
         AppLogger.info("✅ [POOL] Using MemePoolManager: #{pool_result[:pool_size]} memes (tier-distributed)")
         return pool_result[:memes]
@@ -281,7 +312,16 @@ module MemePoolHelpers
         if defined?(InlineRedditFetcher)
           AppLogger.info("[POOL] Cache empty — fetching from Reddit via OAuth...")
           subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
-          fresh_memes = InlineRedditFetcher.fetch(subreddits, limit: 25)
+          # Instrumented separately from the overall :pool_lookup stage
+          # (see lib/services/selection_benchmark.rb): this is the one call
+          # in the whole pool-lookup chain that does real network I/O
+          # (Reddit OAuth + fetch), and the prime suspect for the ~217-480ms
+          # real-world latency observed in manual testing that no local,
+          # in-process benchmark of the surrounding Ruby logic could
+          # reproduce (that logic alone measures in single-digit ms). This
+          # stage either confirms that suspicion with real numbers the next
+          # time this branch fires in production, or rules it out.
+          fresh_memes = SelectionBenchmark.measure(stage: :reddit_fetch) { InlineRedditFetcher.fetch(subreddits, limit: 25) }
           if fresh_memes.any?
             MemeExplorer::App::MEME_CACHE.set(:memes, fresh_memes)
             MemeExplorer::App::MEME_CACHE.set(:last_refresh, Time.now)

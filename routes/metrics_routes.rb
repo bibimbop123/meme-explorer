@@ -29,6 +29,11 @@ module Routes
 
         content_type :json
         {
+          # The headline number, broken into stages: how fast is the core
+          # product loop (pick this person their next meme) actually
+          # running right now, and where does the time go - finding the
+          # pool, or choosing from it? See lib/services/selection_benchmark.rb.
+          selection_latency: SelectionBenchmark.stage_breakdown,
           total_memes: total_memes,
           total_likes: total_likes,
           total_views: total_views,
@@ -41,6 +46,13 @@ module Routes
       # Metrics HTML page
       app.get "/metrics" do
         require_auth!
+
+        # The headline number, broken into stages: how fast is the core
+        # product loop (pick this person their next meme) actually
+        # running right now, and where does the time go - finding the
+        # pool, or choosing from it? See lib/services/selection_benchmark.rb.
+        @selection_latency = SelectionBenchmark.stats
+        @selection_breakdown = SelectionBenchmark.stage_breakdown
 
         # Initialize defaults first
         @total_memes         = 0

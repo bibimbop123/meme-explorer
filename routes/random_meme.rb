@@ -1,20 +1,69 @@
 # routes/random_meme.rb
 # Random meme routes - HTML and JSON endpoints
 # Services required at file load time (not per-request) to avoid require mutex contention
-# require_relative '../lib/services/diversity_engine_service' # ELON AUDIT: File not found
-# require_relative '../lib/services/similar_meme_service' # ELON AUDIT: File not found
 require_relative '../lib/services/viewing_history_service'
 require_relative '../lib/services/simple_meme_selector'
 
 module Routes
   module RandomMeme
+    # Shared by /random.json and /similar.json — both endpoints select a
+    # meme and then need to derive its reddit permalink, record a view,
+    # and shape the JSON response identically. This used to be copy-pasted
+    # in both route bodies (~40 lines each); extracted here so there's one
+    # place to fix when the response shape changes.
+    def self.build_reddit_path(meme, image_url)
+      reddit_path = nil
+
+      if meme["reddit_post_urls"]&.is_a?(Array)
+        reddit_path = meme["reddit_post_urls"].find { |u| u.include?(image_url) }
+      end
+
+      if !reddit_path && meme["permalink"].to_s.strip != ""
+        reddit_path = meme["permalink"]
+      end
+
+      if reddit_path&.start_with?("http")
+        reddit_path = URI.parse(reddit_path).path
+      end
+
+      reddit_path
+    end
+
+    def self.build_meme_json(meme, media_type:, likes:)
+      image_url = meme["url"] || meme["file"]
+      reddit_path = build_reddit_path(meme, image_url)
+
+      # Track view in meme_stats if it's an API meme (not a local file)
+      if !image_url.start_with?("/")
+        MemeExplorer::App::DB.execute(
+          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
+          [image_url, meme["title"] || "Unknown", meme["subreddit"] || "reddit"]
+        ) rescue nil
+      end
+
+      response_data = {
+        title: meme["title"],
+        subreddit: meme["subreddit"],
+        file: meme["file"],
+        url: image_url,
+        reddit_path: reddit_path,
+        likes: likes,
+        media_type: media_type
+      }
+
+      if meme["is_gallery"] && meme["gallery_images"]
+        response_data[:is_gallery] = true
+        response_data[:gallery_images] = meme["gallery_images"]
+        response_data[:total_images] = meme["gallery_images"].size
+      end
+
+      response_data
+    end
+
     def self.registered(app)
       # Render random meme page
       app.get "/random" do
         begin
-          # Initialize session history
-          # Removed: using ViewingHistoryService instead
-          
           # BUG FIX (Aug 25, 2026, round 9): this used to trust
           # MemeExplorer::App::MEME_CACHE[:memes] first, and only call
           # random_memes_pool (which correctly prioritizes
@@ -30,16 +79,25 @@ module Routes
           # unconditionally, matching /random.json, so this page always
           # gets the best available pool instead of a possibly-stale
           # legacy snapshot.
-          meme_pool = random_memes_pool
-          
-          # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
-          
-          session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
-          user_prefs = {}
-          
-          # Use sophisticated diversity system V2 (ANTI-REPETITION)
-          @meme = MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id)
-          
+          #
+          # BUG FIX: plain `session.id` blew up with NoMethodError whenever
+          # `session` was a bare Hash rather than a real Rack session
+          # object (e.g. no cookie set yet, or a test double) - `session`
+          # doesn't universally respond to `.id`. Guard with
+          # `respond_to?(:id)` so this falls through to the request-IP
+          # fallback instead of crashing the whole request.
+          session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+
+          # The core product loop: given this person, pick their meme.
+          # Timed end-to-end AND broken into stages (pool lookup vs.
+          # selection algorithm) so /metrics can show not just the one
+          # headline number, but WHERE its time actually goes - see
+          # lib/services/selection_benchmark.rb.
+          @meme = SelectionBenchmark.measure do
+            meme_pool = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
+            SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id) }
+          end
+
           # Fallback if something goes wrong
           @meme ||= fallback_meme
           
@@ -64,32 +122,9 @@ module Routes
           @meme = fallback_meme
         end
         
-        # GAMIFICATION: Works for everyone! (uses session, not user_id)
-        begin
-          # Increment view count for milestones
-          session[:view_count] ||= 0
-          session[:view_count] += 1
-          
-          # Check if milestone reached (DISABLED - MilestoneService removed)
-      # milestone = MemeExplorer::MilestoneService.check_milestone(session[:view_count])
-      # if milestone
-      #   @milestone = milestone
-      #   # Only award to DB if logged in
-      #   if current_user_id
-      #     MemeExplorer::MilestoneService.award_milestone(current_user_id, milestone) rescue nil
-      #   end
-      # end
-          
-          # GAMIFICATION DISABLED: All milestone/streak/reward services removed during audit
-          @progress = nil
-          @streak_status = nil
-          @social_proof = nil
-          @tease = nil
-          @surprise_reward = nil
-        rescue => e
-          AppLogger.error("⚠️  Gamification error: #{e.class} - #{e.message}")
-          AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))
-        end
+        # View count tracking (session-based, works for both logged-in and anonymous users)
+        session[:view_count] ||= 0
+        session[:view_count] += 1
         
         @image_src = meme_image_src(@meme)
         @likes = 0  # Will be loaded by JS
@@ -161,13 +196,9 @@ module Routes
           end
           
           halt 404, { error: "No memes available" }.to_json if meme_pool.empty?
-          
-          # Load Similar Meme Service
-          
-          # Create source meme representation
-          source_meme = { 'subreddit' => subreddit }
-          session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
-          
+
+          session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+
           # Find similar meme (same subreddit)
         similar_pool = meme_pool.select { |m| m['subreddit']&.downcase == subreddit }
         similar_pool = meme_pool if similar_pool.empty? # Fallback to all if no matches
@@ -182,52 +213,12 @@ module Routes
           end
           
           image_url = @meme["url"] || @meme["file"]
-          
-          # Get reddit path
-          reddit_path = nil
-          if @meme["reddit_post_urls"]&.is_a?(Array)
-            post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
-            reddit_path = post_url
-          end
-          
-          if !reddit_path && @meme["permalink"].to_s.strip != ""
-            reddit_path = @meme["permalink"]
-          end
-          
-          if reddit_path&.start_with?("http")
-            uri = URI.parse(reddit_path)
-            reddit_path = uri.path
-          end
-          
-          # Track view
-          if !image_url.start_with?("/")
-            meme_title = @meme["title"] || "Unknown"
-            meme_subreddit = @meme["subreddit"] || "reddit"
-            MemeExplorer::App::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
-              [image_url, meme_title, meme_subreddit]
-            ) rescue nil
-          end
-          
-          media_type = detect_media_type(image_url)
-          
-          response_data = {
-            title: @meme["title"],
-            subreddit: @meme["subreddit"],
-            file: @meme["file"],
-            url: image_url,
-            reddit_path: reddit_path,
-            likes: get_meme_likes(image_url),
-            media_type: media_type
-          }
-          
-          # Add gallery data if present
-          if @meme["is_gallery"] && @meme["gallery_images"]
-            response_data[:is_gallery] = true
-            response_data[:gallery_images] = @meme["gallery_images"]
-            response_data[:total_images] = @meme["gallery_images"].size
-          end
-          
+          response_data = Routes::RandomMeme.build_meme_json(
+            @meme,
+            media_type: detect_media_type(image_url),
+            likes: get_meme_likes(image_url)
+          )
+
           AppLogger.info("✅ [/similar.json] Returning meme from #{@meme['subreddit']}")
           response_data.to_json
         rescue => e
@@ -240,26 +231,32 @@ module Routes
       # JSON API endpoint for random memes with validation
       app.get "/random.json" do
         AppLogger.debug("🔄 [/random.json] Request received")
-        
-        # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
-        AppLogger.debug("🔄 [/random.json] Calling random_memes_pool...")
-        memes = random_memes_pool
+
+        session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+
+        # The core product loop, timed end-to-end AND per-stage - see
+        # lib/services/selection_benchmark.rb. This is the endpoint most
+        # real usage actually hits (every subsequent meme after the first
+        # page load goes through here), so its latency is the number that
+        # matters most - and the stage breakdown here is what tells us
+        # whether to spend effort on the pool-lookup fallback chain or the
+        # selection algorithm itself.
+        memes = nil
+        @meme = SelectionBenchmark.measure do
+          # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
+          memes = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
+          next nil if memes.empty?
+
+          SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id) }
+        end
         AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
-        
+
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
         # CDN caching - 1 hour for meme data
         headers "Cache-Control" => "public, max-age=3600"
         headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
-        
-        # 🎯 NEW: Use Diversity Engine for intelligent, non-repetitive selection
-        
-        session_id = session[:session_id] || session.id || "anonymous_#{request.ip}"
-        user_prefs = {}
-        
-        # Use sophisticated diversity system V2 (ANTI-REPETITION)
-        @meme = MemeExplorer::SimpleMemeSelector.select(memes, session_id)
-        
+
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
         
         AppLogger.info("✅ [/random.json] Selected meme: #{@meme['title']}")
@@ -272,54 +269,14 @@ module Routes
         session[:last_subreddit] = @meme["subreddit"]&.downcase
         
         image_url = @meme["url"] || @meme["file"]
-        
-        reddit_path = nil
-        if @meme["reddit_post_urls"]&.is_a?(Array)
-          post_url = @meme["reddit_post_urls"].find { |u| u.include?(image_url) }
-          reddit_path = post_url
-        end
-        
-        # Try to get permalink from meme
-        if !reddit_path && @meme["permalink"].to_s.strip != ""
-          reddit_path = @meme["permalink"]
-        end
-        
-        # Strip domain if full URL
-        if reddit_path&.start_with?("http")
-          uri = URI.parse(reddit_path)
-          reddit_path = uri.path
-        end
-        
-        # Track view in meme_stats if it's an API meme (not local file)
-        if !image_url.start_with?("/")
-          meme_title = @meme["title"] || "Unknown"
-          meme_subreddit = @meme["subreddit"] || "reddit"
-          MemeExplorer::App::DB.execute(
-            "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
-            [image_url, meme_title, meme_subreddit]
-          ) rescue nil
-        end
-        
-        # No more client-side fallback chains - backend validation ensures working images
-        media_type = detect_media_type(image_url)
-        
-        response_data = {
-          title: @meme["title"],
-          subreddit: @meme["subreddit"],
-          file: @meme["file"],
-          url: image_url,
-          reddit_path: reddit_path,
-          likes: get_meme_likes(image_url),
-          media_type: media_type
-        }
 
-        # Add gallery data if present
-        if @meme["is_gallery"] && @meme["gallery_images"]
-          response_data[:is_gallery] = true
-          response_data[:gallery_images] = @meme["gallery_images"]
-          response_data[:total_images] = @meme["gallery_images"].size
-        end
-        
+        # No more client-side fallback chains - backend validation ensures working images
+        response_data = Routes::RandomMeme.build_meme_json(
+          @meme,
+          media_type: detect_media_type(image_url),
+          likes: get_meme_likes(image_url)
+        )
+
         content_type :json
         AppLogger.info("✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}")
         response_data.to_json

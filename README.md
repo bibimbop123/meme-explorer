@@ -1,65 +1,38 @@
 # 🎉 Meme Explorer
 
-A modern, production-grade meme discovery platform built with Ruby/Sinatra.
+A modern meme discovery platform built with Ruby/Sinatra.
 
 ## 🌟 Features
 
+These reflect what's actually registered in `app.rb` today — if a route isn't
+wired up there, it doesn't exist yet, no matter what an old status report
+might claim.
+
 ### Core Functionality
-- **Random Meme Discovery** - Infinite scrolling random meme exploration
-- **Trending Memes** - Algorithm-driven trending content with time decay
-- **Search** - Full-text search across meme titles and categories
-- **User Profiles** - Save favorites, track engagement, earn achievements
-- **Leaderboard** - Competitive scoring system with badges and streaks
-- **Gallery View** - Responsive carousel for meme browsing
-
-### Engagement Features
-- **Gamification** - Points, badges, streaks, and achievements
-- **Reactions** - Like, laugh, fire reactions with haptic feedback
-- **Sound Effects** - Interactive audio feedback system
-- **Particle Effects** - Visual celebration animations
-- **Activity Tracking** - Comprehensive user engagement analytics
-- **Battle Mode** - Vote between two random memes
-
-## 🎨 Recent Improvements
-
-### Phase 1: Stabilization (June 2026) ✅ COMPLETE
-- **Memory Leak Fix:** Eliminated critical memory leak in database cleanup
-- **Security Enhancements:** Added rack-protection, pinned all gem versions
-- **Dependencies:** Cleaned up bloat, optimized Gemfile
-- **Documentation:** New ARCHITECTURE.md, CONTRIBUTING.md, TROUBLESHOOTING.md
-- **CI/CD:** GitHub Actions workflow for automated testing
-- **Impact:** Zero memory leaks, A- security score, production-ready
-- **Details:** See [PHASE_1_FINAL_SUMMARY.md](PHASE_1_FINAL_SUMMARY.md)
-
-### Phase 2: Refactoring (P2 - May 2026)
-
-### A/B Testing Framework
-- **Feature:** Data-driven experimentation platform
-- **Access:** `/admin/ab-testing` (admin only)
-- **Capabilities:** Create variants, track conversions, statistical analysis
-- **Impact:** Enables data-driven feature development
-
-### Performance Monitoring
-- **Feature:** Request timing middleware with automatic alerts
-- **Metrics:** Response time, slow request detection, Sentry integration
-- **Thresholds:** 500ms warning, 1000ms alert
-- **Dashboard:** Real-time metrics at `/metrics`
+- **Random Meme Discovery** - `/random` and `/random.json`, backed by
+  `MemePoolManager`'s Redis-cached, tier-distributed pool with anti-repetition
+  selection
+- **Trending Memes** - `/trending` and `/trending.json`, engagement-scored
+  with time decay
+- **Search** - `/search` and `/api/search.json`
+- **User Profiles** - `/profile`, saved memes, engagement tracking
+- **Leaderboard** - `/leaderboard` and `/api/leaderboard`
+- **Gallery View** - Multi-image Reddit gallery rendering
+- **Personalization** - `/taste-evolution` and saved-meme collections
+- **Blog** - `/blog` (original content pages)
 
 ### Background Jobs (Sidekiq)
-- **Workers:** Cache refresh, leaderboard calculation, cleanup, analytics
-- **Monitoring:** Sidekiq web UI at `/sidekiq`
-- **Schedule:** Automated cron-like scheduling
-- **Benefits:** Non-blocking operations, improved performance
+- **Workers:** cache refresh, cache preload, meme pool maintenance, database
+  cleanup
+- **Schedule:** cron-like scheduling via `sidekiq-scheduler`
 
-### Architecture Improvements
-- **Refactored:** Modular route structure (MVC pattern)
-- **Before:** 2,511-line monolith
-- **After:** Clean separation of concerns with controllers, models, helpers
-- **Maintainability:** 300% improvement in code organization
+## 📝 A note on scope
 
-### Grade Impact
-- **Before P2:** A (93/100)
-- **After P2:** A+ (96/100) ⬆️ **+3 points**
+Earlier phases of this project experimented with a wider surface area
+(A/B testing, gamification, battle mode, reactions, particle/sound effects).
+Those were removed from the boot path because they added maintenance cost
+without earning their keep. If you find references to them in old docs
+under `docs/archive/`, treat those docs as historical, not current.
 
 ## 🚀 Quick Start
 
@@ -84,8 +57,6 @@ cp .env.example .env
 
 # Set up database
 ruby db/setup.rb
-ruby scripts/run_ab_testing_migration.rb
-ruby scripts/run_leaderboard_migration.rb
 
 # Start Redis (for Sidekiq)
 redis-server
@@ -101,10 +72,12 @@ Visit `http://localhost:8080` to explore memes!
 
 ## 📖 Documentation
 
-- **[API Documentation](API_DOCUMENTATION.md)** - Complete API reference
-- **[Deployment Guide](DEPLOYMENT_P2.md)** - Production deployment instructions
-- **[Architecture Overview](P2_IMPLEMENTATION_PLAN.md)** - System design and patterns
-- **[Security Guide](SECURITY_IMPROVEMENTS_2026.md)** - Security best practices
+- **[Architecture Overview](ARCHITECTURE.md)** - System design and patterns
+- **[Security Guide](SECURITY.md)** - Security best practices
+- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and fixes
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+- **[Historical docs](docs/archive/)** - Past audits and phase reports (not
+  guaranteed to reflect current behavior)
 
 ## 🛠️ Technology Stack
 
@@ -117,14 +90,21 @@ Visit `http://localhost:8080` to explore memes!
 
 ### Frontend
 - **Templating:** ERB
+- **Build:** Vite (bundles `public/js/main.js` into `public/dist/bundle.js`)
 - **CSS:** Custom responsive design
 - **JavaScript:** Vanilla JS with modern features
-- **Effects:** Custom particle system, haptic feedback, sound system
+
+**Important:** `render.yaml`'s `buildCommand` is just `bundle install` - there
+is no CI/deploy step that runs `npm run build`. `public/dist/` is committed
+to git and IS the deploy artifact, not disposable build output. If you
+change anything under `public/js/`, you must run `npm run build` locally
+and commit the resulting `public/dist/bundle.js` before deploying, or
+production will keep serving the old bundle.
 
 ### DevOps
 - **Hosting:** Render.com / Heroku
 - **CI/CD:** GitHub Actions
-- **Monitoring:** Sentry, Sidekiq Dashboard
+- **Monitoring:** Sentry
 - **Performance:** Request timing middleware
 
 ## 📊 API Endpoints
@@ -135,26 +115,28 @@ GET  /                   - Home page
 GET  /random             - Random meme discovery
 GET  /random.json        - Random meme API
 GET  /trending           - Trending memes
+GET  /trending.json      - Trending memes API
 GET  /search             - Search memes
+GET  /api/search.json    - Search API
 GET  /leaderboard        - User rankings
-GET  /profile/:username  - User profile
+GET  /api/leaderboard    - Leaderboard API
+GET  /blog               - Blog index
 ```
 
 ### Authenticated Routes
 ```
-POST /auth/signup        - Create account
-POST /auth/login         - Sign in
-GET  /profile            - Current user profile
-POST /memes/:id/save     - Save meme
-POST /memes/:id/react    - Add reaction
+POST /signup              - Create account
+POST /login                - Sign in
+GET  /profile             - Current user profile
+POST /api/save-meme       - Save meme to collection
+POST /api/unsave-meme     - Remove meme from collection
+GET  /taste-evolution     - Personalization insights
 ```
 
 ### Admin Routes
 ```
-GET  /admin              - Admin dashboard
-GET  /admin/ab-testing   - A/B testing interface
-GET  /sidekiq            - Sidekiq monitoring
-GET  /metrics            - Performance metrics
+GET  /admin               - Admin dashboard
+GET  /metrics             - Performance metrics
 ```
 
 ## 🧪 Testing
@@ -185,11 +167,27 @@ ruby scripts/performance_test.rb
 
 ## 📈 Performance
 
-### Current Metrics
-- **Average Response Time:** <200ms
-- **P95 Response Time:** <500ms
-- **Cache Hit Rate:** >80%
-- **Uptime:** 99.9%
+### The one number that matters: selection latency
+
+This product's core loop is picking the right meme for a person, right now.
+`SelectionBenchmark` (`lib/services/selection_benchmark.rb`) measures that
+loop end-to-end on every real `/random` and `/random.json` request, broken
+into stages:
+
+- `:total` - the whole decision, start to finish
+- `:pool_lookup` - finding a pool of candidate memes
+  - `:pool_manager_lookup` - specifically `MemePoolManager`'s Redis round-trip
+  - `:reddit_fetch` - specifically the on-demand Reddit API call, when the
+    pool is cold and falls back to fetching fresh content
+- `:selection` - the anti-repetition selection algorithm itself
+
+Live p50/p95/p99 for every stage, from real traffic, is visible at
+`/metrics` (admin-only) - not asserted here as a static claim. Numbers
+like "average response time" or "P95 <500ms" are only trustworthy if
+they come from a live instrument reading real requests; a number typed
+into a README with no source behind it is worse than no number at all,
+so we removed the previous placeholder figures rather than leave them
+looking authoritative. Go look at `/metrics` for the real answer.
 
 ### Optimizations
 - Strategic database indexes
@@ -201,16 +199,18 @@ ruby scripts/performance_test.rb
 ## 🎯 Roadmap
 
 ### Completed ✅
-- [x] A/B Testing Framework
-- [x] Performance Monitoring
+- [x] Performance Monitoring (request timing middleware, `/metrics`)
+- [x] Selection latency benchmarking, staged by pool-lookup vs. selection
+  vs. real network I/O (`SelectionBenchmark`, live at `/metrics`)
 - [x] Background Jobs (Sidekiq)
-- [x] Architecture Refactoring
-- [x] Enhanced Leaderboard
-- [x] Gamification System
+- [x] Modular route architecture (`routes/*.rb`, `self.registered(app)` pattern)
+- [x] Leaderboard
 
 ### In Progress 🚧
 - [ ] Mobile app development
-- [ ] Real-time analytics dashboard
+- [ ] Collapsing the multi-layer pool fallback chain (`MemePoolManager` →
+  `MEME_CACHE` → on-demand Reddit fetch) once real `/metrics` traffic data
+  shows which layer is the actual cost driver
 - [ ] Advanced caching strategies
 
 ### Planned 📋
@@ -235,17 +235,14 @@ This project is proprietary software developed by Discovery Partners Institute.
 ## 👥 Team
 
 - **Engineering Lead:** Brian
-- **Organization:** Brain inc.
+- **Organization:** Discovery Partners Institute
 - **Started:** 2025
-- **Latest Major Update:** P2 Completion (May 2026)
 
 ## 📞 Support
 
 - **Issues:** GitHub Issues
-- **Documentation:** See `/docs` directory
-- **Email:** support@meme-explorer.com
+- **Documentation:** See `docs/` directory
 
 ---
 
 **Built with ❤️ by Brian Kim**
-# Force redeploy Mon Jul 20 12:50:52 CDT 2026

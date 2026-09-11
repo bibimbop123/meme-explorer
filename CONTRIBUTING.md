@@ -25,12 +25,12 @@ bundle install
 cp .env.example .env
 # Edit .env with your credentials
 
-# 4. Run database migrations
-bundle exec ruby scripts/setup_database.rb
+# 4. Set up the database
+ruby db/setup.rb
 
-# 5. Start the development server
-bundle exec ruby app.rb
-# Or use: ./scripts/start_dev_server.sh
+# 5. Start the development server (Puma + Sidekiq)
+./scripts/start_dev_server.sh
+# Or manually: bundle exec rackup config.ru -p 8080
 ```
 
 ---
@@ -59,14 +59,12 @@ bundle exec rspec spec/services/meme_service_spec.rb
 COVERAGE=true bundle exec rspec
 ```
 
-### 4. Lint Your Code
-```bash
-# Run RuboCop
-bundle exec rubocop
+### 4. Style
 
-# Auto-fix issues
-bundle exec rubocop --auto-correct
-```
+`.rubocop.yml` exists in this repo, but the `rubocop` gem is currently
+**not** in the Gemfile - `bundle exec rubocop` will fail until it's added.
+If you're adding it back, add the gem first and update this section to
+match; don't leave instructions here for a tool that isn't installed.
 
 ### 5. Commit Your Changes
 ```bash
@@ -100,6 +98,9 @@ Then create a Pull Request on GitHub.
 - Use meaningful variable names
 
 ### Service Pattern
+
+Illustrative example (not a real method - see `lib/services/meme_service.rb`
+for what `MemeService` actually implements today):
 ```ruby
 # Good: Service class with single responsibility
 class MemeService
@@ -125,6 +126,10 @@ end
 ```
 
 ### Testing
+
+Illustrative example (again, `fetch_trending` isn't a real method - see
+`spec/services/` for real, current test examples like
+`spec/services/selection_benchmark_spec.rb`):
 ```ruby
 # Write descriptive tests
 RSpec.describe MemeService do
@@ -224,10 +229,13 @@ end
 ## 🐛 DEBUGGING
 
 ### Local Debugging
+
+The `pry` gem is **not** in the Gemfile - `require 'pry'; binding.pry`
+will raise `LoadError` as-is. Either add `gem "pry"` to the `:development`
+group first, or use `binding.irb` (Ruby stdlib, no gem required) for a
+quick interactive breakpoint:
 ```ruby
-# Use binding.pry for interactive debugging
-require 'pry'
-binding.pry  # Execution stops here
+binding.irb  # Execution stops here - stdlib, always available
 ```
 
 ### Logging
@@ -242,9 +250,9 @@ AppLogger.error("API failed", error: e.message, context: context)
 ## 📚 USEFUL RESOURCES
 
 - **Architecture:** See [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Troubleshooting:** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)  
-- **API Docs:** See [API_DOCS.md](API_DOCS.md)
-- **Roadmap:** See [NEXT_90_DAYS_ROADMAP_JUNE_2026.md](NEXT_90_DAYS_ROADMAP_JUNE_2026.md)
+- **Troubleshooting:** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Change history:** See [CHANGELOG.md](CHANGELOG.md)
+- **Historical/point-in-time docs** (not guaranteed current): `docs/archive/`
 
 ---
 

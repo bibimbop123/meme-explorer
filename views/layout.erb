@@ -63,96 +63,6 @@
 
   
   <style>
-    /* Gamification UI Styles */
-    .streak-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.4rem 0.8rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-      transition: transform 0.2s;
-    }
-    .streak-badge:hover {
-      transform: scale(1.05);
-    }
-    .level-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.4rem 0.8rem;
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      color: white;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
-      transition: transform 0.2s;
-    }
-    .level-badge:hover {
-      transform: scale(1.05);
-    }
-    .xp-notification {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 1rem 1.5rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      animation: slideInRight 0.3s ease-out;
-      z-index: 1000;
-      font-weight: bold;
-    }
-    @keyframes slideInRight {
-      from { transform: translateX(400px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    .level-up-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      animation: fadeIn 0.3s ease-out;
-    }
-    .level-up-content {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      padding: 3rem;
-      border-radius: 20px;
-      text-align: center;
-      color: white;
-      animation: bounceIn 0.5s ease-out;
-    }
-    .level-up-content h2 {
-      font-size: 3rem;
-      margin: 0 0 1rem 0;
-    }
-    .level-up-content p {
-      font-size: 1.5rem;
-      margin: 0.5rem 0;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes bounceIn {
-      0% { transform: scale(0.3); opacity: 0; }
-      50% { transform: scale(1.05); }
-      70% { transform: scale(0.9); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    
     /* Mobile navbar optimization - hide non-essential items on mobile */
     @media (max-width: 768px) {
       nav a[href*="/category/"],
@@ -187,6 +97,14 @@
 <link rel="stylesheet" href="/css/navigation.css">
 
 <!-- Phase 2: Global Error Handler -->
+<!-- Loaded early (not deferred) and NOT re-imported by main.js, so it can
+     catch errors that happen during initial page parse/render, before the
+     deferred Vite bundle even loads. (It used to be imported by main.js
+     too, which meant a second `window.addEventListener('error', ...)` and
+     a second `unhandledrejection` listener got registered once the bundle
+     loaded - every uncaught error and rejection was logged/reported to
+     Sentry twice. Removed the duplicate import from public/js/main.js so
+     this is the single source of truth.) -->
 <script src="/js/error-handler.js"></script>
     
     
@@ -445,144 +363,12 @@ e    }
   <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->
   <% if logged_in? %>
   <script>
-  // Push Notification Registration System
-  (function() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.log('⚠️ Push notifications not supported');
-      return;
-    }
-    
-    // Check if user already granted permission
-    if (Notification.permission === 'granted') {
-      registerPushNotifications();
-    } else if (Notification.permission !== 'denied') {
-      // Show friendly prompt after user is engaged (3 seconds delay)
-      setTimeout(showPushPrompt, 3000);
-    }
-    
-    function showPushPrompt() {
-      const banner = document.createElement('div');
-      banner.id = 'push-prompt-banner';
-      banner.innerHTML = `
-        <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    color: white; padding: 16px 24px; border-radius: 12px; 
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10000;
-                    max-width: 400px; text-align: center; animation: slideUp 0.5s ease-out;">
-          <p style="margin: 0 0 12px 0; font-weight: 600;">🔥 Never lose your streak!</p>
-          <p style="margin: 0 0 16px 0; font-size: 0.9rem; opacity: 0.9;">
-            Get reminded when your streak is about to break
-          </p>
-          <div style="display: flex; gap: 12px; justify-content: center;">
-            <button onclick="window.enablePushNotifications()" 
-                    style="background: white; color: #667eea; border: none; 
-                           padding: 10px 20px; border-radius: 8px; font-weight: 600;
-                           cursor: pointer; transition: transform 0.2s;">
-              Enable Notifications ✨
-            </button>
-            <button onclick="window.closePushPrompt()" 
-                    style="background: rgba(255,255,255,0.2); color: white; 
-                           border: none; padding: 10px 20px; border-radius: 8px;
-                           cursor: pointer; transition: transform 0.2s;">
-              Maybe Later
-            </button>
-          </div>
-        </div>
-        <style>
-          @keyframes slideUp {
-            from { transform: translateX(-50%) translateY(100px); opacity: 0; }
-            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-          }
-          #push-prompt-banner button:hover { transform: scale(1.05); }
-        </style>
-      `;
-      document.body.appendChild(banner);
-    }
-    
-    window.closePushPrompt = function() {
-      const banner = document.getElementById('push-prompt-banner');
-      if (banner) banner.remove();
+    window.PUSH_NOTIFICATIONS_CONFIG = {
+      enabled: true,
+      vapidPublicKey: <%= (ENV["VAPID_PUBLIC_KEY"] || "").to_json %>
     };
-    
-    window.enablePushNotifications = async function() {
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          window.closePushPrompt();
-          await registerPushNotifications();
-          showSuccessMessage('🎉 Notifications enabled! We\'ll keep your streak safe.');
-        }
-      } catch (error) {
-        console.error('❌ Push notification error:', error);
-      }
-    };
-    
-    async function registerPushNotifications() {
-      try {
-        console.log('🔔 Registering service worker...');
-        const registration = await navigator.serviceWorker.register('/service-worker.js');
-        console.log('✅ Service Worker registered');
-        
-        // Wait for service worker to be ready
-        await navigator.serviceWorker.ready;
-        
-        // Check if VAPID key is configured
-        const vapidKey = '<%= ENV["VAPID_PUBLIC_KEY"] || "" %>';
-        if (!vapidKey || vapidKey === '' || vapidKey === 'undefined') {
-          console.log('⚠️ Push notifications not configured (missing VAPID_PUBLIC_KEY)');
-          return;
-        }
-        
-        // Subscribe to push notifications
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKey
-        });
-        
-        console.log('🔔 Push subscription obtained, saving to server...');
-        
-        // Send subscription to server
-        const response = await fetch('/api/subscribe-push', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
-          },
-          body: JSON.stringify(subscription)
-        });
-        
-        if (response.ok) {
-          console.log('✅ Push subscription saved successfully');
-        } else {
-          console.error('❌ Failed to save push subscription:', await response.text());
-        }
-      } catch (error) {
-        console.error('❌ Push registration error:', error);
-      }
-    }
-    
-    function showSuccessMessage(message) {
-      const toast = document.createElement('div');
-      toast.textContent = message;
-      toast.style.cssText = `
-        position: fixed; top: 80px; right: 20px; 
-        background: #4CAF50; color: white; 
-        padding: 16px 24px; border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        z-index: 10001; animation: slideInRight 0.3s ease-out;
-      `;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 4000);
-    }
-  })();
   </script>
-  
-  <style>
-  @keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  </style>
+  <script src="/js/push-notifications.js" defer></script>
   <% end %>
   
   <!-- Content Feedback System (Chunk 4) -->

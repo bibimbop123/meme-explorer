@@ -9,6 +9,20 @@ class MemeService
     @memes = memes_yaml
   end
 
+  # Runs a block that talks to an external source (Reddit API, DB), returning
+  # a fallback value and logging loudly on failure instead of silently
+  # swallowing every StandardError with a bare `rescue []` modifier. Same
+  # fix as applied to MemePoolHelpers#safe_pool_query: the fallback behavior
+  # is unchanged, but a genuine bug here (a typo, bad data) is no longer
+  # indistinguishable from an expected/recoverable failure (API timeout).
+  def safe_fetch(context, fallback = [])
+    yield
+  rescue => e
+    AppLogger.error("⚠️  [MemeService] #{context} failed: #{e.class}: #{e.message}") if defined?(AppLogger)
+    Sentry.capture_exception(e, extra: { context: context }) if defined?(Sentry)
+    fallback
+  end
+
   # Get meme pool from cache or build fresh - prioritizes API memes with local fallback
   def random_memes_pool(popular_subreddits, fetch_method)
     # Use cached pool if fresh (less than 2 minutes old)
@@ -18,7 +32,7 @@ class MemeService
     end
 
     # Always load local memes as guaranteed fallback
-    local_memes = begin
+    local_memes = safe_fetch("random_memes_pool local_memes") do
       if @memes.is_a?(Hash)
         @memes.values.flatten.compact
       elsif @memes.is_a?(Array)
@@ -26,12 +40,10 @@ class MemeService
       else
         []
       end
-    rescue
-      []
     end
 
     # Fetch fresh API memes first (primary source)
-    api_memes = fetch_method.call(popular_subreddits, 200) rescue []
+    api_memes = safe_fetch("random_memes_pool api_memes") { fetch_method.call(popular_subreddits, 200) }
     
     # Combine: prefer API memes but always include local as fallback
     pool = api_memes + local_memes
@@ -213,7 +225,7 @@ class MemeService
     
     # Tier 2: If too few results, hit API for niche queries
     if cache_results.size < 3
-      api_results = (fetch_method.call(popular_subreddits, 30) rescue []).select do |m|
+      api_results = safe_fetch("search_memes api_results") { fetch_method.call(popular_subreddits, 30) }.select do |m|
         m["title"]&.downcase&.include?(query_lower) ||
         m["subreddit"]&.downcase&.include?(query_lower)
       end
@@ -222,7 +234,7 @@ class MemeService
     
     # Tier 3: Fall back to DB + YAML if still empty
     if cache_results.empty?
-      db_results = (db.execute("SELECT * FROM meme_stats WHERE title ILIKE ?", ["%#{query_lower}%"]) rescue []).map { |r| r.transform_keys(&:to_s) }
+      db_results = safe_fetch("search_memes db_results") { db.execute("SELECT * FROM meme_stats WHERE title ILIKE ?", ["%#{query_lower}%"]) }.map { |r| r.transform_keys(&:to_s) }
       yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
       cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end

@@ -51,7 +51,9 @@ Meme Explorer implements the following security practices:
 
 ### Application Security
 
-- **Authentication:** Secure OAuth 2.0 flow with Reddit
+- **Authentication:** Email/password (BCrypt-hashed) via `/signup` and
+  `/login`, plus Reddit OAuth 2.0 as an alternative sign-in path - see
+  `routes/auth.rb`
 - **Authorization:** Role-based access control (RBAC)
 - **Session Management:** Secure session tokens with HttpOnly cookies
 - **CSRF Protection:** CSRF tokens on all state-changing operations

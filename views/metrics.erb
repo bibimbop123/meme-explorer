@@ -132,6 +132,62 @@
       <a href="/metrics?period=24h" class="<%= 'active' if @chart_period == '24h' %>">Last 24 Hours</a>
     </div>
 
+    <!-- The headline number: this product is a selection engine. Everything
+         below this card is secondary to how fast that one decision is made.
+         See lib/services/selection_benchmark.rb. -->
+    <h2>⚡ Selection Latency (the one number that matters)</h2>
+    <div class="metrics">
+      <% if @selection_latency && @selection_latency[:count] > 0 %>
+        <div class="metric success">
+          <h3>p50 (median)</h3>
+          <p><%= @selection_latency[:p50_ms] %>ms</p>
+        </div>
+        <div class="metric primary">
+          <h3>p95</h3>
+          <p><%= @selection_latency[:p95_ms] %>ms</p>
+        </div>
+        <div class="metric warning">
+          <h3>p99</h3>
+          <p><%= @selection_latency[:p99_ms] %>ms</p>
+        </div>
+        <div class="metric">
+          <h3>Sample Size</h3>
+          <p><%= @selection_latency[:count] %></p>
+        </div>
+      <% else %>
+        <div class="metric">
+          <h3>p50 / p95 / p99</h3>
+          <p>No data yet</p>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Where does the time actually go: finding the pool, or choosing
+         from it? Don't refactor either one until this shows which is the
+         real cost - see lib/services/selection_benchmark.rb. -->
+    <% if @selection_breakdown %>
+      <h2>🔍 Selection Latency Breakdown</h2>
+      <div class="metrics">
+        <% [
+          [:pool_lookup, '📦 Pool Lookup (total)'],
+          [:pool_manager_lookup, '🔌 MemePoolManager (Redis)'],
+          [:reddit_fetch, '🌐 Reddit Fetch (network)'],
+          [:selection, '🎯 Selection Algorithm']
+        ].each do |stage, label| %>
+          <% stat = @selection_breakdown[stage] %>
+          <div class="metric <%= stat && stat[:count] > 0 ? 'primary' : '' %>">
+            <h3><%= label %></h3>
+            <% if stat && stat[:count] > 0 %>
+              <p>p50: <%= stat[:p50_ms] %>ms</p>
+              <p style="font-size: 0.9rem; opacity: 0.8;">p95: <%= stat[:p95_ms] %>ms · n=<%= stat[:count] %></p>
+            <% else %>
+              <p>No data yet</p>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
     <% if @total_memes == 0 && @top_memes.empty? %>
       <div class="empty-state">
         <p>📭 No data yet for this period. Start browsing memes to generate metrics!</p>

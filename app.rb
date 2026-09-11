@@ -39,67 +39,40 @@ require_relative "./lib/helpers/auth_helpers"
 require_relative "./lib/helpers/personality_content"
 require_relative "./lib/helpers/meme_navigation_helpers"
 require_relative "./lib/helpers/meme_helpers"
-# Gamification helpers removed during Elon audit
-# require_relative "./lib/helpers/gamification_helpers"
 require_relative "./lib/helpers/gallery_helpers"
 require_relative "./lib/helpers/ad_helpers"
-# require_relative "./lib/helpers/seo_helpers"  # Removed during Elon audit
-# require_relative "./lib/helpers/curated_collections_helper"  # Removed during Elon audit
-# require_relative "./lib/helpers/refined_meme_helper"  # Removed during Elon audit
 require_relative "./lib/helpers/app_helpers"
 require_relative "./lib/helpers/meme_pool_helpers"
 require_relative "./lib/helpers/reddit_media_helpers"
 require_relative "./lib/helpers/db_transaction_helpers"
 require_relative "./lib/helpers/query_optimization_helpers"
-# require_relative "./lib/helpers/session_stats_helper"  # Removed during Elon audit
-# require_relative "./lib/services/seo_service"  # Removed during Elon audit
-# require_relative "./lib/services/metrics_tracker_service"  # Removed during Elon audit
 require_relative "./lib/middleware/request_id_middleware"
 require_relative "./lib/services/smart_media_renderer_service"
-# require_relative "./lib/services/placeholder_image_service"  # Removed during Elon audit - file not found
-# require_relative "./lib/services/image_health_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/activity_tracker_service"  # Stub for graceful degradation
-# require_relative "./lib/services/view_tracker_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/engagement_service"
-# require_relative "./lib/services/leaderboard_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/auth_service"
 require_relative "./lib/services/user_service"
 require_relative "./lib/services/redis_service"
-# require_relative "./lib/services/ab_testing_service"  # Removed during Elon audit - file not found
+require_relative "./lib/services/selection_benchmark"  # The one number this product bets on - see file header
 require_relative "./lib/services/trending_service"
 require_relative "./lib/services/meme_service"
-# require_relative "./lib/services/milestone_service"  # Removed during Elon audit - file not found
-# require_relative "./lib/services/push_notification_service"  # Removed during Elon audit - file not found
-# require_relative "./lib/services/surprise_rewards_service"  # Removed during Elon audit - file not found
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/services/inline_reddit_fetcher"  # Restored - critical for meme fetching
 # Route files — loaded before registration block
 require_relative "./routes/auth"
-# require_relative "./routes/reactions"  # Removed during Elon audit - file not found
-# require_relative "./routes/battles"  # Removed during Elon audit - file not found
 require_relative "./routes/legal_routes"
-# require_relative "./routes/ab_testing"  # Removed during Elon audit - file not found
 require_relative "./routes/home"
 require_relative "./routes/random_meme"
 require_relative "./routes/memes"
-# require_relative "./routes/meme_stats"  # Removed during Elon audit - file not found
 require_relative "./routes/search_routes"
 require_relative "./routes/trending_routes"
-# require_relative "./routes/trending_api"  # Removed during Elon audit - file not found
 require_relative "./routes/profile_routes"
 require_relative "./routes/admin_routes"
 require_relative "./routes/metrics_routes"
-# require_relative "./routes/behavioral_tracking"  # Removed during Elon audit - file not found
-# require_relative "./routes/algorithm_metrics"  # Removed during Elon audit - file not found
 require_relative "./routes/seo_routes"
-# require_relative "./routes/enhanced_random"  # Removed during Elon audit - file not found
-# require_relative "./routes/session_metrics"  # Removed during Elon audit - file not found
 require_relative "./routes/health"
-# require_relative "./routes/web_vitals"  # Removed during Elon audit - file not found
-# require_relative "./routes/collections"  # Removed during Elon audit - file not found
 require_relative "./routes/personalization"
 require_relative "./routes/utility_routes"
-# require_relative "./routes/guides"  # Removed during Elon audit - file not found
 require_relative "./routes/blog_routes"  # AdSense: Blog system
 require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
@@ -108,7 +81,6 @@ require_relative "./routes/admin_inline_routes"
 require_relative "./lib/middleware/request_timer"
 require_relative "./lib/middleware/security_headers"
 require_relative 'lib/helpers/cdn_helpers'
-require_relative 'lib/helpers/progressive_disclosure_helper'
 require_relative 'lib/feature_flags'
 require_relative 'lib/concerns/http_caching'
 require_relative 'lib/concerns/performance_profiler'
@@ -123,12 +95,7 @@ begin
   require_relative "./app/workers/cache_refresh_worker"
   require_relative "./app/workers/cache_preload_worker"
   require_relative "./app/workers/meme_pool_maintenance_worker"
-  # require_relative "./app/workers/image_health_worker"  # ELON AUDIT: File not found
-  # require_relative "./app/workers/leaderboard_calculation_worker"  # ELON AUDIT: File not found
   require_relative "./app/workers/database_cleanup_worker"
-  # require_relative "./app/workers/activity_aggregation_worker"  # ELON AUDIT: File not found
-  # require_relative "./app/workers/streak_reminder_worker"  # ELON AUDIT: File not found
-  # require_relative "./app/workers/session_cleanup_worker"  # ELON AUDIT: File not found
   AppLogger.info("✅ Sidekiq workers loaded")
 rescue LoadError => e
   AppLogger.warn("⚠️  Sidekiq not available: #{e.message}")
@@ -418,17 +385,13 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   helpers AuthHelpers           # current_user, require_auth!, require_admin!
   helpers PersonalityContent    # personality-based content helpers
   helpers MemeNavigationHelpers # navigate_meme_unified, is_valid_meme?, get_time_based_pools, etc.
-  # helpers GamificationHelpers  # Removed during Elon audit
   helpers GalleryHelpers
   helpers AdHelpers
-  # helpers SeoHelpers  # Removed during Elon audit
-  # helpers RefinedMemeHelper  # Removed during Elon audit
   helpers CDNHelpers
   helpers HTTPCaching
   helpers AppHelpers
   helpers MemePoolHelpers
   helpers RedditMediaHelpers
-  # helpers SessionStatsHelper  # Removed during Elon audit
 
 
   # -----------------------
@@ -436,32 +399,20 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   # Every route lives in routes/*.rb — all use the self.registered(app) pattern
   # -----------------------
   AuthRoutes.register(self)
-  #   ReactionsRoutes.register(self)
-  #   BattlesRoutes.register(self)
   LegalRoutes.register(self)
-  # register Routes::ABTesting # ELON AUDIT: Route file not found
   register Routes::HealthRoutes
-      # register Routes::WebVitals # ELON AUDIT: Route file not found
-  # register Routes::CollectionRoutes # ELON AUDIT: Route file not found
-  # register Routes::PersonalizationRoutes # ELON AUDIT: Route file not found
+  register Routes::PersonalizationRoutes
   register Routes::Home
   register Routes::RandomMeme
   register Routes::Memes
-  # register Routes::MemeStats # ELON AUDIT: Route file not found
   register Routes::SearchRoutes
   register Routes::TrendingRoutes
-  # register Routes::TrendingAPI # ELON AUDIT: Route file not found
   register Routes::ProfileRoutes
   register Routes::AdminRoutes
   register Routes::MetricsRoutes
-  # register Routes::BehavioralTracking # ELON AUDIT: Route file not found
-  # register Routes::AlgorithmMetrics # ELON AUDIT: Route file not found
   register Routes::Seo
-  # register Routes::EnhancedRandom # ELON AUDIT: Route file not found
-  # register Routes::SessionMetrics # ELON AUDIT: Route file not found
   register Routes::UtilityRoutes
-  # register Routes::Guides # ELON AUDIT: Route file not found
-  # register Routes::Blog # ELON AUDIT: Route file not found  # AdSense: Original content blog
+  register Routes::Blog  # AdSense: Original content blog
   register Routes::LeaderboardRoutes
   register Routes::UserApiRoutes
   register Routes::SystemRoutes
