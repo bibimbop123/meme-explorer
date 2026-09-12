@@ -70,9 +70,21 @@ module AdHelpers
   # @param format [String] Ad format: 'banner', 'square', 'native'
   # @param position [String] Grid position: 'top', 'bottom', 'left', 'right', 'left-1', 'left-2', 'right-1', 'right-2', etc.
   # @return [String] HTML for ad unit
+  # NOTE on "relevance": AdSense does not accept a publisher-supplied
+  # content-category attribute on the ad tag (verified against Google's
+  # own docs - "How ads are targeted to your site"). Its contextual
+  # targeting is entirely automatic: it crawls the real, visible text on
+  # the page (keywords, headings, link structure) to decide what ads to
+  # serve. There is no `data-*` shortcut around that. The one thing we
+  # actually control that affects ad relevance is making sure real,
+  # readable content - the meme's subreddit/category and title - is
+  # genuinely present as visible text near the ad slot for AdSense's
+  # crawler to read, which views/random/metadata.erb already renders
+  # (collection_name_for_subreddit, the meme title). No fabricated
+  # attribute belongs here.
   def render_ad_unit(ad_index = 0, format: 'square', position: nil)
     ad_id = "ad-unit-#{ad_index}"
-    
+
     case format
     when 'banner'
       width = '728px'
@@ -82,20 +94,31 @@ module AdHelpers
       width = '100%'
       height = 'auto'
       slot_id = ENV['GOOGLE_AD_SLOT_NATIVE'] || 'NATIVE_SLOT_ID'
+    when 'vertical'
+      # BUG FIX: this format was passed by views/random.erb for the left/
+      # right sidebar ad columns, but this case statement never handled
+      # it - it silently fell through to the `else` (square) branch,
+      # rendering a fixed 300x250 unit inside a narrow vertical column
+      # that /css/ads.css's own .ad-sidebar-sticky rule sizes at 300px
+      # wide with room for a taller unit. Use the real IAB "half page"
+      # vertical dimensions instead.
+      width = '300px'
+      height = '600px'
+      slot_id = ENV['GOOGLE_AD_SLOT_VERTICAL'] || ENV['GOOGLE_AD_SLOT_SQUARE'] || 'VERTICAL_SLOT_ID'
     else # square (default for meme feeds)
       width = '300px'
       height = '250px'
       slot_id = ENV['GOOGLE_AD_SLOT_SQUARE'] || 'SQUARE_SLOT_ID'
     end
-    
+
     # Add grid position attribute if specified
     position_attr = position ? " data-position=\"#{position}\"" : ""
-    
+
     # Return placeholder if AdSense not configured
     unless ENV['GOOGLE_ADSENSE_CLIENT']
       return render_ad_placeholder(ad_id, width, height, position)
     end
-    
+
     # Render actual AdSense unit
     <<-HTML
       <div class="ad-container" data-ad-index="#{ad_index}"#{position_attr}>
@@ -109,11 +132,11 @@ module AdHelpers
       </div>
     HTML
   end
-  
+
   # Render placeholder ad (for development/testing)
   def render_ad_placeholder(ad_id, width, height, position = nil)
     position_attr = position ? " data-position=\"#{position}\"" : ""
-    
+
     <<-HTML
       <div class="ad-container ad-placeholder" id="#{ad_id}" data-width="#{width}" data-height="#{height}"#{position_attr}>
         <div class="ad-label">Advertisement</div>
@@ -198,20 +221,18 @@ module AdHelpers
 # REVENUE OPTIMIZATION METHODS - Added 2026-06-04
 # ============================================
 
-# Render sticky sidebar ad (desktop only)
-# 
-def render_ad
-  return '' unless should_show_ads?
-  
-  # Track impression
-  RevenueTracker.record_ad_impression(
-    user_id: current_user_id,
-    page: request.path_info
-  )
-  
-  # Render ad
-  erb :_ad, layout: false
-end
+# NOTE: this file used to also define `render_ad`, which called
+# `RevenueTracker.record_ad_impression` and rendered `erb :_ad` - neither
+# `RevenueTracker` nor `views/_ad.erb` exist anywhere in this codebase.
+# `render_ad` was never actually called by any view, so it never crashed
+# in practice, but it was a landmine for the next person who wired it up.
+# Removed rather than left as dead code referencing two things that don't
+# exist. render_sidebar_ad/render_hero_ad/render_trending_ad/
+# render_anchor_ad below are real and functional (they only call
+# render_ad_unit, defined above) - render_anchor_ad is now wired into
+# views/random.erb as the mobile ad surface, since side ads are correctly
+# hidden on mobile via /css/ads.css and mobile had no ad slot at all
+# without it.
 
 def render_sidebar_ad
   return '' unless should_show_ads?
@@ -250,10 +271,18 @@ end
 # Render anchor/footer ad
 def render_anchor_ad
   return '' unless should_show_ads?
-  
+
+  # 'native' here, not 'banner': this sticky bar spans full width on both
+  # mobile (its actual, primary use case - see views/random.erb) and
+  # desktop. 'banner' renders a fixed 728x90 unit with
+  # data-full-width-responsive="false" - correct for a real desktop
+  # leaderboard slot, but a fixed-width unit that would either overflow
+  # or leave awkward empty space in a sticky bar meant to fit any
+  # viewport. 'native' is the one format in render_ad_unit that's
+  # actually responsive (width: 100%, data-full-width-responsive="true").
   <<-HTML
     <div class="ad-anchor-bottom">
-      #{render_ad_unit(998, format: 'banner', position: 'anchor')}
+      #{render_ad_unit(998, format: 'native', position: 'anchor')}
     </div>
   HTML
 end

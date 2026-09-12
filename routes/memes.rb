@@ -3,7 +3,66 @@
 # NOTE: GET "/random" lives in routes/random_meme.rb (registered via Routes::RandomMeme)
 module Routes
   module Memes
+    # Domains we'll actually fetch server-side for /download. Deliberately
+    # narrow and separate from the (loosely overlapping) allowlists in
+    # lib/helpers/meme_helpers.rb and lib/services/meme_service.rb, which
+    # answer a different question ("is this URL plausibly meme media?")
+    # than this one needs to ("is it safe for our server to make an
+    # outbound HTTP request to this exact host?"). Never fetch an
+    # arbitrary user-supplied URL - that's an open proxy / SSRF vector.
+    DOWNLOAD_ALLOWED_HOSTS = %w[
+      i.redd.it
+      v.redd.it
+      preview.redd.it
+      external-preview.redd.it
+      i.imgur.com
+      imgur.com
+    ].freeze
+
     def self.registered(app)
+        # A plain `<a download>` doesn't reliably force-download
+        # cross-origin media (i.redd.it etc. don't send permissive CORS/
+        # Content-Disposition headers) - most browsers just navigate to
+        # or open the image instead of saving it. The standard, correct
+        # fix is a small server-side proxy that fetches the real file and
+        # re-serves it with Content-Disposition: attachment, which every
+        # browser honors regardless of the origin's own headers.
+        app.get "/download" do
+          url = params[:url].to_s
+
+          halt 400, "Missing url parameter" if url.empty?
+
+          begin
+            uri = URI.parse(url)
+          rescue URI::InvalidURIError
+            halt 400, "Invalid url"
+          end
+
+          unless uri.is_a?(URI::HTTP) && DOWNLOAD_ALLOWED_HOSTS.include?(uri.host)
+            AppLogger.warn("⚠️  [Download] Rejected disallowed host: #{uri.host.inspect}")
+            halt 403, "That host isn't supported for download"
+          end
+
+          begin
+            response = HTTParty.get(uri.to_s, timeout: 10)
+          rescue => e
+            AppLogger.error("❌ [Download] Fetch failed: #{e.class}: #{e.message}")
+            halt 502, "Could not fetch the file"
+          end
+
+          unless response.code == 200
+            halt 502, "Upstream returned #{response.code}"
+          end
+
+          extension = File.extname(uri.path)
+          extension = ".jpg" if extension.to_s.strip.empty?
+          filename = "meme-explorer-#{Time.now.to_i}#{extension}"
+
+          content_type response.headers["content-type"] || "application/octet-stream"
+          headers "Content-Disposition" => "attachment; filename=\"#{filename}\""
+          response.body
+        end
+
         app.post "/like" do
           content_type :json
           

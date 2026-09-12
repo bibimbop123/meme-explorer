@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `GET /download`: proxies meme media server-side and re-serves it with a
+  real `Content-Disposition: attachment` header, so the new download
+  button on `/random` actually saves the file to the device instead of
+  just opening it in a new tab. Plain `<a download>` doesn't reliably
+  force cross-origin downloads (Reddit/Imgur CDNs don't send permissive
+  CORS/Content-Disposition headers), so this fetches through our own
+  server instead. Restricted to a small explicit host allowlist
+  (`Routes::Memes::DOWNLOAD_ALLOWED_HOSTS`) to avoid becoming an open
+  proxy. Verified end-to-end against a real, live image URL (not just
+  mocked) - correct status, correct `Content-Type`/`Content-Disposition`,
+  and the downloaded bytes are a genuinely valid image file. 6 new specs
+  covering the allowlist rejection, missing-url handling, upstream
+  failures, and the extension-fallback logic.
 - `SelectionBenchmark` (`lib/services/selection_benchmark.rb`): measures the
   core "pick this person their next meme" loop end-to-end on every real
   `/random` and `/random.json` request, broken into stages (`:total`,
@@ -29,6 +42,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced .env.example documentation
 
 ### Fixed
+- Every `.ad-container` on every page (including `/random`'s left/right
+  columns) rendered completely unstyled: `/css/ads.css` - a real,
+  complete, mobile-aware stylesheet (it already hides side ads on mobile
+  and defines a sticky anchor-bottom slot for exactly that gap) - was
+  never linked in `views/layout.erb`. `git log -p` confirmed it was
+  linked for most of this file's history and dropped at some point,
+  matching the mobile CSS regression fixed in the prior commit. Restored
+  the `<link>` tag.
+- `views/random.erb` passed `format: 'vertical'` for its sidebar ad
+  columns, but `render_ad_unit`'s `case format` never handled that value
+  - it silently fell through to the `else` (square) branch, rendering a
+  fixed 300x250 unit inside a column `/css/ads.css` sizes for something
+  taller. Added a real `'vertical'` case (300x600, the standard IAB
+  "half page" size).
+- Mobile had **zero ad inventory**: `/css/ads.css` correctly hides the
+  desktop sidebar ad columns on narrow viewports (they'd never fit), but
+  nothing replaced them. `render_anchor_ad` - a real, working helper
+  method that was already defined but never called anywhere - is now
+  wired into `views/random.erb` as a sticky bottom banner, the one ad
+  surface `/css/ads.css` already styles specifically for this. Switched
+  its ad format from `'banner'` (fixed 728x90, wrong for a bar that must
+  fit any viewport) to `'native'` (the one format in `render_ad_unit`
+  that's actually responsive).
+- Removed `render_ad`, a broken, uncalled method that referenced both
+  `RevenueTracker` and `views/_ad.erb` - neither exists anywhere in this
+  codebase. It never crashed only because nothing called it; left as a
+  landmine for whoever wired it up next.
+- Investigated whether ads could be made contextually "more relevant" by
+  passing the meme's subreddit to AdSense. Checked Google's own
+  documentation first: AdSense has no publisher-supplied content-category
+  attribute - its contextual targeting is fully automatic, based on
+  crawling real page text. Did not add a fabricated `data-*` attribute
+  that AdSense doesn't read; the actual lever we control (real,
+  human-readable subreddit/title text visible near the ad) was already
+  present via `views/random/metadata.erb`.
 - **Mobile rendering of `/random` was broken on every device** (worse on
   mobile because there was no room to spare): `views/random.erb` renders
   `<div class="page-wrapper simplified-mode"><div class="meme-container">

@@ -31,6 +31,17 @@
   </div>
 </div>
 
+<!-- Mobile ad surface: /css/ads.css already hides the left/right vertical
+     ad columns above on narrow viewports (they'd never fit, and stacking
+     two 300px-wide columns above/below the meme would bury the actual
+     content) - but that left mobile with zero ad inventory at all.
+     render_anchor_ad renders a single sticky bottom banner
+     (.ad-anchor-bottom, already styled mobile-first in ads.css: fixed
+     position on mobile, one unobtrusive slot instead of vertical
+     clutter). This is real, working code - it was already defined in
+     lib/helpers/ad_helpers.rb but never actually called anywhere. -->
+<%= render_anchor_ad %>
+
 <!--
   NOTE: Do NOT add a second <script src="/js/modules/meme-app.js"> tag here.
   layout.erb already loads /dist/bundle.js (Vite bundle) on every page, which

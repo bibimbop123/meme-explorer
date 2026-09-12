@@ -141,6 +141,15 @@
 <link rel="stylesheet" href="/css/simplified-ui.min.css">
 <link rel="stylesheet" href="/css/mobile-optimizations-v2.css">
 
+<!-- BUG FIX: same class of issue as above - every .ad-container on every
+     page (including the vertical left/right slots in views/random.erb)
+     has been rendering completely unstyled. /css/ads.css is a real,
+     complete, mobile-aware stylesheet (it even hides side ads on mobile
+     and defines the sticky anchor-bottom ad meant to replace them there)
+     that `git log -p -- views/layout.erb` confirms was linked for most
+     of this file's history and dropped at some point. -->
+<link rel="stylesheet" href="/css/ads.css">
+
 </head>
 <body>
   <!-- Phase 2: Accessibility - Skip to Content -->

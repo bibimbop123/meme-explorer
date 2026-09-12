@@ -15,6 +15,7 @@ export class MemeInteractions {
     this.bindLikeButton();
     this.bindSaveButton();
     this.bindShareButton();
+    this.bindDownloadButton();
     this.checkInitialStates();
     this.addAnimationStyles();
   }
@@ -77,6 +78,13 @@ export class MemeInteractions {
     const shareBtn = document.getElementById('share-btn');
     if (shareBtn) {
       shareBtn.addEventListener('click', () => this.handleShare());
+    }
+  }
+
+  bindDownloadButton() {
+    const downloadBtn = document.getElementById('download-btn');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', (e) => this.handleDownload(e));
     }
   }
   
@@ -250,6 +258,54 @@ export class MemeInteractions {
     }
   }
   
+  handleDownload(event) {
+    console.log('[MemeInteractions] Download clicked');
+    this.createRipple(event);
+    this.triggerHaptic('medium');
+
+    const mediaUrl = this.getCurrentMemeMediaUrl();
+    if (!mediaUrl) {
+      console.error('[MemeInteractions] No meme media URL found');
+      this.showToast('Nothing to download', 'error');
+      return;
+    }
+
+    // Plain `<a download>` doesn't reliably force-download cross-origin
+    // media (Reddit/Imgur CDNs don't send permissive CORS or
+    // Content-Disposition headers) - most browsers just navigate to or
+    // open the file instead of saving it. /download proxies the fetch
+    // server-side and re-serves it with a real Content-Disposition:
+    // attachment header, which every browser honors regardless of the
+    // origin's own headers - see routes/memes.rb.
+    const link = document.createElement('a');
+    link.href = `/download?url=${encodeURIComponent(mediaUrl)}`;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    this.showToast('⬇️ Downloading...', 'success');
+  }
+
+  // The <img id="meme-image"> only exists for standard image memes -
+  // getCurrentMemeUrl() (used by like/save, which key off that element)
+  // returns null for video/gallery memes. Download needs to work for
+  // whatever media type is actually on screen, so it also checks for a
+  // <video> element and falls back to the first gallery image.
+  getCurrentMemeMediaUrl() {
+    const img = document.getElementById('meme-image');
+    if (img) return img.src;
+
+    const video = document.querySelector('.meme-content-video, .meme-video');
+    if (video) {
+      const source = video.querySelector('source');
+      return source ? source.src : video.src;
+    }
+
+    const galleryImage = document.querySelector('.gallery-slide.active img, .gallery-image');
+    return galleryImage ? galleryImage.src : null;
+  }
+
   getCurrentMemeUrl() {
     const img = document.getElementById('meme-image');
     return img ? img.src : null;
