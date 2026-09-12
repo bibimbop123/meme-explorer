@@ -122,6 +122,25 @@
 <link rel="stylesheet" href="/css/meme-transition.css">
 <link rel="stylesheet" href="/css/meme-description.css">
 
+<!-- BUG FIX: views/random.erb renders <div class="page-wrapper
+     simplified-mode"><div class="meme-container">...<div class="meme-display">
+     - but the stylesheets defining .simplified-mode/.meme-container/
+     .meme-display (including the @media (max-width:768px) mobile-specific
+     sizing that constrains meme height to 60vh instead of the desktop
+     70vh) were dropped from this file at some point without anyone
+     removing the classes from random.erb or deleting the CSS files
+     themselves (confirmed via `git log -p -- views/layout.erb`, which
+     shows both <link> tags below present in history and later removed).
+     Without this CSS, /random has no flex layout, no meme-display
+     height constraint, and no mobile-specific resizing at all on ANY
+     device - the img/video tag's only sizing comes from an inline
+     `max-width:100%;height:auto` in views/random/display.erb, which
+     lets a large image render at native size, overflow, and get
+     clipped or misaligned by the ad columns, especially on narrow
+     mobile viewports where there's no room to spare. -->
+<link rel="stylesheet" href="/css/simplified-ui.min.css">
+<link rel="stylesheet" href="/css/mobile-optimizations-v2.css">
+
 </head>
 <body>
   <!-- Phase 2: Accessibility - Skip to Content -->

@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced .env.example documentation
 
 ### Fixed
+- **Mobile rendering of `/random` was broken on every device** (worse on
+  mobile because there was no room to spare): `views/random.erb` renders
+  `<div class="page-wrapper simplified-mode"><div class="meme-container">
+  <div class="meme-display">`, but `views/layout.erb` never linked
+  `simplified-ui.min.css` or `mobile-optimizations-v2.css` - the only
+  stylesheets that define those classes, including the
+  `@media (max-width: 768px)` rules that constrain the meme
+  image/video to a sane height on small screens (60vh mobile vs. 70vh
+  desktop) instead of rendering at native size and overflowing/clipping
+  against the ad columns. `git log -p -- views/layout.erb` confirmed
+  both `<link>` tags existed historically and were removed at some
+  point without anyone removing the classes from `random.erb` or
+  deleting the CSS files themselves - a pure link-tag regression, not a
+  CSS or template bug. Restored both `<link>` tags; verified via a real
+  HTTP request to `/random` that both files are now referenced in the
+  rendered page and both return 200 with real content.
 - `.github/workflows/ci.yml`'s `test` job's "Set up database" step called
   `bundle exec ruby scripts/setup_database.rb`, a script that doesn't
   exist - meaning this step had been failing on every push/PR. Fixed to
