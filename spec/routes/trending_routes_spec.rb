@@ -11,6 +11,17 @@ RSpec.describe 'Trending Routes' do
   # route under test. Fixed to match the real schema; the fixture data
   # (four memes, decreasing recency/engagement) is otherwise unchanged.
   before(:each) do
+    # BUG FIX: cross-file test-order flakiness - TrendingService.cached_trending
+    # (lib/services/trending_service.rb) caches results in Redis under a
+    # fixed key ("trending:24h" etc.) with no per-test namespacing. If
+    # another spec file (e.g. spec/integration/random_algorithm_integration_spec.rb)
+    # runs first in the same process and populates that same cache key,
+    # this file's own fixture data never gets queried at all - the stale
+    # cached response wins. Clearing the known cache keys here makes this
+    # file's examples independent of what ran before them in the same
+    # suite, rather than relying on incidental run-order isolation.
+    ['trending:1h', 'trending:24h', 'trending:168h'].each { |k| RedisService.delete(k) }
+
     # Create test meme stats
     DB.execute("DELETE FROM meme_stats") rescue nil
     

@@ -144,10 +144,14 @@ RSpec.describe AuthService do
     let(:client_id) { 'test_client_id' }
     let(:redirect_uri) { 'http://localhost:4567/auth/callback' }
     
+    # BUG FIX: the real signature is
+    # `generate_oauth_url(reddit_oauth_client_id, reddit_redirect_uri, state)`
+    # (lib/services/auth_service.rb) - a required third `state` argument
+    # (CSRF protection, see routes/auth.rb's real caller, which always
+    # passes one) - both examples called it with only 2 args and raised
+    # ArgumentError before ever reaching a real assertion.
     it 'generates a valid OAuth URL' do
-      allow(SecureRandom).to receive(:hex).with(16).and_return('random_state_value')
-      
-      url = AuthService.generate_oauth_url(client_id, redirect_uri)
+      url = AuthService.generate_oauth_url(client_id, redirect_uri, 'random_state_value')
       
       expect(url).to be_a(String)
       expect(url).to include('reddit.com')
@@ -156,7 +160,7 @@ RSpec.describe AuthService do
     end
     
     it 'includes required OAuth parameters' do
-      url = AuthService.generate_oauth_url(client_id, redirect_uri)
+      url = AuthService.generate_oauth_url(client_id, redirect_uri, 'random_state_value')
       
       expect(url).to include('response_type=code')
       expect(url).to include('scope=')

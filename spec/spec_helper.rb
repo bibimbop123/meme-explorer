@@ -133,6 +133,34 @@ RSpec.configure do |config|
       )
   end
   
+  # BUG FIX: this suite had no per-test Redis isolation at all - only SQL
+  # tables were cleared between examples (below). Several real Redis-backed
+  # pieces of app state persist across the whole test process as a result:
+  # TrendingService.cached_trending's fixed cache keys ("trending:24h",
+  # etc.) and SelectionBenchmark's rolling latency window
+  # ("selection_benchmark:latencies_ms:*") both accumulate real values from
+  # whatever spec file happened to run earlier in the same process,
+  # producing genuine run-order-dependent flakiness (confirmed directly:
+  # spec/routes/trending_routes_spec.rb, spec/services/selection_benchmark_spec.rb,
+  # and spec/routes/metrics_routes_spec.rb all pass reliably alone, but
+  # intermittently fail as part of the full suite depending on what ran
+  # before them). Flushing just these known-volatile key patterns (rather
+  # than the whole Redis DB, which could wipe unrelated app-level state a
+  # future test might legitimately want to persist across steps within a
+  # single example) gives every example a clean baseline without needing
+  # each file to individually guess which keys some other file might have
+  # left behind.
+  config.before(:each) do
+    if defined?(RedisService) && RedisService.redis_available?
+      begin
+        RedisService.clear_pattern('trending:*')
+        RedisService.clear_pattern('selection_benchmark:*')
+      rescue => e
+        warn "Test Redis cleanup warning (non-fatal): #{e.message}"
+      end
+    end
+  end
+
   # Clean up database between tests
   config.before(:each) do
     # Clear test database tables

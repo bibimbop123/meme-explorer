@@ -1,0 +1,57 @@
+<!-- BUG FIX: this view was deleted in a "slash and burn" cleanup commit
+     (e6b7414) along with its old CSS/JS, but routes/leaderboard_routes.rb's
+     `GET /leaderboard` still calls `erb :leaderboard` unconditionally -
+     every single request to this route has 500'd since that commit,
+     despite README.md documenting `/leaderboard` as a real, working
+     feature. This is a minimal, honest replacement that safely renders
+     the real data the route already gathers (@leaderboard, @user_rank,
+     @insights, @challenge) rather than a full restoration of the
+     deleted, more elaborate UI - the route's data-gathering logic is
+     otherwise untouched. -->
+<div style="max-width: 800px; margin: 30px auto; padding: 20px;">
+  <h1>🏆 Leaderboard</h1>
+
+  <% if @insights && @insights.any? %>
+    <div style="margin-bottom: 20px;">
+      <% @insights.each do |insight| %>
+        <p><%= insight[:icon] %> <%= Rack::Utils.escape_html(insight[:text].to_s) %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if @user_rank %>
+    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+      <strong>Your rank:</strong> #<%= @user_rank['rank'] || @user_rank[:rank] %>
+      <% if @rank_change && @rank_change[:change] %>
+        (<%= @rank_change[:change] > 0 ? '+' : '' %><%= @rank_change[:change] %>)
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if @leaderboard && @leaderboard.any? %>
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background: #e52e71; color: white;">
+          <th style="padding: 10px; text-align: left;">Rank</th>
+          <th style="padding: 10px; text-align: left;">User</th>
+          <th style="padding: 10px; text-align: right;">Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @leaderboard.each_with_index do |entry, i| %>
+          <tr style="border-bottom: 1px solid #ddd; <%= 'background: #fff3cd;' if entry['is_current_user'] %>">
+            <td style="padding: 10px;"><%= i + 1 %></td>
+            <td style="padding: 10px;"><%= Rack::Utils.escape_html((entry['username'] || entry['reddit_username'] || entry['email'] || "User ##{entry['user_id']}").to_s) %></td>
+            <td style="padding: 10px; text-align: right;"><%= entry['score'] || entry['points'] || entry['total_xp'] || 0 %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="text-align: center; color: #999;">No leaderboard data yet. Come back after some activity!</p>
+  <% end %>
+
+  <div style="margin-top: 20px;">
+    <a href="/random" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Memes</a>
+  </div>
+</div>

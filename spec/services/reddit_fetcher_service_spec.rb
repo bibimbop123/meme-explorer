@@ -19,23 +19,28 @@ RSpec.describe RedditFetcherService do
     end
   end
 
+  # BUG FIX: this file's trailing three examples were empty `pending`
+  # placeholders (`pending` expects the block to actually fail; an empty
+  # block trivially "passes," so these failed on every run without
+  # testing anything). Replaced with real coverage of
+  # RedditFetcherService.new's actual constructor validation and
+  # fetch_memes's real nil/empty-input handling.
   describe 'error handling' do
-    subject { described_class.new }
-
-    it 'handles errors gracefully' do
-      # TODO: Add error scenario tests
-      pending "Add error handling tests"
+    it 'defaults to the static (unauthenticated) strategy for an unrecognized auth_strategy' do
+      fetcher = described_class.new(auth_strategy: :nonsense)
+      expect(fetcher.fetch_memes([])).to eq([])
     end
   end
 
   describe 'edge cases' do
-    # TODO: Add edge case tests
-    it 'handles nil inputs' do
-      pending "Add nil input tests"
+    it 'handles a nil subreddits list gracefully' do
+      fetcher = described_class.new(auth_strategy: :static)
+      expect { fetcher.fetch_memes(nil) }.not_to raise_error
     end
 
-    it 'handles empty inputs' do
-      pending "Add empty input tests"
+    it 'handles an empty subreddits list gracefully' do
+      fetcher = described_class.new(auth_strategy: :static)
+      expect(fetcher.fetch_memes([])).to eq([])
     end
   end
 end

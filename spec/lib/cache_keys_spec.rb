@@ -15,14 +15,25 @@ RSpec.describe CacheKeys do
   end
 
   describe '.leaderboard' do
-    it 'generates leaderboard cache key' do
-      expect(CacheKeys.leaderboard('weekly')).to eq('v2:leaderboard:weekly')
+    it 'generates leaderboard cache key with default period' do
+      # BUG FIX: the real signature is `leaderboard(type, period = 'weekly')`
+      # (lib/cache_keys.rb) - calling `leaderboard('weekly')` passes
+      # 'weekly' as the TYPE, not the period, producing
+      # 'v2:leaderboard:weekly:weekly' (period still defaults to 'weekly'
+      # separately). Pass a real type instead.
+      expect(CacheKeys.leaderboard('all_time')).to eq('v2:leaderboard:all_time:weekly')
+    end
+
+    it 'generates leaderboard cache key with an explicit period' do
+      expect(CacheKeys.leaderboard('all_time', 'monthly')).to eq('v2:leaderboard:all_time:monthly')
     end
   end
 
-  describe '.trending' do
+  describe '.trending_memes' do
     it 'generates trending cache key with period' do
-      expect(CacheKeys.trending('day')).to eq('v2:trending:day')
+      # BUG FIX: `CacheKeys.trending` doesn't exist - the real method is
+      # `trending_memes(timeframe)`.
+      expect(CacheKeys.trending_memes('day')).to eq('v2:trending:day')
     end
   end
 

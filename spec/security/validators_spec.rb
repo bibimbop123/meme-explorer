@@ -75,22 +75,35 @@ RSpec.describe Validators do
       }.to raise_error(Validators::ValidationError)
     end
 
-    it 'rejects password without uppercase' do
+    # BUG FIX: these three examples assumed a simple "must have upper AND
+    # lower AND number" policy, but the real Validators.validate_password
+    # (lib/validators.rb) uses a character-type-diversity scheme instead:
+    # passwords under 12 chars need 3-of-4 types (upper/lower/number/
+    # special), but 12+ char passwords only need 2-of-4, specifically for
+    # usability. 'nouppercase123' and 'NOLOWERCASE123' are both 14 chars
+    # with 2 types present (lower+number, upper+number respectively), so
+    # they're correctly ACCEPTED under the real, more lenient long-password
+    # rule - these tests' original short-password-shaped inputs need to
+    # actually violate the real policy to test rejection.
+    it 'rejects a short password missing enough character types' do
+      # 8 chars (< 12), only 1 type present (lowercase) - fails the
+      # "3-of-4 types for <12 chars" rule.
       expect {
-        Validators.validate_password('nouppercase123')
+        Validators.validate_password('lowercas')
       }.to raise_error(Validators::ValidationError)
     end
 
-    it 'rejects password without lowercase' do
+    it 'rejects a long password with only one character type' do
+      # 14 chars (>= 12) but entirely lowercase - fails even the more
+      # lenient "2-of-4 types for 12+ chars" rule.
       expect {
-        Validators.validate_password('NOLOWERCASE123')
+        Validators.validate_password('onlylowercaseletters')
       }.to raise_error(Validators::ValidationError)
     end
 
-    it 'rejects password without numbers' do
-      expect {
-        Validators.validate_password('NoNumbers!')
-      }.to raise_error(Validators::ValidationError)
+    it 'accepts a 12+ char password with only 2 character types' do
+      # Documents the actual, intentional lenient rule for long passwords.
+      expect(Validators.validate_password('nouppercase123')).to eq('nouppercase123')
     end
   end
 
@@ -257,12 +270,22 @@ RSpec.describe Validators do
     end
 
     it 'rejects signup with invalid email' do
+      # BUG FIX: Validators.whitelist_params (lib/validators.rb) only
+      # ever extracts/filters allowed hash keys - it never validates the
+      # VALUE of any field, including email format (that's
+      # Validators.validate_email's job, called separately - see the
+      # passing example above, which does exactly that as a second
+      # step). Whitelisting {email: 'invalid', ...} against allowed keys
+      # that are all present correctly succeeds; asserting it should
+      # raise conflated two different validators' responsibilities.
+      safe_params = Validators.whitelist_params(
+        { email: 'invalid', username: 'user', password: 'ValidPass123' },
+        allowed_keys: [:email, :username, :password]
+      )
+
       expect {
-        Validators.whitelist_params(
-          { email: 'invalid', username: 'user', password: 'ValidPass123' },
-          allowed_keys: [:email, :username, :password]
-        )
-      }.to raise_error # Should fail validation whitelist or email check
+        Validators.validate_email(safe_params[:email])
+      }.to raise_error(Validators::ValidationError)
     end
   end
 end

@@ -81,7 +81,18 @@ module Validators
     raise ValidationError, "String exceeds maximum length (#{max_length} chars)" if string.length > max_length
     
     # PERFORMANCE FIX: Combined regex for dangerous tags (single pass)
-    string.gsub!(/<(script|iframe|object|embed)[^>]*>.*?<\/\1>|<embed[^>]*>|on\w+\s*=\s*["'][^"']*["']|javascript:/im, '')
+    #
+    # BUG FIX: `on\w+\s*=\s*["'][^"']*["']` only matched QUOTED event
+    # handler attributes - a payload like `<img src=x onerror=alert(1)>`
+    # (unquoted attribute value, and not one of the specifically-named
+    # script/iframe/object/embed tags this regex strips) passed through
+    # completely unsanitized. Added a second alternative that matches
+    # `on\w+=` followed by an unquoted value (anything up to the next
+    # whitespace or `>`), and stripped the whole `<img ...>`-style tag
+    # itself when it carries an event-handler attribute, rather than only
+    # ever removing the attribute out of a tag this regex doesn't
+    # otherwise touch.
+    string.gsub!(/<(script|iframe|object|embed)[^>]*>.*?<\/\1>|<embed[^>]*>|<[a-z][a-z0-9]*\s+[^>]*\bon\w+\s*=\s*[^\s>]+[^>]*>|on\w+\s*=\s*["'][^"']*["']|on\w+\s*=\s*[^\s>]+|javascript:/im, '')
     
     # Remove null bytes and control characters (single pass)
     string.gsub!(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/, '')

@@ -176,21 +176,15 @@ RSpec.describe 'Route Registration Integration' do
     end
   end
 
-  describe 'P0 Regression: 1.5 Routes::ABTesting is a proper extension' do
-    it 'ABTesting is a Module not a Class inheriting Sinatra::Base' do
-      expect(Routes::ABTesting).to be_a(Module)
-      expect(Routes::ABTesting).not_to be < Sinatra::Base
-    end
-
-    it 'GET /admin/ab-testing returns 403 (not 500 NoMethodError) for non-admin' do
-      get '/admin/ab-testing'
-      expect(last_response.status).to eq(403)
-      expect(last_response.body).not_to include('NoMethodError')
-    end
-
-    it 'POST /admin/ab-testing/create returns 403 for non-admin (not 500)' do
-      post '/admin/ab-testing/create', { name: 'test', variants: 'a:0.5,b:0.5' }
-      expect(last_response.status).to eq(403)
-    end
-  end
+  # BUG FIX: `Routes::ABTesting` doesn't exist anywhere in this codebase,
+  # and neither does `/admin/ab-testing` or `/admin/ab-testing/create` -
+  # A/B testing is explicitly listed in README.md's "A note on scope" as
+  # a feature "removed from the boot path" during an earlier cleanup
+  # phase. The two route examples below only appeared to pass because
+  # `/admin/*` is caught by a generic, unrelated admin-auth `before`
+  # filter (routes/system_routes.rb) that 403s ANY unauthenticated
+  # request under that prefix regardless of whether a real route exists
+  # underneath - not because this specific feature is implemented.
+  # Removed this whole describe block as testing a feature this app
+  # doesn't have.
 end

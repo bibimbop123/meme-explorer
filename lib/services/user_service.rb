@@ -2,7 +2,16 @@
 class UserService
   def self.create_or_find_from_reddit(reddit_username, reddit_id, reddit_email)
     existing = DB.execute("SELECT id, role FROM users WHERE reddit_id = ?", [reddit_id]).first
-    return existing["id"] if existing
+    # BUG FIX: `existing["id"]` comes back as a String from the PG driver
+    # (raw row values aren't type-cast), but the other branch below
+    # (`DB.last_insert_row_id`) returns a real Integer - so this method
+    # returned an inconsistent type (String vs Integer) for what every
+    # caller treats as the same "user id" concept, depending purely on
+    # whether the user already existed. Any caller doing `user_id == other_id`
+    # (as this method's own "returns existing user ID" spec does) would
+    # silently get a false negative when comparing a fresh int against a
+    # cached/looked-up string id.
+    return existing["id"].to_i if existing
 
     # ✅ SECURITY FIX: Set default role when creating user
     DB.last_insert_row_id(
@@ -24,7 +33,13 @@ class UserService
   end
 
   def self.find_by_email(email)
-    DB.execute("SELECT id, password_hash FROM users WHERE email = ?", [email]).first
+    # BUG FIX: this never selected `email` itself, only `id`/`password_hash`
+    # - any caller reading `user['email']` off the returned row (e.g. to
+    # confirm which address a session belongs to) always got nil, even
+    # for a real, found user. Added `email` to the select list; the two
+    # existing real callers (routes/auth.rb's login flow) only ever read
+    # `id`/`password_hash` today, so this is purely additive.
+    DB.execute("SELECT id, email, password_hash FROM users WHERE email = ?", [email]).first
   end
 
   def self.find_by_id(user_id)

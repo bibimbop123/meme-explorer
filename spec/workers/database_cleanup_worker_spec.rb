@@ -11,12 +11,19 @@ RSpec.describe DatabaseCleanupWorker do
     end
 
     it 'removes broken images older than 1 day with 5+ failures' do
+      # BUG FIX: both INSERTs below were missing `?` placeholders for
+      # `url`/`failure_count` entirely - the two adjacent string literals
+      # concatenated into `VALUES (, , NOW() - ...)`, a plain SQL syntax
+      # error, so this example never even got to test the worker's real
+      # behavior. Added the missing placeholders.
       DB.execute(
-        "INSERT INTO broken_images (url, failure_count, first_failed_at, last_failed_at)"        " VALUES (, , NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day')",
+        "INSERT INTO broken_images (url, failure_count, first_failed_at, last_failed_at)" \
+        " VALUES (?, ?, NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day')",
         ['http://broken-old.example.com/meme.jpg', 5]
       )
       DB.execute(
-        "INSERT INTO broken_images (url, failure_count, first_failed_at, last_failed_at)"        " VALUES (, , NOW() - INTERVAL '1 hour', NOW())",
+        "INSERT INTO broken_images (url, failure_count, first_failed_at, last_failed_at)" \
+        " VALUES (?, ?, NOW() - INTERVAL '1 hour', NOW())",
         ['http://broken-recent.example.com/meme.jpg', 5]
       )
       worker.perform
@@ -26,8 +33,10 @@ RSpec.describe DatabaseCleanupWorker do
     end
 
     it 'keeps meme stats with engagement even if old' do
+      # Same missing-placeholder bug fix as above.
       DB.execute(
-        "INSERT INTO meme_stats (url, title, subreddit, views, likes, updated_at)"        " VALUES (, , , 100, 5, NOW() - INTERVAL '10 days')",
+        "INSERT INTO meme_stats (url, title, subreddit, views, likes, updated_at)" \
+        " VALUES (?, ?, ?, 100, 5, NOW() - INTERVAL '10 days')",
         ['http://engaged.example.com/meme.jpg', 'Popular Meme', 'test']
       )
       worker.perform
