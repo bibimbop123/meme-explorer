@@ -85,19 +85,11 @@ module Routes
         end
       end
 
-      # Delete a meme from the system
-      app.delete "/admin/meme/:url" do
-        require_admin!
-
-        url = params[:url]
-        halt 400, "URL required" unless url
-
-        MemeExplorer::App::DB.execute("DELETE FROM meme_stats WHERE url = ?", [url])
-        MemeExplorer::App::DB.execute("DELETE FROM saved_memes WHERE meme_url = ?", [url])
-
-        content_type :json
-        { deleted: true, message: "Meme deleted" }.to_json
-      end
+      # (DELETE /admin/meme/:url also duplicated in
+      # routes/admin_inline_routes.rb, which is `register`ed AFTER this
+      # file in app.rb - so that copy always won here, making this one
+      # dead code. Removed; see the BUG FIX note on the surviving version
+      # in admin_inline_routes.rb for what was actually broken there.)
     end
   end
 end

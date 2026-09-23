@@ -90,6 +90,18 @@ module TrendingService
   end
   
   # Cache trending results with proper TTL
+  #
+  # BUG FIX: this called `RedisService.setex(key, ttl, value)`, a method
+  # that has never existed on RedisService (its real API is
+  # `set(key, value, ttl:)` - see lib/services/redis_service.rb) - every
+  # call silently raised NoMethodError, caught by the bare rescue below,
+  # meaning trending results were NEVER actually cached: every request
+  # recomputed the full scoring query from scratch, and two consecutive
+  # calls could return subtly different trending_score float values
+  # (Postgres re-evaluates `CURRENT_TIMESTAMP - updated_at` fresh each
+  # time). Also, RedisService.get already parses JSON internally
+  # (RedisService#parse_value) - the extra `JSON.parse(cached)` here was
+  # double-parsing an already-parsed Ruby object.
   def cached_trending(time_window: 24, cache_ttl: 300)
     cache_key = "trending:#{time_window}h"
     
@@ -99,11 +111,11 @@ module TrendingService
       AppLogger.warn("cached_trending: Redis read failed", error: e.message, key: cache_key)
       nil
     end
-    return JSON.parse(cached) if cached
+    return cached.map { |m| m.transform_keys(&:to_sym) } if cached
     
     trending = get_trending_memes(time_window_hours: time_window)
     begin
-      RedisService.setex(cache_key, cache_ttl, trending.to_json)
+      RedisService.set(cache_key, trending, ttl: cache_ttl)
     rescue => e
       AppLogger.warn("cached_trending: Redis write failed", error: e.message, key: cache_key)
     end

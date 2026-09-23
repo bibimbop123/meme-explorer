@@ -21,9 +21,14 @@
     <!-- 🎬 CRITERION COLLECTION: Enhanced sharing for specific memes -->
     <% collection = collection_name_for_subreddit(@meme['subreddit']) rescue "Meme Explorer" %>
     <% signal = generate_curation_signal(@meme) rescue {message: "A curated selection"} %>
-    <meta property="og:title" content="From <%= collection %> | Meme Explorer">
-    <meta property="og:description" content="<%= signal[:message] %>: <%= @meme['title'].gsub('"', "'")[0..150] %>">
-    <meta property="og:image" content="<%= @meme['url'] || @image_src %>">
+    <!-- BUG FIX (XSS hardening): `.gsub('"', "'")` only prevented
+         breaking out of the content="..." attribute via a literal quote -
+         it didn't escape `<`/`>`/`&`, so this was relying entirely on
+         quote-escaping to be safe rather than genuinely escaping
+         attacker-controlled meme title content. Use a real HTML escape. -->
+    <meta property="og:title" content="From <%= Rack::Utils.escape_html(collection) %> | Meme Explorer">
+    <meta property="og:description" content="<%= Rack::Utils.escape_html(signal[:message]) %>: <%= Rack::Utils.escape_html(@meme['title'].to_s[0..150]) %>">
+    <meta property="og:image" content="<%= Rack::Utils.escape_html(@meme['url'] || @image_src || '') %>">
   <% else %>
     <meta property="og:title" content="Meme Explorer 😎 - Discover the Best Memes from Reddit">
     <meta property="og:description" content="Explore trending memes featuring Tattoo Annie from The Simpsons! Browse funny, wholesome, and dank memes from top Reddit communities.">

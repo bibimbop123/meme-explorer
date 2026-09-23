@@ -93,35 +93,34 @@ module AppHelpers
   # ====================
   # AUTHENTICATION & AUTHORIZATION HELPERS
   # ====================
-  
-  # Check if user is logged in
-  def logged_in?
-    !session[:user_id].nil?
-  end
-  
-  # Check if current user is admin
+  #
+  # BUG FIX (reliability audit): this module used to define its own
+  # logged_in?/admin?/current_user_id/current_user_role/require_login!/
+  # require_admin!, all duplicating - and, because `helpers AppHelpers` is
+  # registered AFTER `helpers AuthHelpers` in app.rb, silently SHADOWING -
+  # the real versions in lib/helpers/auth_helpers.rb everywhere in the live
+  # app. Worse, these shadowing versions were strictly weaker:
+  #   - `admin?` checked `session[:role] == 'admin'`, a value only ever
+  #     populated at login and re-synced by SessionValidator middleware
+  #     (wired in config.ru) - if that sync ever lagged or that middleware
+  #     was ever skipped for a request, a demoted admin would keep admin
+  #     access until their session naturally refreshed. AuthHelpers's
+  #     `require_admin!` checks `UserService.is_admin?`, a live DB query,
+  #     every time - no such staleness window.
+  #   - `logged_in?` only checked `session[:user_id]` was non-nil, with no
+  #     verification the user still exists; AuthHelpers's version resolves
+  #     the full user record and fails closed if it's gone (e.g. deleted
+  #     account, but a still-valid session cookie).
+  #   - `current_user_id` returned the raw session value with no `.to_i`
+  #     coercion, unlike AuthHelpers's version.
+  # `current_user_role` and `require_login!` are not called anywhere else
+  # in the app - removed entirely. `admin?` IS still called directly (not
+  # just via `require_admin!`) from views/partials/_simplified_nav.erb, so
+  # it's kept, but fixed to delegate to the same live DB check
+  # AuthHelpers's require_admin! uses, instead of the stale
+  # `session[:role]` comparison.
   def admin?
-    session[:user_id] && session[:role] == 'admin'
-  end
-  
-  # Get current user ID
-  def current_user_id
-    session[:user_id]
-  end
-  
-  # Get current user role
-  def current_user_role
-    session[:role] || 'user'
-  end
-  
-  # Require user to be logged in (middleware-style)
-  def require_login!
-    halt 401, { error: "Login required" }.to_json unless logged_in?
-  end
-  
-  # Require user to be admin (middleware-style)
-  def require_admin!
-    halt 403, { error: "Admin access required" }.to_json unless admin?
+    UserService.is_admin?(current_user_id)
   end
 
   # ====================

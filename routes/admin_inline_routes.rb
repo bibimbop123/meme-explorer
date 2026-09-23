@@ -4,23 +4,48 @@
 module Routes
   module AdminInlineRoutes
     def self.registered(app)
-    app.get "/admin" do
-      halt 403, "Forbidden" unless is_admin?
+    # BUG FIX (reliability audit): this file used to duplicate BOTH
+    # `GET /admin` and `DELETE /admin/meme/:url` from routes/admin_routes.rb
+    # - and because this file (`AdminInlineRoutes`) is `register`ed AFTER
+    # `AdminRoutes` in app.rb, these weaker/broken copies silently won in
+    # the live app, not just in tests:
+    #   - `GET /admin` here called `is_admin?` with ZERO arguments, but
+    #     `is_admin?(user_id)` (lib/helpers/app_helpers.rb) requires one -
+    #     every single request to `/admin` raised ArgumentError/500
+    #     instead of ever rendering the dashboard for any admin, ever.
+    #     admin_routes.rb's version correctly uses `require_admin!`
+    #     (checks UserService.is_admin? against the real current user).
+    #   - `DELETE /admin/meme/:url` used a named Sinatra param, which
+    #     never matches path segments containing `/` - but every real
+    #     meme URL contains slashes after the scheme, and Rack decodes
+    #     `%2F`-encoded slashes back to literal `/` in PATH_INFO before
+    #     Sinatra ever routes the request, so this could never actually
+    #     match a real meme URL to delete, even with the client already
+    #     `encodeURIComponent`-ing it (views/admin.erb's `deleteMeme()`).
+    # Removed both dead/broken duplicates entirely - admin_routes.rb's
+    # `GET /admin` already exists and works correctly. The DELETE route is
+    # re-added below, fixed to use a splat (`*`) instead of `:url`, which
+    # DOES capture everything after `/admin/meme/`, slashes included.
+    app.delete "/admin/meme/*" do
+      require_admin!
 
-      @total_memes = DB.get_first_value("SELECT COUNT(*) FROM meme_stats").to_i
-      @total_likes = DB.get_first_value("SELECT SUM(likes) FROM meme_stats").to_i
-      @total_users = DB.get_first_value("SELECT COUNT(*) FROM users").to_i
-      @total_saved_memes = DB.get_first_value("SELECT COUNT(*) FROM saved_memes").to_i
-      @top_memes = DB.execute("SELECT title, url, likes, subreddit FROM meme_stats ORDER BY likes DESC LIMIT 10")
-
-      erb :admin
-    end
-
-    app.delete "/admin/meme/:url" do
-      halt 403, "Forbidden" unless is_admin?
-
-      url = params[:url]
-      halt 400, "URL required" unless url
+      # BUG FIX: Sinatra/Rack normalizes consecutive slashes in the
+      # PATH_INFO before routing, collapsing a URL like
+      # "http://example.com/meme.jpg" down to "http:/example.com/meme.jpg"
+      # (single slash) by the time it reaches `params[:splat]` - so even
+      # with the `*` splat fix (which solves the separate problem of `:url`
+      # not matching slashes at all), the captured value never exactly
+      # matched any real stored URL, and every delete silently affected
+      # zero rows (no SQL error, just a no-op). Restore the doubled slash
+      # after the scheme specifically, rather than guessing at general
+      # slash-collapsing - only "scheme://" ever legitimately contains a
+      # doubled slash in a URL.
+      url = params[:splat]&.first&.sub(%r{\A(https?:)/([^/])}, '\1//\2')
+      # BUG FIX: `unless url` only rejects nil - an empty splat capture
+      # (e.g. a bare "/admin/meme/" with nothing after it) is `""`, which
+      # is truthy in Ruby, so this sailed through to two no-op DELETEs
+      # and a false "deleted: true" instead of the 400 it should return.
+      halt 400, "URL required" if url.to_s.strip.empty?
 
       DB.execute("DELETE FROM meme_stats WHERE url = ?", [url])
       DB.execute("DELETE FROM saved_memes WHERE meme_url = ?", [url])

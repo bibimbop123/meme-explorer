@@ -11,7 +11,12 @@ module Routes
 
     # Detailed health check (admin only)
     app.get "/health/detailed" do
-      halt 403, { error: "Forbidden" }.to_json unless is_admin?
+      # BUG FIX: same class of bug as the '/admin/*' filter fixed elsewhere
+      # in this file - `is_admin?` requires a `user_id` argument
+      # (lib/helpers/app_helpers.rb) and was called with none, raising
+      # ArgumentError on every single request to this endpoint instead of
+      # ever actually checking admin status.
+      halt 403, { error: "Forbidden" }.to_json unless is_admin?(current_user_id)
       content_type :json
       HealthCheckService.check.to_json
     end
@@ -34,25 +39,27 @@ module Routes
       }.to_json
     end
 
-    app.get "/api/notifications" do
-      require_auth!
-      user_id = current_user_id
-
-      # Get user notifications (saved count changes, likes, etc.)
-      content_type :json
-      {
-        user_id: user_id,
-        saved_count: get_user_saved_memes_count(user_id),
-        timestamp: Time.now.iso8601,
-        message: "Your profile is up to date"
-      }.to_json
-    end
+    # (`/api/notifications` also duplicated in routes/metrics_routes.rb,
+    # which is `register`ed first in app.rb so it always won here anyway -
+    # removed this dead copy; see the BUG FIX note on the surviving
+    # version in metrics_routes.rb for what was actually broken.)
 
       # -----------------------
       # Admin Authorization Filter (P0 Security Fix)
       # -----------------------
+      #
+      # BUG FIX: `is_admin?` (lib/helpers/app_helpers.rb) requires a
+      # `user_id` argument - this called it with zero args, so every
+      # single request matching '/admin/*' (any admin sub-route, e.g.
+      # `DELETE /admin/meme/:url` - note this pattern does NOT match bare
+      # `/admin` itself, which is separately protected by `require_admin!`
+      # in routes/admin_routes.rb) raised ArgumentError instead of ever
+      # actually checking admin status. A real, live, silently-broken P0
+      # security filter - it never worked, it just happened to crash
+      # closed (500) rather than open, so no unauthorized access actually
+      # occurred, but no authorized admin request could work either.
       app.before '/admin/*' do
-    halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?
+        halt 403, { error: "Forbidden - Admin access required" }.to_json unless is_admin?(current_user_id)
       end
 
       # -----------------------

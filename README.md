@@ -72,6 +72,8 @@ Visit `http://localhost:8080` to explore memes!
 
 ## 📖 Documentation
 
+- **[Roadmap](ROADMAP.md)** - Strategic prioritization: why reliability and
+  personalization of the core `/random` loop outrank new features right now
 - **[Architecture Overview](ARCHITECTURE.md)** - System design and patterns
 - **[Security Guide](SECURITY.md)** - Security best practices
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and fixes
@@ -116,6 +118,7 @@ GET  /random             - Random meme discovery
 GET  /random.json        - Random meme API
 GET  /trending           - Trending memes
 GET  /trending.json      - Trending memes API
+GET  /api/trending       - Trending memes API (paginated, {memes, count, period, pagination} shape)
 GET  /search             - Search memes
 GET  /api/search.json    - Search API
 GET  /leaderboard        - User rankings

@@ -123,8 +123,16 @@ def navigate_meme_unified(direction: "next")
   meme_title = new_meme["title"] || "Unknown"
   meme_subreddit = new_meme["subreddit"] || "local"
   begin
+    # BUG FIX: `SET views = views + 1` is ambiguous in PostgreSQL's
+    # `ON CONFLICT ... DO UPDATE` (same class of bug as
+    # report_broken_image, fixed elsewhere in this file) - raises
+    # PG::AmbiguousColumn, silently swallowed by this method's own
+    # rescue, so every view-count increment through this path has been
+    # failing. routes/random_meme.rb, routes/home.rb, and
+    # routes/utility_routes.rb already correctly qualify this as
+    # `meme_stats.views` - matched that here.
     DB.execute(
-      "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP",
+      "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
       [meme_identifier, meme_title, meme_subreddit]
     )
   rescue => e
@@ -157,8 +165,18 @@ def update_user_preference(user_id, subreddit)
   
   subreddit = subreddit.downcase
   begin
+    # BUG FIX: same PG::AmbiguousColumn bug as report_broken_image/
+    # navigate_meme_unified above - `preference_score = preference_score + 0.2`
+    # and `times_liked = times_liked + 1` are both ambiguous in an
+    # `ON CONFLICT ... DO UPDATE`. This is directly relevant to
+    # ROADMAP.md's Phase 1 thesis (personalization as the moat): this
+    # method is THE mechanism by which per-user subreddit preference
+    # scores are supposed to compound over time, and it has been silently
+    # failing on every single call - meaning `apply_user_preferences`
+    # (lib/helpers/meme_pool_helpers.rb) has likely never seen a real,
+    # incrementing preference_score for any user, ever.
     DB.execute(
-      "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, 1) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = preference_score + 0.2, times_liked = times_liked + 1, last_updated = CURRENT_TIMESTAMP",
+      "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, 1) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = user_subreddit_preferences.preference_score + 0.2, times_liked = user_subreddit_preferences.times_liked + 1, last_updated = CURRENT_TIMESTAMP",
       [user_id, subreddit]
     )
   rescue => e
@@ -362,8 +380,17 @@ def report_broken_image(url)
   return unless url
   
   begin
+    # BUG FIX: `SET failure_count = failure_count + 1` is genuinely
+    # ambiguous in PostgreSQL's `ON CONFLICT ... DO UPDATE` - it can't tell
+    # whether the right-hand `failure_count` refers to the existing row
+    # (needs `broken_images.failure_count`) or the proposed insert (needs
+    # `excluded.failure_count`), and raises PG::AmbiguousColumn rather
+    # than guessing - silently caught by this method's own `rescue`, so
+    # every single call to report_broken_image has been failing this
+    # entire time with zero visible error to any caller. Qualify with the
+    # table name to resolve the ambiguity.
     DB.execute(
-      "INSERT INTO broken_images (url, failure_count) VALUES (?, 1) ON CONFLICT(url) DO UPDATE SET failure_count = failure_count + 1, last_failed_at = CURRENT_TIMESTAMP",
+      "INSERT INTO broken_images (url, failure_count) VALUES (?, 1) ON CONFLICT(url) DO UPDATE SET failure_count = broken_images.failure_count + 1, last_failed_at = CURRENT_TIMESTAMP",
       [url]
     )
   rescue => e

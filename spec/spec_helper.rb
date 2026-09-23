@@ -48,14 +48,55 @@ RSpec.configure do |config|
     MemeExplorer::App
   end
   
-  # Helper to get Rack session
-  def session
-    last_request.env['rack.session'] if last_request
+  # Helper to get/set a fake pre-request session hash, usable BEFORE any
+  # real request is made (e.g. `session[:user_id] = user_id` in a `before`
+  # block, then `get '/profile'`).
+  #
+  # BUG FIX: the original version of this helper only ever read
+  # `last_request.env['rack.session']`, which raises Rack::Test::Error
+  # ("No request yet") the moment it's called before any request has been
+  # issued - exactly the pattern used throughout
+  # spec/routes/admin_routes_spec.rb and spec/routes/profile_routes_spec.rb
+  # (`session[:user_id] = user_id` in a `before` block). Once a real
+  # request DOES exist, Rack::Test's `env(name, value)` (used by
+  # `set_session`) sets a header for the NEXT request, so writing directly
+  # into `@rack_test_session` and passing it via `env 'rack.session', ...`
+  # on every request keeps it working before AND after the first real
+  # request, and keeps mutations (`session[:user_id] = x`) visible for
+  # later reads within the same example without needing an intervening
+  # request.
+  # BUG FIX: a plain Hash doesn't respond to `.options`, but real
+  # production sessions are Rack::Session::Abstract::SessionHash (or
+  # similar), which does - routes/auth.rb's real login flow calls
+  # `env['rack.session'].options[:renew] = true` to prevent session
+  # fixation on login. A singleton method added via `define_singleton_method`
+  # doesn't survive `Hash#dup` (and something in the Rack/Sinatra
+  # middleware chain does dup the session at some point), so use a real
+  # Hash subclass instead - subclass instance methods DO survive dup/clone,
+  # unlike singleton methods on a literal Hash instance.
+  class FakeSessionHash < Hash
+    def options
+      @options ||= {}
+    end
   end
-  
-  # Helper to set session for tests
+
+  def session
+    @rack_test_session ||= FakeSessionHash.new
+    # Register the SAME Hash object as the env's rack.session on every
+    # access (not a copy) - Rack::Test's `env(name, value)` just stores it
+    # for the next request without needing a prior one, and because it's
+    # the same object reference, later in-place mutations
+    # (`session[:user_id] = x`) are visible to whatever request eventually
+    # reads `env['rack.session']`, with no extra sync step required.
+    env 'rack.session', @rack_test_session
+    @rack_test_session
+  end
+
+  # Helper to explicitly set the whole session hash (rarely needed
+  # directly - prefer `session[:key] = value`, which now works standalone).
   def set_session(hash)
-    env 'rack.session', hash
+    @rack_test_session = hash
+    env 'rack.session', @rack_test_session
   end
   
   # Helper to create test user

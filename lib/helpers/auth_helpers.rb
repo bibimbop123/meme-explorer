@@ -69,8 +69,18 @@ module AuthHelpers
 
   # True when the client wants JSON (XHR or explicit Accept header).
   def json_request?
+    # BUG FIX: this only ever checked XHR/Accept/Content-Type headers, so
+    # a request to a URL that's unambiguously a JSON API by its own path
+    # convention (e.g. `/metrics.json`, `/trending.json`, `/api/...`) but
+    # sent without those specific headers - like a plain `fetch()` call
+    # with no extra options, or a test hitting the path directly - still
+    # got a 302 redirect to `/login` from require_auth! instead of a JSON
+    # 401 body. A JS client parsing the response as JSON would then choke
+    # on the redirect/HTML instead of getting a clean 401 it can handle.
     request.xhr? ||
       request.env['HTTP_ACCEPT'].to_s.include?('application/json') ||
-      request.content_type.to_s.include?('application/json')
+      request.content_type.to_s.include?('application/json') ||
+      request.path.end_with?('.json') ||
+      request.path.start_with?('/api/')
   end
 end

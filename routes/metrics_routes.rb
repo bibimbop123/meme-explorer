@@ -272,6 +272,16 @@ module Routes
       end
 
       # User notifications API
+      #
+      # BUG FIX: called `get_user_saved_memes_count(user_id)`, a method
+      # that doesn't exist anywhere in the codebase (grep confirms zero
+      # `def get_user_saved_memes_count`) - every single request to this
+      # endpoint raised NoMethodError/500 instead of ever returning real
+      # data. This was also duplicated verbatim in routes/system_routes.rb
+      # with the identical bug, but registration order (this file is
+      # `register`ed first in app.rb) meant only this copy was ever
+      # actually reachable; removed the dead duplicate there. The real,
+      # working method for this is `UserService.get_saved_memes_count`.
       app.get "/api/notifications" do
         require_auth!
         user_id = current_user_id
@@ -280,7 +290,7 @@ module Routes
         content_type :json
         {
           user_id: user_id,
-          saved_count: get_user_saved_memes_count(user_id),
+          saved_count: UserService.get_saved_memes_count(user_id),
           timestamp: Time.now.iso8601,
           message: "Your profile is up to date"
         }.to_json

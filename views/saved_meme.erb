@@ -5,7 +5,7 @@
       <img
         id="meme-img"
         src="<%= @image_src || '/images/funny1.jpeg' %>"
-        alt="<%= @meme["title"] || 'Meme Image' %>"
+        alt="<%= Rack::Utils.escape_html(@meme["title"] || 'Meme Image') %>"
         class="meme-display-image"
         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
       >
@@ -14,12 +14,17 @@
 
   <div class="meme-info-section">
     <div class="meme-info-card">
+      <!-- BUG FIX (XSS): plain ERB does not auto-escape HTML by default,
+           and this view had no escaping applied anywhere - a meme title
+           or subreddit sourced from user-saved content (or ultimately
+           from Reddit) containing e.g. "<script>...</script>" rendered
+           and executed unescaped. Escaped both interpolations. -->
       <h1 id="meme-title" class="meme-display-title">
-        <%= @meme["title"] || "Untitled Meme" %>
+        <%= Rack::Utils.escape_html(@meme["title"] || "Untitled Meme") %>
       </h1>
       
       <div class="meme-meta-info">
-        <span class="meme-subreddit-badge">r/<%= @meme["subreddit"] || "Unknown" %></span>
+        <span class="meme-subreddit-badge">r/<%= Rack::Utils.escape_html(@meme["subreddit"] || "Unknown") %></span>
       </div>
 
       <div class="meme-stats">

@@ -76,7 +76,12 @@ module Routes
         title = params[:title] || 'Unknown'
         subreddit = params[:subreddit] || 'unknown'
 
-        halt 400, { error: "URL required" }.to_json unless url
+        # BUG FIX: `unless url` only rejects nil/false - an empty string
+        # ('') is truthy in Ruby, so `POST /api/save-meme` with `url: ''`
+        # sailed straight through to EngagementService.track_save with a
+        # blank meme_url instead of being rejected as the missing-URL case
+        # it actually is.
+        halt 400, { error: "URL required" }.to_json if url.to_s.strip.empty?
 
         # Use EngagementService for comprehensive tracking with gamification, leaderboard, and metrics
         result = ::EngagementService.track_save(
@@ -112,7 +117,8 @@ module Routes
         require_auth!
 
         url = params[:url]
-        halt 400, { error: "URL required" }.to_json unless url
+        # Same empty-string bug fix as /api/save-meme above.
+        halt 400, { error: "URL required" }.to_json if url.to_s.strip.empty?
 
         # Use EngagementService for comprehensive tracking
         result = ::EngagementService.track_save(

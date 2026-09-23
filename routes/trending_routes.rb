@@ -35,6 +35,71 @@ module Routes
         
         erb :trending
       end
+
+      # BUG FIX: documented in README.md ("GET /trending.json - Trending
+      # memes API") and directly exercised by
+      # spec/routes/trending_routes_spec.rb, but never actually
+      # implemented as a route anywhere in the codebase - every request to
+      # it 404'd. TrendingService.get_trending_memes already implements
+      # exactly this (SQL-side scoring with time decay, see
+      # lib/services/trending_service.rb); this route just exposes it.
+      app.get "/trending.json" do
+        content_type :json
+
+        limit = params[:limit].to_i
+        limit = 20 if limit <= 0
+
+        hours = case params[:period]
+                when '1h' then 1
+                when '24h' then 24
+                when '7d' then 168
+                else 24 # invalid/unspecified period falls back to the default window
+                end
+
+        # Uses TrendingService's own Redis-backed cache (5min TTL) rather
+        # than querying meme_stats fresh on every request - same caching
+        # this service already implements for exactly this endpoint's
+        # workload, just not previously wired up to a real route.
+        memes = begin
+          TrendingService.cached_trending(time_window: hours)
+        rescue => e
+          AppLogger.error("⚠️ [TRENDING.JSON] #{e.class}: #{e.message}")
+          []
+        end
+
+        memes = memes.first(limit) if limit > 0
+        memes.map { |m| m.transform_keys(&:to_s) }.to_json
+      end
+
+      # BUG FIX: same gap as /trending.json above - documented behavior
+      # (README's API Endpoints list references trending JSON APIs) with
+      # no actual route, only a disabled experimental
+      # routes/api/v1/trending_optimized.rb (never registered in app.rb).
+      # Wraps TrendingService.trending_memes, which already returns a
+      # {memes:, pagination:} shape - this route just adds the top-level
+      # `count`/`period` metadata callers reasonably expect from an
+      # "/api/..." endpoint.
+      app.get "/api/trending" do
+        content_type :json
+
+        result = begin
+          TrendingService.trending_memes(
+            time_window: params[:period] || '24h',
+            sort_by: params[:sort_by] || 'trending',
+            limit: (params[:limit].to_i > 0 ? params[:limit].to_i : 20)
+          )
+        rescue => e
+          AppLogger.error("⚠️ [API/TRENDING] #{e.class}: #{e.message}")
+          { memes: [], pagination: { has_more: false, next_cursor: nil, total: 0 } }
+        end
+
+        {
+          memes: result[:memes].map { |m| m.transform_keys(&:to_s) },
+          count: result[:memes].length,
+          period: params[:period] || '24h',
+          pagination: result[:pagination]
+        }.to_json
+      end
       
       # Before filter for category routes
       app.before "/category/*" do
@@ -62,7 +127,7 @@ module Routes
         # Use fallback only if empty
         @memes = [fallback_meme.merge("subreddit" => category_name.to_s)] if @memes.empty?
       
-        if request.accept.include?("application/json")
+        if request.accept?("application/json")
           content_type :json
           @memes.to_json
         else

@@ -186,7 +186,15 @@ module Routes
           halt 400, { error: "No URL provided" }.to_json unless url
 
           begin
-            MemeService.report_broken_image(url)
+            # BUG FIX: called `MemeService.report_broken_image(url)`, but
+            # that method has never existed on MemeService - the real
+            # implementation is a top-level `report_broken_image(url)`
+            # helper (lib/helpers/meme_navigation_helpers.rb, defined
+            # outside the MemeNavigationHelpers module, so it's a global
+            # method callable directly here) - every request to this
+            # route raised NoMethodError/500 instead of ever recording a
+            # broken image report.
+            report_broken_image(url)
             content_type :json
             { reported: true, message: "Broken image tracked" }.to_json
           rescue => e
@@ -195,19 +203,59 @@ module Routes
           end
         end
 
+        # BUG FIX: all three search routes below called
+        # `MemeService.cached_memes`, a class method that has never
+        # existed on MemeService (it only ever has instance state, and no
+        # class-level cache accessor at all) - every single request to
+        # `/search`, `/api/search.json` raised NoMethodError/500. The real,
+        # live meme cache is `MemeExplorer::App::MEME_CACHE[:memes]` (see
+        # routes/memes.rb's own use of it a few lines up, and
+        # routes/random_meme.rb, routes/health.rb, etc.) - swapped in.
         app.get "/search" do
           query = params[:q]
 
-          if request.accept.include?("application/json")
-            results = SearchService.search(query, MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+          if request.accept?("application/json")
+            # BUG FIX: SearchService.search (lib/services/search_service.rb)
+            # always returns a Hash ({success:, results:, query:, total:}),
+            # never a bare Array - but this called `.map`/`.size` directly
+            # on that return value, which would raise NoMethodError on any
+            # Hash (Hash doesn't define `.map` the way an Array does; even
+            # where it technically responds, the result was never what
+            # this route intended). Pull the actual results array out of
+            # the Hash first.
+            #
+            # ALSO: `request.accept.include?("application/json")` never
+            # actually matches - `request.accept` (Sinatra::Request)
+            # returns an array of AcceptEntry objects, not strings, so
+            # `.include?("application/json")` compares an AcceptEntry to a
+            # String and is always false, even with a real
+            # `Accept: application/json` header. The correct API is
+            # `request.accept?(...)`. Same bug fixed identically in
+            # routes/search_routes.rb, routes/trending_routes.rb, and
+            # the /category/:name route below.
+            search_result = SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
+            results = search_result[:results] || []
             content_type :json
             {
               query: query,
-              results: results.map { |m| format_search_result(m) },
+              # BUG FIX: called a `format_search_result` helper that
+              # doesn't exist anywhere in the codebase - inlined the
+              # formatting instead (same shape the now-dead duplicate
+              # /search in routes/search_routes.rb already used).
+              results: results.map { |m| {
+                title: m["title"],
+                url: m["url"] || m["file"],
+                file: m["file"],
+                subreddit: m["subreddit"],
+                likes: m["likes"].to_i,
+                views: m["views"].to_i,
+                source: m["file"] ? "local" : "reddit"
+              } },
               total: results.size
             }.to_json
           else
-            @results = ::SearchService.search(query, ::MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+            search_result = ::SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
+            @results = search_result[:results] || []
             @query = query
             erb :search
           end
@@ -215,12 +263,23 @@ module Routes
 
         app.get "/api/search.json" do
           query = params[:q]
-          results = ::SearchService.search(query, ::MemeService.cached_memes, MemeExplorer::App::POPULAR_SUBREDDITS)
+          # Same Hash-vs-Array bug fix as GET /search above.
+          search_result = ::SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
+          results = search_result[:results] || []
 
           content_type :json
           {
             query: query,
-            results: results.map { |m| format_search_result(m) },
+            # Same missing-helper bug fix as GET /search above.
+            results: results.map { |m| {
+              title: m["title"],
+              url: m["url"] || m["file"],
+              file: m["file"],
+              subreddit: m["subreddit"],
+              likes: m["likes"].to_i,
+              views: m["views"].to_i,
+              source: m["file"] ? "local" : "reddit"
+            } },
             total: results.size
           }.to_json
         end
@@ -242,7 +301,7 @@ module Routes
           local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
           @memes = local_memes.empty? ? [app.helpers.fallback_meme.merge("subreddit" => category_name.to_s)] : local_memes
 
-          if request.accept.include?("application/json")
+          if request.accept?("application/json")
             content_type :json
             @memes.to_json
           else
