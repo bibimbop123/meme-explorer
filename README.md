@@ -192,6 +192,25 @@ into a README with no source behind it is worse than no number at all,
 so we removed the previous placeholder figures rather than leave them
 looking authoritative. Go look at `/metrics` for the real answer.
 
+### The other number that matters: does the loop bring people back?
+
+Fast selection is necessary but not sufficient - the actual test of
+whether personalization is working is whether people come back.
+`RetentionService` (`lib/services/retention_service.rb`) computes this
+from the same `meme_activity_log` table already used for view/like
+tracking, no separate tracking call needed:
+
+- **D1 return rate** - of the users active on a given day, what
+  percentage were also active the following day, over a rolling window
+- **Average session length** - approximated as the gap between a user's
+  first and last recorded activity within a calendar day (the honest
+  approximation available from existing data; a true session-boundary
+  concept would need new schema)
+
+Also live at `/metrics` and `/metrics.json`, same "no static claims"
+discipline as selection latency above - both values fail safe to `nil`
+rather than ever raising, so a metrics bug can't affect the real product.
+
 ### Optimizations
 - Strategic database indexes
 - Redis caching layer
@@ -208,6 +227,17 @@ looking authoritative. Go look at `/metrics` for the real answer.
 - [x] Background Jobs (Sidekiq)
 - [x] Modular route architecture (`routes/*.rb`, `self.registered(app)` pattern)
 - [x] Leaderboard
+- [x] Real per-user personalization signal (likes, saves, skips, dwell-time
+  capture) feeding live meme selection weighting (`SimpleMemeSelector`) -
+  not just anti-repetition
+- [x] Retention instrumentation (D1 return rate, session length via
+  `RetentionService`, live at `/metrics`)
+- [x] Ad-free premium subscription tier via Stripe (`SubscriptionService`,
+  `/premium`) - real Checkout + webhook integration, ad suppression wired
+  into `AdHelpers`; not yet live with real Stripe keys (see `.env.example`)
+- [x] CDN integration (`CDNHelpers`/`CDNConfig`) - real, tested, and
+  wired into the actual meme image render path; inert by default until
+  `CDN_DOMAIN` is configured in a given environment
 
 ### In Progress 🚧
 - [ ] Mobile app development
@@ -215,9 +245,11 @@ looking authoritative. Go look at `/metrics` for the real answer.
   `MEME_CACHE` → on-demand Reddit fetch) once real `/metrics` traffic data
   shows which layer is the actual cost driver
 - [ ] Advanced caching strategies
+- [ ] Routing `layout.erb`'s remaining hardcoded `<link>`/`<script>` tags
+  through `cdn_css`/`cdn_js` (the image path is already CDN-aware; CSS/JS
+  assets aren't yet)
 
 ### Planned 📋
-- [ ] CDN integration
 - [ ] Image optimization pipeline
 - [ ] WebSocket support for real-time features
 - [ ] GraphQL API layer

@@ -22,15 +22,37 @@
   </div>
 </div>
 
-<!-- Meme Cards Container -->
-<div id="trendingContainer" class="trending-container">
-  <div class="loading-state">
-    <p>Loading trending memes...</p>
+<!-- Ad improvement: hero ad above the fold, desktop and mobile both -
+     this page had zero ad inventory at all before (render_hero_ad was
+     defined in lib/helpers/ad_helpers.rb but never called anywhere). -->
+<%= render_hero_ad %>
+
+<!-- Desktop sidebar ad + main content, using the existing
+     .content-with-sidebar/.sidebar-ad-container grid from /css/ads.css
+     (only activates at >=1200px - render_sidebar_ad is itself a no-op
+     when should_show_ads? is false, and .sidebar-ad-container is hidden
+     entirely below 1200px, so mobile is unaffected by this wrapper). -->
+<div class="content-with-sidebar">
+  <div>
+    <!-- Meme Cards Container -->
+    <div id="trendingContainer" class="trending-container">
+      <div class="loading-state">
+        <p>Loading trending memes...</p>
+      </div>
+    </div>
+
+    <!-- Infinite Scroll Observer -->
+    <div id="scrollObserver" class="scroll-observer"></div>
   </div>
+
+  <%= render_sidebar_ad %>
 </div>
 
-<!-- Infinite Scroll Observer -->
-<div id="scrollObserver" class="scroll-observer"></div>
+<!-- Mobile ad surface: a single sticky anchor bar, same pattern already
+     used on /random - this page had no mobile ad inventory at all
+     before (the left/right desktop columns don't apply here, but there
+     was no mobile-specific slot either). -->
+<%= render_anchor_ad %>
 
 <!-- Include Phase 1 Implementation -->
 <!-- ad-manager.js is already loaded once globally by layout.erb; including it

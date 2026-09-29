@@ -55,6 +55,8 @@ require_relative "./lib/services/user_service"
 require_relative "./lib/services/redis_service"
 require_relative "./lib/services/selection_benchmark"  # The one number this product bets on - see file header
 require_relative "./lib/services/trending_service"
+require_relative "./lib/services/retention_service"  # Phase 1 roadmap: does the loop actually retain users, not just run fast - see file header
+require_relative "./lib/services/subscription_service"  # Phase 2 roadmap: real Stripe integration for the ad-free premium tier - see file header
 require_relative "./lib/services/meme_service"
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/services/inline_reddit_fetcher"  # Restored - critical for meme fetching
@@ -78,8 +80,20 @@ require_relative "./routes/leaderboard_routes"
 require_relative "./routes/user_api_routes"
 require_relative "./routes/system_routes"
 require_relative "./routes/admin_inline_routes"
+require_relative "./routes/premium_routes"
 require_relative "./lib/middleware/request_timer"
 require_relative "./lib/middleware/security_headers"
+# BUG FIX (ROADMAP.md Phase 2, "CDN integration"): lib/helpers/cdn_helpers.rb
+# is required and mixed into every route (`helpers CDNHelpers` below),
+# but its entire implementation calls `CDNConfig` (CDN_ENABLED,
+# CDN_DOMAIN, asset_url, image_url) - a constant/module defined in
+# config/initializers/cdn.rb, which was never required anywhere in this
+# codebase (confirmed via grep). Every real call to cdn_css/cdn_js/
+# cdn_image/cdn_asset/preload_*/cdn_image_srcset would have raised
+# `NameError: uninitialized constant CDNConfig` the instant anything
+# actually called them - the same "scaffolded but never wired up" gap
+# this session already found and fixed for the Stripe integration.
+require_relative 'config/initializers/cdn'
 require_relative 'lib/helpers/cdn_helpers'
 require_relative 'lib/feature_flags'
 require_relative 'lib/concerns/http_caching'
@@ -417,6 +431,7 @@ METRICS[:total_duration_ms].update { |v| v + duration.to_i }
   register Routes::UserApiRoutes
   register Routes::SystemRoutes
   register Routes::AdminInlineRoutes
+  register Routes::PremiumRoutes
 
   end  # End of App class
 end  # End of MemeExplorer module

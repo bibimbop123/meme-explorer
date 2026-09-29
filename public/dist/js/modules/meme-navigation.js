@@ -12,6 +12,12 @@ export class MemeNavigation {
   constructor() {
     this.loading = false;
     this.prefetchedMeme = null;
+    // ROADMAP.md Phase 1: track the meme currently on screen (and when
+    // it started being shown) so loadNextMeme() can report it as
+    // skipped, with real dwell time, right before replacing it - see
+    // trackSkip() below.
+    this.currentMeme = null;
+    this.currentMemeShownAt = null;
     // Fast, snappy "one meme at a time" transition. Must match the
     // "out" keyframe duration in /css/meme-transition.css (memeTransitionOut)
     // so content swaps exactly when the pop-out animation finishes.
@@ -134,6 +140,13 @@ export class MemeNavigation {
     console.log('[MemeNavigation] Loading next meme via AJAX...');
     this.loading = true;
     
+    // ROADMAP.md Phase 1: the user navigating away from this.currentMeme
+    // via "next" without having liked/saved it first is real skip
+    // signal - report it (with how long it was actually on screen)
+    // before it's replaced below. Fire-and-forget: must never block or
+    // delay loading the actual next meme.
+    this.trackSkip(this.currentMeme, this.currentMemeShownAt);
+    
     try {
       // Show loading state
       this.showLoadingState();
@@ -157,6 +170,8 @@ export class MemeNavigation {
       
       // Render the new meme
       await this.renderMeme(meme);
+      this.currentMeme = meme;
+      this.currentMemeShownAt = Date.now();
       
       // Update URL without reload
       this.updateURL(meme);
@@ -204,6 +219,12 @@ export class MemeNavigation {
       
       const meme = await response.json();
       await this.renderMeme(meme);
+      // NOTE: deliberately no trackSkip() call here, unlike loadNextMeme -
+      // requesting a "similar" meme from the same subreddit is itself a
+      // positive engagement signal, not a "navigated past without
+      // liking" skip.
+      this.currentMeme = meme;
+      this.currentMemeShownAt = Date.now();
       this.updateURL(meme);
       this.prefetchNext();
       this.trackView(meme);
@@ -488,6 +509,44 @@ export class MemeNavigation {
       });
   }
   
+  /**
+   * ROADMAP.md Phase 1: report that the given meme was navigated past
+   * without being liked/saved - real per-user negative preference
+   * signal (see lib/services/engagement_service.rb#track_skip for the
+   * calibration/floor rationale), plus real dwell time (how long it was
+   * actually on screen, in ms, via `shownAt` - a client-side
+   * performance.now()-style timestamp from when renderMeme() completed
+   * for it). Dwell time is reported but does not currently affect
+   * preference_score - a very-short dwell time is a stronger "not
+   * interested" signal than a skip after lingering, but calibrating a
+   * second weighting dimension needs real distribution data (how long
+   * do genuine skips vs. genuine engagement actually take?) that this
+   * capture makes possible to look at without guessing a formula ahead
+   * of any real data - the same "don't collapse it on guesswork"
+   * discipline this roadmap applies elsewhere. Fire-and-forget by
+   * design: a failed or slow skip-tracking call must never block or
+   * delay loading the next meme, so this deliberately does not await
+   * the fetch or surface its result anywhere in the UI.
+   * @param {Object} meme - the meme being navigated away from
+   * @param {number|null} shownAt - Date.now() timestamp from when this
+   *   meme was rendered, or null if unknown (e.g. first meme on a page
+   *   navigated via full page load, not AJAX)
+   */
+  trackSkip(meme, shownAt) {
+    if (!meme || !meme.subreddit) return;
+
+    const dwellMs = typeof shownAt === 'number' ? Math.max(0, Date.now() - shownAt) : null;
+
+    fetch('/api/skip-meme', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subreddit: meme.subreddit, dwell_ms: dwellMs })
+    }).catch(error => {
+      console.warn('[MemeNavigation] Skip tracking failed:', error);
+      // Silent fail - not critical, matches prefetchNext's pattern above
+    });
+  }
+
   /**
    * Track meme view for analytics
    */

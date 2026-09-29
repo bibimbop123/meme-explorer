@@ -188,6 +188,35 @@
       </div>
     <% end %>
 
+    <!-- Phase 1 roadmap: "latency proves the loop is fast; retention
+         proves the loop is actually better for the user, which is the
+         real test of a monopoly-shaped product versus a merely
+         functional one." See lib/services/retention_service.rb - this
+         is real D1 return-rate computed from meme_activity_log, not a
+         placeholder. -->
+    <h2>🔁 Retention (does the loop actually bring people back?)</h2>
+    <div class="metrics">
+      <% if @retention && @retention[:overall_return_rate_pct] %>
+        <div class="metric <%= @retention[:overall_return_rate_pct] >= 20 ? 'success' : 'warning' %>">
+          <h3>D1 Return Rate (last <%= @retention[:window_days] %>d)</h3>
+          <p><%= @retention[:overall_return_rate_pct] %>%</p>
+        </div>
+        <div class="metric">
+          <h3>Days with data</h3>
+          <p><%= @retention[:days].count { |d| d[:active_users] > 0 } %> / <%= @retention[:window_days] %></p>
+        </div>
+      <% else %>
+        <div class="metric">
+          <h3>D1 Return Rate</h3>
+          <p>No data yet</p>
+        </div>
+      <% end %>
+      <div class="metric">
+        <h3>Avg Session Length</h3>
+        <p><%= @avg_session_length_minutes ? "#{@avg_session_length_minutes} min" : "No data yet" %></p>
+      </div>
+    </div>
+
     <% if @total_memes == 0 && @top_memes.empty? %>
       <div class="empty-state">
         <p>📭 No data yet for this period. Start browsing memes to generate metrics!</p>

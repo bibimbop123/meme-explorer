@@ -61,4 +61,65 @@ RSpec.describe 'Routes: memes' do
       expect(last_response.headers['Content-Disposition']).to include('.jpg')
     end
   end
+
+  # ROADMAP.md Phase 1: real, new "skip" signal for personalization -
+  # see lib/services/engagement_service.rb#track_skip for the full
+  # rationale. This is the actual live route
+  # public/js/modules/meme-navigation.js calls on every "next meme"
+  # navigation.
+  describe 'POST /api/skip-meme' do
+    it 'records a skip for a logged-in user and decrements their preference' do
+      hashed = BCrypt::Password.create("testpass123")
+      DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", ["skip_route_1@example.com", hashed])
+      user_id = DB.last_insert_row_id
+      DB.execute(
+        "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, ?, ?)",
+        [user_id, "funny", 1.5, 3]
+      )
+      env "rack.session", { user_id: user_id }
+
+      post '/api/skip-meme', { subreddit: 'funny' }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+
+      expect(last_response.status).to eq(200)
+      body = JSON.parse(last_response.body)
+      expect(body['success']).to eq(true)
+      expect(body['skipped']).to eq(true)
+
+      pref = DB.execute("SELECT * FROM user_subreddit_preferences WHERE user_id = ? AND subreddit = ?", [user_id, "funny"]).first
+      expect(pref["preference_score"].to_f).to be_within(0.001).of(1.45)
+    end
+
+    it 'returns success without tracking for an anonymous (no session) request' do
+      post '/api/skip-meme', { subreddit: 'funny' }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+
+      expect(last_response.status).to eq(200)
+      body = JSON.parse(last_response.body)
+      expect(body['success']).to eq(true)
+      expect(body['skipped']).to eq(false)
+    end
+
+    it 'accepts an optional dwell_ms field without error' do
+      hashed = BCrypt::Password.create("testpass123")
+      DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", ["skip_route_3@example.com", hashed])
+      user_id = DB.last_insert_row_id
+      env "rack.session", { user_id: user_id }
+
+      post '/api/skip-meme', { subreddit: 'funny', dwell_ms: 1500 }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+
+      expect(last_response.status).to eq(200)
+      body = JSON.parse(last_response.body)
+      expect(body['success']).to eq(true)
+    end
+
+    it 'handles a malformed JSON body gracefully rather than 500ing' do
+      hashed = BCrypt::Password.create("testpass123")
+      DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", ["skip_route_2@example.com", hashed])
+      user_id = DB.last_insert_row_id
+      env "rack.session", { user_id: user_id }
+
+      post '/api/skip-meme', 'not valid json', { 'CONTENT_TYPE' => 'application/json' }
+
+      expect(last_response.status).to eq(200)
+    end
+  end
 end

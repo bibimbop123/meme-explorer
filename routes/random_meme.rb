@@ -95,7 +95,10 @@ module Routes
           # lib/services/selection_benchmark.rb.
           @meme = SelectionBenchmark.measure do
             meme_pool = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
-            SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id) }
+            # ROADMAP.md Phase 1: same personalization wiring as
+            # /random.json below - this is the first-load HTML path, the
+            # other real entry point into selection.
+            SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id) }
           end
 
           # Fallback if something goes wrong
@@ -203,7 +206,9 @@ module Routes
         similar_pool = meme_pool.select { |m| m['subreddit']&.downcase == subreddit }
         similar_pool = meme_pool if similar_pool.empty? # Fallback to all if no matches
         
-        @meme = MemeExplorer::SimpleMemeSelector.select(similar_pool, session_id)
+        # ROADMAP.md Phase 1: same personalization wiring as /random and
+        # /random.json above - /similar.json is a real, live endpoint too.
+        @meme = MemeExplorer::SimpleMemeSelector.select(similar_pool, session_id, user_id: current_user_id)
           
           halt 404, { error: "No similar memes found for #{subreddit}" }.to_json if @meme.nil?
           # ✅ Track in Redis (NOT session)
@@ -247,7 +252,14 @@ module Routes
           memes = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
           next nil if memes.empty?
 
-          SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id) }
+          # ROADMAP.md Phase 1: thread the logged-in user's id through so
+          # SimpleMemeSelector can fold in their real subreddit
+          # preferences (from likes/saves - see
+          # EngagementService#bump_subreddit_preference) into selection
+          # weighting - this is the actual live selection path every
+          # subsequent /random.json request hits, unlike the separate,
+          # never-called apply_user_preferences path.
+          SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id) }
         end
         AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
 

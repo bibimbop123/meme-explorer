@@ -51,6 +51,13 @@
     <p style="text-align: center; color: #999;">No leaderboard data yet. Come back after some activity!</p>
   <% end %>
 
+  <!-- Ad improvement: this page had zero ad inventory before. Gated on
+       real leaderboard content existing (same reasoning as /search's
+       empty state - no ad on a "come back later" placeholder page). -->
+  <% if @leaderboard && should_show_ads_for_content?(@leaderboard) %>
+    <%= render_hero_ad %>
+  <% end %>
+
   <div style="margin-top: 20px;">
     <a href="/random" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Memes</a>
   </div>

@@ -41,7 +41,17 @@ module AdHelpers
       return false
     end
     
-    # All users see ads (no premium subscription feature)
+    # ROADMAP.md Phase 2: real premium subscription feature - ad-free is
+    # the actual product benefit being sold (see
+    # lib/services/subscription_service.rb). `current_user_id` comes
+    # from AuthHelpers, already mixed into every route context alongside
+    # this module (see app.rb's `helpers` list) - not a new dependency.
+    # SubscriptionService.premium? fails safe to false (never raises, and
+    # treats an unapplied migration / unconfigured Stripe as "not
+    # premium"), so this can never accidentally suppress ad revenue due
+    # to a bug in the premium-check path itself.
+    return false if defined?(current_user_id) && SubscriptionService.premium?(current_user_id)
+
     true
   end
   

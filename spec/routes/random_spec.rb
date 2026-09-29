@@ -101,4 +101,78 @@ describe "Random Meme Routes" do
       expect(last_response.body).not_to include('stale local meme')
     end
   end
+
+  # ROADMAP.md Phase 2: real premium subscription feature -
+  # AdHelpers.should_show_ads? now checks SubscriptionService.premium?
+  # (see lib/helpers/ad_helpers.rb). Full HTTP-level coverage rather
+  # than unit-testing the helper in isolation, since it depends on
+  # Sinatra's request/session context.
+  describe "GET /random - premium ad suppression (Phase 2)" do
+    def create_user(email, premium_status: nil, premium_current_period_end: nil)
+      hashed = BCrypt::Password.create("testpass123")
+      DB.execute(
+        "INSERT INTO users (email, password_hash, premium_status, premium_current_period_end) VALUES (?, ?, ?, ?)",
+        [email, hashed, premium_status || 'none', premium_current_period_end]
+      )
+      DB.last_insert_row_id
+    end
+
+    it "shows no ad units for a genuinely premium user" do
+      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
+      user_id = create_user('random_premium_1@example.com', premium_status: 'active', premium_current_period_end: Time.now + 30 * 86400)
+      env "rack.session", { user_id: user_id }
+
+      get "/random"
+
+      expect(last_response.body).not_to include('class="ad-container"')
+    end
+
+    it "shows ad units for a logged-in, non-premium user" do
+      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
+      user_id = create_user('random_premium_2@example.com')
+      env "rack.session", { user_id: user_id }
+
+      get "/random"
+
+      expect(last_response.body).to include('class="ad-container"')
+    end
+
+    it "shows ad units for an anonymous user" do
+      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
+
+      get "/random"
+
+      expect(last_response.body).to include('class="ad-container"')
+    end
+  end
+
+  # ROADMAP.md Phase 2 "CDN integration": views/random/display.erb now
+  # runs local meme image paths through cdn_image - see
+  # spec/helpers/cdn_helpers_spec.rb for the unit-level bug fixes
+  # (missing require, double "/images/" prefix). This covers the real
+  # end-to-end render.
+  describe "GET /random - CDN image rewriting (Phase 2)" do
+    after do
+      ENV.delete('CDN_DOMAIN')
+      ENV['RACK_ENV'] = 'test'
+      Object.send(:remove_const, :CDN_DOMAIN) if defined?(CDN_DOMAIN)
+      Object.send(:remove_const, :CDN_ENABLED) if defined?(CDN_ENABLED)
+      load File.expand_path('../../config/initializers/cdn.rb', __dir__)
+    end
+
+    it "renders a local fallback meme image with exactly one /images/ segment when a CDN is configured" do
+      allow(MemeExplorer::App::MEME_CACHE).to receive(:[]).with(:memes).and_return(nil)
+      allow(MemePoolManager).to receive(:get_pool).and_return(success: false, memes: [], pool_size: 0, error: 'no pool')
+      ENV['RACK_ENV'] = 'production'
+      ENV['CDN_DOMAIN'] = 'cdn.example.com'
+      Object.send(:remove_const, :CDN_DOMAIN) if defined?(CDN_DOMAIN)
+      Object.send(:remove_const, :CDN_ENABLED) if defined?(CDN_ENABLED)
+      load File.expand_path('../../config/initializers/cdn.rb', __dir__)
+
+      get "/random"
+
+      expect(last_response.body).to include('src="https://cdn.example.com/images/')
+      expect(last_response.body).not_to include('/images/images/')
+    end
+  end
 end

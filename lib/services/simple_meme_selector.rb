@@ -35,8 +35,33 @@ module MemeExplorer
       # @param all_memes [Array] Pool of all available memes
       # @param session_id [String] User session identifier
       # @param options [Hash] Optional configuration
+      # @param user_id [Integer, nil] Logged-in user id, for personalization
       # @return [Hash] Selected meme
+      #
+      # ROADMAP.md Phase 1 ("Feed real per-user signal ... back into
+      # MemePoolManager's tier-distributed pool selection weighting"):
+      # this is the actual, live selection algorithm - the one
+      # routes/random_meme.rb's real /random.json calls on every request
+      # after the first page load (confirmed via grep: it's the only
+      # caller in the whole app). Before this change, it had ZERO
+      # per-user personalization: `weighted_sample` below only weighted
+      # by global likes/views, the exact same for every user regardless
+      # of what they've liked/saved before. The separate
+      # `apply_user_preferences`/`get_time_based_pools`/
+      # `user_subreddit_preferences` machinery
+      # (lib/helpers/meme_pool_helpers.rb) that reads per-user subreddit
+      # preference scores was never actually in this code path at all -
+      # it's built on top of `navigate_meme_unified`
+      # (lib/helpers/meme_navigation_helpers.rb), which nothing in the
+      # live app calls (confirmed via grep, same way `update_user_preference`
+      # was found to be uncalled). So even with `user_subreddit_preferences`
+      # now actually being populated (see EngagementService.track_like/
+      # track_save), that data structurally could not have influenced a
+      # single real meme selection. Threading `user_id` through here -
+      # not switching to the unused pool-selection path - is what
+      # actually closes the loop, since this is the code real traffic runs.
       def select(all_memes, session_id, options = {})
+        user_id = options[:user_id] || options['user_id']
         return all_memes.sample if all_memes.empty?
         
         # 1. Filter out previously seen memes
@@ -68,8 +93,24 @@ module MemeExplorer
         # This surfaces content users are more likely to enjoy without
         # sacrificing variety — unseen-filtering (step 1) already guarantees
         # no repeats, and boost_fresh (step 3) still injects new content.
-        selected = weighted_sample(pool)
-        selection_method = selected && has_engagement_data?(pool) ? 'weighted_random' : 'simple_random'
+        #
+        # ROADMAP.md Phase 1: when logged in, also fold in this specific
+        # user's subreddit preferences (real signal from likes/saves - see
+        # EngagementService#bump_subreddit_preference) as a per-user
+        # multiplier on top of the global engagement weight, rather than
+        # letting every user see the identical weighting. `user_prefs`
+        # is a plain lookup, not a route-context call, so it works from
+        # this plain Ruby class - unlike the separate, previously-unused
+        # apply_user_preferences path this replaces functionally.
+        user_prefs = user_id ? subreddit_preferences_for(user_id) : {}
+        selected = weighted_sample(pool, user_prefs)
+        selection_method = if selected && !user_prefs.empty?
+                             'personalized_weighted_random'
+                           elsif selected && has_engagement_data?(pool)
+                             'weighted_random'
+                           else
+                             'simple_random'
+                           end
         selected ||= pool.sample
         
         # 5. Mark as seen (for next time)
@@ -100,18 +141,57 @@ module MemeExplorer
         pool.any? { |m| (m['likes'] || m[:likes]).to_i > 0 || (m['views'] || m[:views]).to_i > 0 }
       end
 
-      # Weighted random selection by engagement score (likes/views).
+      # ROADMAP.md Phase 1: real per-user signal, read fresh on every
+      # selection call rather than cached - preference_score changes on
+      # every like/save (EngagementService#bump_subreddit_preference),
+      # and this is a single indexed lookup by user_id, not the kind of
+      # expensive query that needs its own caching layer on top of
+      # SelectionBenchmark's own :selection stage timing. Fails safe to
+      # {} (i.e. no personalization applied, identical to the previous
+      # behavior) on any DB error - this must never be able to break
+      # the core selection loop.
+      def subreddit_preferences_for(user_id)
+        return {} unless user_id && defined?(DB) && DB
+
+        rows = DB.execute(
+          "SELECT subreddit, preference_score FROM user_subreddit_preferences WHERE user_id = ?",
+          [user_id]
+        )
+        rows.each_with_object({}) do |row, hash|
+          subreddit = (row['subreddit'] || row[:subreddit]).to_s.downcase
+          hash[subreddit] = (row['preference_score'] || row[:preference_score]).to_f
+        end
+      rescue => e
+        AppLogger.warn("[SimpleMemeSelector] subreddit_preferences_for failed: #{e.message}") if defined?(AppLogger)
+        {}
+      end
+
+      # Weighted random selection by engagement score (likes/views),
+      # optionally scaled by this specific user's subreddit preference.
       # score = sqrt(likes * 2 + views), with a floor so untested memes
       # still have a fair (if smaller) chance of being shown — this keeps
       # discovery alive instead of only ever surfacing already-popular memes.
-      def weighted_sample(pool)
+      #
+      # ROADMAP.md Phase 1: `user_prefs` maps a downcased subreddit name
+      # to its preference_score (default 1.0 for an unknown/neutral
+      # subreddit, so a user with no signal for a given subreddit sees
+      # the exact same weighting as before this change - this only ever
+      # boosts, never penalizes, since preference_score only increases).
+      def weighted_sample(pool, user_prefs = {})
         return nil if pool.empty?
 
         weights = pool.map do |m|
           likes = (m['likes'] || m[:likes]).to_i
           views = (m['views'] || m[:views]).to_i
           score = Math.sqrt((likes * 2 + views).to_f)
-          [score, 0.1].max
+          score = [score, 0.1].max
+
+          if user_prefs.any?
+            subreddit = (m['subreddit'] || m[:subreddit]).to_s.downcase
+            score *= (user_prefs[subreddit] || 1.0)
+          end
+
+          score
         end
 
         total_weight = weights.sum

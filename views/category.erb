@@ -3,8 +3,22 @@
 <% if @memes.empty? %>
   <p>No memes found in this category 😢</p>
 <% else %>
+  <!-- Ad improvement: this page had zero ad inventory before, despite
+       being a real, live route (routes/memes.rb + routes/trending_routes.rb
+       both render :category with real content). Gated on
+       should_show_ads_for_content?, same AdSense minimum-content policy
+       used on /search. -->
+  <% if should_show_ads_for_content?(@memes) %>
+    <%= render_hero_ad %>
+  <% end %>
+
   <div style="display:flex; flex-wrap:wrap; gap:1rem;">
-    <% @memes.each do |meme| %>
+    <% @memes.each_with_index do |meme, index| %>
+      <% if show_ad_at_position?(index) %>
+        <div style="width:100%;">
+          <%= render_ad_unit(index, format: 'native', position: 'category') %>
+        </div>
+      <% end %>
       <div style="width:250px; text-align:center; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
         <a href="/category/<%= @category_name %>/meme/<%= URI.encode_www_form_component(meme["title"]) %>">
           <img src="<%= meme["file"] %>" alt="<%= meme["title"] %>" width="250" style="display:block;">
@@ -14,6 +28,10 @@
       </div>
     <% end %>
   </div>
+
+  <% if should_show_ads_for_content?(@memes) %>
+    <%= render_anchor_ad %>
+  <% end %>
 <% end %>
 
 <p style="margin-top:20px;"><a href="/">Back to Home</a></p>

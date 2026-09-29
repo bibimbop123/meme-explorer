@@ -38,6 +38,18 @@ class EngagementService
         
         result[:likes] = get_likes_count(meme_url, db)
         
+        # 1b. ROADMAP.md Phase 1 ("Feed real per-user signal ... back into
+        # MemePoolManager's tier-distributed pool selection weighting") -
+        # see bump_subreddit_preference's own comment below for the full
+        # story on why this wasn't happening before. Only on real likes,
+        # not unlikes: an unlike shouldn't erase or count against a prior
+        # preference signal, and there's no decrement path here by design.
+        if liked_now && user_id
+          subreddit_row = db.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [meme_url]).first
+          subreddit = subreddit_row && (subreddit_row['subreddit'] || subreddit_row[:subreddit])
+          bump_subreddit_preference(user_id, subreddit, db, increment: 0.2)
+        end
+        
         # 2. Log activity for metrics (time-based tracking)
         log_activity(user_id, meme_url, liked_now ? 'like' : 'unlike', session, db)
         
@@ -101,12 +113,31 @@ class EngagementService
           ).first
           
           unless existing
+            # BUG FIX: `saved_memes`' real column is `saved_at` (see
+            # db/postgres_schema.sql), not `created_at` - this INSERT
+            # raised PG::UndefinedColumn on every single call, meaning
+            # every real "save meme" action (POST /api/save-meme, the
+            # only caller of track_save) has silently failed since this
+            # was written. The route itself made this invisible: it
+            # built its `saved: true` response unconditionally instead
+            # of checking `result[:success]`, so users saw a success
+            # message while nothing was actually saved.
             db.execute(
-              "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+              "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit, saved_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
               [user_id, meme_url, title, subreddit]
             )
             AppLogger.info("✅ [ENGAGEMENT] Save recorded for user #{user_id}")
           end
+
+          # ROADMAP.md Phase 1: a save is a stronger intent signal than a
+          # like (deliberate, not incidental while scrolling), so it's
+          # weighted higher (+0.3 vs. a like's +0.2) - a genuine design
+          # choice, not an arbitrary number; revisit with real usage data
+          # once there's enough traffic to tell if it's well-calibrated.
+          # Unlike track_like above, `subreddit` is already a real
+          # parameter here (not looked up from meme_stats), so this is a
+          # direct call.
+          bump_subreddit_preference(user_id, subreddit, db, increment: 0.3)
         else
           # Unsave
           db.execute(
@@ -187,6 +218,44 @@ class EngagementService
       false
     end
     
+    # Track a skip (user navigated past a meme without liking/saving it).
+    #
+    # ROADMAP.md Phase 1: "Feed real per-user signal (saves, skips, dwell
+    # time) back into ... pool selection weighting" - likes and saves
+    # were wired in earlier this session (see bump_subreddit_preference),
+    # but a skip carries real signal too and had no path into
+    # user_subreddit_preferences at all. Unlike likes/saves, this is a
+    # genuinely new capability (no prior method anywhere in the codebase
+    # even attempted to record skips), not a "found it disconnected,
+    # reconnected it" fix like the rest of this session's personalization
+    # work.
+    #
+    # Deliberately small penalty (-0.05, vs. a like's +0.2/save's +0.3):
+    # scrolling past one meme in a subreddit a user otherwise likes is
+    # weak, noisy signal (could be "not in the mood right now", not "I
+    # dislike this subreddit") - a harsh penalty would make one skip undo
+    # several likes' worth of signal, which isn't the right calibration
+    # for a click a user makes far more often than a like. Floored at 0.1
+    # by bump_subreddit_preference (never zero/negative). This is a
+    # genuine, stated design choice pending real usage data, exactly like
+    # the like/save weights above - not a proven-optimal number.
+    # @param user_id [Integer] User performing the action (no-op if nil -
+    #   skip signal for anonymous sessions isn't tracked, same as likes)
+    # @param subreddit [String] Subreddit of the skipped meme
+    # @param db [SQLite3::Database] Database connection
+    # @return [Hash] Result with success status
+    def track_skip(user_id:, subreddit:, db: nil)
+      db ||= defined?(DB) ? ::DB : nil
+      return { success: false, error: 'Database not available' } unless db
+      return { success: true, skipped: false } unless user_id && subreddit
+
+      bump_subreddit_preference(user_id, subreddit, db, increment: -0.05)
+      { success: true, skipped: true }
+    rescue => e
+      AppLogger.error("❌ [ENGAGEMENT] Error tracking skip: #{e.message}")
+      { success: false, error: e.message }
+    end
+
     # Get comprehensive engagement stats for a user
     # @param user_id [Integer] User ID
     # @param db [SQLite3::Database] Database connection
@@ -209,7 +278,58 @@ class EngagementService
     end
     
     private
-    
+
+    # ROADMAP.md Phase 1 ("Feed real per-user signal ... back into
+    # MemePoolManager's tier-distributed pool selection weighting"): the
+    # mechanism that's supposed to increment
+    # user_subreddit_preferences.preference_score (which
+    # apply_user_preferences in lib/helpers/meme_pool_helpers.rb reads on
+    # every /random pool build to boost a user's preferred subreddits)
+    # was `update_user_preference` in lib/helpers/meme_navigation_helpers.rb
+    # - but that's defined as an instance method inside `module
+    # MemeNavigationHelpers`, only reachable via Sinatra's `helpers
+    # MemeNavigationHelpers` mixin inside a route's `self` context.
+    # EngagementService is a plain Ruby class, not a Sinatra route
+    # context, so it can't call that method directly (confirmed:
+    # `MemeNavigationHelpers.instance_methods(false)` includes it,
+    # `Object.private_instance_methods(false)` does not) - and it was
+    # never called from any actual route either way, so every like/save,
+    # ever, went through this class without ever touching that table.
+    # This is the same upsert (same SQL, same ON CONFLICT semantics
+    # already fixed for PostgreSQL's ambiguous-column requirement in a
+    # prior session), just defined where it's actually reachable from
+    # both track_like and track_save.
+    #
+    # `increment` may be negative (see EngagementService.track_skip below,
+    # ROADMAP.md Phase 1's "skips" signal) - GREATEST(..., 0.1) floors the
+    # result so preference_score can never hit zero or go negative, which
+    # would invert SimpleMemeSelector#weighted_sample's multiplier (a
+    # negative weight breaks the cumulative-sum sampling logic entirely,
+    # not just "penalize too hard"). `times_liked` only increments on a
+    # positive bump (an actual like/save) - a skip is a real signal but
+    # isn't a "like", so it doesn't inflate that count.
+    def bump_subreddit_preference(user_id, subreddit, db, increment:)
+      return unless user_id && subreddit && subreddit != 'unknown'
+
+      # NOTE on the INSERT branch: a brand-new (user_id, subreddit) row
+      # always starts at literal 1.0, regardless of `increment`'s sign -
+      # this preserves the pre-existing, already-tested behavior from
+      # before `increment:` became a parameter at all (a first-ever like
+      # set the baseline rather than contributing its own +0.2). Only
+      # the UPDATE branch (an existing row, i.e. a second+ signal for
+      # that subreddit) actually applies `increment`. This means a
+      # user's very first skip for a subreddit they have no prior signal
+      # for lands at neutral 1.0, not 0.95 - consistent with a first
+      # like/save also landing at neutral 1.0, not 1.2/1.3.
+      times_liked_delta = increment.positive? ? 1 : 0
+      db.execute(
+        "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.0, ?) ON CONFLICT(user_id, subreddit) DO UPDATE SET preference_score = GREATEST(user_subreddit_preferences.preference_score + ?, 0.1), times_liked = user_subreddit_preferences.times_liked + ?, last_updated = CURRENT_TIMESTAMP",
+        [user_id, subreddit.downcase, times_liked_delta, increment, times_liked_delta]
+      )
+    rescue => e
+      AppLogger.warn("⚠️ [ENGAGEMENT] subreddit preference upsert failed: #{e.message}")
+    end
+
     # Ensure meme_stats record exists (PostgreSQL compatible)
     def ensure_meme_stats_exists(meme_url, db)
       db.execute(

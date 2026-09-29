@@ -36,6 +36,38 @@ WebMock.disable_net_connect!(allow_localhost: true)
 
 # Clean database before each test
 RSpec.configure do |config|
+  # ROADMAP.md Phase 2: real Stripe premium-tier columns
+  # (db/migrations/add_premium_subscriptions.sql - additive/idempotent,
+  # same pattern as the meme_activity_log/push_subscriptions tables
+  # below). Run once per suite, not per-example like the table
+  # cleanup below - ALTER TABLE ADD COLUMN IF NOT EXISTS is safe to
+  # skip-if-present but still real DDL overhead not worth paying on
+  # every single test. SubscriptionService.premium?/.migration_applied?
+  # both fail safe to false without this having run at all, so specs
+  # that don't care about premium status are unaffected either way -
+  # this only makes the premium-specific specs
+  # (spec/services/subscription_service_spec.rb,
+  # spec/routes/premium_routes_spec.rb) actually exercise real behavior
+  # instead of the "not migrated yet" fallback path.
+  config.before(:suite) do
+    begin
+      DB.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)")
+      DB.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)")
+      DB.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_status VARCHAR(50) DEFAULT 'none' NOT NULL")
+      DB.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_current_period_end TIMESTAMP WITH TIME ZONE")
+      DB.execute(<<~SQL)
+        CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+          id SERIAL PRIMARY KEY,
+          stripe_event_id VARCHAR(255) UNIQUE NOT NULL,
+          event_type VARCHAR(100) NOT NULL,
+          processed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      SQL
+    rescue => e
+      warn "[spec_helper] Premium subscription migration setup failed: #{e.message}"
+    end
+  end
+
   # Use color output
   config.color = true
   config.tty = true
@@ -192,6 +224,7 @@ RSpec.configure do |config|
       # Clean all tables
       DB.execute("DELETE FROM push_subscriptions") rescue nil
       DB.execute("DELETE FROM meme_activity_log") rescue nil
+      DB.execute("DELETE FROM stripe_webhook_events") rescue nil
       DB.execute("DELETE FROM user_meme_stats") rescue nil
       DB.execute("DELETE FROM user_meme_exposure") rescue nil
       DB.execute("DELETE FROM user_subreddit_preferences") rescue nil

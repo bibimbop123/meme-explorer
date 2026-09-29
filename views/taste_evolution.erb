@@ -77,6 +77,14 @@
       </div>
     </section>
 
+    <!-- Ad improvement: this page had zero ad inventory before. Only
+         shown in the `evolution` branch (real personalization data
+         exists) - not in the empty-state branch below, which is a
+         "come back later" placeholder with no substantial content. -->
+    <% if should_show_ads? %>
+      <%= render_hero_ad %>
+    <% end %>
+
   <% else %>
     <!-- No data yet -->
     <div class="empty-state">

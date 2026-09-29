@@ -150,6 +150,64 @@ module Routes
           response.to_json
         end
 
+        # ROADMAP.md Phase 1: real, new "skip" signal - a user navigating
+        # past a meme without liking/saving it is real preference data
+        # (see EngagementService.track_skip's own comment for the
+        # calibration rationale), and no prior code anywhere even
+        # attempted to capture it. Deliberately fire-and-forget from the
+        # client (public/js/modules/meme-navigation.js) - a failed skip
+        # tracking call must never block or delay loading the next meme.
+        app.post "/api/skip-meme" do
+          content_type :json
+
+          begin
+            request.body.rewind
+            data = JSON.parse(request.body.read)
+          rescue JSON::ParserError
+            data = {}
+          end
+
+          subreddit = data['subreddit'] || params[:subreddit]
+          dwell_ms = data['dwell_ms'] || params[:dwell_ms]
+
+          # ROADMAP.md Phase 1's "dwell time" signal: captured and logged
+          # for observability (queryable via log aggregation/AppLogger's
+          # backend) rather than added as a new meme_activity_log column
+          # in this pass - the real schema has no dwell_ms column, and
+          # adding one is a live migration this session has no way to
+          # verify actually ran in production, unlike every other change
+          # here (all tested against the real, already-existing schema).
+          # `EngagementService.track_skip` doesn't use dwell_ms for
+          # preference weighting yet either - see
+          # public/js/modules/meme-navigation.js#trackSkip's own comment
+          # for why that's a deliberate "capture first, calibrate once
+          # there's real data" choice, not an oversight.
+          if dwell_ms
+            AppLogger.info("[SKIP] dwell_ms=#{dwell_ms} subreddit=#{subreddit} user_id=#{current_user_id || 'anonymous'}")
+          end
+
+          result = EngagementService.track_skip(
+            user_id: current_user_id,
+            subreddit: subreddit,
+            db: ::DB
+          )
+
+          result.to_json
+        end
+
+        # NOTE (found while adding the route above): this /random.json is
+        # a dead duplicate - routes/random_meme.rb registers a real,
+        # different /random.json (richer response shape: includes
+        # media_type, file, is_gallery/gallery_images for galleries) and
+        # Routes::RandomMeme is registered before Routes::Memes in
+        # app.rb, so Sinatra's first-registered-route-wins means this
+        # definition below has never actually been reachable. Confirmed
+        # via a real request: the live response always matches
+        # random_meme.rb's shape, never this one's. Left in place rather
+        # than deleted in this pass - it's out of scope for the skip-
+        # signal feature being added here - but flagged so the next
+        # session doesn't spend time debugging "changes to this route
+        # don't seem to do anything."
         app.get "/random.json" do
           memes = ApiCacheService.fetch_and_cache_memes(MemeExplorer::App::POPULAR_SUBREDDITS)
           memes = MemeExplorer::App::MEME_CACHE[:memes] || [] if memes.empty?

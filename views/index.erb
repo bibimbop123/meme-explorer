@@ -9,6 +9,15 @@
   <% end %>
 </div>
 
+<!-- NOTE: this template is dead code - confirmed via grep across
+     app.rb/routes/*.rb that nothing anywhere calls `erb :index`. The
+     real homepage (`GET /`, routes/home.rb) renders `erb :random` -
+     the exact same template as /random - so the actual homepage ad
+     inventory to improve lives in views/random.erb, not here. Left
+     this file's content otherwise unchanged rather than half-wiring
+     ads into a template that never renders. -->
+
+
 <style>
 h1 {
   text-align: center;

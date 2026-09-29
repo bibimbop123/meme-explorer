@@ -101,6 +101,38 @@ module Routes
         }.to_json
       end
       
+      # BUG FIX: the client-side controller for /trending
+      # (public/js/trending.js) fetches from `/api/v1/trending` on every
+      # single load (initial + infinite scroll) - but that route has
+      # never existed anywhere in this codebase (only a disabled,
+      # never-registered routes/api/v1/trending_optimized.rb). Every
+      # request to /trending has silently failed to load ANY memes since
+      # this frontend was written - not just missing ads, but missing all
+      # content. Wired up the real route, in the exact shape
+      # trending.js expects (`{data: [...], pagination: {next_cursor,
+      # has_more}}` - note `data`, not `memes`, unlike /api/trending
+      # above, which trending.js does NOT call).
+      app.get "/api/v1/trending" do
+        content_type :json
+
+        result = begin
+          TrendingService.trending_memes(
+            time_window: params[:time_window] || '24h',
+            sort_by: params[:sort_by] || 'trending',
+            limit: (params[:limit].to_i > 0 ? params[:limit].to_i : 20),
+            cursor: params[:cursor]
+          )
+        rescue => e
+          AppLogger.error("⚠️ [API/V1/TRENDING] #{e.class}: #{e.message}")
+          { memes: [], pagination: { has_more: false, next_cursor: nil, total: 0 } }
+        end
+
+        {
+          data: result[:memes].map { |m| m.transform_keys(&:to_s) },
+          pagination: result[:pagination]
+        }.to_json
+      end
+
       # Before filter for category routes
       app.before "/category/*" do
         # Define default categories if not loaded

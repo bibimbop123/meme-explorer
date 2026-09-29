@@ -229,4 +229,100 @@
   .ad-container[data-position="sidebar"] {
     display: none !important;
   }
+
+  /* BUG FIX: on /random specifically, `.meme-controls` (the real,
+     live Like/Save/Share/Download button bar - see
+     views/random/controls.erb) is ALSO `position: sticky; bottom: 0`
+     with `z-index: 100` on mobile (public/css/mobile-optimizations-v2.css).
+     `.ad-anchor-bottom`'s `position: fixed; bottom: 0; z-index: 1000`
+     would render directly on top of those real controls, blocking
+     every one of them - not just visually competing for the same
+     strip of screen, genuinely covering real, tappable UI. Scoped to
+     `.page-wrapper ~ .ad-anchor-bottom` (`.page-wrapper` is the direct
+     parent of `.meme-container` in views/random.erb, and
+     render_anchor_ad's output is its actual sibling - i.e. specifically
+     the /random page's anchor ad, not /trending's or /search's, which
+     have no competing sticky control bar and no `.page-wrapper`):
+     render it in normal flow instead of fixed, so it sits above the
+     sticky controls bar without ever overlapping it. */
+  .page-wrapper ~ .ad-anchor-bottom {
+    position: static;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* ============================================
+   DESKTOP FIX - .meme-container never actually laid
+   .ad-container[data-position="left"/"right"] out beside
+   .meme-display: views/random.erb's own comments describe these as
+   "Left/Right Ad Column"s, but .simplified-mode .meme-container (see
+   public/css/simplified-ui.css) is just `width:100%` with no flex/grid
+   at all, and nothing else in this codebase arranges these three
+   elements horizontally either - they've only ever rendered as plain
+   stacked blocks (meme, then an ad div, in document order) on every
+   viewport, desktop included, not as real side columns. Scope this
+   fix to .meme-container specifically (rather than editing
+   simplified-ui.css's more general layout rules) so it only changes
+   the ad-column arrangement this file already owns the styling
+   contract for. ============================================ */
+@media (min-width: 1200px) {
+  /* Grid, not flex: .meme-container's direct children in document
+     order are ad-left, meme-display, meme-info, meme-controls, ad-right
+     (see views/random.erb) - a plain flex row would put all five
+     side by side. Grid lets the three middle children share one
+     named column/stack vertically while the two ad slots each get
+     their own column, without needing a markup change to add a
+     wrapper around meme-display/meme-info/meme-controls. */
+  .meme-container {
+    display: grid !important;
+    grid-template-columns: 300px 1fr 300px;
+    align-items: start;
+    justify-content: center;
+    gap: 1.5rem;
+    max-width: 1400px;
+  }
+
+  .meme-container .ad-container[data-position="left"] {
+    grid-column: 1;
+  }
+
+  .meme-container .meme-display,
+  .meme-container .meme-info,
+  .meme-container .meme-controls {
+    grid-column: 2;
+    min-width: 0; /* allow shrinking below the image's intrinsic width
+                     instead of overflowing the column */
+  }
+
+  .meme-container .ad-container[data-position="right"] {
+    grid-column: 3;
+  }
+
+  /* When ads are disabled (should_show_ads? false), the left/right
+     grid columns simply have no content in them - collapse to a
+     single centered column instead of leaving dead empty space. */
+  .meme-container:not(:has(.ad-container)) {
+    grid-template-columns: 1fr;
+  }
+
+  .meme-container:not(:has(.ad-container)) .meme-display,
+  .meme-container:not(:has(.ad-container)) .meme-info,
+  .meme-container:not(:has(.ad-container)) .meme-controls {
+    grid-column: 1;
+  }
+}
+
+/* Between mobile's single column and the full three-column desktop
+   layout, two 300px-wide vertical ad columns plus real meme content
+   genuinely don't fit without cramping the actual product - same
+   reasoning /css/ads.css already applies at 768px, extended up to
+   1199px so the ad columns don't reappear as cramped stacked blocks
+   in this intermediate range either (mobile-optimizations-v2.css's
+   existing max-width:768px hide rule left tablet/narrow-desktop
+   viewports still rendering them, stacked, exactly as before). */
+@media (min-width: 769px) and (max-width: 1199px) {
+  .meme-container .ad-container[data-position="left"],
+  .meme-container .ad-container[data-position="right"] {
+    display: none !important;
+  }
 }

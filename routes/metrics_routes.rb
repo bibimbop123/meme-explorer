@@ -34,6 +34,11 @@ module Routes
           # running right now, and where does the time go - finding the
           # pool, or choosing from it? See lib/services/selection_benchmark.rb.
           selection_latency: SelectionBenchmark.stage_breakdown,
+          # Phase 1 roadmap: latency proves the loop is fast; retention
+          # proves it's actually better for the user. See
+          # lib/services/retention_service.rb.
+          retention: RetentionService.daily_return_rate,
+          avg_session_length_minutes: RetentionService.avg_session_length_minutes,
           total_memes: total_memes,
           total_likes: total_likes,
           total_views: total_views,
@@ -53,6 +58,14 @@ module Routes
         # pool, or choosing from it? See lib/services/selection_benchmark.rb.
         @selection_latency = SelectionBenchmark.stats
         @selection_breakdown = SelectionBenchmark.stage_breakdown
+
+        # Phase 1 roadmap: latency proves the loop is fast; retention
+        # proves it's actually better for the user - see
+        # lib/services/retention_service.rb. Both methods are
+        # exception-safe and return a nil-filled shape on error, so no
+        # extra rescue is needed here.
+        @retention = RetentionService.daily_return_rate
+        @avg_session_length_minutes = RetentionService.avg_session_length_minutes
 
         # Initialize defaults first
         @total_memes         = 0

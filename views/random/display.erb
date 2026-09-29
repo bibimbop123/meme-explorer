@@ -40,8 +40,17 @@
         
       <% when 'gif' %>
         <!-- Optimized GIF (can use video fallback) -->
+        <!-- ROADMAP.md Phase 2 "CDN integration": cdn_image only rewrites
+             our own local /images/* fallback assets, never a real
+             external Reddit/Imgur URL - see its own bug-fix comment in
+             lib/helpers/cdn_helpers.rb. Applied only at render time,
+             not to @image_src itself, since @image_src doubles as the
+             identifier used for likes/saves/view-tracking throughout
+             the app (meme_stats.url, saved_memes.meme_url, etc.) -
+             rewriting that identifier to a CDN URL would corrupt
+             existing engagement data's join key. -->
         <img 
-          src="<%= @image_src %>" 
+          src="<%= cdn_image(@image_src) %>" 
           alt="<%= @meme['title'] %>"
           class="meme-content-image"
           loading="lazy"
@@ -52,7 +61,7 @@
         <!-- Standard Image -->
         <img 
           id="meme-image" 
-          src="<%= @image_src %>" 
+          src="<%= cdn_image(@image_src) %>" 
           alt="<%= @meme['title'] %>" 
           class="meme-content-image"
           loading="lazy"

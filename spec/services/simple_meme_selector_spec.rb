@@ -93,4 +93,100 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
       expect(described_class.send(:has_engagement_data?, pool)).to eq(false)
     end
   end
+
+  # ROADMAP.md Phase 1 ("Feed real per-user signal ... back into
+  # MemePoolManager's tier-distributed pool selection weighting"): this
+  # is the actual live selection algorithm (routes/random_meme.rb's real
+  # /random and /random.json both call it), so this is the real place
+  # personalization needs to land - not the separate, never-called
+  # apply_user_preferences path in lib/helpers/meme_pool_helpers.rb.
+  describe 'personalization via user_subreddit_preferences (Phase 1)' do
+    def create_user(email)
+      hashed = BCrypt::Password.create("testpass123")
+      DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", [email, hashed])
+      DB.last_insert_row_id
+    end
+
+    describe '#subreddit_preferences_for' do
+      it 'returns an empty hash for a user with no preference rows' do
+        user_id = create_user("selector_pref_1@example.com")
+        expect(described_class.send(:subreddit_preferences_for, user_id)).to eq({})
+      end
+
+      it 'returns a downcased subreddit => preference_score map' do
+        user_id = create_user("selector_pref_2@example.com")
+        DB.execute(
+          "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, ?, ?)",
+          [user_id, "WholesomeMemes", 1.8, 4]
+        )
+
+        prefs = described_class.send(:subreddit_preferences_for, user_id)
+        expect(prefs["wholesomememes"]).to eq(1.8)
+      end
+
+      it 'returns an empty hash for a nil user_id rather than raising' do
+        expect(described_class.send(:subreddit_preferences_for, nil)).to eq({})
+      end
+    end
+
+    describe '#weighted_sample with user_prefs' do
+      it 'boosts a meme whose subreddit the user prefers over an equally-engaged one they do not' do
+        pool = [
+          { 'url' => 'preferred', 'subreddit' => 'wholesomememes', 'likes' => 10, 'views' => 50 },
+          { 'url' => 'neutral', 'subreddit' => 'dankmemes', 'likes' => 10, 'views' => 50 }
+        ]
+        user_prefs = { 'wholesomememes' => 3.0 }
+
+        counts = Hash.new(0)
+        2000.times { counts[described_class.send(:weighted_sample, pool, user_prefs)['url']] += 1 }
+
+        expect(counts['preferred']).to be > counts['neutral'] * 2
+      end
+
+      it 'behaves identically to no preferences when user_prefs is empty (no regression for anonymous users)' do
+        pool = [
+          { 'url' => 'a', 'subreddit' => 'funny', 'likes' => 5, 'views' => 10 },
+          { 'url' => 'b', 'subreddit' => 'memes', 'likes' => 5, 'views' => 10 }
+        ]
+
+        expect { 50.times { described_class.send(:weighted_sample, pool, {}) } }.not_to raise_error
+      end
+
+      it 'does not penalize a subreddit missing from user_prefs (defaults to neutral 1.0, never below)' do
+        pool = [{ 'url' => 'a', 'subreddit' => 'unrated', 'likes' => 5, 'views' => 10 }]
+        user_prefs = { 'someothersub' => 5.0 }
+
+        expect(described_class.send(:weighted_sample, pool, user_prefs)).not_to be_nil
+      end
+    end
+
+    describe '.select end-to-end with a real logged-in user_id' do
+      it 'tags personalized selections with the personalized_weighted_random method' do
+        user_id = create_user("selector_pref_3@example.com")
+        DB.execute(
+          "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, ?, ?)",
+          [user_id, "wholesomememes", 3.0, 5]
+        )
+        pool = [
+          { 'url' => 'meme_pref_a', 'subreddit' => 'wholesomememes', 'likes' => 1, 'views' => 1 },
+          { 'url' => 'meme_pref_b', 'subreddit' => 'dankmemes', 'likes' => 1, 'views' => 1 }
+        ]
+
+        selected = described_class.select(pool, session_id, boost_fresh: false, user_id: user_id)
+
+        expect(selected['selection_method']).to eq('personalized_weighted_random')
+      end
+
+      it 'falls back to non-personalized selection for an anonymous (nil) user_id' do
+        pool = [
+          { 'url' => 'anon_a', 'subreddit' => 'funny', 'likes' => 1, 'views' => 1 },
+          { 'url' => 'anon_b', 'subreddit' => 'memes', 'likes' => 1, 'views' => 1 }
+        ]
+
+        selected = described_class.select(pool, session_id, boost_fresh: false, user_id: nil)
+
+        expect(selected['selection_method']).not_to eq('personalized_weighted_random')
+      end
+    end
+  end
 end

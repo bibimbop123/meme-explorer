@@ -63,6 +63,17 @@
       <span class="button-text">Back</span>
     </a>
   </div>
+
+  <!-- Ad improvement: this page had zero ad inventory before, despite
+       being a real single-meme detail page with substantial content
+       (image, title, metadata, actions) - same class of page as
+       /random, which already has ad inventory. Uses the plain
+       should_show_ads? gate (a single real meme is legitimate content,
+       not a low-value listing page needing the stricter
+       should_show_ads_for_content? item-count check). -->
+  <% if should_show_ads? %>
+    <%= render_hero_ad %>
+  <% end %>
 </div>
 <% else %>
 <div class="saved-meme-container">

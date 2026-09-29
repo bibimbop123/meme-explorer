@@ -94,10 +94,16 @@ module Routes
           db: ::DB
         )
 
+        # BUG FIX: this used to hardcode `saved: true` regardless of
+        # `result[:success]` - meaning if EngagementService.track_save
+        # failed (as it always did until the saved_memes column-name fix
+        # in lib/services/engagement_service.rb), the response still
+        # claimed success and the client had no way to know the save
+        # never actually happened.
         response = {
           success: result[:success],
-          saved: true,
-          message: "Meme saved"
+          saved: result[:success] ? true : false,
+          message: result[:success] ? "Meme saved" : "Failed to save meme"
         }
         
         # Include XP and level-up info if available
