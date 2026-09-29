@@ -92,6 +92,22 @@ module AdHelpers
   # crawler to read, which views/random/metadata.erb already renders
   # (collection_name_for_subreddit, the meme title). No fabricated
   # attribute belongs here.
+  # NETWORK SWITCH (2026-09-29): this app's real ad revenue comes from
+  # Monetag/PropellerAds (see public/js/cookie-consent.js, which loads
+  # Monetag's real site-wide tag - https://quge5.com/88/tag.min.js,
+  # zone 271359 - after consent). That tag auto-injects Monetag's own ad
+  # formats (in-page push, vignette, etc.) directly into the page; it is
+  # not a per-slot embed system like AdSense's <ins class="adsbygoogle">,
+  # so there is no per-position embed code to render here. This method
+  # previously rendered real Google AdSense <ins> units, but AdSense was
+  # never the actual configured/intended network (confirmed: no
+  # GOOGLE_ADSENSE_CLIENT in .env.example, and the CSP in
+  # lib/middleware/security_headers.rb documents Monetag/PropellerAds
+  # domains as the real ad traffic). These feed-position slots now always
+  # render an inert placeholder - kept (rather than removed outright) so
+  # should_show_ads_for_content?/insert_ads_into_array's frequency-based
+  # layout and spacing (views/random.erb's grid, /css/ads.css) keep
+  # working unchanged if a real per-slot network is added later.
   def render_ad_unit(ad_index = 0, format: 'square', position: nil)
     ad_id = "ad-unit-#{ad_index}"
 
@@ -99,11 +115,9 @@ module AdHelpers
     when 'banner'
       width = '728px'
       height = '90px'
-      slot_id = ENV['GOOGLE_AD_SLOT_BANNER'] || 'BANNER_SLOT_ID'
     when 'native'
       width = '100%'
       height = 'auto'
-      slot_id = ENV['GOOGLE_AD_SLOT_NATIVE'] || 'NATIVE_SLOT_ID'
     when 'vertical'
       # BUG FIX: this format was passed by views/random.erb for the left/
       # right sidebar ad columns, but this case statement never handled
@@ -114,36 +128,18 @@ module AdHelpers
       # vertical dimensions instead.
       width = '300px'
       height = '600px'
-      slot_id = ENV['GOOGLE_AD_SLOT_VERTICAL'] || ENV['GOOGLE_AD_SLOT_SQUARE'] || 'VERTICAL_SLOT_ID'
     else # square (default for meme feeds)
       width = '300px'
       height = '250px'
-      slot_id = ENV['GOOGLE_AD_SLOT_SQUARE'] || 'SQUARE_SLOT_ID'
     end
 
-    # Add grid position attribute if specified
-    position_attr = position ? " data-position=\"#{position}\"" : ""
-
-    # Return placeholder if AdSense not configured
-    unless ENV['GOOGLE_ADSENSE_CLIENT']
-      return render_ad_placeholder(ad_id, width, height, position)
-    end
-
-    # Render actual AdSense unit
-    <<-HTML
-      <div class="ad-container" data-ad-index="#{ad_index}"#{position_attr}>
-        <div class="ad-label">Advertisement</div>
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:#{width};height:#{height}"
-             data-ad-client="#{ENV['GOOGLE_ADSENSE_CLIENT']}"
-             data-ad-slot="#{slot_id}"
-             data-ad-format="#{format == 'native' ? 'auto' : 'rectangle'}"
-             data-full-width-responsive="#{format == 'native' ? 'true' : 'false'}"></ins>
-      </div>
-    HTML
+    render_ad_placeholder(ad_id, width, height, position)
   end
 
-  # Render placeholder ad (for development/testing)
+  # Render placeholder ad (feed-position slot with no real per-slot embed
+  # code - see the NETWORK SWITCH note on render_ad_unit above. Real ad
+  # revenue comes from Monetag's site-wide tag in
+  # public/js/cookie-consent.js, not from these slots.)
   def render_ad_placeholder(ad_id, width, height, position = nil)
     position_attr = position ? " data-position=\"#{position}\"" : ""
 
@@ -153,7 +149,7 @@ module AdHelpers
         <div class="ad-demo-content" style="width:#{width};height:#{height};">
           <div class="ad-demo-text">
             <strong>Ad Placeholder</strong><br>
-            <small>Configure GOOGLE_ADSENSE_CLIENT in .env</small><br>
+            <small>Reserved layout space - Monetag runs site-wide, not per-slot</small><br>
             <span style="font-size: 11px; opacity: 0.7;">#{width} × #{height}</span>
             #{position ? "<br><span style='font-size: 10px; color: #999;'>Grid: #{position}</span>" : ""}
           </div>

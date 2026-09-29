@@ -4,7 +4,26 @@ class CookieConsent {
     this.consentKey = 'meme_explorer_cookie_consent';
     this.consentValue = localStorage.getItem(this.consentKey);
     this.isEU = this.detectEUUser();
-    
+    this.isMobile = this.detectMobile();
+
+    // MOBILE UX FIX (2026-09-29): Monetag's "Multitag" zone (271359) bundles
+    // Onclick/Popunder, Push Notification prompts, In-Page Push, and
+    // Vignette (full-screen interstitial) ad formats into a single script.
+    // On mobile viewports these formats hijack taps and throw up
+    // full-screen interstitials/fake notification prompts, making the site
+    // effectively unusable (reported: "propeller ads on mobile ... making
+    // mobile unusable"). Desktop tolerates these formats much better (more
+    // screen space, mouse-driven misclicks are less disruptive), so
+    // Monetag is now loaded on desktop only. Mobile ad revenue is
+    // intentionally disabled until a less intrusive, mobile-specific
+    // Monetag zone (e.g. a plain Banner/In-Page Push-only zone) is set up
+    // in the Monetag dashboard - see ROADMAP.md.
+    if (this.isMobile) {
+      this.blockMonetag();
+      console.log('📵 Cookie Consent: Monetag disabled on mobile (intrusive ad formats - see ROADMAP.md)');
+      return;
+    }
+
     // For EU users without consent, show banner and block ads
     if (this.isEU && !this.consentValue) {
       this.showBanner();
@@ -14,6 +33,16 @@ class CookieConsent {
       this.loadMonetag();
     }
     // If rejected, don't load Monetag
+  }
+
+  detectMobile() {
+    try {
+      const uaMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+      const narrowViewport = window.innerWidth <= 768;
+      return uaMobile || narrowViewport;
+    } catch (e) {
+      return false;
+    }
   }
   
   detectEUUser() {

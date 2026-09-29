@@ -785,6 +785,38 @@ problems the product doesn't have real traffic to justify yet.
   layout, actually applies everywhere at once rather than needing to be
   repeated per page). 2 new specs in `spec/routes/random_spec.rb`
   (672 → 674 examples), full suite still 0-1 flaky.
+- [x] **Reverted the AdSense loader added above and switched the real ad
+  network back to Monetag/PropellerAds** (2026-09-29): the AdSense loader
+  script/env vars/`<ins class="adsbygoogle">` markup added directly above
+  turned out to be the *wrong network* - this app's actual, already-live
+  ad revenue integration is `public/js/cookie-consent.js` (consent-gated,
+  loads Monetag's real site-wide "Multitag" script -
+  `https://quge5.com/88/tag.min.js`, zone `271359` - which auto-injects
+  Monetag's own ad formats; no `GOOGLE_ADSENSE_CLIENT` was ever configured
+  in `.env.example`, and `lib/middleware/security_headers.rb`'s CSP
+  already documented Monetag/PropellerAds domains, not AdSense, as the
+  real ad traffic). Removed the AdSense loader `<script>` and env-var
+  block from `layout.erb`; `render_ad_unit` (`lib/helpers/ad_helpers.rb`)
+  now always renders its inert placeholder markup for feed-position ad
+  slots, since Monetag's tag is a single site-wide script with no
+  per-slot embed code to swap in. Updated the now-obsolete AdSense specs
+  in `spec/routes/random_spec.rb` accordingly (673 examples, still 0-1
+  flaky).
+- [x] **Disabled Monetag on mobile viewports - it was making mobile
+  unusable** (2026-09-29): Monetag's "Multitag" zone bundles
+  Onclick/Popunder, Push Notification prompts, In-Page Push, and Vignette
+  (full-screen interstitial) ad formats into one script. These formats
+  hijack taps and throw full-screen interstitials/fake notification
+  prompts on mobile, which is far more disruptive than on desktop (more
+  screen space, no tap-hijacking risk). `public/js/cookie-consent.js` now
+  detects mobile (UA sniff + `innerWidth <= 768`) and skips loading
+  Monetag entirely there (falls through to `blockMonetag()` instead),
+  leaving desktop revenue untouched. Rebuilt `public/dist/bundle.js` via
+  `npm run build` so the bundled copy matches. Follow-up, not done here:
+  set up a less intrusive, mobile-specific Monetag zone (e.g. a
+  Banner/In-Page-Push-only zone, not Multitag) in the Monetag dashboard
+  and re-enable mobile ads against that zone id instead of leaving mobile
+  ad-free indefinitely.
 - [ ] The rest of `README.md`'s existing "Planned" list, roughly in this
   order - image optimization pipeline, PWA, mobile app, WebSocket/GraphQL
   layers. These are all reasonable, none are urgent, and building them

@@ -13,11 +13,11 @@ class TrendingPage {
     this.currentSort = 'trending';
     this.isLoading = false;
     
-    // Initialize Ad Manager if available
+    // Initialize Ad Manager if available (feed-position placeholders only
+    // - real ad revenue comes from Monetag's site-wide tag, loaded
+    // independently via public/js/cookie-consent.js)
     this.adManager = window.AdManager ? new AdManager({
-      frequency: parseInt(window.AD_FREQUENCY || '12', 10),
-      adSenseClient: window.GOOGLE_ADSENSE_CLIENT || null,
-      squareSlot: window.GOOGLE_AD_SLOT_SQUARE || null
+      frequency: parseInt(window.AD_FREQUENCY || '12', 10)
     }) : null;
     
     this.memeCount = 0; // Track total memes rendered for ad placement
@@ -122,11 +122,6 @@ class TrendingPage {
       const ad = this.adManager.createAdElement(this.adManager.adCount, 'square');
       this.container.appendChild(ad);
       this.adManager.adCount++;
-      
-      // Load the ad
-      if (this.adManager.adSenseClient) {
-        setTimeout(() => this.adManager.loadAdSenseAds(), 100);
-      }
     }
     
     // Use API image URL with smart fallback

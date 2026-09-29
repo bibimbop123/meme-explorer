@@ -118,17 +118,20 @@ describe "Random Meme Routes" do
     end
 
     it "shows no ad units for a genuinely premium user" do
-      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
       user_id = create_user('random_premium_1@example.com', premium_status: 'active', premium_current_period_end: Time.now + 30 * 86400)
       env "rack.session", { user_id: user_id }
 
       get "/random"
 
+      # NOTE: matches the real rendered `class="ad-container"` element, not
+      # a bare "ad-container" substring - /css/ads.css is linked via an
+      # HTML comment that itself mentions ".ad-container" by name, so a
+      # loose substring match here false-positives against that comment
+      # even when no actual ad element is rendered.
       expect(last_response.body).not_to include('class="ad-container"')
     end
 
     it "shows ad units for a logged-in, non-premium user" do
-      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
       user_id = create_user('random_premium_2@example.com')
       env "rack.session", { user_id: user_id }
 
@@ -138,8 +141,6 @@ describe "Random Meme Routes" do
     end
 
     it "shows ad units for an anonymous user" do
-      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-test'
-
       get "/random"
 
       expect(last_response.body).to include('class="ad-container"')
@@ -176,34 +177,26 @@ describe "Random Meme Routes" do
     end
   end
 
-  # BUG FIX: every ad slot on every page has rendered as permanently
-  # empty - render_ad_unit's <ins class="adsbygoogle"> elements and
-  # ad-manager.js's `(window.adsbygoogle = window.adsbygoogle ||
-  # []).push({})` calls were both real and correct, but the actual
-  # Google AdSense loader script that defines window.adsbygoogle and
-  # requests real ad creative was never loaded anywhere in the codebase
-  # (confirmed via grep - zero references to "adsbygoogle.js" or
-  # "pagead2.googlesyndication" in any <script> tag before this fix).
-  # See views/layout.erb's own comment at the fix site for the full story.
-  describe "GET /random - AdSense loader script (bug fix)" do
-    after { ENV.delete('GOOGLE_ADSENSE_CLIENT') }
-
-    it "loads the real AdSense script tag when a client id is configured" do
+  # NETWORK SWITCH (2026-09-29): this app's real ad revenue comes from
+  # Monetag/PropellerAds (see public/js/cookie-consent.js), not Google
+  # AdSense - AdSense was never actually configured/intended (no
+  # GOOGLE_ADSENSE_CLIENT in .env.example), and a prior session's "bug
+  # fix" that added a real AdSense loader script here was reverted.
+  # In-feed ad slots (render_ad_unit) now always render an inert
+  # placeholder regardless of any AdSense env vars, since there is no
+  # per-slot Monetag embed code to swap in (Monetag's real tag is a
+  # single site-wide script loaded independently - see
+  # cookie-consent_spec equivalents / public/js/cookie-consent.js).
+  describe "GET /random - no Google AdSense loader script" do
+    it "never renders a Google AdSense script tag, even if legacy env vars are set" do
       ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-1234567890'
 
       get "/random"
 
-      expect(last_response.body).to include(
-        '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890" crossorigin="anonymous"></script>'
-      )
-    end
-
-    it "does not load the script tag when no client id is configured" do
+      expect(last_response.body).not_to include('pagead2.googlesyndication.com')
+      expect(last_response.body).not_to include('adsbygoogle')
+    ensure
       ENV.delete('GOOGLE_ADSENSE_CLIENT')
-
-      get "/random"
-
-      expect(last_response.body).not_to include('<script async src="https://pagead2.googlesyndication.com')
     end
   end
 end
