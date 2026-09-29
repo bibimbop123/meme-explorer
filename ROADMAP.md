@@ -758,6 +758,33 @@ problems the product doesn't have real traffic to justify yet.
   rather than routing them through `cdn_css`/`cdn_js` - a real
   mechanical rewrite of a critical, load-bearing file, lower-risk to do
   as its own focused change than bundled into this session's fix.
+- [x] **Fixed the actual reason ads weren't rendering anywhere in the
+  app**: `lib/helpers/ad_helpers.rb`'s `render_ad_unit` correctly emits
+  real `<ins class="adsbygoogle">` elements on every ad-eligible page,
+  and `public/js/ad-manager.js` correctly calls
+  `(window.adsbygoogle = window.adsbygoogle || []).push({})` for each
+  one (it even already logged a console warning when it couldn't find
+  `window.adsbygoogle`) - but the actual Google AdSense loader script
+  (`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js`),
+  which is what defines `window.adsbygoogle` and requests/renders real
+  ad creative from Google, was never loaded anywhere in `views/layout.erb`
+  or anywhere else in the codebase (confirmed via grep: zero references
+  to `adsbygoogle.js` or `pagead2.googlesyndication` in any `<script>`
+  tag, before this fix). Every ad slot on every page - across all of this
+  session's earlier ad-placement work - has been rendering as silent,
+  permanently empty space, not a visibly broken image or error. Fixed by
+  adding the real AdSense loader script tag to `layout.erb` right next to
+  where `GOOGLE_ADSENSE_CLIENT` is already configured, gated on that
+  client id actually being set (consistent with every other ad-related
+  block in that file) and using `async` per Google's own required embed
+  snippet. CSP already allowed `pagead2.googlesyndication.com` in
+  `script-src` from prior sessions' ad-CSP work, so no security-header
+  change was needed. Verified end-to-end: the real script tag is present
+  with a real client id configured and absent without one, on both
+  `/random` and `/trending` (confirming the fix, being in the shared
+  layout, actually applies everywhere at once rather than needing to be
+  repeated per page). 2 new specs in `spec/routes/random_spec.rb`
+  (672 → 674 examples), full suite still 0-1 flaky.
 - [ ] The rest of `README.md`'s existing "Planned" list, roughly in this
   order - image optimization pipeline, PWA, mobile app, WebSocket/GraphQL
   layers. These are all reasonable, none are urgent, and building them

@@ -391,6 +391,30 @@ e    }
     window.GOOGLE_AD_SLOT_BANNER = <%= ENV['GOOGLE_AD_SLOT_BANNER'].to_json %>;
     window.GOOGLE_AD_SLOT_NATIVE = <%= ENV['GOOGLE_AD_SLOT_NATIVE'].to_json %>;
   </script>
+  <!-- BUG FIX: every ad slot on every page renders a real
+       <ins class="adsbygoogle"> element (lib/helpers/ad_helpers.rb's
+       render_ad_unit), and public/js/ad-manager.js correctly calls
+       `(window.adsbygoogle = window.adsbygoogle || []).push({})` to
+       trigger rendering for each one (and even warns to the console
+       when it can't find window.adsbygoogle) - but the actual Google
+       AdSense loader script
+       (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js),
+       which is what defines window.adsbygoogle and actually requests/
+       renders real ad creative, was never loaded anywhere in this file
+       or anywhere else in the codebase (confirmed via grep: zero
+       references to "adsbygoogle.js" or "pagead2.googlesyndication" in
+       any view or script tag). Every <ins class="adsbygoogle"> on every
+       page has been rendering as a permanently empty element - not a
+       loading/broken-image style visible failure, just silent blank
+       space where an ad was supposed to appear, with the only signal
+       being the "[AD MANAGER] AdSense script not loaded" warning
+       ad-manager.js already logs to the browser console. Only loads
+       when a real client ID is configured, matching every other
+       ad-related script/config block in this file, and uses `async`
+       per Google's own required AdSense embed snippet. -->
+  <% if ENV['GOOGLE_ADSENSE_CLIENT'] %>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= ENV['GOOGLE_ADSENSE_CLIENT'] %>" crossorigin="anonymous"></script>
+  <% end %>
   <script src="/js/ad-manager.js"></script>
   
   <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->

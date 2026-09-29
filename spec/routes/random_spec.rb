@@ -175,4 +175,35 @@ describe "Random Meme Routes" do
       expect(last_response.body).not_to include('/images/images/')
     end
   end
+
+  # BUG FIX: every ad slot on every page has rendered as permanently
+  # empty - render_ad_unit's <ins class="adsbygoogle"> elements and
+  # ad-manager.js's `(window.adsbygoogle = window.adsbygoogle ||
+  # []).push({})` calls were both real and correct, but the actual
+  # Google AdSense loader script that defines window.adsbygoogle and
+  # requests real ad creative was never loaded anywhere in the codebase
+  # (confirmed via grep - zero references to "adsbygoogle.js" or
+  # "pagead2.googlesyndication" in any <script> tag before this fix).
+  # See views/layout.erb's own comment at the fix site for the full story.
+  describe "GET /random - AdSense loader script (bug fix)" do
+    after { ENV.delete('GOOGLE_ADSENSE_CLIENT') }
+
+    it "loads the real AdSense script tag when a client id is configured" do
+      ENV['GOOGLE_ADSENSE_CLIENT'] = 'ca-pub-1234567890'
+
+      get "/random"
+
+      expect(last_response.body).to include(
+        '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890" crossorigin="anonymous"></script>'
+      )
+    end
+
+    it "does not load the script tag when no client id is configured" do
+      ENV.delete('GOOGLE_ADSENSE_CLIENT')
+
+      get "/random"
+
+      expect(last_response.body).not_to include('<script async src="https://pagead2.googlesyndication.com')
+    end
+  end
 end
