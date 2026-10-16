@@ -28,6 +28,52 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Second isolated dependency installation reproduced
+
+- Installed locked dependencies into a previously absent ignored directory,
+  vendor/bundle/reproduction, sharing only pinned Ruby and local Bundler bootstrap.
+  No RUBYLIB/native override; diagnostics and bundle check pass. Lockfile checksum
+  unchanged; shared gems untouched. This supersedes earlier fresh-install open notes.
+- Second-install full backend **912 examples, zero failures, seven pending**,
+  47.62s; **71.48% coverage (4250/5946)**, both gates pass, **exit 0**.
+  **95 frontend tests pass**. Same-machine reproduction only; cross-platform/CI
+  and browser/crawler acceptance remain open. No deployment performed.
+
+### Isolated dependency command wrapper
+
+- Added scripts/isolated_bundle.rb: pinned Ruby check, fixed ignored dependency
+  paths, frozen/shared-disabled Bundler and argument-safe exec with preserved child
+  exit status. Clears native RUBYLIB/RUBYOPT and Bundler's saved originals.
+- Verified dependency check, diagnostic under inherited temporary override, no
+  native override in child load path, quoted arguments and child exit 7 propagation.
+  Bundler's own bootstrap RUBYLIB is labeled separately. **95 frontend tests pass**;
+  script syntax/whitespace pass. No full backend rerun for tooling slice.
+- Shared gems untouched; second fresh installation reproduction remains open.
+
+### Isolated native dependency installation validated
+
+- RubyGems bootstrap loads with isolated GEM_HOME/GEM_PATH and no RUBYLIB.
+  Installed cached Bundler 2.6.5 locally, then locked dependencies under ignored
+  vendor/bundle/application with shared gems disabled, frozen/ignored local config.
+  Installation, dependency diagnostic and bundle check all pass without RUBYLIB.
+- Full isolated backend **912 examples, zero failures, seven pending**, 47.25s;
+  **71.48% coverage (4250/5946)**, both gates pass, **exit 0**. Gemfile.lock SHA1
+  unchanged (059868a81e357f7c81985365073f5085e213ac17). Shared gems untouched.
+- Updated environment guide with validated settings. Shared RVM remains broken
+  outside isolation; second clean-directory reproduction remains open. No deployment.
+
+### Native environment reproducibility investigation
+
+- Checkpointed green reliability work as d80e856. Confirmed Ruby 3.2.1 shared
+  BCrypt/Date bundles linked to Ruby 3.4.1. Plain Ruby Date/Psych loading fails;
+  Bundler selects working Date/Psych but BCrypt remains broken without RUBYLIB.
+- Added read-only scripts/check_ruby_environment.rb and isolated installation/
+  acceptance guide docs/RUBY_ENVIRONMENT.md; corrected README Ruby prerequisite.
+  Diagnostic exits **1 normally**, **0 with explicitly reported temporary override**.
+  **95 frontend tests pass**, Ruby syntax/whitespace pass. Shared gems untouched.
+- Clean installation procedure has NOT been executed/validated end-to-end.
+  Permanent repair remains open; no full backend rerun for tooling/docs slice.
+
 ### Coverage gates pass: personality behavior and dead utility cleanup
 
 - Added personality message/context/boundary tests. Removed shadowed UtilityRoutes

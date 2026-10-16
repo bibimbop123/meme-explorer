@@ -23,9 +23,11 @@ impression acknowledgments, gallery event ownership, menu/theme fixes, search fo
 and validation feedback, and real-session interaction regressions.
 
 Latest full-suite engineering evidence: 912 backend examples, zero failures, seven pending;
-95 frontend tests pass; 71.38% backend coverage passes both overall 70% and per-file
-30% gates. Full backend command exits 0 using the temporary native-gem workaround.
-Native dependencies still use a temporary local workaround. No production rollout
+95 frontend tests pass; 71.48% backend coverage passes both overall 70% and per-file
+30% gates. Full backend command exits 0 using isolated project-local dependencies
+without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
+second fresh dependency-directory reproduction passes on the same machine.
+Cross-platform/CI reproduction remains open. No production rollout
 or fresh score is implied. See the engineering execution log for current evidence.
 
 Subsequent lock-helper contract tests pass with 100% targeted file coverage;
