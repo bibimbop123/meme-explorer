@@ -168,6 +168,18 @@ expired leases and media-hash retention remain reliability work before larger lo
 
 ## Execution log — Gate A, first implementation slice
 
+### Authentication cache policy follow-up
+
+- Public exact-meme recheck still returns 200 without canonical/og:url/og:image;
+  deployed origin configuration investigation remains open. No production changes.
+- Repository login/signup GET/POST, OAuth entry/callback and logout GET/POST now
+  explicitly return private/no-store for session-bound forms and responses.
+  Two regression examples cover GET redirects/forms and mutation responses.
+- Full isolated backend: **1023 examples, zero failures, seven pending**, 57.38s;
+  **73.98% coverage (4547/6146)**, gates pass, exit 0. **119 frontend tests pass**;
+  14 targeted cache/pending-Save examples pass (partial coverage exit 2), Ruby syntax/
+  whitespace pass. No push/deployment; production cache policy unchanged by local fix.
+
 ### Confirmed public origin: sharing metadata blocker
 
 - Repository follow-up: Render web Blueprint explicitly declares operator-supplied

@@ -49,6 +49,9 @@ rendering, production worker/scheduler/OAuth fetch success, shared Redis verific
 retained unique supply growth and hosted CI. Public availability does not satisfy
 these checks. Login cache policy received no Cache-Control header in this sample;
 review separately rather than equating homepage no-store with all private surfaces.
+Repository follow-up adds private/no-store to auth forms, mutations, OAuth redirects/
+callbacks and logout routes; validated locally, not deployed. A subsequent public
+exact-page recheck still omitted canonical/og:url/og:image. No live fix is claimed.
 
 Temporary redacted summaries: `/tmp/meme-prod-public-results.json` and
 `/tmp/meme-prod-crawler-oauth.json`. Do not publish raw auth headers or session-bearing
