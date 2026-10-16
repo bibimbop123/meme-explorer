@@ -28,6 +28,22 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Startup logging full verification
+
+- Full isolated backend **941 examples, zero failures, seven pending**, 53.85s;
+  **71.96% coverage (4331/6019)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, syntax/whitespace pass. Log omission does not replace operator
+  credential rotation or historical log review. No deployment performed.
+
+### Redis startup credential leak closed
+
+- Removed raw REDIS_URL interpolation from application Sidekiq startup message;
+  output now omits connection details entirely. Connection settings unchanged.
+- Startup-output regression **1 example passes**, partial coverage exit 2;
+  Ruby syntax/whitespace pass. Full suite not rerun. This does not rotate exposed
+  credentials or erase existing logs; operators must still rotate database/Redis
+  secrets and review log access. Third-party logging review remains separate.
+
 ### Push hardening full regression
 
 - Full isolated backend **940 examples, zero failures, seven pending**, 56.29s;
