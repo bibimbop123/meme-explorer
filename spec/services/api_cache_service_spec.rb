@@ -196,4 +196,227 @@ RSpec.describe ApiCacheService do
       end
     end
   end
+
+  describe 'memory fallback TTL and invalidation' do
+    let(:prefix) { "fallback-#{SecureRandom.hex(8)}" }
+
+    before { allow(service).to receive(:redis).and_return(nil) }
+    after { service.clear_pattern("#{prefix}*") }
+
+    it 'expires reads and existence checks without background threads' do
+      service.set(prefix, { value: 'temporary' }, ttl: 10)
+      expect(service.get(prefix)).to eq(value: 'temporary')
+      future = Time.now + 11
+      allow(Time).to receive(:now).and_return(future)
+      expect(service.get(prefix)).to be_nil
+      expect(service.exists?(prefix)).to be false
+    end
+
+    it 'keeps explicit non-expiring entries and clears an old expiry when overwritten' do
+      service.set(prefix, 1, ttl: 1)
+      service.set(prefix, 2, ttl: nil)
+      future = Time.now + 100
+      allow(Time).to receive(:now).and_return(future)
+      expect(service.get(prefix)).to eq(2)
+    end
+
+    it 'starts an expired counter from zero' do
+      service.set(prefix, 20, ttl: 1)
+      future = Time.now + 2
+      allow(Time).to receive(:now).and_return(future)
+      expect(service.increment(prefix, by: 3)).to eq(3)
+    end
+
+    it 'honors internal wildcards rather than deleting unrelated prefixes' do
+      service.set("#{prefix}:one:data", 1)
+      service.set("#{prefix}:two:data", 2)
+      service.set("#{prefix}:one:other", 3)
+      expect(service.clear_pattern("#{prefix}:*:data")).to eq(2)
+      expect(service.get("#{prefix}:one:data")).to be_nil
+      expect(service.get("#{prefix}:one:other")).to eq(3)
+    end
+
+    it 'removes memory fallback data even after Redis recovers' do
+      service.set(prefix, 'stale')
+      redis = double('redis', scan_each: [].each)
+      allow(service).to receive(:redis).and_return(redis)
+      service.clear_pattern("#{prefix}*")
+      allow(service).to receive(:redis).and_return(nil)
+      expect(service.get(prefix)).to be_nil
+    end
+  end
+
+  describe 'bounded Redis invalidation' do
+    it 'streams scan results into bounded deletion batches' do
+      keys = 451.times.map { |index| "cache:batch-spec:#{index}" }
+      redis = double('redis')
+      allow(service).to receive(:redis).and_return(redis)
+      expect(redis).to receive(:scan_each).with(match: 'cache:batch-spec:*').and_return(keys.each)
+      batches = []
+      allow(redis).to receive(:del) do |*batch|
+        batches << batch.size
+        batch.size
+      end
+      expect(service.clear_pattern('batch-spec:*')).to eq(451)
+      expect(batches).to eq([200, 200, 51])
+    end
+
+    it 'counts actual removals rather than duplicate scan results' do
+      redis = double('redis')
+      allow(service).to receive(:redis).and_return(redis)
+      allow(redis).to receive(:scan_each).and_return(['cache:duplicate-spec:1', 'cache:duplicate-spec:1'].each)
+      expect(redis).to receive(:del).with('cache:duplicate-spec:1', 'cache:duplicate-spec:1').and_return(1)
+      expect(service.clear_pattern('duplicate-spec:*')).to eq(1)
+    end
+
+    it 'still invalidates memory when a Redis deletion batch fails' do
+      allow(service).to receive(:redis).and_return(nil)
+      service.set('batch-failure-spec:item', 'stale')
+      redis = double('redis', scan_each: ['cache:batch-failure-spec:item'].each)
+      allow(redis).to receive(:del).and_raise(Redis::CannotConnectError)
+      allow(service).to receive(:redis).and_return(redis)
+      expect(service.clear_pattern('batch-failure-spec:*')).to eq(1)
+      allow(service).to receive(:redis).and_return(nil)
+      expect(service.get('batch-failure-spec:item')).to be_nil
+    end
+  end
+
+  describe 'refresh lease ownership' do
+    it 'returns the existing cache when a completed fetch has lost publication ownership' do
+      lease = { token: 'expired-owner', redis: nil }
+      existing = [{ 'url' => '/current-cache.jpg' }]
+      fetched = [{ 'url' => '/late-fetch.jpg' }]
+      allow(service).to receive(:cache_fresh?).and_return(false)
+      allow(service).to receive(:acquire_lock).and_return(lease)
+      allow(service).to receive(:fetch_reddit_memes_unauthenticated).and_return(fetched)
+      allow(service).to receive(:validate_and_filter_quality_memes).with(fetched).and_return(fetched)
+      expect(service).to receive(:publish_refreshed_memes).with(fetched, lease).and_return(false)
+      allow(service).to receive(:get_cached_memes).and_return(existing)
+      expect(service).to receive(:release_lock).with(lease)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq(existing)
+    end
+
+    it 'atomically publishes only the current Redis owners content and timestamp' do
+      first = service.acquire_lock
+      service.redis.pexpire('cache:api_memes:lock', 0)
+      second = service.acquire_lock
+      fresh = [{ 'url' => '/successor.jpg' }]
+      expect(service.publish_refreshed_memes(fresh, second)).to be true
+      expect(service.publish_refreshed_memes([{ 'url' => '/expired.jpg' }], first)).to be false
+      expect(service.get_cached_memes).to eq(fresh)
+      expect(service.cache_age).to be_between(0, 2)
+      service.release_lock(second)
+    end
+
+    it 'rejects expired memory publication without overwriting the successor' do
+      allow(service).to receive(:redis).and_return(nil)
+      first = service.acquire_lock
+      future = Time.now + described_class::LOCK_TTL + 1
+      allow(Time).to receive(:now).and_return(future)
+      expect(service.publish_refreshed_memes([{ 'url' => '/expired.jpg' }], first)).to be false
+      second = service.acquire_lock
+      fresh = [{ 'url' => '/memory-successor.jpg' }]
+      expect(service.publish_refreshed_memes(fresh, second)).to be true
+      expect(service.publish_refreshed_memes([{ 'url' => '/expired.jpg' }], first)).to be false
+      expect(service.get_cached_memes).to eq(fresh)
+      service.release_lock(second)
+    end
+
+    it 'does not let an expired Redis owner release its successor' do
+      first = service.acquire_lock
+      expect(first[:token]).to be_a(String)
+      expect(service.acquire_lock).to be false
+      service.redis.pexpire('cache:api_memes:lock', 0)
+      second = service.acquire_lock
+      expect(service.release_lock(first)).to be false
+      expect(service.redis.get('cache:api_memes:lock')).to eq(second[:token])
+      expect(service.release_lock(second)).to be true
+    end
+
+    it 'protects memory ownership after lease expiry and Redis recovery' do
+      allow(service).to receive(:redis).and_return(nil)
+      first = service.acquire_lock
+      expect(service.acquire_lock).to be false
+      future = Time.now + described_class::LOCK_TTL + 1
+      allow(Time).to receive(:now).and_return(future)
+      second = service.acquire_lock
+      expect(service.release_lock(first)).to be false
+      # Release must use the original backend, not delete a recovered Redis key.
+      allow(service).to receive(:redis).and_return(double('recovered redis'))
+      expect(service.release_lock(second)).to be true
+    end
+
+    it 'returns existing cache to a follower without another upstream fetch' do
+      allow(service).to receive(:cache_fresh?).and_return(false)
+      allow(service).to receive(:acquire_lock).and_return(false)
+      allow(service).to receive(:get_cached_memes).and_return([{ 'url' => '/stale.jpg' }])
+      expect(service).not_to receive(:fetch_reddit_memes_unauthenticated)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq([{ 'url' => '/stale.jpg' }])
+    end
+
+    it 'returns fresh cached content without acquiring a lease' do
+      allow(service).to receive(:cache_fresh?).and_return(true)
+      allow(service).to receive(:get_cached_memes).and_return([{ 'url' => '/fresh.jpg' }])
+      expect(service).not_to receive(:acquire_lock)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq([{ 'url' => '/fresh.jpg' }])
+    end
+  end
+
+  describe 'refresh outcome contracts' do
+    let(:lease) { { token: 'test-owner', redis: nil } }
+    let(:existing) { [{ 'url' => '/cached.jpg' }] }
+    let(:fresh) { [{ 'url' => 'https://i.redd.it/fresh.jpg', 'likes' => 100, 'upvote_ratio' => 0.9, 'quality_score' => 200 }] }
+
+    around do |example|
+      saved = ENV.values_at('REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET')
+      ENV['REDDIT_CLIENT_ID'] = ''
+      ENV['REDDIT_CLIENT_SECRET'] = ''
+      example.run
+    ensure
+      ENV['REDDIT_CLIENT_ID'], ENV['REDDIT_CLIENT_SECRET'] = saved
+    end
+
+    before do
+      allow(service).to receive(:cache_fresh?).and_return(false)
+      allow(service).to receive(:acquire_lock).and_return(lease)
+      allow(service).to receive(:get_cached_memes).and_return(existing)
+      expect(service).to receive(:release_lock).with(lease)
+    end
+
+    it 'validates and publishes successful content' do
+      allow(service).to receive(:fetch_reddit_memes_unauthenticated).and_return(fresh)
+      expect(service).to receive(:publish_refreshed_memes).with(fresh, lease).and_return(true)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq(fresh)
+    end
+
+    [Timeout::Error, SocketError].each do |error|
+      it "preserves existing content and releases ownership after #{error}" do
+        allow(service).to receive(:fetch_reddit_memes_unauthenticated).and_raise(error)
+        expect(service).not_to receive(:publish_refreshed_memes)
+        expect(service.fetch_and_cache_memes(['funny'])).to eq(existing)
+      end
+    end
+
+    it 'does not publish empty upstream results' do
+      allow(service).to receive(:fetch_reddit_memes_unauthenticated).and_return([])
+      expect(service).not_to receive(:publish_refreshed_memes)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq(existing)
+    end
+
+    it 'does not publish content rejected by quality validation' do
+      allow(service).to receive(:fetch_reddit_memes_unauthenticated).and_return([{ 'url' => 'javascript:bad', 'likes' => 100 }])
+      expect(service).not_to receive(:publish_refreshed_memes)
+      expect(service.fetch_and_cache_memes(['funny'])).to eq(existing)
+    end
+  end
+
+  describe 'media quality validation' do
+    it 'rejects malformed entries and media-host lookalikes' do
+      base = { 'likes' => 100, 'upvote_ratio' => 0.9, 'quality_score' => 10 }
+      candidates = [nil, 12, base.merge('url' => 'https://i.redd.it.attacker.example/page'),
+        base.merge('url' => 'https://user:secret@i.redd.it/a.jpg'),
+        base.merge('url' => 'https://i.redd.it/valid.jpg')]
+      expect(service.send(:validate_and_filter_quality_memes, candidates)).to eq([candidates.last])
+    end
+  end
 end

@@ -17,7 +17,6 @@ module TrendingService
         subreddit,
         views,
         likes,
-        created_at,
         updated_at,
         -- Trending score: likes * 2 + views, with time decay
         (likes * 2.0 + views) * 

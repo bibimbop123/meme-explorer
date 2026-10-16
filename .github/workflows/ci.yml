@@ -46,13 +46,36 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
+    - name: Verify Ruby and native dependencies
+      run: bundle exec ruby scripts/check_ruby_environment.rb
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Validate frontend
+      run: |
+        npm ci
+        npm test
+        npm run build
+
+    - name: Validate CSRF middleware contract
+      run: bundle exec ruby tests/csrf_protection_test.rb
+
+    - name: Validate Redis lease ownership
+      env:
+        LOCK_TEST_REDIS_URL: redis://localhost:6379/15
+      run: bundle exec ruby tests/redis_lock_test.rb
+
     - name: Set up database
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/meme_explorer_test
         REDIS_URL: redis://localhost:6379/0
         RACK_ENV: test
       run: |
-        ruby db/setup.rb
+        psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --file db/postgres_schema.sql
 
     - name: Run tests
       env:

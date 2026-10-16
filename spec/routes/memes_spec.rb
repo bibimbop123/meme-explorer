@@ -76,7 +76,7 @@ RSpec.describe 'Routes: memes' do
         "INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, ?, ?)",
         [user_id, "funny", 1.5, 3]
       )
-      env "rack.session", { user_id: user_id }
+      set_session(user_id: user_id)
 
       post '/api/skip-meme', { subreddit: 'funny' }.to_json, { 'CONTENT_TYPE' => 'application/json' }
 
@@ -102,7 +102,7 @@ RSpec.describe 'Routes: memes' do
       hashed = BCrypt::Password.create("testpass123")
       DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", ["skip_route_3@example.com", hashed])
       user_id = DB.last_insert_row_id
-      env "rack.session", { user_id: user_id }
+      set_session(user_id: user_id)
 
       post '/api/skip-meme', { subreddit: 'funny', dwell_ms: 1500 }.to_json, { 'CONTENT_TYPE' => 'application/json' }
 
@@ -115,7 +115,7 @@ RSpec.describe 'Routes: memes' do
       hashed = BCrypt::Password.create("testpass123")
       DB.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", ["skip_route_2@example.com", hashed])
       user_id = DB.last_insert_row_id
-      env "rack.session", { user_id: user_id }
+      set_session(user_id: user_id)
 
       post '/api/skip-meme', 'not valid json', { 'CONTENT_TYPE' => 'application/json' }
 

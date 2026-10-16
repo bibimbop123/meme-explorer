@@ -14,6 +14,7 @@ module AdHelpers
     '/auth/reddit',
     '/auth/reddit/callback',
     '/logout',
+    '/meme/',
     '/api/',
     '.json'
   ].freeze

@@ -1,3 +1,5 @@
+require 'securerandom'
+
 # Redis Service - Centralized Redis access with error handling and fallbacks
 # Usage: RedisService.fetch('key') { fallback_value }
 #
@@ -73,19 +75,40 @@ class RedisService
     end
     
     # Atomically acquire a short-lived lock using SET NX EX (set-if-not-exists
-    # with expiry). Returns true if the lock was acquired, false if someone
+    # with expiry). Returns an ownership token if acquired, false if someone
     # else already holds it (or Redis is unavailable).
     # @param key [String] Lock key (caller should prefix, e.g. "lock:foo")
     # @param ttl [Integer] Lock TTL in seconds - auto-expires if never released
-    # @return [Boolean] true if lock acquired, false otherwise
+    # @return [String|false] token required for ownership-safe release
     def acquire_lock(key, ttl: 30)
       return false unless redis_available?
 
+      token = SecureRandom.hex(32)
       REDIS_POOL.with do |redis|
-        !!redis.set(key, "1", nx: true, ex: ttl)
+        redis.set(key, token, nx: true, ex: ttl) ? token : false
       end
     rescue Redis::BaseError, ConnectionPool::TimeoutError => e
       handle_error(e, operation: 'acquire_lock', key: key)
+      false
+    end
+
+    # Atomic compare-and-delete: a late owner must never delete a successor's
+    # lease after expiry. Redis failure leaves the lease to expire naturally.
+    def release_lock(key, token)
+      return false unless token.is_a?(String) && !token.empty?
+      return false unless redis_available?
+
+      script = <<~LUA
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+          return redis.call('del', KEYS[1])
+        end
+        return 0
+      LUA
+      REDIS_POOL.with do |redis|
+        redis.eval(script, keys: [key], argv: [token]) == 1
+      end
+    rescue Redis::BaseError, ConnectionPool::TimeoutError => e
+      handle_error(e, operation: 'release_lock', key: key)
       false
     end
 

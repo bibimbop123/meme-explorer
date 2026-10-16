@@ -271,6 +271,11 @@ module Routes
         # routes/random_meme.rb, routes/health.rb, etc.) - swapped in.
         app.get "/search" do
           query = params[:q]
+          if query.nil? && !request.accept?('application/json')
+            @query = nil
+            @results = []
+            next erb :search
+          end
 
           if request.accept?("application/json")
             # BUG FIX: SearchService.search (lib/services/search_service.rb)
@@ -292,6 +297,9 @@ module Routes
             # routes/search_routes.rb, routes/trending_routes.rb, and
             # the /category/:name route below.
             search_result = SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
+            if search_result[:success] == false
+              halt 400, { success: false, error: search_result[:error], query: query, results: [], total: 0 }.to_json
+            end
             results = search_result[:results] || []
             content_type :json
             {
@@ -312,9 +320,32 @@ module Routes
               total: results.size
             }.to_json
           else
+            begin
+              @page = Validators.validate_pagination(params[:page] || 1, 24)[:page]
+            rescue Validators::ValidationError => e
+              @query, @results, @search_error = query, [], e.message
+              status 400
+              next erb :search
+            end
             search_result = ::SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
             @results = search_result[:results] || []
+            @result_total = @results.size
+            @page_count = [(@result_total / 24.0).ceil, 1].max
+            @page = [@page, @page_count].min
+            @results = @results.slice((@page - 1) * 24, 24) || []
+            @results = @results.each_with_index.map do |meme, index|
+              begin
+                id = MemeIdentityService.register(meme)
+                context = URI.encode_www_form(search_q: query, search_page: @page, search_result: index)
+                id ? meme.merge('detail_path' => "/meme/#{id}?#{context}") : meme
+              rescue => e
+                AppLogger.warn('Search detail registration unavailable', error: e.class.name)
+                meme
+              end
+            end
             @query = query
+            @search_error = search_result[:error] if search_result[:success] == false
+            status 400 if @search_error
             erb :search
           end
         end
@@ -323,6 +354,10 @@ module Routes
           query = params[:q]
           # Same Hash-vs-Array bug fix as GET /search above.
           search_result = ::SearchService.search(query, MemeExplorer::App::MEME_CACHE[:memes], MemeExplorer::App::POPULAR_SUBREDDITS)
+          if search_result[:success] == false
+            content_type :json
+            halt 400, { success: false, error: search_result[:error], query: query, results: [], total: 0 }.to_json
+          end
           results = search_result[:results] || []
 
           content_type :json

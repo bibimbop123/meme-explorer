@@ -1,4 +1,15 @@
+<div id="initial-meme-data" hidden data-meme="<%= Rack::Utils.escape_html((@meme || {}).merge('url' => (@meme && (@meme['url'] || @meme['file'])), 'impression_id' => @impression_id, 'likes' => @likes, 'liked' => !!@liked, 'saved' => !!@saved).to_json) %>"></div>
+<div id="viewer-share-data" hidden data-share-path="<%= Rack::Utils.escape_html(@share_path.to_s) %>"></div>
 <div class="page-wrapper simplified-mode">
+  <section id="manual-share" hidden aria-label="Copy exact meme link" style="max-width: 700px; margin: 16px auto; padding: 16px;">
+    <label for="manual-share-url">Exact link to the meme you chose to share</label>
+    <p id="manual-share-help">Automatic sharing is unavailable. Select this link and copy it using your device's copy command.</p>
+    <input id="manual-share-url" type="url" readonly aria-describedby="manual-share-help" style="width: 100%; padding: 12px;">
+  </section>
+  <% if @search_return_path %>
+    <p><a href="<%= Rack::Utils.escape_html(@search_return_path) %>">← Back to search results</a></p>
+  <% end %>
+  <p id="viewer-status" class="viewer-sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
   <div class="meme-container">
     <!-- Left Ad Column -->
     <% if should_show_ads? %>
@@ -8,7 +19,7 @@
     <% end %>
 
     <!-- Meme Display -->
-    <div class="meme-display" id="meme-display">
+    <div class="meme-display" id="meme-display" aria-busy="false" data-impression-id="<%= Rack::Utils.escape_html(@impression_id.to_s) %>" data-meme-url="<%= Rack::Utils.escape_html((@meme && (@meme['url'] || @meme['file'])) || @image_src || '') %>">
       <%= erb :'random/display' %>
     </div>
     
@@ -40,7 +51,16 @@
      position on mobile, one unobtrusive slot instead of vertical
      clutter). This is real, working code - it was already defined in
      lib/helpers/ad_helpers.rb but never actually called anywhere. -->
+<details id="recently-viewed" style="max-width: 800px; margin: 24px auto; padding: 16px;">
+  <summary>Recently viewed</summary>
+  <p>Up to 20 memes from this page session. Refreshing clears this list.</p>
+  <button type="button" id="clear-recent-memes">Clear list</button>
+  <div id="recent-meme-list"><p>No viewed memes yet.</p></div>
+</details>
 <%= render_anchor_ad %>
+<% if @permalink_page %>
+  <p style="text-align: center; margin: 24px;"><a href="/random">Find your next favorite</a></p>
+<% end %>
 
 <!--
   NOTE: Do NOT add a second <script src="/js/modules/meme-app.js"> tag here.

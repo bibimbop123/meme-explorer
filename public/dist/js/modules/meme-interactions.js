@@ -153,19 +153,22 @@ export class MemeInteractions {
       
       if (response.ok) {
         const data = await response.json();
+        if (data.success === false) throw new Error(data.error || 'Like failed');
+        this.publishInteraction(memeUrl, { liked: data.liked, likes: data.likes });
+        if (this.getCurrentMemeUrl() !== memeUrl) return;
         console.log('[MemeInteractions] Like success:', data);
         this.updateLikeButton(data.liked, false);
         this.showToast(data.liked ? '❤️ Liked!' : 'Unliked', 'success');
         if (data.likes !== undefined) this.updateLikeCount(data.likes);
       } else {
-        this.updateLikeButton(wasLiked, false);
+        if (this.getCurrentMemeUrl() === memeUrl) this.updateLikeButton(wasLiked, false);
         const error = await response.json();
         console.error('[MemeInteractions] Like failed:', error);
         this.showToast(error.error || 'Error liking meme', 'error');
         this.triggerHaptic('heavy');
       }
     } catch (error) {
-      this.updateLikeButton(wasLiked, false);
+      if (this.getCurrentMemeUrl() === memeUrl) this.updateLikeButton(wasLiked, false);
       console.error('[MemeInteractions] Like request failed:', error);
       this.showToast('Network error', 'error');
       this.triggerHaptic('heavy');
@@ -214,18 +217,21 @@ export class MemeInteractions {
       
       if (response.ok) {
         const data = await response.json();
+        if (data.success === false) throw new Error(data.error || data.message || 'Save failed');
+        this.publishInteraction(memeUrl, { saved: !wasSaved });
+        if (this.getCurrentMemeUrl() !== memeUrl) return;
         console.log('[MemeInteractions] Save success:', data);
         this.updateSaveButton(!wasSaved, false);
         this.showToast(wasSaved ? 'Removed from saved' : '🔖 Saved to profile!', 'success');
       } else {
-        this.updateSaveButton(wasSaved, false);
+        if (this.getCurrentMemeUrl() === memeUrl) this.updateSaveButton(wasSaved, false);
         const error = await response.json();
         console.error('[MemeInteractions] Save failed:', error);
         this.showToast(error.error || 'Error saving meme', 'error');
         this.triggerHaptic('heavy');
       }
     } catch (error) {
-      this.updateSaveButton(wasSaved, false);
+      if (this.getCurrentMemeUrl() === memeUrl) this.updateSaveButton(wasSaved, false);
       console.error('[MemeInteractions] Save request failed:', error);
       this.showToast('Network error', 'error');
       this.triggerHaptic('heavy');
@@ -235,27 +241,55 @@ export class MemeInteractions {
     }
   }
   
-  handleShare() {
-    console.log('[MemeInteractions] Share clicked');
+  async handleShare() {
+    if (this.isSharing) return;
+    this.isSharing = true;
     this.triggerHaptic('medium');
-    
-    if (navigator.share) {
-      navigator.share({
-        title: document.title,
-        url: window.location.href
-      }).then(() => {
-        this.showToast('Shared!', 'success');
-      }).catch(err => {
-        if (err.name !== 'AbortError') {
-          console.log('Share cancelled', err);
+    let shareUrl;
+    let path;
+    try {
+      path = document.querySelector?.('#viewer-share-data')?.dataset.sharePath;
+      if (!/^\/meme\/[a-f0-9]{64}$/.test(path || '')) {
+        this.showToast('An exact link is unavailable for this meme. Please try again later.', 'error');
+        return;
+      }
+      shareUrl = new URL(path, window.location.href).href;
+      const shareTitle = String(document.querySelector?.('#viewer-meme-title')?.textContent || 'Meme Explorer').trim().slice(0, 180);
+      if (typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ title: shareTitle, url: shareUrl });
+          this.showToast('Link handed to your share app', 'success');
+          return;
+        } catch (error) {
+          if (error.name === 'AbortError') return;
         }
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href).then(() => {
-        this.showToast('📤 Link copied!', 'success');
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        this.showToast('Link copied', 'success');
         this.triggerHaptic('success');
-      });
+      } else {
+        if (document.querySelector?.('#viewer-share-data')?.dataset.sharePath !== path) return;
+        this.showManualShare(shareUrl);
+        this.showToast('Automatic sharing is unavailable. Copy the exact link from the field provided.', 'error');
+      }
+    } catch (_) {
+      if (document.querySelector?.('#viewer-share-data')?.dataset.sharePath !== path) return;
+      if (shareUrl) this.showManualShare(shareUrl);
+      this.showToast('Could not copy automatically. Copy the exact link from the field provided.', 'error');
+    } finally {
+      this.isSharing = false;
     }
+  }
+
+  showManualShare(url) {
+    const panel = document.querySelector?.('#manual-share');
+    const input = document.querySelector?.('#manual-share-url');
+    if (!panel || !input) return;
+    input.value = url;
+    panel.hidden = false;
+    input.focus?.();
+    input.select?.();
   }
   
   handleDownload(event) {
@@ -307,8 +341,14 @@ export class MemeInteractions {
   }
 
   getCurrentMemeUrl() {
+    const display = document.getElementById('meme-display');
+    if (display?.dataset.memeUrl) return display.dataset.memeUrl;
     const img = document.getElementById('meme-image');
     return img ? img.src : null;
+  }
+
+  publishInteraction(url, state) {
+    document.dispatchEvent(new CustomEvent('meme:interaction', { detail: { url, ...state } }));
   }
   
   updateLikeButton(liked, animate = true) {

@@ -23,12 +23,12 @@ module Routes
         DB.execute("SELECT 1")
         health_status[:checks][:database] = {
           status: 'healthy',
-          type: 'sqlite3'
+          type: 'postgresql'
         }
       rescue => e
         health_status[:checks][:database] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Database check failed'
         }
         health_status[:status] = 'degraded'
       end
@@ -53,7 +53,7 @@ module Routes
           # CURRENT reachability instead of a potentially stale reading
           # from a transient blip minutes ago.
           RedisService.refresh_availability!
-          redis_stats = RedisService.stats
+          redis_stats = RedisService.stats.reject { |key, _| key.to_s == 'error' }
           if redis_stats[:available]
             health_status[:checks][:redis] = redis_stats.merge(status: 'healthy')
           else
@@ -69,7 +69,7 @@ module Routes
       rescue => e
         health_status[:checks][:redis] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Redis check failed'
         }
         health_status[:status] = 'degraded'
       end
@@ -96,7 +96,7 @@ module Routes
       rescue => e
         health_status[:checks][:cache] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Cache check failed'
         }
       end
       
@@ -142,16 +142,19 @@ module Routes
             age_minutes: legacy_last_refresh ? ((Time.now - legacy_last_refresh) / 60).round(1) : nil
           }
 
-          health_status[:status] = 'warning' if meme_count == 0
+          health_status[:status] = 'warning' if meme_count == 0 && health_status[:status] == 'ok'
         end
       rescue => e
         health_status[:checks][:meme_pool] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Meme pool check failed'
         }
       end
       
       # Set HTTP status based on health
+      if health_status[:checks].values.any? { |check| check[:status] == 'unhealthy' }
+        health_status[:status] = 'degraded'
+      end
       status_code = case health_status[:status]
                     when 'ok' then 200
                     when 'warning' then 200  # Still operational
@@ -180,7 +183,12 @@ module Routes
       end
       
       # Must have memes
-      meme_count = MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0
+      meme_count = begin
+        pool_size = MemePoolManager.get_pool_size
+        pool_size > 0 ? pool_size : (MemeExplorer::App::MEME_CACHE.get(:memes)&.size || 0)
+      rescue
+        0
+      end
       if meme_count > 0
         checks << { name: 'meme_pool', ready: true }
       else
@@ -232,7 +240,7 @@ module Routes
       rescue => e
         health_data[:checks][:database] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Database check failed'
         }
         health_data[:status] = 'degraded'
       end
@@ -240,7 +248,7 @@ module Routes
       # Redis health with memory usage
       begin
         if defined?(RedisService)
-          redis_info = RedisService.client.with { |conn| conn.info }
+          redis_info = REDIS_POOL.with { |conn| conn.info }
           used_memory_mb = (redis_info['used_memory'].to_i / 1024.0 / 1024.0).round(2)
           max_memory_mb = (redis_info['maxmemory'].to_i / 1024.0 / 1024.0).round(2)
           
@@ -256,7 +264,7 @@ module Routes
       rescue => e
         health_data[:checks][:redis] = {
           status: 'unhealthy',
-          error: e.message
+          error: 'Redis check failed'
         }
         health_data[:status] = 'degraded'
       end
@@ -286,7 +294,7 @@ module Routes
       rescue => e
         health_data[:checks][:sidekiq] = {
           status: 'unavailable',
-          error: e.message
+          error: 'Worker check failed'
         }
       end
       
@@ -300,7 +308,7 @@ module Routes
       rescue => e
         health_data[:resources][:threads] = {
           status: 'error',
-          error: e.message
+          error: 'Thread check failed'
         }
       end
       
@@ -322,7 +330,7 @@ module Routes
       rescue => e
         health_data[:resources][:memory] = {
           status: 'unavailable',
-          error: e.message
+          error: 'Memory check failed'
         }
       end
       
@@ -332,7 +340,7 @@ module Routes
         health_data[:metrics][:cache_size] = MemeExplorer::App::MEME_CACHE.stats[:size]
         health_data[:metrics][:last_cache_refresh] = MemeExplorer::App::MEME_CACHE.get(:last_refresh)&.iso8601
       rescue => e
-        health_data[:metrics][:error] = e.message
+        health_data[:metrics][:error] = 'Metrics check failed'
       end
       
       # Set overall status

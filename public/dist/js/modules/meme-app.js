@@ -32,6 +32,8 @@ class MemeApp {
   }
   
   async init() {
+    // The bundle is shared by search, auth, legal, and profile pages.
+    if (!document.querySelector('#meme-display')) return;
     console.log('[MemeApp] Initializing...');
     
     // Initialize core modules

@@ -43,6 +43,8 @@ RSpec.describe 'User Flow Integration Tests' do
         expect(signup_body['success']).to eq(true)
 
         # Step 2: Login
+        get '/login'
+        refresh_csrf_token
         post '/login', { email: user_data[:email], password: user_data[:password] }
         login_body = JSON.parse(last_response.body)
         expect(login_body['success']).to eq(true)
@@ -86,7 +88,7 @@ RSpec.describe 'User Flow Integration Tests' do
         user_id = UserService.create_email_user('logout@test.com', 'TestPass123!')
         session[:user_id] = user_id
 
-        get '/logout'
+        post '/logout'
         expect(last_response.status).to eq(303) # See lib/routes/auth.rb - forces GET on redirect
 
         # Verify session is cleared - unauthenticated /profile (browser

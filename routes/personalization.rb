@@ -29,7 +29,7 @@ module Routes
         rescue
           nil
         end
-        unless email && email.match?(/\A[^@\s]+@[^@\s]+\z/)
+        unless email.is_a?(String) && email.bytesize <= 254 && email.match?(/\A[^@\s]+@[^@\s]+\z/)
           halt 400, { success: false, message: 'Invalid email' }.to_json
         end
         begin
@@ -44,6 +44,7 @@ module Routes
           { success: true, message: 'Subscribed successfully' }.to_json
         rescue => e
           AppLogger.error('Subscription error', error: e.message)
+          status 503
           { success: false, message: 'Subscription failed' }.to_json
         end
       end
@@ -51,16 +52,24 @@ module Routes
       app.post '/api/saved/remove' do
         content_type :json
         require_auth!
-        data     = JSON.parse(request.body.read)
-        meme_url = data['url']
+        data = begin
+          JSON.parse(request.body.read)
+        rescue JSON::ParserError
+          nil
+        end
+        meme_url = data['url'] if data.is_a?(Hash)
+        unless meme_url.is_a?(String) && !meme_url.strip.empty? && meme_url.bytesize <= 4096
+          halt 400, { success: false, error: 'A meme URL is required' }.to_json
+        end
         begin
           DB.execute(
-            'DELETE FROM user_saved_memes WHERE user_id = ? AND meme_url = ?',
+            'DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ?',
             [current_user_id, meme_url]
           )
           { success: true }.to_json
         rescue => e
           AppLogger.error('Remove saved error', error: e.message)
+          status 503
           { success: false }.to_json
         end
       end

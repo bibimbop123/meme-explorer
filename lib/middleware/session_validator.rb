@@ -7,6 +7,9 @@
 # - IP address validation
 # - Role synchronization with database
 # - Suspicious activity detection
+require 'rack'
+require 'json'
+require 'cgi'
 
 class SessionValidator
   # Session timeout: 24 hours of inactivity
@@ -54,15 +57,21 @@ class SessionValidator
     # Validate session if user is logged in
     if session[:user_id]
       validation_result = validate_session(session, request)
+
+      if validation_result[:unavailable]
+        return [503, { 'content-type' => 'application/json', 'cache-control' => 'no-store', 'retry-after' => '5' },
+          [JSON.generate(error: 'Session verification temporarily unavailable. Please retry.')]]
+      end
       
       unless validation_result[:valid]
         # Clear invalid session
+        invalid_user_id = session[:user_id]
         session.clear
         env['rack.session'].options[:drop] = true if env['rack.session'].options
         
         AppLogger.warn('[SessionValidator] Session invalidated',
           reason: validation_result[:reason],
-          user_id: session[:user_id],
+          user_id: invalid_user_id,
           ip: request.ip
         )
         
@@ -72,7 +81,7 @@ class SessionValidator
       
       # ✅ SECURITY: Sync role from database on each request
       # This ensures session role matches database (prevents privilege escalation)
-      sync_role_from_database(session) if session[:user_id]
+      sync_role_from_database(session, validation_result[:user])
       
       # Update last activity timestamp
       session[:last_activity] = Time.now.to_i
@@ -133,18 +142,17 @@ class SessionValidator
         error: e.message,
         user_id: user_id
       )
-      # Fail open to avoid locking everyone out if DB is temporarily down
-      return { valid: true }
+      # Do not authorize stale session privileges when identity cannot be verified.
+      return { valid: false, unavailable: true }
     end
     
-    { valid: true }
+    { valid: true, user: user }
   end
   
-  def sync_role_from_database(session)
-    return unless session[:user_id]
+  def sync_role_from_database(session, user)
+    return unless session[:user_id] && user
     
     begin
-      user = DB.execute("SELECT role FROM users WHERE id = ?", [session[:user_id]]).first
       if user
         db_role = user['role'] || 'user'
         

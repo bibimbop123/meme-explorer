@@ -36,7 +36,7 @@ module QueryOptimizationHelpers
     # Fetch leaderboard with user details (prevents N+1)
     def fetch_leaderboard_with_users(limit: 50, week_start: nil)
       week_filter = week_start ? "AND wl.week_start = ?" : ""
-      params = week_start ? [limit, week_start] : [limit]
+      params = week_start ? [week_start, limit] : [limit]
       
       DB.execute("
         SELECT 
@@ -116,7 +116,7 @@ module QueryOptimizationHelpers
       records.each_slice(batch_size) do |batch|
         columns = batch.first.keys
         values_placeholders = batch.map { |_| "(#{columns.map { '?' }.join(', ')})" }.join(', ')
-        values = batch.flat_map(&:values)
+        values = batch.flat_map { |record| columns.map { |column| record.fetch(column) } }
         
         DB.execute("
           INSERT INTO #{table} (#{columns.join(', ')})

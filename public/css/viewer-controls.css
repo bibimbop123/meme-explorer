@@ -1,0 +1,97 @@
+/* Loaded after legacy responsive rules. Keep overrides scoped to the viewer. */
+.viewer-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.simplified-mode #meme-display {
+  box-sizing: border-box;
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible;
+}
+
+.simplified-mode #meme-display .meme-display-content,
+.simplified-mode #meme-display .meme-image-container,
+.simplified-mode #meme-display .gallery-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.simplified-mode #meme-display img {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+.simplified-mode #meme-display video {
+  display: block;
+  max-width: 100% !important;
+  max-height: 75vh !important;
+  width: auto !important;
+  height: auto !important;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.simplified-mode .meme-controls {
+  box-sizing: border-box;
+}
+
+.simplified-mode .meme-controls .control-btn {
+  min-height: 44px;
+}
+
+@media (max-width: 768px) {
+  .simplified-mode .meme-controls {
+    position: static !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .simplified-mode .meme-controls .control-btn {
+    min-width: 0 !important;
+    min-height: 48px !important;
+    font-size: 1rem !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    grid-column: span 2;
+  }
+
+  .simplified-mode .meme-controls #prev-btn,
+  .simplified-mode .meme-controls #next-btn {
+    grid-column: span 3;
+    flex-direction: row !important;
+  }
+
+  .simplified-mode .meme-controls #next-btn {
+    background: #e52e71 !important;
+    color: #fff !important;
+    font-weight: 700;
+  }
+
+  .simplified-mode .meme-controls #download-btn {
+    grid-column: 1 / -1;
+    flex-direction: row !important;
+    min-height: 44px !important;
+  }
+
+  .simplified-mode .meme-controls .control-count {
+    font-size: 0.875rem !important;
+    text-transform: none !important;
+  }
+}

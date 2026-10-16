@@ -3,6 +3,10 @@
 # Services required at file load time (not per-request) to avoid require mutex contention
 require_relative '../lib/services/viewing_history_service'
 require_relative '../lib/services/simple_meme_selector'
+require 'digest'
+require_relative '../lib/security/reddit_source'
+require_relative '../lib/services/meme_identity_service'
+require_relative '../lib/security/public_origin'
 
 module Routes
   module RandomMeme
@@ -22,24 +26,12 @@ module Routes
         reddit_path = meme["permalink"]
       end
 
-      if reddit_path&.start_with?("http")
-        reddit_path = URI.parse(reddit_path).path
-      end
-
-      reddit_path
+      RedditSource.path(reddit_path)
     end
 
     def self.build_meme_json(meme, media_type:, likes:)
       image_url = meme["url"] || meme["file"]
       reddit_path = build_reddit_path(meme, image_url)
-
-      # Track view in meme_stats if it's an API meme (not a local file)
-      if !image_url.start_with?("/")
-        MemeExplorer::App::DB.execute(
-          "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
-          [image_url, meme["title"] || "Unknown", meme["subreddit"] || "reddit"]
-        ) rescue nil
-      end
 
       response_data = {
         title: meme["title"],
@@ -48,7 +40,8 @@ module Routes
         url: image_url,
         reddit_path: reddit_path,
         likes: likes,
-        media_type: media_type
+        media_type: media_type,
+        **MediaDimensions.for(meme)
       }
 
       if meme["is_gallery"] && meme["gallery_images"]
@@ -61,6 +54,125 @@ module Routes
     end
 
     def self.registered(app)
+      app.helpers do
+        def viewer_engagement_state(url)
+          {
+            liked: current_user_id ? EngagementService.user_liked?(user_id: current_user_id, meme_url: url) : (session[:liked_memes] || []).include?(url),
+            saved: current_user_id ? EngagementService.user_saved?(user_id: current_user_id, meme_url: url) : false,
+            likes: get_meme_likes(url).to_i
+          }
+        end
+
+        def issue_impression(response_data)
+          session[:impression_session_key] ||= SecureRandom.hex(32)
+          pending = (session[:pending_impressions] || {}).reject { |_, item| item['expires_at'].to_i < Time.now.to_i }
+          pending.shift while pending.size >= 20
+          id = SecureRandom.hex(32)
+          pending[id] = {
+            'url' => response_data[:url], 'title' => response_data[:title],
+            'subreddit' => response_data[:subreddit], 'user_id' => current_user_id, 'expires_at' => Time.now.to_i + 1800
+          }
+          session[:pending_impressions] = pending
+          result = response_data.merge(viewer_engagement_state(response_data[:url])).merge(impression_id: id)
+          begin
+            snapshot = @meme.is_a?(Hash) ? @meme.merge('url' => response_data[:url]) : response_data.transform_keys(&:to_s)
+            content_id = MemeIdentityService.register(snapshot)
+            if content_id
+              result[:content_id] = content_id
+              result[:share_path] = "/meme/#{content_id}"
+            end
+          rescue => e
+            AppLogger.warn('Meme catalog registration unavailable', error: e.class.name)
+          end
+          @share_path = result[:share_path]
+          result
+        end
+      end
+
+      app.get '/meme/:id' do
+        headers 'Cache-Control' => 'no-store'
+        begin
+          @meme = MemeIdentityService.find(params[:id])
+        rescue => e
+          AppLogger.error('Meme catalog lookup unavailable', error: e.class.name)
+          @meme_unavailable = true
+          @retry_path = "/meme/#{params[:id]}" if params[:id].match?(/\A[a-f0-9]{64}\z/)
+          headers 'Retry-After' => '60', 'X-Robots-Tag' => 'noindex, nofollow'
+          status 503
+          next erb :meme_unavailable
+        end
+        unless @meme
+          @meme_unavailable = true
+          headers 'X-Robots-Tag' => 'noindex, nofollow'
+          status 404
+          next erb :meme_unavailable
+        end
+        @image_src = meme_image_src(@meme)
+        @reddit_path = RedditSource.path(@meme['permalink'])
+        @permalink_page = true
+        @share_path = "/meme/#{params[:id]}"
+        if params[:search_q].is_a?(String) && params[:search_q].length <= 200 &&
+           params[:search_page].to_s.match?(/\A[1-9][0-9]{0,8}\z/) &&
+           params[:search_result].to_s.match?(/\A(?:[0-9]|1[0-9]|2[0-3])\z/)
+          @search_return_path = "/search?#{URI.encode_www_form(q: params[:search_q], page: params[:search_page])}#search-result-#{params[:search_result]}"
+        end
+        origin = PublicOrigin.resolve(configured: ENV['PUBLIC_ORIGIN'], production: settings.environment == :production, fallback: request.base_url)
+        @social_url = "#{origin}/meme/#{params[:id]}" if origin
+        images = @meme['gallery_images']
+        first_image = images.first if images.is_a?(Array)
+        candidate = @meme['is_gallery'] ? (first_image['url'] if first_image.is_a?(Hash)) : @image_src
+        @social_image = MediaUrl.social_image(candidate, origin: origin) if origin
+        engagement = viewer_engagement_state(@meme['url'])
+        @likes, @liked, @saved = engagement.values_at(:likes, :liked, :saved)
+        @impression_id = issue_impression(url: @meme['url'], title: @meme['title'], subreddit: @meme['subreddit'])[:impression_id]
+        erb :random
+      end
+
+      app.post '/api/impressions' do
+        content_type :json
+        begin
+          request.body.rewind
+          data = JSON.parse(request.body.read)
+          halt 400, { error: 'JSON object required' }.to_json unless data.is_a?(Hash)
+        rescue JSON::ParserError
+          halt 400, { error: 'Invalid JSON' }.to_json
+        end
+        id = data['impression_id']
+        pending = session[:pending_impressions] || {}
+        item = id.is_a?(String) ? pending[id] : nil
+        halt 404, { error: 'Unknown or expired impression' }.to_json unless item && item['expires_at'].to_i >= Time.now.to_i
+        recorded = false
+        begin
+          DB.transaction do
+            inserted = DB.execute(
+              'INSERT INTO meme_impressions (id, meme_url, session_key) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING id',
+              [id, item['url'], session[:impression_session_key]]
+            )
+            unless inserted.empty?
+              DB.execute(
+                'INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP',
+                [item['url'], item['title'] || 'Unknown', item['subreddit'] || 'unknown']
+              )
+              if item['user_id'] && item['user_id'] == current_user_id
+                DB.execute(
+                  'INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = user_meme_exposure.shown_count + 1, last_shown = CURRENT_TIMESTAMP',
+                  [current_user_id, item['url']]
+                )
+              end
+              DB.execute(
+                "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id) VALUES (?, 'view', ?, ?)",
+                [item['url'], current_user_id, session[:impression_session_key]]
+              )
+              recorded = true
+            end
+          end
+        rescue => e
+          AppLogger.error('Impression acknowledgment failed', error: e.message)
+          halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json
+        end
+        { success: true, recorded: recorded }.to_json
+      end
+
       # Render random meme page
       app.get "/random" do
         begin
@@ -130,7 +242,8 @@ module Routes
         session[:view_count] += 1
         
         @image_src = meme_image_src(@meme)
-        @likes = 0  # Will be loaded by JS
+        engagement = viewer_engagement_state(@meme['url'] || @meme['file'])
+        @likes, @liked, @saved = engagement.values_at(:likes, :liked, :saved)
       
         # Determine reddit_path for this specific image
         @reddit_path = nil
@@ -153,30 +266,10 @@ module Routes
           AppLogger.error("⚠️ Reddit path error: #{e.message}")
         end
         
-        # ASYNC: Track analytics via bounded thread pool (non-blocking, memory-safe)
-        meme_snapshot = { url: @meme["url"], file: @meme["file"],
-                          title: @meme["title"], subreddit: @meme["subreddit"] }
-        uid_snapshot = current_user_id
-        ANALYTICS_POOL.post do
-          begin
-            meme_identifier = meme_snapshot[:url] || meme_snapshot[:file]
-            next unless meme_identifier
-
-            MemeExplorer::App::DB.execute(
-              "INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP",
-              [meme_identifier, meme_snapshot[:title] || "Unknown", meme_snapshot[:subreddit] || "local"]
-            )
-
-            if uid_snapshot
-              MemeExplorer::App::DB.execute(
-                "INSERT INTO user_meme_exposure (user_id, meme_url, shown_count) VALUES (?, ?, 1) ON CONFLICT(user_id, meme_url) DO UPDATE SET shown_count = user_meme_exposure.shown_count + 1, last_shown = CURRENT_TIMESTAMP",
-                [uid_snapshot, meme_identifier]
-              )
-            end
-          rescue => e
-            AppLogger.warn("Background analytics failed", error: e.message, url: meme_snapshot[:url])
-          end
-        end
+        @impression_id = issue_impression(
+          url: @meme['url'] || @meme['file'], title: @meme['title'],
+          subreddit: @meme['subreddit']
+        )[:impression_id]
 
         erb :random
       end
@@ -225,7 +318,7 @@ module Routes
           )
 
           AppLogger.info("✅ [/similar.json] Returning meme from #{@meme['subreddit']}")
-          response_data.to_json
+          issue_impression(response_data).to_json
         rescue => e
           AppLogger.error("❌ [/similar.json] Error: #{e.class}: #{e.message}")
           AppLogger.info("backtrace", lines: e.backtrace.first(5).join("\n"))
@@ -291,7 +384,7 @@ module Routes
 
         content_type :json
         AppLogger.info("✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}")
-        response_data.to_json
+        issue_impression(response_data).to_json
       end
     end
   end

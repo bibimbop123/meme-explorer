@@ -107,14 +107,14 @@ RSpec.describe MemePoolManager do
     it 'does not block the calling request while bootstrapping in the background' do
       allow(described_class).to receive(:get_current_pool).and_return([])
       allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY).and_return(nil)
-      allow(RedisService).to receive(:acquire_lock).with(MemePoolManager::BOOTSTRAP_LOCK_KEY, ttl: MemePoolManager::BOOTSTRAP_LOCK_TTL).and_return(true)
+      allow(RedisService).to receive(:acquire_lock).with(MemePoolManager::BOOTSTRAP_LOCK_KEY, ttl: MemePoolManager::BOOTSTRAP_LOCK_TTL).and_return('test-bootstrap-owner')
 
       # Make bootstrap_pool artificially slow to prove get_pool doesn't wait on it.
       allow(described_class).to receive(:bootstrap_pool) do
         sleep 2
         { success: true, size: 1, memes: [{ 'url' => 'fresh' }], error: nil }
       end
-      allow(RedisService).to receive(:delete)
+      allow(RedisService).to receive(:release_lock).with(MemePoolManager::BOOTSTRAP_LOCK_KEY, 'test-bootstrap-owner')
 
       elapsed = Benchmark.realtime { @result = described_class.get_pool }
 

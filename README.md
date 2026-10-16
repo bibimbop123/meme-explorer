@@ -37,7 +37,7 @@ under `docs/archive/`, treat those docs as historical, not current.
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Ruby 3.0+
+- Ruby 3.2.1 (matches `.ruby-version` and Gemfile; see [Ruby environment checks](docs/RUBY_ENVIRONMENT.md))
 - PostgreSQL 13+
 - Redis 6+ (for Sidekiq)
 

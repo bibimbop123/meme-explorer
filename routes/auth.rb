@@ -333,7 +333,12 @@ class AuthRoutes
         end
 
         # ✅ CRITICAL FIX: Logout route - Proper Redis session destruction
+        # GET must not mutate identity (link prefetch/cross-site navigation).
         app.get "/logout" do
+          redirect '/profile', 303
+        end
+
+        app.post "/logout" do
           begin
             # Get session ID before clearing (for logging)
             session_id = request.session_options[:id] rescue 'unknown'

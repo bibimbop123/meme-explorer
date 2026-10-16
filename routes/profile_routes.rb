@@ -8,6 +8,9 @@ module Routes
       app.get "/profile" do
         require_auth!
         user_id = current_user_id
+        raw_page = params[:saved_page] || '1'
+        halt 400, 'Saved page must be a positive integer.' unless raw_page.is_a?(String) && raw_page.match?(/\A[1-9][0-9]{0,8}\z/)
+        @saved_page = raw_page.to_i
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -20,13 +23,17 @@ module Routes
           
           # Get user's saved memes from saved_memes table
           @saved_memes = begin
+            @saved_count = UserService.get_saved_memes_count(user_id)
+            @saved_pages = [(@saved_count / 24.0).ceil, 1].max
+            @saved_page = [@saved_page, @saved_pages].min
             results = MemeExplorer::App::DB.execute(
-              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC LIMIT 50",
-              [user_id]
+              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC, id DESC LIMIT ? OFFSET ?",
+              [user_id, 24, (@saved_page - 1) * 24]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
             AppLogger.error("Error fetching saved memes: #{e.message}")
+            @saved_load_error = true
             []
           end
           
@@ -39,6 +46,7 @@ module Routes
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
             AppLogger.error("Error fetching liked memes: #{e.message}")
+            @liked_load_error = true
             []
           end
           
@@ -52,11 +60,10 @@ module Routes
           # Log the error and return proper error response
           AppLogger.error("Profile Error: #{e.class}: #{e.message}")
           AppLogger.info("backtrace", lines: e.backtrace.join("\n"))
-          halt 500, "Error loading profile: #{e.message}"
+          halt 500, "Unable to load your profile right now. Please try again later."
         end
       
         # Count stats (with fallback to engagement service)
-        @saved_count = @saved_memes.size
         @liked_count = @liked_memes.size
         
         # Add comprehensive stats for display
@@ -72,9 +79,19 @@ module Routes
       app.post "/api/save-meme" do
         require_auth!
 
-        url = params[:url]
-        title = params[:title] || 'Unknown'
-        subreddit = params[:subreddit] || 'unknown'
+        payload = params
+        if request.media_type == 'application/json'
+          begin
+            request.body.rewind
+            payload = JSON.parse(request.body.read)
+            halt 400, { error: 'JSON object required' }.to_json unless payload.is_a?(Hash)
+          rescue JSON::ParserError
+            halt 400, { error: 'Invalid JSON' }.to_json
+          end
+        end
+        url = payload['url'] || payload[:url]
+        title = payload['title'] || payload[:title] || 'Unknown'
+        subreddit = payload['subreddit'] || payload[:subreddit] || 'unknown'
 
         # BUG FIX: `unless url` only rejects nil/false - an empty string
         # ('') is truthy in Ruby, so `POST /api/save-meme` with `url: ''`
@@ -122,7 +139,17 @@ module Routes
       app.post "/api/unsave-meme" do
         require_auth!
 
-        url = params[:url]
+        payload = params
+        if request.media_type == 'application/json'
+          begin
+            request.body.rewind
+            payload = JSON.parse(request.body.read)
+            halt 400, { error: 'JSON object required' }.to_json unless payload.is_a?(Hash)
+          rescue JSON::ParserError
+            halt 400, { error: 'Invalid JSON' }.to_json
+          end
+        end
+        url = payload['url'] || payload[:url]
         # Same empty-string bug fix as /api/save-meme above.
         halt 400, { error: "URL required" }.to_json if url.to_s.strip.empty?
 
@@ -138,8 +165,8 @@ module Routes
         content_type :json
         {
           success: result[:success],
-          unsaved: true,
-          message: "Meme unsaved"
+          unsaved: !!result[:success],
+          message: result[:success] ? 'Meme unsaved' : 'Could not remove meme'
         }.to_json
       end
 
@@ -164,6 +191,9 @@ module Routes
         @image_src = saved_meme["meme_url"]
         @likes = get_meme_likes(@image_src)
         @saved_meme_id = saved_id
+        page = params[:saved_page].to_s
+        page = '1' unless page.match?(/\A[1-9][0-9]{0,8}\z/)
+        @saved_return_path = "/profile?saved_page=#{page}#saved-card-#{saved_id}"
 
         erb :saved_meme
       end

@@ -1,6 +1,10 @@
 # Smart Media Renderer Service
 # Handles intelligent media rendering with proper fallback chain
 # Prevents excessive generic fallback images
+require 'cgi'
+require 'json'
+require 'rack/utils'
+require_relative '../security/media_url'
 
 class SmartMediaRendererService
   class << self
@@ -10,7 +14,7 @@ class SmartMediaRendererService
     # @return [Hash] Rendering configuration
     def prepare_media_render(meme_data, options = {})
       media_sources = extract_media_sources(meme_data)
-      
+
       {
         primary_url: media_sources[:primary],
         fallback_urls: media_sources[:fallbacks],
@@ -31,7 +35,7 @@ class SmartMediaRendererService
       }
 
       # Primary source
-      sources[:primary] = meme_data['url'] || meme_data['file']
+      sources[:primary] = MediaUrl.safe(meme_data['url'] || meme_data['file'])
 
       # Try to get preview images from Reddit post
       if meme_data['preview']
@@ -50,7 +54,7 @@ class SmartMediaRendererService
       end
 
       # Remove duplicates and nil values
-      sources[:fallbacks] = sources[:fallbacks].compact.uniq.reject { |url| url == sources[:primary] }
+      sources[:fallbacks] = sources[:fallbacks].filter_map { |url| MediaUrl.safe(url) }.uniq.reject { |url| url == sources[:primary] }
 
       sources
     end
@@ -60,9 +64,9 @@ class SmartMediaRendererService
     # @return [Array] Preview image URLs
     def extract_preview_images(preview_data)
       return [] unless preview_data.is_a?(Hash)
-      
+
       images = []
-      
+
       # Check for images array
       if preview_data['images'].is_a?(Array)
         preview_data['images'].each do |img_data|
@@ -72,7 +76,7 @@ class SmartMediaRendererService
               images << unescape_url(res['url']) if res['url']
             end
           end
-          
+
           # Get source
           if img_data['source'] && img_data['source']['url']
             images << unescape_url(img_data['source']['url'])
@@ -87,10 +91,9 @@ class SmartMediaRendererService
     # @param thumbnail [String] Thumbnail URL
     # @return [Boolean]
     def valid_thumbnail?(thumbnail)
-      return false if thumbnail.nil? || thumbnail.empty?
+      return false unless thumbnail.is_a?(String) && !thumbnail.empty?
       return false if %w[self default nsfw].include?(thumbnail)
-      return false unless thumbnail.start_with?('http')
-      true
+      !!MediaUrl.safe(thumbnail) && thumbnail.start_with?('http://', 'https://')
     end
 
     # Detect media type from URL
@@ -98,16 +101,16 @@ class SmartMediaRendererService
     # @return [String] Media type (image, video, gif)
     def detect_media_type(url)
       return 'unknown' unless url
-      
+
       url_lower = url.downcase
-      
+
       return 'video' if url_lower =~ /\.(mp4|webm|mov)(\?|$)/
       return 'gif' if url_lower =~ /\.(gif)(\?|$)/
       return 'image' if url_lower =~ /\.(jpg|jpeg|png|webp)(\?|$)/
-      
+
       # Check if it's a Reddit video domain
       return 'video' if url.include?('v.redd.it')
-      
+
       # Default to image
       'image'
     end
@@ -117,7 +120,7 @@ class SmartMediaRendererService
     # @return [String] Unescaped URL
     def unescape_url(url)
       return url unless url
-      
+
       CGI.unescapeHTML(url)
     rescue StandardError
       url
@@ -130,22 +133,22 @@ class SmartMediaRendererService
     # @return [String] JavaScript code
     def generate_fallback_script(element_id, fallback_urls, options = {})
       hide_on_failure = options[:hide_on_failure] || false
-      show_placeholder = options[:show_placeholder] || true
+      show_placeholder = options.fetch(:show_placeholder, true)
       placeholder_message = options[:placeholder_message] || "Media unavailable"
 
       <<~JAVASCRIPT
         (function() {
-          const elem = document.getElementById('#{element_id}');
+          const elem = document.getElementById(#{script_json(element_id)});
           if (!elem) return;
 
-          const fallbacks = #{fallback_urls.to_json};
+          const fallbacks = #{script_json(fallback_urls.filter_map { |url| MediaUrl.safe(url) })};
           let currentFallbackIndex = 0;
-          
+
           function tryNextFallback() {
             if (currentFallbackIndex < fallbacks.length) {
               const nextUrl = fallbacks[currentFallbackIndex];
               currentFallbackIndex++;
-              
+
               console.log('Trying fallback ' + currentFallbackIndex + '/' + fallbacks.length + ':', nextUrl);
               elem.src = nextUrl;
             } else {
@@ -155,8 +158,8 @@ class SmartMediaRendererService
           }
 
           function handleCompleteFailure() {
-            console.warn('All media sources failed for #{element_id}');
-            
+            console.warn('All media sources failed');
+
             #{if hide_on_failure
               "elem.style.display = 'none';"
             elsif show_placeholder
@@ -167,13 +170,14 @@ class SmartMediaRendererService
                   const placeholder = document.createElement('div');
                   placeholder.className = 'media-unavailable-placeholder';
                   placeholder.innerHTML = `
-                    <img src="https://picsum.photos/600/600?random" 
+                    <img src="/images/meme-placeholder.svg"
                          alt="Placeholder - Content Unavailable"
                          class="placeholder-fallback-image"
                          style="max-width: 300px; border-radius: 8px; margin-bottom: 16px;" />
-                    <div class="placeholder-message">#{placeholder_message}</div>
+                    <div class="placeholder-message"></div>
                     <div class="placeholder-hint">This content is no longer available</div>
                   `;
+                  placeholder.querySelector('.placeholder-message').textContent = #{script_json(placeholder_message)};
                   container.replaceChild(placeholder, elem);
                 }
               JS
@@ -236,7 +240,7 @@ class SmartMediaRendererService
             min-height: 200px;
             padding: 30px 15px;
           }
-          
+
           .placeholder-icon {
             font-size: 48px;
           }
@@ -251,7 +255,7 @@ class SmartMediaRendererService
     def render_with_smart_fallback(meme_data, options = {})
       element_id = options[:element_id] || 'meme-image'
       media_config = prepare_media_render(meme_data, options)
-      
+
       # Generate HTML based on media type
       html = case media_config[:media_type]
              when 'video'
@@ -281,14 +285,20 @@ class SmartMediaRendererService
 
     private
 
+    # JSON string literals embedded inside script elements must not close them.
+    def script_json(value)
+      JSON.generate(value).gsub('<', '\\u003c').gsub('>', '\\u003e').gsub('&', '\\u0026')
+    end
+
     def render_image_element(config, element_id, options)
-      alt_text = options[:alt] || 'Meme'
-      classes = options[:class] || 'meme-image'
-      
+      alt_text = Rack::Utils.escape_html((options[:alt] || 'Meme').to_s)
+      classes = Rack::Utils.escape_html((options[:class] || 'meme-image').to_s)
+      element_id = Rack::Utils.escape_html(element_id.to_s)
+
       <<~HTML
-        <img 
+        <img
           id="#{element_id}"
-          src="#{config[:primary_url]}" 
+          src="#{Rack::Utils.escape_html(config[:primary_url] || '/images/meme-placeholder.svg')}"
           alt="#{alt_text}"
           class="#{classes}"
           loading="lazy"
@@ -303,11 +313,12 @@ class SmartMediaRendererService
     end
 
     def render_video_element(config, element_id, options)
-      alt_text = options[:alt] || 'Video'
-      classes = options[:class] || 'meme-video'
-      
+      alt_text = Rack::Utils.escape_html((options[:alt] || 'Video').to_s)
+      classes = Rack::Utils.escape_html((options[:class] || 'meme-video').to_s)
+      element_id = Rack::Utils.escape_html(element_id.to_s)
+
       <<~HTML
-        <video 
+        <video
           id="#{element_id}"
           class="#{classes}"
           controls
@@ -317,7 +328,7 @@ class SmartMediaRendererService
           playsinline
           style="max-width: 100%; height: auto; border-radius: 12px;"
         >
-          <source src="#{config[:primary_url]}" type="video/mp4">
+          <source src="#{Rack::Utils.escape_html(config[:primary_url].to_s)}" type="video/mp4">
           <p>#{alt_text}</p>
         </video>
       HTML

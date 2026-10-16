@@ -6,6 +6,8 @@ require 'httparty'
 require 'net/http'
 require 'uri'
 require 'json'
+require_relative '../helpers/media_dimensions'
+require_relative 'reddit_media_resolver'
 
 class RedditFetcherService
   USER_AGENTS = [
@@ -122,10 +124,13 @@ class RedditFetcherService
       post_data = post["data"]
       next unless post_data
       next if post_data["is_self"] # Skip text posts
+      resolved = RedditMediaResolver.resolve(post_data)
+      next unless resolved
+      post_data = post_data.merge(resolved)
       
       # Handle gallery posts
       is_gallery = post_data["is_gallery"] == true
-      gallery_images = extract_gallery_images(post_data) if is_gallery
+      gallery_images = post_data['gallery_images'] if is_gallery
       
       # Skip videos unless they're galleries
       next if post_data["is_video"] && !is_gallery
@@ -147,6 +152,13 @@ class RedditFetcherService
         "likes" => post_data["ups"] || 0,
         "permalink" => post_data["permalink"]
       }
+      meme.merge!(resolved)
+      dimensions = if gallery_images && gallery_images.any?
+                     MediaDimensions.for(gallery_images.first)
+                   else
+                     matching_preview_dimensions(post_data, image_url)
+                   end
+      dimensions.each { |key, value| meme[key.to_s] = value }
       
       # Add gallery data if present
       if is_gallery && gallery_images && gallery_images.any?
@@ -189,11 +201,24 @@ class RedditFetcherService
       images << {
         "url" => image_url,
         "caption" => item["caption"] || "",
-        "media_id" => media_id
+        "media_id" => media_id,
+        **MediaDimensions.for('width' => media_info.dig('s', 'x'), 'height' => media_info.dig('s', 'y')).transform_keys(&:to_s)
       }
     end
     
     images.any? ? images : nil
+  end
+
+  def matching_preview_dimensions(post_data, image_url)
+    preview = post_data['preview']
+    return {} unless preview.is_a?(Hash) && preview['images'].is_a?(Array)
+    preview['images'].each do |image|
+      next unless image.is_a?(Hash) && image['source'].is_a?(Hash)
+      source = image['source']
+      next unless source['url'].is_a?(String) && source['url'].gsub('&amp;', '&') == image_url
+      return MediaDimensions.for(source)
+    end
+    {}
   end
   
   # Centralized error logging

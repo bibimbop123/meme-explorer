@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../security/media_url'
 
 # RedditMediaHelpers - Reddit API integration and media processing
 #
@@ -30,6 +31,7 @@ module RedditMediaHelpers
       max_attempts = 3
       
       while attempts < max_attempts
+        fetched = false
         begin
           url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
           uri = URI(url)
@@ -61,12 +63,13 @@ module RedditMediaHelpers
                 meme = build_meme_object(post_data, image_url)
                 memes << meme
               end
-              break  # Success, exit retry loop
+              fetched = true
             else
               attempts += 1
               sleep 2 if attempts < max_attempts
             end
           end
+          break if fetched
         rescue JSON::ParserError => e
           attempts += 1
           sleep 2 if attempts < max_attempts
@@ -85,8 +88,9 @@ module RedditMediaHelpers
   # Extract direct image URL from Reddit post data (including GIFs and animated content)
   # NOW ENHANCED: Also enriches meme with preview images for fallback chain
   def extract_image_url(post_data)
-    url = post_data["url"]
-    return nil unless url && url.is_a?(String)
+    return nil unless post_data.is_a?(Hash)
+    url = MediaUrl.safe(post_data['url'])
+    return nil unless url
 
     # Always prefer i.redd.it, imgur, and other known image CDNs
     # Most permissive: Accept any HTTPS URL that looks like an image
@@ -101,21 +105,22 @@ module RedditMediaHelpers
     end
 
     # Media metadata gallery
-    if post_data["gallery_data"]&.dig("items")&.first
-      gallery_id = post_data["gallery_data"]["items"].first["media_id"]
-      if post_data["media_metadata"]&.dig(gallery_id, "s", "x")
-        gallery_url = post_data["media_metadata"][gallery_id]["s"]["x"]
-        # Only return if it ends with an image extension
-        return gallery_url if gallery_url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
-      end
+    gallery = post_data['gallery_data']
+    items = gallery['items'] if gallery.is_a?(Hash)
+    first_item = items.first if items.is_a?(Array)
+    metadata = post_data['media_metadata']
+    image = metadata[first_item['media_id']] if metadata.is_a?(Hash) && first_item.is_a?(Hash)
+    source = image['s'] if image.is_a?(Hash)
+    candidate = source['u'] if source.is_a?(Hash)
+    if candidate.is_a?(String)
+      gallery_url = MediaUrl.social_image(candidate.gsub('&amp;', '&'), origin: '')
+      return gallery_url if gallery_url
     end
 
-    # Preview image - fallback
-    if post_data["preview"]&.dig("images", 0, "source", "url")
-      preview_url = post_data["preview"]["images"][0]["source"]["url"]
-      if preview_url&.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
-        return preview_url.gsub("&amp;", "&")
-      end
+    # Reuse shape checking and URL validation for preview fallback candidates.
+    extract_preview_images(post_data.reject { |key, _| key == 'thumbnail' }).each do |candidate|
+      preview_url = MediaUrl.social_image(candidate, origin: '')
+      return preview_url if preview_url
     end
 
     nil
@@ -148,43 +153,31 @@ module RedditMediaHelpers
   def extract_preview_images(meme)
     return [] unless meme.is_a?(Hash)
     
-    images = []
-    
-    # Extract from preview metadata
-    if meme["preview"].is_a?(Hash)
-      preview_images = meme["preview"].dig("images") || []
-      preview_images.each do |img_data|
-        # Get source URL (highest quality)
-        if img_data["source"] && img_data["source"]["url"]
-          url = img_data["source"]["url"].gsub("&amp;", "&")
-          images << url unless images.include?(url)
-        end
-        
-        # Get resolutions (alternative qualities)
-        if img_data["resolutions"].is_a?(Array)
-          img_data["resolutions"].each do |res|
-            if res["url"]
-              url = res["url"].gsub("&amp;", "&")
-              images << url unless images.include?(url)
-            end
-          end
+    candidates = []
+    preview = meme['preview']
+    entries = preview['images'] if preview.is_a?(Hash)
+    if entries.is_a?(Array)
+      entries.each do |entry|
+        next unless entry.is_a?(Hash)
+        source = entry['source']
+        candidates << source['url'] if source.is_a?(Hash)
+        resolutions = entry['resolutions']
+        if resolutions.is_a?(Array)
+          resolutions.each { |resolution| candidates << resolution['url'] if resolution.is_a?(Hash) }
         end
       end
     end
-    
-    # Add thumbnail if available
-    if meme["thumbnail"] && !%w[self default nsfw].include?(meme["thumbnail"])
-      images << meme["thumbnail"] unless images.include?(meme["thumbnail"])
-    end
-    
-    images.uniq.compact
+    candidates << meme['thumbnail']
+    candidates.filter_map do |candidate|
+      MediaUrl.safe(candidate.gsub('&amp;', '&')) if candidate.is_a?(String)
+    end.uniq
   end
   
   # Detect media type from URL
   def detect_media_type(url)
     return 'image' unless url.is_a?(String)
     
-    ext = File.extname(url).downcase
+    ext = File.extname(url.split(/[?#]/, 2).first).downcase
     case ext
     when '.mp4', '.webm', '.mov'
       'video'

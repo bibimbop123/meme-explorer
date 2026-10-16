@@ -33,11 +33,11 @@
     <tbody>
       <% @top_memes.each do |meme| %>
         <tr style="border-bottom: 1px solid #ddd;">
-          <td style="padding: 10px;"><%= meme["title"] %></td>
-          <td style="padding: 10px; text-align: center;">r/<%= meme["subreddit"] %></td>
+          <td style="padding: 10px;"><%= Rack::Utils.escape_html(meme["title"].to_s) %></td>
+          <td style="padding: 10px; text-align: center;">r/<%= Rack::Utils.escape_html(meme["subreddit"].to_s) %></td>
           <td style="padding: 10px; text-align: center;"><%= meme["likes"] %></td>
           <td style="padding: 10px; text-align: center;">
-            <button onclick="deleteMeme('<%= meme["url"] %>')" style="padding: 5px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete</button>
+            <button type="button" data-delete-meme="<%= Rack::Utils.escape_html(meme["url"].to_s) %>" style="padding: 5px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete</button>
           </td>
         </tr>
       <% end %>
@@ -46,11 +46,14 @@
 
   <div>
     <a href="/random" style="padding: 10px 20px; background: #999; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Back to Memes</a>
-    <a href="/logout" style="padding: 10px 20px; background: #666; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-left: 10px;">Logout</a>
+    <%= erb :'partials/_logout_form' %>
   </div>
 </div>
 
 <script>
+document.querySelectorAll('[data-delete-meme]').forEach(button => {
+  button.addEventListener('click', () => deleteMeme(button.dataset.deleteMeme));
+});
 function deleteMeme(url) {
   if (confirm("Delete this meme?")) {
     fetch("/admin/meme/" + encodeURIComponent(url), { method: "DELETE" })

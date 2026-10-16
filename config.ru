@@ -37,26 +37,9 @@ use AuthorizationMiddleware
 # Enable gzip compression for all responses (60-70% bandwidth savings!)
 use Rack::Deflater
 
-# BUG FIX (Aug 25, 2026, round 4): A brand-new process was clearing a
-# BOOTSTRAP_LOCK_KEY that could still be set in Redis from the *previous*
-# process instance, which was killed mid-deploy before its background
-# bootstrap thread reached its `ensure RedisService.delete(...)` cleanup.
-# Redis is an external, persistent store - the lock survives every
-# restart/redeploy until its TTL naturally expires (up to
-# MemePoolManager::BOOTSTRAP_LOCK_TTL seconds), meaning every fresh boot
-# could spend up to that long refusing to bootstrap even though no
-# background thread from THIS process is actually running. A freshly
-# booted process cannot possibly have a legitimate bootstrap already in
-# flight, so it's always safe to clear the lock (and any on-demand-fetch
-# cooldown) here before anything else runs.
-begin
-  require_relative 'lib/services/meme_pool_manager'
-  RedisService.delete(MemePoolManager::BOOTSTRAP_LOCK_KEY)
-  RedisService.delete("meme_pool:on_demand_fetch_cooldown")
-  puts "🧹 [STARTUP] Cleared any stale bootstrap lock/cooldown from a previous process"
-rescue => e
-  puts "⚠️  [STARTUP] Failed to clear stale bootstrap lock: #{e.message}"
-end
+# Shared leases and rate-limit cooldowns survive deployments intentionally.
+# Another web/worker process may still own them. Never clear them at startup;
+# TTL handles crashed owners, and normal completion releases only its own token.
 
 # Initialize meme pool cache on startup
 # If Sidekiq is running, queue via worker. Otherwise let MemePoolManager's

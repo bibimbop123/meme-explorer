@@ -76,15 +76,19 @@ describe 'Authentication Routes' do
   end
 
   describe 'POST /signup' do
+    before do
+      # Repeated suite runs must not share the per-IP signup quota. Keep the
+      # real limiter active within each example; remove only this test IP's key.
+      settings_redis = MemeExplorer::App.settings.redis
+      settings_redis.del('signup_attempts:127.0.0.1') if settings_redis
+    end
+
     it 'creates new user with valid data' do
-      # Same known test-harness limitation as POST /login above (session
-      # fixation regeneration calls `.options` on a session object this
-      # harness can't fully emulate without the real Rack::Session
-      # middleware stack).
-      post '/signup', { email: 'new@example.com', password: 'password123', password_confirm: 'password123' }
+      # Signup validates character diversity; password123 is not a valid
+      # 8–11 character signup password. Do not hide validation behind pending.
+      post '/signup', { email: 'new@example.com', password: 'SecurePass123!', password_confirm: 'SecurePass123!' }
       expect(last_response.status).to eq(200)
       body = JSON.parse(last_response.body)
-      pending "spec harness doesn't run the real Rack::Session middleware - see POST /login comment" unless body['success']
       expect(body['success']).to eq(true)
       expect(body['redirect']).to eq('/profile')
     end
@@ -105,9 +109,9 @@ describe 'Authentication Routes' do
     end
   end
 
-  describe 'GET /logout' do
+  describe 'POST /logout' do
     it 'clears session and redirects' do
-      get '/logout'
+      post '/logout'
       expect(last_response.status).to eq(303)
       expect(last_response.location).to include('/')
     end

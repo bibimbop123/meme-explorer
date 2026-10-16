@@ -1,8 +1,8 @@
 <!-- Meme Metadata Partial -->
 <div class="meme-info-header">
-  <div class="meme-title"><%= @meme&.dig('title') || 'Loading...' %></div>
-  <button class="title-toggle-btn" id="title-toggle" aria-label="Toggle title visibility" title="Toggle title (T)">
-    <span class="toggle-icon"></span>
+  <div class="meme-title" id="viewer-meme-title"><%= Rack::Utils.escape_html(@meme&.dig('title') || 'Loading...') %></div>
+  <button type="button" class="title-toggle-btn" id="title-toggle" data-action="toggle-meme-title" aria-controls="viewer-meme-title" aria-expanded="true" title="Toggle title (T)">
+    Hide title
   </button>
 </div>
 
@@ -28,8 +28,9 @@
 
 <div class="meme-meta-wrapper">
   <div class="meme-meta">
-  <% if @reddit_path || @meme&.dig('permalink') %>
-    <a href="https://reddit.com<%= @reddit_path || @meme&.dig('permalink') %>" 
+  <% source_path = RedditSource.path(@reddit_path || @meme&.dig('permalink')) %>
+  <% if source_path %>
+    <a href="https://www.reddit.com<%= Rack::Utils.escape_html(source_path) %>"
        target="_blank" rel="noopener" class="reddit-link refined-source-link" title="View original post on Reddit">
       Source →
     </a>

@@ -1,4 +1,8 @@
 # frozen_string_literal: true
+require 'rack/utils'
+require 'securerandom'
+require_relative '../security/media_url'
+require_relative 'media_dimensions'
 
 # Gallery Helpers - Handle multi-image Reddit posts
 module GalleryHelpers
@@ -25,7 +29,8 @@ module GalleryHelpers
         next unless image_url
         
         # Decode HTML entities
-        image_url = image_url.gsub("&amp;", "&")
+        image_url = MediaUrl.safe(image_url.gsub("&amp;", "&"))
+        next unless image_url
         
         images << {
           "url" => image_url,
@@ -62,8 +67,8 @@ module GalleryHelpers
       active_class = index == 0 ? "active" : ""
       html += %{
         <div class="gallery-slide #{active_class}" data-index="#{index}">
-          <img src="#{image['url']}" alt="#{meme_title} - Image #{index + 1}" loading="lazy">
-          #{image['caption'] && image['caption'] != '' ? "<p class='gallery-caption'>#{image['caption']}</p>" : ""}
+          <img data-recoverable-media #{MediaDimensions.attributes(image)} src="#{Rack::Utils.escape_html(MediaUrl.safe(image['url']) || '/images/meme-placeholder.svg')}" alt="#{Rack::Utils.escape_html(meme_title.to_s)} - Image #{index + 1}" loading="#{index.zero? ? 'eager' : 'lazy'}">
+          #{image['caption'] && image['caption'] != '' ? "<p class='gallery-caption'>#{Rack::Utils.escape_html(image['caption'].to_s)}</p>" : ""}
         </div>
       }
     end
@@ -269,6 +274,8 @@ module GalleryHelpers
           const galleries = document.querySelectorAll('.gallery-carousel');
           
           galleries.forEach(gallery => {
+            if (gallery.dataset.carouselReady) return;
+            gallery.dataset.carouselReady = 'true';
             const slides = gallery.querySelectorAll('.gallery-slide');
             const prevBtn = gallery.querySelector('.gallery-prev');
             const nextBtn = gallery.querySelector('.gallery-next');
@@ -286,11 +293,12 @@ module GalleryHelpers
               if (index < 0) currentSlide = slides.length - 1;
               
               slides[currentSlide].classList.add('active');
-              dots[currentSlide].classList.add('active');
+              dots[currentSlide]?.classList.add('active');
               
               if (counter) {
                 counter.textContent = `${currentSlide + 1} / ${slides.length}`;
               }
+              document.dispatchEvent(new CustomEvent('meme:gallery-position', { detail: { index: currentSlide } }));
             }
             
             if (prevBtn) {
@@ -340,17 +348,8 @@ module GalleryHelpers
               }
             }
             
-            // Keyboard navigation
-            document.addEventListener('keydown', e => {
-              if (e.key === 'ArrowLeft') {
-                currentSlide--;
-                showSlide(currentSlide);
-              }
-              if (e.key === 'ArrowRight') {
-                currentSlide++;
-                showSlide(currentSlide);
-              }
-            });
+            // Arrow-key ownership is centralized in MemeNavigation. The
+            // gallery's buttons remain the single owner of slide changes.
           });
         });
       </script>

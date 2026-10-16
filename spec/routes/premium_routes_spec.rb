@@ -27,7 +27,7 @@ RSpec.describe 'Routes: premium' do
 
     it 'renders for a logged-in, non-premium user' do
       user_id = create_user('premium_route_1@example.com')
-      env 'rack.session', { user_id: user_id }
+      set_session(user_id: user_id)
 
       get '/premium'
 
@@ -37,7 +37,7 @@ RSpec.describe 'Routes: premium' do
 
     it 'shows the already-premium state for a genuinely premium user' do
       user_id = create_user('premium_route_2@example.com', premium_status: 'active', premium_current_period_end: Time.now + 30 * 86400)
-      env 'rack.session', { user_id: user_id }
+      set_session(user_id: user_id)
 
       get '/premium'
 
@@ -55,7 +55,7 @@ RSpec.describe 'Routes: premium' do
 
     it 'returns 503 when Stripe price ids are not configured' do
       user_id = create_user('premium_route_3@example.com')
-      env 'rack.session', { user_id: user_id }
+      set_session(user_id: user_id)
 
       post '/premium/checkout', { plan: 'monthly' }
 
@@ -67,7 +67,7 @@ RSpec.describe 'Routes: premium' do
       ENV['STRIPE_PRICE_ID_MONTHLY'] = 'price_fake_monthly'
 
       user_id = create_user('premium_route_4@example.com')
-      env 'rack.session', { user_id: user_id }
+      set_session(user_id: user_id)
 
       stub_request(:post, "https://api.stripe.com/v1/customers")
         .to_return(status: 200, body: { id: 'cus_route4' }.to_json, headers: { 'Content-Type' => 'application/json' })

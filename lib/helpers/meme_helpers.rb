@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'rack/utils'
+require_relative '../security/media_url'
 
 # Helper module for common meme operations
 # Extracts duplicate code from app.rb for better maintainability
@@ -321,12 +323,14 @@ module MemeHelpers
 
 # Render video player with proper configuration
 def render_video_player(meme)
-  video_url = meme["video_url"] || meme["url"]
-  thumb = meme["thumbnail_url"]
+  return '' unless meme.is_a?(Hash)
+  video_url = MediaUrl.safe(meme["video_url"] || meme["url"])
+  return '' unless video_url
+  thumb = MediaUrl.safe(meme["thumbnail_url"])
   
-  html = '<video class="meme-content-video" controls autoplay loop muted playsinline'
-  html += ' poster="' + thumb + '"' if thumb
-  html += '><source src="' + video_url.to_s + '" type="video/mp4">'
+  html = '<video class="meme-content-video" controls loop muted playsinline preload="metadata"'
+  html += ' poster="' + Rack::Utils.escape_html(thumb) + '"' if thumb
+  html += '><source src="' + Rack::Utils.escape_html(video_url) + '">'
   html += 'Your browser does not support video playback.</video>'
   html
 end

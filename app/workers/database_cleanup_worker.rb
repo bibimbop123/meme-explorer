@@ -9,36 +9,40 @@ class DatabaseCleanupWorker
     cleanup_stats = {
       broken_images: 0,
       old_meme_stats: 0,
-      expired_experiments: 0
+      old_impressions: 0
     }
     
     # Remove old broken images (failure_count >= 5 and > 1 day old)
     result = DB.execute(
       "DELETE FROM broken_images 
        WHERE failure_count >= 5 
-       AND #{DbHelpers.date_ago('first_failed_at', days: 1)}"
+       AND #{DbHelpers.date_ago('first_failed_at', days: 1)} RETURNING url"
     )
-    cleanup_stats[:broken_images] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
+    cleanup_stats[:broken_images] = result.size
     
     # Remove old meme stats (no engagement and > 7 days old)
     result = DB.execute(
       "DELETE FROM meme_stats 
        WHERE likes = 0 
        AND views = 0 
-       AND #{DbHelpers.date_ago('updated_at', days: 7)}"
+       AND #{DbHelpers.date_ago('updated_at', days: 7)} RETURNING url"
     )
-    cleanup_stats[:old_meme_stats] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
+    cleanup_stats[:old_meme_stats] = result.size
     
-    # Clean up old experiment assignments (> 30 days)
+    # IDs expire after 30 minutes; seven-day retention preserves retry dedupe.
+    # Bound each run to avoid an unbounded delete on a growing analytics table.
     result = DB.execute(
-      "DELETE FROM experiment_assignments 
-       WHERE #{DbHelpers.date_ago('assigned_at', days: 30)}"
+      "DELETE FROM meme_impressions WHERE id IN (
+         SELECT id FROM meme_impressions
+         WHERE created_at < NOW() - INTERVAL '7 days'
+         ORDER BY created_at LIMIT 10000
+       ) RETURNING id"
     )
-    cleanup_stats[:expired_experiments] = result.respond_to?(:changes) ? result.changes : result.cmd_tuples
+    cleanup_stats[:old_impressions] = result.size
     AppLogger.info("✅ [CLEANUP WORKER] Cleaned up:")
     AppLogger.info("   - #{cleanup_stats[:broken_images]} broken images")
     AppLogger.info("   - #{cleanup_stats[:old_meme_stats]} old meme stats")
-    AppLogger.info("   - #{cleanup_stats[:expired_experiments]} expired experiments")
+    AppLogger.info("   - #{cleanup_stats[:old_impressions]} old impressions")
     
   rescue => e
     AppLogger.info("❌ [CLEANUP WORKER] Error: #{e.message}")

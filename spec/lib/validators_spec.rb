@@ -168,6 +168,10 @@ RSpec.describe Validators do
     it 'raises error for SQL injection patterns' do
       expect { Validators.validate_search_query("test'; DROP TABLE") }.to raise_error(Validators::ValidationError, /invalid characters/)
     end
+
+    it 'allows apostrophes in ordinary search text' do
+      expect(Validators.validate_search_query("O'Reilly isn't boring")).to eq("O'Reilly isn't boring")
+    end
   end
   
   describe '.validate_pagination' do

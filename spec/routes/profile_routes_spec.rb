@@ -35,6 +35,7 @@ describe 'Profile Routes' do
 
     it 'requires authentication' do
       session.clear
+      refresh_csrf_token
       post '/api/save-meme', { url: 'http://example.com/meme.jpg' }, xhr_headers
       expect(last_response.status).to eq(401)
     end
@@ -66,6 +67,7 @@ describe 'Profile Routes' do
 
     it 'requires authentication' do
       session.clear
+      refresh_csrf_token
       post '/api/unsave-meme', { url: 'http://example.com/meme.jpg' }, xhr_headers
       expect(last_response.status).to eq(401)
     end
@@ -77,9 +79,27 @@ describe 'Profile Routes' do
       expect(response_body['unsaved']).to eq(true)
     end
 
+    it 'restores a removed favorite with its metadata through the save endpoint' do
+      url = 'http://example.com/meme.jpg'
+      post '/api/unsave-meme', { url: url }
+      expect(UserService.is_meme_saved?(user_id, url)).to be_nil
+      post '/api/save-meme', { url: url, title: 'Restored title', subreddit: 'cats' }
+      expect(JSON.parse(last_response.body)['saved']).to eq(true)
+      row = DB.execute('SELECT meme_title, meme_subreddit FROM saved_memes WHERE user_id = ? AND meme_url = ?', [user_id, url]).first
+      expect(row).to include('meme_title' => 'Restored title', 'meme_subreddit' => 'cats')
+    end
+
     it 'handles missing URL' do
       post '/api/unsave-meme', { url: '' }
       expect(last_response.status).to eq(400)
+    end
+
+    it 'does not claim removal when persistence fails' do
+      allow(EngagementService).to receive(:track_save).and_return(success: false)
+      post '/api/unsave-meme', { url: 'http://example.com/meme.jpg' }
+      data = JSON.parse(last_response.body)
+      expect(data).to include('success' => false, 'unsaved' => false, 'message' => 'Could not remove meme')
+      expect(UserService.is_meme_saved?(user_id, 'http://example.com/meme.jpg')).not_to be_nil
     end
   end
 
