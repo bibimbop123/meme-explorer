@@ -404,8 +404,9 @@ class MemePoolManager
       # Maintenance/another bootstrap may have populated the pool while HTTP was
       # in flight. Retain its unique inventory rather than replace it with this
       # small cold-start batch. This read/merge is not concurrent-write fencing.
-      inventory = validated.empty? ? [] : (validated + get_current_pool).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
-      stored = store_in_pool(inventory)
+      current_pool = validated.empty? ? [] : get_current_pool
+      inventory = validated.empty? ? [] : (validated + current_pool).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
+      stored = store_in_pool(inventory, expected_pool: current_pool)
 
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
 
@@ -528,7 +529,7 @@ class MemePoolManager
       retired_urls = ((replacement_urls & current_urls) - validated_memes.map { |m| m['url'] }).take(new_urls.size)
       retained = current_pool.reject { |m| retired_urls.include?(m['url']) }
       inventory = (validated_memes + retained).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
-      stored_count = validated_memes.empty? ? 0 : store_in_pool(inventory)
+      stored_count = validated_memes.empty? ? 0 : store_in_pool(inventory, expected_pool: current_pool)
       AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
 
       if fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
@@ -769,8 +770,10 @@ end
 
     # Store memes using DUAL FORMAT (July 13, 2026 - Comprehensive Fix)
     # Stores both JSON blobs (backward compat) and Redis Lists (new arch)
-    def store_in_pool(memes)
+    def store_in_pool(memes, expected_pool: nil)
       return 0 if memes.empty?
+      # Capture before payload preparation adds IDs to shared meme objects.
+      expected_snapshot = expected_pool.to_json unless expected_pool.nil?
       
       # Categorize memes by tier (now returns 5 pools!)
       categorized = categorize_by_tier(memes)
@@ -798,21 +801,35 @@ end
       # One connection/EXEC prevents readers seeing lists cleared and only partly
       # rebuilt. Redis transactions do not roll back runtime command errors.
       published = RedisService.with_redis do |redis|
-        redis.multi do |transaction|
-          media.each { |id, json| transaction.hset('meme:data', id, json) }
-          payloads.each do |json_key, json, list_key, ids|
-            transaction.setex(json_key, 21600, json)
-            transaction.del(list_key)
-            unless ids.empty?
-              transaction.rpush(list_key, ids)
-              transaction.expire(list_key, 21600)
+        redis.watch('meme_pool') do
+          unless expected_snapshot.nil?
+            observed = redis.get('meme_pool')
+            observed_pool = observed.nil? ? [] : JSON.parse(observed)
+            if observed_pool != JSON.parse(expected_snapshot)
+              AppLogger.info('[PoolManager] Publication skipped: pool snapshot changed')
+              next nil
             end
           end
-          transaction.setex('meme_pool', 21600, complete_pool)
-          transaction.setex('meme_pool:count', 21600, unique_count)
-          transaction.setex('meme_pool:initialized', 21600, 'true')
-          transaction.setex('meme_pool:last_refresh', 21600, refreshed_at)
+          redis.multi do |transaction|
+            media.each { |id, json| transaction.hset('meme:data', id, json) }
+            payloads.each do |json_key, json, list_key, ids|
+              transaction.setex(json_key, 21600, json)
+              transaction.del(list_key)
+              unless ids.empty?
+                transaction.rpush(list_key, ids)
+                transaction.expire(list_key, 21600)
+              end
+            end
+            transaction.setex('meme_pool', 21600, complete_pool)
+            transaction.setex('meme_pool:count', 21600, unique_count)
+            transaction.setex('meme_pool:initialized', 21600, 'true')
+            transaction.setex('meme_pool:last_refresh', 21600, refreshed_at)
+          end
         end
+      ensure
+        # redis-rb does not necessarily UNWATCH when a watch block returns
+        # without EXEC. Never return a watched connection to the shared pool.
+        redis.unwatch
       end
       return 0 unless published.is_a?(Array) && !published.empty? &&
                       published.none? { |reply| reply.is_a?(Exception) }

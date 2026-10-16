@@ -9,7 +9,7 @@ RSpec.describe 'Unique pool inventory retention' do
     expect(MemePoolManager).to receive(:fetch_from_tier).once.and_return([fresh])
     allow(MemePoolManager).to receive(:quality_filter) { |items| items }
     allow(MemePoolManager).to receive(:get_current_pool).and_return([])
-    allow(MemePoolManager).to receive(:store_in_pool).with([fresh]).and_return(1)
+    allow(MemePoolManager).to receive(:store_in_pool).with([fresh], expected_pool: anything).and_return(1)
     expect(RedisService).to receive(:set).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY, 'true', ttl: MemePoolManager::BOOTSTRAP_COOLDOWN_TTL)
     expect(RedisService).not_to receive(:delete).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY)
     expect(MemePoolManager.send(:fetch_batch, size: 100)[:stored]).to eq(1)
@@ -31,7 +31,7 @@ RSpec.describe 'Unique pool inventory retention' do
     allow(MemePoolManager).to receive(:quality_filter) { |items| items }
     allow(MemePoolManager).to receive(:get_current_pool).and_return([old, fresh])
     allow(RedisService).to receive(:delete)
-    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, old]).and_return(2)
+    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, old], expected_pool: anything).and_return(2)
     expect(MemePoolManager.send(:fetch_batch, size: 100)[:stored]).to eq(2)
   end
 end

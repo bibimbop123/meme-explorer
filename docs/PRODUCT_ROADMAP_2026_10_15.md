@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,029 backend
-examples, zero failures, seven pending; 73.98% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,034 backend
+examples, zero failures, seven pending; 73.97% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -168,6 +168,27 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Optimistic pool publication conflict rejection
+
+- Final review added generated-ID snapshot and pooled-connection reuse regressions.
+  The reuse test exposed a leaked WATCH on stale early return; explicit UNWATCH in
+  ensure now clears it before pool return. **11 targeted publication examples pass**
+  (partial coverage exit 2). Latest full backend: **1034 examples, zero failures,
+  seven pending**, 58.93s; **73.97% coverage (4555/6158)**, gates pass, exit 0.
+  **119 frontend tests pass**; syntax/whitespace pass. Supersedes earlier run below.
+
+- Bootstrap/maintenance supply merge snapshots; publication WATCHes the legacy pool
+  key and compares before MULTI/EXEC. Stale snapshots skip, changes after WATCH abort
+  EXEC; return zero without automatic HTTP/refetch retry. Capture expected snapshot
+  before payload preparation mutates IDs. Conflicting additions may await a later job.
+- Three real-Redis regressions cover stale rejection, matching merge and a second
+  connection's write after WATCH. Existing mocked publication calls updated for the
+  snapshot keyword. Full backend: **1032 examples, zero failures, seven pending**,
+  58.12s; **73.96% coverage (4554/6157)**, gates pass, exit 0. **119 frontend tests
+  pass**; 29 targeted examples pass (partial coverage exit 2); syntax/whitespace pass.
+- Not expired-owner fencing, Redis runtime-error rollback or protection for arbitrary
+  direct writers that omit snapshot checks. No live requests, deployment or score lift.
 
 ### Late-bootstrap inventory retention
 
