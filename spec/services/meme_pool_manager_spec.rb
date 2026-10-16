@@ -173,7 +173,7 @@ RSpec.describe MemePoolManager do
 
       fetcher_double = instance_double(RedditFetcherService)
       allow(fetcher_double).to receive(:fetch_memes).and_return(
-        [{ 'url' => 'a', 'title' => 't', 'subreddit' => 'funny' }]
+        [{ 'url' => '/a.jpg', 'title' => 't', 'subreddit' => 'funny' }]
       )
 
       expect(described_class).to receive(:create_fetcher).once.and_return(fetcher_double)
@@ -231,7 +231,7 @@ RSpec.describe MemePoolManager do
       allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
       fetcher_double = instance_double(RedditFetcherService)
       allow(fetcher_double).to receive(:fetch_memes).and_return(
-        [{ 'url' => 'a', 'title' => 't', 'subreddit' => 'funny' }]
+        [{ 'url' => '/a.jpg', 'title' => 't', 'subreddit' => 'funny' }]
       )
       allow(described_class).to receive(:create_fetcher).and_return(fetcher_double)
       # Simulate Redis being completely unavailable - store_in_pool returns 0.

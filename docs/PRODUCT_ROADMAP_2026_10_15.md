@@ -33,9 +33,9 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,020 backend
-examples, zero failures, seven pending; 73.85% coverage, gates pass, backend exit 0;
-117 frontend tests pass. The score table retains its original assessment basis.
+target, URL count or test count with a better feed. Latest validation: 1,026 backend
+examples, zero failures, seven pending; 73.97% coverage, gates pass, backend exit 0;
+119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
 ### Critique and revised decision rules
@@ -47,7 +47,8 @@ Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
   operations project. Fix known blockers immediately; do not delay them for research.
 - “Validated” does not mean funny, readable or comprehensively safe. Maintenance's
   basic fallback now checks structure, browser-safe URL and nonblank text; evaluation
-  exceptions reject new batches. Bootstrap still has separate basic validation.
+  exceptions reject new batches. Bootstrap shares the basic structural/URL predicate
+  while bypassing the optional expensive pipeline for cold-start latency.
   The earlier fail-open defect is fixed, but no full content-quality gate is implied.
 - Existing engagement weights reward exposure/popularity as well as appeal. Do not
   increase those weights or infer negative preference from Next without evaluation.
@@ -167,6 +168,20 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Shared bootstrap structural validation
+
+- Bootstrap now shares maintenance fallback's cheap hash/URL/nonblank text predicate.
+  Malformed/unsafe candidates are rejected without losing valid batch members;
+  unique URLs retained. No network probes or optional expensive pipeline at cold start.
+  Usable content still returns if Redis publication fails. Existing pools not purged.
+- Three bootstrap regressions cover mixed invalid input, all-invalid response and
+  pipeline bypass. Older unit fixtures updated from arbitrary strings to local URLs.
+- Full isolated backend: **1026 examples, zero failures, seven pending**, 57.18s;
+  **73.97% coverage (4547/6147)**, gates pass, exit 0. **119 frontend tests pass**;
+  35 targeted bootstrap/filter examples pass (partial coverage exit 2), syntax and
+  whitespace pass. Not moderation/availability/humor verification; no live requests,
+  production changes, push or deployment. Scores unchanged.
 
 ### Authentication cache policy follow-up
 

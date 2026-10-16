@@ -55,7 +55,8 @@ claiming growth; ambiguous EXEC disconnects and partial runtime errors remain op
 Maintenance quality evaluation errors now reject new candidates rather than
 returning the unfiltered batch; existing inventory is retained. The optional
 pipeline's absence checks hash shape, browser-safe URL and nonblank title/community
-text; bootstrap has separate basic validation. Existing retained content is not
+text; bootstrap shares this cheap predicate but bypasses the optional pipeline.
+Existing retained content is not
 purged. “Validated” does not certify availability, moderation, readability or humor. Use
 FEED_EXPERIENCE_AUDIT.md for the planned real-feed/user evaluation; none performed.
 

@@ -400,7 +400,7 @@ class MemePoolManager
       memes = test_memes + remaining_memes
 
       # SKIP quality filter on bootstrap for speed (basic validation only)
-      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }.uniq { |m| m['url'] }
+      validated = memes.select { |m| basic_candidate_valid?(m) }.uniq { |m| m['url'] }
       stored = store_in_pool(validated)
 
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
@@ -656,6 +656,13 @@ class MemePoolManager
       []
     end
     
+    # Cheap shared cold-start/maintenance policy, without network probes or the
+    # optional pipeline. Renderability is not availability, moderation or humor.
+    def basic_candidate_valid?(meme)
+      meme.is_a?(Hash) && !!MediaUrl.safe(meme['url']) &&
+        %w[title subreddit].all? { |key| meme[key].is_a?(String) && !meme[key].strip.empty? }
+    end
+
     # Apply quality pipeline to filter memes
     def quality_filter(memes)
       return [] if memes.empty?
@@ -664,10 +671,7 @@ class MemePoolManager
         memes.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
         # Structural/rendering validation only, not moderation or humor scoring.
-        memes.select do |meme|
-          meme.is_a?(Hash) && MediaUrl.safe(meme['url']) &&
-            %w[title subreddit].all? { |key| meme[key].is_a?(String) && !meme[key].strip.empty? }
-        end
+        memes.select { |meme| basic_candidate_valid?(meme) }
       end
     rescue => e
       log_error("Quality filter error", e)
