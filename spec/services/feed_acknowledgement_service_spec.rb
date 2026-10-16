@@ -40,6 +40,18 @@ RSpec.describe MemeExplorer::FeedAcknowledgementService do
     expect(DB.get_first_value("SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view'").to_i).to eq(1)
   end
 
+  it 'rejects malformed authenticated identity before credential lookup or DB work' do
+    credential = token
+    expect(store).not_to receive(:lookup)
+    expect(DB).not_to receive(:transaction)
+    ['1', 0, -1, 1.0, false, [], 2_147_483_648].each do |user|
+      expect(described_class.acknowledge(identity, credential, impression_id: impression,
+        current_user_id: user)).to eq(status: :invalid)
+    end
+    expect(store.history(identity)).to eq(status: :available, entries: [])
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+  end
+
   it 'acknowledges a strictly parsed v2 envelope without trusting body attribution' do
     body = JSON.generate('impression_protocol' => 2, 'impression_id' => impression,
       'ack_token' => token, 'url' => '/forged.jpg', 'title' => 'Forged', 'user_id' => 999)
