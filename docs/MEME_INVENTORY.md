@@ -52,6 +52,13 @@ claiming growth; ambiguous EXEC disconnects and partial runtime errors remain op
 
 ## Remaining supply constraints
 
+`[PoolManager] Candidate filter outcome` reports input_count, basic_rejected,
+optional_rejected, accepted_count, pipeline_enabled and evaluation_failed. These
+count candidate records, not unique art/URLs. Evaluation failures report zero
+accepted and unknown (null) optional rejection count; exception text and candidate
+content are omitted. Empty input produces no filter event. Pair with batch unique
+counts to separate structural rejection, optional evaluation and overlap.
+
 Maintenance quality evaluation errors now reject new candidates rather than
 returning the unfiltered batch; existing inventory is retained. Mandatory maintenance
 checks require hash shape, browser-safe URL and nonblank title/community text before

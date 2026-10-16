@@ -672,15 +672,26 @@ class MemePoolManager
     def quality_filter(memes)
       return [] if memes.empty?
       candidates = memes.select { |meme| basic_candidate_valid?(meme) }
+      pipeline_enabled = !!defined?(QualityPipelineService)
       
-      if defined?(QualityPipelineService)
+      accepted = if pipeline_enabled
         candidates.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
         # Structural/rendering validation only, not moderation or humor scoring.
         candidates
       end
+      AppLogger.info('[PoolManager] Candidate filter outcome',
+        input_count: memes.size, basic_rejected: memes.size - candidates.size,
+        optional_rejected: candidates.size - accepted.size, accepted_count: accepted.size,
+        pipeline_enabled: pipeline_enabled, evaluation_failed: false)
+      accepted
     rescue => e
-      log_error("Quality filter error", e)
+      # Evaluation exceptions may contain candidate URLs/content. Log aggregate
+      # failure only; accepted_count is zero even if earlier candidates passed.
+      AppLogger.warn('[PoolManager] Candidate filter outcome',
+        input_count: memes.size, basic_rejected: candidates ? memes.size - candidates.size : nil,
+        optional_rejected: nil, accepted_count: 0,
+        pipeline_enabled: !!defined?(QualityPipelineService), evaluation_failed: true)
       # An evaluation failure is not approval. Reject this new batch; callers
       # retain the working pool when no candidates pass. Do not claim moderation
       # or humor/readability guarantees from the basic metadata fallback above.
