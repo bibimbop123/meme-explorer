@@ -1,9 +1,42 @@
 require_relative '../spec_helper'
 require_relative '../../lib/services/feed_traversal'
+require_relative '../../lib/services/feed_acknowledgement_service'
+require 'timeout'
 
 RSpec.describe MemeExplorer::FeedTraversal do
   let(:identity) { SecureRandom.hex(32) }
   let(:issuer) { MemeExplorer::FeedIssuanceService }
+  let(:store) { MemeExplorer::FeedAcknowledgementStore }
+
+  after do
+    RedisService.with_redis do |r|
+      r.del(*store.send(:keys, identity), store.send(:pending_key, identity),
+        *MemeExplorer::FeedReservationService.send(:keys, identity),
+        "feed:acknowledged:v1:{#{Digest::SHA256.hexdigest(identity)}}:history")
+    end
+  end
+
+  it 'issues and acknowledges a real copied snapshot without speculative history or duplicate counters' do
+    pool = [{ url: '/snapshot-lifecycle.jpg', title: 'Snapshot original' }]
+    traversal = described_class.new(pool, identity)
+    pool.first[:url].replace('/changed-after-snapshot.jpg')
+    pool.first[:title].replace('Changed')
+    result = traversal.advance
+    expect(result[:status]).to eq(:issued)
+    expect(result[:meme]).to include('url' => '/snapshot-lifecycle.jpg', 'title' => 'Snapshot original')
+    expect(traversal.advance).to eq(status: :closed)
+    expect(store.history(identity)).to eq(status: :available, entries: [])
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+    ack = MemeExplorer::FeedAcknowledgementService
+    expect(ack.acknowledge(identity, result[:token], impression_id: result[:impression_id])).to eq(status: :acknowledged, recorded: true)
+    expect(ack.acknowledge(identity, result[:token], impression_id: result[:impression_id])).to eq(status: :acknowledged, recorded: false)
+    expect(store.history(identity)[:entries].map { |entry| entry[:content] }).to eq(['/snapshot-lifecycle.jpg'])
+    row = DB.execute('SELECT title, views FROM meme_stats WHERE url = ?', ['/snapshot-lifecycle.jpg']).first
+    expect(row['title']).to eq('Snapshot original')
+    expect(row['views'].to_i).to eq(1)
+    next_pass = described_class.new([{ url: '/snapshot-lifecycle.jpg' }], identity)
+    expect(next_pass.advance).to eq(status: :snapshot_complete, reserved: false, empty: false)
+  end
 
   it 'binds copied metadata and deduplicates identities across chunk boundaries' do
     pool = 101.times.map { |i| { url: "/snapshot-#{i}.jpg", title: 'Original' } }
@@ -44,5 +77,106 @@ RSpec.describe MemeExplorer::FeedTraversal do
       expect(traversal.advance[:status]).to eq(status)
       expect(traversal.advance).to eq(status: :closed)
     end
+  end
+
+  it 'enforces aggregate copied metadata bytes without charging duplicate identities twice' do
+    stub_const('MemeExplorer::FeedTraversal::MAX_METADATA_BYTES', 10)
+    allow(issuer).to receive(:issue).and_return(status: :already_acknowledged)
+    expect(described_class.new([{ url: '/a', title: '123456789' }], identity).advance).to eq(status: :invalid)
+    expect(described_class.new([{ url: '/a', title: '1234' }, { url: '/b', title: '123' }], identity).advance).to eq(status: :invalid)
+    expect(issuer).not_to have_received(:issue)
+    exact = { url: '/a', title: '1234', subreddit: '1234' }
+    expect(described_class.new([exact, exact.dup], identity).advance).to eq(status: :snapshot_complete, reserved: false, empty: false)
+  end
+
+  it 'closes on an unexpected exception instead of repeating partially completed work' do
+    traversal = described_class.new([{ url: '/exception.jpg' }], identity)
+    expect(issuer).to receive(:issue).once.and_raise(StandardError, 'private details')
+    expect(traversal.advance).to eq(status: :unavailable, stage: :traversal)
+    expect(traversal.advance).to eq(status: :closed)
+  end
+
+  it 'drops internal candidate and identity references after invalid or terminal passes' do
+    invalid = described_class.new([{ url: '/partial.jpg' }, {}], identity)
+    expect(invalid.advance).to eq(status: :invalid)
+    expect(invalid.instance_variable_get(:@candidates)).to eq([])
+    expect(invalid.instance_variable_get(:@session_id)).to be_nil
+    [:already_acknowledged, :issued, :unavailable].each do |status|
+      allow(issuer).to receive(:issue).and_return(status: status)
+      traversal = described_class.new([{ url: '/retained.jpg' }], identity)
+      traversal.advance
+      expect(traversal.instance_variable_get(:@candidates)).to eq([])
+      expect(traversal.instance_variable_get(:@session_id)).to be_nil
+      expect(traversal.advance).to eq(status: :closed)
+    end
+  end
+
+  it 'issues only once when simultaneous callers advance the same snapshot' do
+    traversal = described_class.new([{ url: '/serialized.jpg' }], identity)
+    entered, release, ready, start = Queue.new, Queue.new, Queue.new, Queue.new
+    expect(issuer).to receive(:issue).once do
+      entered << true
+      Timeout.timeout(10) { release.pop }
+      { status: :issued, token: 'single-credential' }
+    end
+    threads = 2.times.map do
+      Thread.new do
+        ready << true
+        start.pop
+        traversal.advance
+      end
+    end
+    Timeout.timeout(10) { 2.times { ready.pop } }
+    2.times { start << true }
+    Timeout.timeout(10) { entered.pop }
+    release << true
+    results = Timeout.timeout(10) { threads.map(&:value) }
+    expect(results.map { |result| result[:status] }).to contain_exactly(:issued, :closed)
+    expect(traversal.advance).to eq(status: :closed)
+  ensure
+    2.times { start << true } if start
+    release << true if release
+    threads&.each(&:join)
+  end
+
+  it 'cancels an incomplete pass without changing Redis state and makes cancellation idempotent' do
+    pool = 101.times.map { |i| { url: "/cancel-#{i}.jpg" } }
+    allow(issuer).to receive(:issue).and_return(status: :already_acknowledged)
+    traversal = described_class.new(pool, identity)
+    expect(traversal.advance[:status]).to eq(:traversal_incomplete)
+    allow(RedisService).to receive(:with_redis).and_call_original
+    expect(traversal.cancel).to eq(status: :cancelled)
+    expect(traversal.cancel).to eq(status: :closed)
+    expect(traversal.advance).to eq(status: :closed)
+    expect(RedisService).not_to have_received(:with_redis)
+    expect(traversal.instance_variable_get(:@candidates)).to eq([])
+    expect(traversal.instance_variable_get(:@session_id)).to be_nil
+    expect(described_class.new(nil, identity).cancel).to eq(status: :invalid)
+  end
+
+  it 'does not undo issuance when cancellation follows an in-flight advance' do
+    traversal = described_class.new([{ url: '/cancel-in-flight.jpg' }], identity)
+    entered, release, cancelling = Queue.new, Queue.new, Queue.new
+    expect(issuer).to receive(:issue).once do
+      entered << true
+      Timeout.timeout(10) { release.pop }
+      { status: :issued, token: 'returned-credential' }
+    end
+    expect(MemeExplorer::FeedReservationService).not_to receive(:release)
+    advance = Thread.new { traversal.advance }
+    Timeout.timeout(10) { entered.pop }
+    cancel = Thread.new do
+      cancelling << true
+      traversal.cancel
+    end
+    Timeout.timeout(10) { cancelling.pop }
+    release << true
+    expect(Timeout.timeout(10) { advance.value }[:status]).to eq(:issued)
+    expect(Timeout.timeout(10) { cancel.value }).to eq(status: :closed)
+    expect(traversal.advance).to eq(status: :closed)
+  ensure
+    release << true if release
+    advance&.join
+    cancel&.join
   end
 end

@@ -173,6 +173,64 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Explicit process-local snapshot cancellation
+
+- cancel drops incomplete snapshot refs under advance mutex, without Redis calls.
+  Does not revoke completed issuance or interrupt in-flight network work. Two mocked
+  lifecycle/concurrency regressions. Routes remain unchanged.
+- Full backend **1164 examples, zero failures, seven pending**, 65.16s;
+  **75.28% (4885/6489)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  11 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Terminal snapshot reference release
+
+- Invalid/terminal/exception traversals drop internal candidates and identity refs;
+  returned issued candidate survives. GC eligibility only, not RSS/secure erasure.
+  One retention regression; real lifecycle remains green. Routes unchanged.
+- Full backend **1162 examples, zero failures, seven pending**, 65.36s;
+  **75.30% (4881/6482)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  nine targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Snapshot aggregate copied metadata bound
+
+- Added provisional 1 MiB copied-string budget, separate from 5000 input cap; rejects
+  before issuance, clears partial snapshot on overflow; duplicates counted once.
+  One boundary/multientry regression. Not heap/RSS capacity approval.
+- Full backend **1161 examples, zero failures, seven pending**, 65.12s;
+  **75.27% (4872/6473)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  eight targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Real server-owned snapshot lifecycle
+
+- Unmocked Redis/PostgreSQL test verifies copied metadata, speculative non-marking,
+  ACK/duplicate counter dedupe and later snapshot completion. No route/browser claim.
+- Full backend **1160 examples, zero failures, seven pending**, 64.91s;
+  **75.21% (4863/6466)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  seven targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Snapshot unexpected-exception closure
+
+- Unexpected traversal StandardError closes the object and returns unavailable
+  without private details; no implicit repeated partial work or rollback claim.
+  One mocked fault regression. No routes changed.
+- Full backend **1159 examples, zero failures, seven pending**, 65.34s;
+  **75.21% (4863/6466)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  six targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Shared snapshot advance concurrency regression
+
+- Two synchronized callers, one process-local traversal, exactly one mocked issuance;
+  results issued/closed. No cross-process or production concurrency claim.
+- Full backend **1158 examples, zero failures, seven pending**, 67.69s;
+  **75.20% (4861/6464)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  five targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
 ### Unused server-owned single-pass snapshot traversal
 
 - FeedTraversal copies/deduplicates bounded URL/title/subreddit snapshot, retains

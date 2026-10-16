@@ -70,11 +70,61 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1157 backend examples, zero failures, seven pending;
-75.19% (4860/6464), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1164 backend examples, zero failures, seven pending;
+75.28% (4885/6489), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Process-local snapshot cancellation: cancel serializes with advance, closes an
+incomplete pass and releases copied refs without Redis calls. Repeated cancellation
+returns closed; invalid construction remains invalid. If issuance finishes before
+cancel obtains lock, issued credential/lease are not revoked. Not request/network
+abort or Redis reservation cancellation. Two mocked concurrency/lifecycle tests.
+Full backend 1164 examples, zero failures, seven pending, 65.16s; 75.28%
+(4885/6489), gates pass, exit 0; 11 targeted snapshot cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
+
+Snapshot reference release: invalid partial construction and terminal/exception
+passes drop internal candidate/session/user references. Returned issued candidate
+remains usable; incomplete passes retain state. Makes references GC-eligible, not
+immediate RSS reclamation or secure erasure. One internal-retention regression;
+real lifecycle still passes. Full backend 1162 examples, zero failures, seven
+pending, 65.36s; 75.30% (4881/6482), gates pass, exit 0; nine targeted snapshot
+cases pass (partial coverage exit 2); 121 frontend tests pass; syntax/whitespace
+pass. Routes unchanged; release gates remain open.
+
+Snapshot aggregate byte budget: constructor caps copied unique URL/title/subreddit
+string bytes at 1 MiB, in addition to 5000 input entries. Rejects before issuance,
+clears partial copied candidates on overflow; duplicates not charged twice. Not
+Ruby heap/RSS measurement or capacity approval. One boundary/multientry regression;
+initial conflicting mock expectation corrected. Full backend 1161 examples, zero
+failures, seven pending, 65.12s; 75.27% (4872/6473), gates pass, exit 0; eight
+targeted snapshot cases pass (partial coverage exit 2); 121 frontend tests pass;
+syntax/whitespace pass. Routes unchanged; release gates remain open.
+
+Real snapshot lifecycle: unmocked Redis/PostgreSQL regression verifies copied URL/
+title survive caller mutation, no speculative history/counters, original metadata
+on ACK, duplicate counter dedupe and later acknowledged snapshot completion. Local
+service evidence, not route/browser or replay acceptance. Full backend 1160
+examples, zero failures, seven pending, 64.91s; 75.21% (4863/6466), gates pass,
+exit 0; seven targeted snapshot cases pass (partial coverage exit 2); 121 frontend
+tests pass; syntax/whitespace pass. Routes unchanged; release gates remain open.
+
+Snapshot exception boundary: unexpected StandardError from candidate traversal now
+closes the single-pass object and returns unavailable/stage:traversal without error
+details. It cannot implicitly rerun partial work; pre-existing side effects remain
+subject to TTL/retry rules, not rollback. One mocked fault regression added.
+Full backend 1159 examples, zero failures, seven pending, 65.34s; 75.21%
+(4863/6466), gates pass, exit 0; six targeted snapshot cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
+
+Shared snapshot concurrency regression: two synchronized callers advance one
+process-local traversal; mocked issuance executes once, one receives issued and
+the other closed. Does not establish cross-process coordination or network-fault
+acceptance. Full backend 1158 examples, zero failures, seven pending, 67.69s;
+75.20% (4861/6464), gates pass, exit 0; five targeted snapshot tests pass (partial
+coverage exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
 
 Unused FeedTraversal now owns a bounded (5000 input entries) copied/deduplicated
 URL/title/subreddit snapshot, validates it before issuance, retains private offset
