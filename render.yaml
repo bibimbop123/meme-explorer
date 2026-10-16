@@ -4,11 +4,13 @@ services:
     runtime: ruby
     region: oregon
     plan: free
-    buildCommand: bundle install
+    buildCommand: bundle install && npm ci --include=dev && npm run build
     startCommand: bundle exec rackup config.ru -p $PORT
     envVars:
       - key: RACK_ENV
         value: production
+      - key: NODE_VERSION
+        value: "22"
       # NOTE (Aug 25, 2026): Do NOT hardcode PORT here. Render auto-injects
       # its own $PORT value per-instance and expects the app to bind to
       # whatever it assigns. A fixed value here conflicts with what Render's
