@@ -28,6 +28,24 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Account cache fix full verification
+
+- Full isolated backend **945 examples, zero failures, seven pending**, 53.3s;
+  **71.97% coverage (4335/6023)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, Ruby syntax/whitespace pass. Profile/Saved no-store behavior is
+  covered for authorized pages, missing records and authentication redirects.
+  Hosted CI and real browser cache/history acceptance remain open; no deployment.
+
+### Account page cache boundaries
+
+- Committed detailed-health access restriction as 0b5d649. Profile and Saved detail
+  now explicitly emit private/no-store before authorization, including redirects
+  and missing records. This discourages storage, not guaranteed browser-history
+  erasure or removal of previously cached content.
+- **18 targeted security/profile examples pass**, partial coverage exit 2;
+  Ruby syntax/whitespace pass. Full suite not rerun; last full 943 examples,
+  zero failures, seven pending, 72.00%, exit 0. No JS/build or deployment.
+
 ### Detailed health access restricted
 
 - /health/detailed now requires administrator session and emits private/no-store

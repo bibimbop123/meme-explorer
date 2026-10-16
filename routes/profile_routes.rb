@@ -6,6 +6,7 @@ module Routes
     def self.registered(app)
       # User profile page with ENHANCED ENGAGEMENT STATS
       app.get "/profile" do
+        headers 'Cache-Control' => 'no-store, private'
         require_auth!
         user_id = current_user_id
         raw_page = params[:saved_page] || '1'
@@ -190,6 +191,7 @@ module Routes
 
       # View a specific saved meme
       app.get "/saved/:id" do
+        headers 'Cache-Control' => 'no-store, private'
         # FIX: IDOR vulnerability - require authentication and authorization
         require_auth!
         
