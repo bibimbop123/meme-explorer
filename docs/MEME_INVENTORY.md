@@ -38,6 +38,10 @@ with generic text and omit exception/connection details.
    classes/queues are checked. This is mocked scheduler wiring, not live cron firing.
 2. Check maintenance logs: current pool count, fetched count, filtered count, stored
    count, errors and cooldowns. Compare distinct media URLs, not requested limits.
+   Maintenance success now requires positive stored/replaced evidence and no handled
+   error. Zero-publication/no-replacement runs are unsuccessful no-ops, not proof of
+   growth; worker behavior remains non-retrying for these returned outcomes. A
+   positive stored count can still be overlapping snapshots, not new unique supply.
 3. Verify OAuth succeeds; unauthenticated Reddit access may be heavily rate-limited.
 4. Confirm the web and worker share the intended Redis database/configuration.
 5. Wait for normal maintenance and observe unique inventory growth. Do not purge

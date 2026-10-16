@@ -173,7 +173,7 @@ class MemePoolManager
 
       current_size = get_pool_size
       
-      if current_size < MIN_POOL_SIZE
+      outcome = if current_size < MIN_POOL_SIZE
         AppLogger.warn("⚠️  [PoolManager] Pool below minimum (#{current_size} < #{MIN_POOL_SIZE})")
         fetch_batch(size: 1000, priority: :high)
       elsif current_size < TARGET_POOL_SIZE
@@ -186,8 +186,12 @@ class MemePoolManager
       end
       
       final_size = get_pool_size
-      AppLogger.info("✅ [PoolManager] Maintenance complete: #{final_size} memes in pool")
-      { success: true, pool_size: final_size }
+      AppLogger.info("[PoolManager] Maintenance finished: #{final_size} memes in pool")
+      published = outcome[:stored].to_i > 0 || outcome[:replaced].to_i > 0
+      success = published && !outcome[:error]
+      result = { success: !!success, pool_size: final_size }
+      result[:error] = outcome[:error] || 'No inventory publication or replacement confirmed' unless success
+      result
     rescue => e
       log_error("Pool maintenance error", e)
       { success: false, error: e.message }

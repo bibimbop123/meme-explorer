@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,040 backend
-examples, zero failures, seven pending; 74.05% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,044 backend
+examples, zero failures, seven pending; 74.09% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -168,6 +168,19 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Truthful maintenance outcome reporting
+
+- Maintain_pool no longer returns unconditional success after handled fetch errors,
+  zero publication or zero stale replacements. Success requires positive stored/
+  replaced evidence and no error; returned no-ops remain non-retrying in the worker.
+  Finish log is neutral rather than a success-marked claim. Publication is not proof
+  of unique growth, and stored overlapping snapshots remain distinct from additions.
+- Four regressions cover handled error, zero publication and zero/positive stale
+  replacement. Full backend: **1044 examples, zero failures, seven pending**, 58.28s;
+  **74.09% coverage (4569/6167)**, gates pass, exit 0. **119 frontend tests pass**;
+  ten targeted lease/outcome examples pass (partial coverage exit 2), syntax/whitespace
+  pass. No production changes, deployment or quality-score increase.
 
 ### Maintenance scheduler startup contract
 
