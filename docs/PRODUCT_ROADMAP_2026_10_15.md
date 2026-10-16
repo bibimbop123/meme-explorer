@@ -1,4 +1,4 @@
-# Meme Explorer: 56 → 90+ execution roadmap
+# Meme Explorer: dependable discovery and worthwhile memes
 
 Date: October 15, 2026. Status: proposed execution plan, not completed work.
 Baseline: 56/100 in the October repository audit, before its targeted fixes.
@@ -8,7 +8,245 @@ For the user-facing experience workstream, see
 sharing, saving/recovery and explicit feed control. Its rollout remains subject
 to this document's security, test and operational release gates.
 
+## Current assessment and next delivery order — October 16, 2026
+
+This section supersedes historical next-step recommendations in the execution log.
+The 56/100 baseline above is a historical repository audit, not directly comparable
+to this new user-experience rubric. Scores are provisional editorial judgments,
+not measured satisfaction, a security certification or production acceptance.
+
+| Dimension | Website points | Basis |
+| --- | ---: | --- |
+| Core discover/share/recover functionality | 24/30 | Extensive implementation; partial Chrome acceptance, provider/recipient gaps |
+| Reliability and failure recovery | 21/25 | 1,012 backend examples, zero failures, seven pending; 117 frontend tests; production scheduling and publisher races unresolved |
+| Usability, accessibility and performance | 17/25 | Local navigation/Saved checks pass; no physical-device, screen-reader, full visual audit or field performance evidence |
+| Security, privacy and operational readiness | 13/20 | Hardening and private responses implemented; credential rotation, CSP rollout and hosted CI acceptance remain open |
+| **Website quality** | **75/100** | Moderate confidence in local functionality; low confidence in production/device experience |
+
+| Dimension | Meme points | Basis |
+| --- | ---: | --- |
+| Usable variety and freshness | 10/35 | Production previously reported 167; current unique eligible inventory and growth not measured |
+| Readability and media availability | 15/25 | Resolver/recovery improvements; representative live-media audit still needed |
+| Relevance, humor and user agency | 8/25 | No target-user humor ratings or validated preference benefit; repeated first-page overlap remains |
+| Attribution and exact-content recovery | 12/15 | Identity/sharing/Saved work implemented; crawler/browser acceptance incomplete |
+| **Meme experience quality** | **45/100** | Low confidence: this rates available evidence of the feed experience, not whether individual memes are funny |
+
+Local fixtures reused artwork across URLs. They establish navigation behavior, not
+visual diversity, humor quality or production freshness. Do not equate a 5,000
+target, URL count or test count with a better feed. Latest validation: 1,020 backend
+examples, zero failures, seven pending; 73.85% coverage, gates pass, backend exit 0;
+117 frontend tests pass. The score table retains its original assessment basis.
+Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
+
+### Critique and revised decision rules
+
+- Inventory size is a capacity metric, not the product outcome. A small diverse,
+  readable feed can outperform thousands of near-duplicates. Retire the implicit
+  “reach 5,000, then improve experience” sequence.
+- Research and feed inspection start alongside supply diagnostics, not after an
+  operations project. Fix known blockers immediately; do not delay them for research.
+- “Validated” does not mean funny, readable or comprehensively safe. Maintenance's
+  basic fallback now checks structure, browser-safe URL and nonblank text; evaluation
+  exceptions reject new batches. Bootstrap still has separate basic validation.
+  The earlier fail-open defect is fixed, but no full content-quality gate is implied.
+- Existing engagement weights reward exposure/popularity as well as appeal. Do not
+  increase those weights or infer negative preference from Next without evaluation.
+- Website 75 and meme experience 45 remain historical provisional estimates under
+  the rubric above. There is no new evidence to rescore. Missing evidence is not
+  proof of poor humor, and high test coverage is not proof of a delightful website.
+- Prefer small end-to-end releases, not finishing every framework or every checklist
+  at once. Critical user/security failures block their release regardless of score.
+
+### Slice A — Learn what the feed actually delivers (start now, in parallel)
+
+**Accountability:** operator/engineering for supply; product/design for feed audit
+and users. Assign named owners before execution; no owner is implied by this plan.
+
+1. Checkpoint reviewed changes, run hosted CI, rotate exposed credentials, and obtain
+   separate deployment approval. Do not expose secrets in evidence.
+2. Operator checks normal maintenance/OAuth/shared Redis and samples at least three
+   ordinary maintenance cycles. Record candidate additions, publication outcomes,
+   observed retained counts, job duration and rate limits. No pool purge/fetch storm.
+3. Inspect a dated, consecutively sampled 100 feed selections (or all available if
+   fewer), spanning cold/warm and guest/account sessions. Record the sampling method,
+   pool/source age and source mix. Separate repeated URL, same art across URLs and
+   reused format with a different punchline; do not label every template a duplicate.
+4. Audit broken media, cropped punchlines, tiny text, inaccessible attribution,
+   unwanted explicit/unsafe content and stale/time-sensitive posts. Avoid storing
+   unnecessary user data or redistributing source media in audit artifacts.
+5. Observe 5–8 target users doing discover/send, recover/save and steer. Capture
+   voluntary would-send/funny judgments and reasons. Humor is audience-dependent;
+   report disagreement rather than declaring an objective humor score.
+
+**Exit:** dated supply evidence, feed failure counts with denominators, top five
+observed user obstacles, and one selected next experiment. Small samples provide
+qualitative direction, not statistically established retention or growth.
+
+### Slice B — Release a trustworthy discover → recover → send loop
+
+**Accountability:** engineering + QA; accessibility/product review as available.
+Can proceed alongside Slice A; deploy only after applicable gates pass.
+
+- Finish narrow-mobile and desktop checks for visible actions, uncropped/tall
+  content, readable captions, non-jumping controls, focus/zoom/reduced motion,
+  Next/Previous/history Like/Save state and rapid or failed navigation.
+- Verify Saved search → page → detail → Back, Remove/Undo persistence, expired
+  authentication, retry on slow/offline media and no dead ends. Explain guest Save
+  honestly; do not promise cross-device persistence without an account.
+- Verify exact-content sharing with a fresh recipient, clipboard denial/native
+  cancellation, unavailable content, and guest Save through email/signup/OAuth.
+  Provider acceptance blocks that provider's release; document any scoped exclusion.
+- For this release, exercise one actual mobile device, desktop Chrome plus another
+  browser, keyboard and screen reader. Headless emulation is supporting evidence,
+  not a substitute. Check crawler behavior before promising social previews.
+- Review the real ingestion/filter contract and explicit-content policy. On quality
+  evaluation errors, retain the working pool and quarantine/reject uncertain new
+  candidates rather than claiming an unfiltered batch passed. Test before rollout.
+
+**Exit:** zero known wrong-meme actions, account-data leaks or favorite-loss bugs;
+all critical scoped cases PASS with dated device/provider evidence. NOT RUN remains
+visible. Keep current working pools and a tested rollback; security/credential and
+hosted CI gates are not waived by good UX results.
+
+### Slice C — Run one reversible feed-quality experiment
+
+Choose from Slice A's measured bottleneck; do not implement all options at once.
+
+| Observed bottleneck | Smallest useful experiment | Guardrails |
+| --- | --- | --- |
+| Too few unseen usable items | Bounded source/time-window rotation and explicit exhausted-feed recovery | Sequential requests, OAuth reuse, cooldowns, request/job budgets; protect pool publication before scaling |
+| Repeated artwork/source dominance | Session repeat avoidance and a bounded source-concentration rule; evaluate visual matching offline first | Do not merge distinct caption edits or silently change share/Saved identities; offer a clear reset |
+| Poor relevance | A few supported optional topic/mood controls plus “Not my thing” with Undo/reset | Honest session/account scope; Next is navigation, not dislike; preserve exploration and avoid mandatory onboarding |
+| Unreadable/broken content | Fix media fit and cheaply reject confirmed bad candidates before ranking | No unrestricted server-side URL fetching; validate redirects/size/timeouts and avoid SSRF risks |
+| Popular content crowds out new content | Compare exposure-aware selection with a bounded exploration allocation | Views alone are not quality; account for exposure, source and sample size; never optimize forced session length |
+
+Before implementation, write the hypothesis, eligible audience, baseline, primary
+metric, guardrails, duration/sample adequacy and rollback/stop rule. Use a small
+canary only after approval. Do not promise causal lift from a before/after snapshot.
+
+**Exit:** evidence the selected change helps the intended audience without worsening
+broken/repeat rates, user control, latency or safety. If inconclusive, keep the simpler
+behavior and learn; adding a feature is not itself success.
+
+### Measures, safeguards and stop conditions
+
+- **Primary value:** unaided discover/send and recover/save completion; voluntary
+  would-send value. A share handoff is not proof of delivery or recipient enjoyment.
+- **Feed health:** usable selections / selections attempted; repeat URLs and visual
+  repeats separately / acknowledged selections; unseen eligible supply per session;
+  source concentration and content age. Declare session/window/sample definitions.
+- **Experience:** median and tail time to usable media, navigation/recovery failures,
+  layout/focus/accessibility defects. Field p75 LCP/INP/CLS remain unmeasured until
+  collected with appropriate privacy safeguards; do not substitute local averages.
+- **Supporting outcomes:** saves/share handoffs per acknowledged impression, reported
+  separately for guests/accounts and cold/warm sessions. Track Undo/unlike/removal
+  and exposure to interpret signals; do not equate more clicks with more enjoyment.
+- **Trust:** no wrong-content action or account-data leak tolerated; preserve working
+  inventory on source failure. Stop/roll back on those incidents or a sustained
+  increase in broken media, error rate, user reports or latency beyond a predeclared
+  baseline budget. Set numerical experiment thresholds after baseline, before launch.
+- Use aggregated/minimized data, bounded retention and clear/reset controls. No new
+  cross-device tracking solely to improve a dashboard. Moderation/reporting needs an
+  actual review/escalation owner; a report button alone is not a safety process.
+
+### Deferred until evidence justifies them
+
+Cosmetic redesign, collections, mandatory onboarding, opaque “AI humor” ranking,
+unbounded ingestion, large dashboards and synthetic score chasing. Use the existing
+logs/read-only diagnostic first. Publication fencing across bootstrap/maintenance,
+expired leases and media-hash retention remain reliability work before larger loads.
+
+### Next concrete deliverables
+
+1. **Engineering/operator:** reviewed checkpoint + CI and credential-rotation evidence;
+   normal-maintenance samples and dated retained-inventory observations.
+2. **Product/design:** feed audit and user-observation brief with ranked failures.
+3. **Engineering/QA:** finish the scoped critical browser journeys; fix the highest
+   reproducible failure and ingestion quality-error contract with regressions.
+4. **Joint decision:** choose one feed experiment, agree guardrails and rollout/rollback,
+   then rerun the same tasks. Reassess scores only with additional dated evidence.
+
 ## Execution log — Gate A, first implementation slice
+
+### Saved Undo/reload defect fixed
+
+- Final review isolates history-update exceptions from mutation success: a persisted
+  restore stays restored and offers Back guidance if the address cannot update.
+  New frontend regression verifies truthful state and subsequent removal. **119
+  frontend tests pass**, Vite build/syntax/whitespace pass. Backend unchanged since
+  the full run below; normal browser reload fix passed before this error-path addition.
+
+- Successful save response includes best-effort account-owned saved_id. Undo updates
+  the current detail URL with replaceState and the Back card anchor, preserving
+  query/page context. Metadata lookup failure does not misreport a persisted save.
+- Backend identity/isolation regression and frontend query/page/anchor regression
+  added. Full backend: **1021 examples, zero failures, seven pending**, 57.27s;
+  **73.85% coverage (4533/6138)**, gates pass, exit 0. **118 frontend tests pass**;
+  Vite build, syntax/whitespace pass. Same Chrome offline/reconnect driver now passes
+  all six assertions including full detail reload; no captured runtime exceptions.
+- Supersedes the open Undo/reload failure below. Broader browser/provider/device
+  acceptance stays open; no score increase, production calls, push or deployment.
+
+### Offline Saved acceptance identifies reload recovery defect
+
+- Chrome offline/reconnect Remove and Undo checks pass; profile confirms restored
+  persistence. Missing recipient fetch confirms 404/noindex/no random substitution.
+- **Open failure:** Undo recreates a Saved row with a new ID, but the detail page
+  retains the deleted row URL, so full reload fails. Next engineering priority is
+  restoring a valid detail/return context and rerunning browser/automated regressions.
+  Do not mark Saved Undo acceptance complete. No application change or score increase.
+
+### Signup and separate recipient browser acceptance
+
+- Four local Chrome assertions pass: guest pending Save returns through rendered
+  signup to exact content; profile shows zero matching favorites before explicit
+  Save and one afterward; separate browser context sees exact fixture without the
+  sender's account UI. No sender-page runtime exceptions captured; recipient
+  exceptions were not monitored. Vite build passed before boot.
+- Evidence in BROWSER_ACCEPTANCE_2026_10_16.md. Local fixture accounts only; no
+  provider OAuth, email-delivery/ownership, physical-device or crawler acceptance.
+  No application code changes or score increase; no push/deployment.
+
+### Exact-share and guest email-auth browser continuation
+
+- Local Chrome assertions pass for simulated clipboard denial/exact-link focus,
+  guest Save sign-in focus, wrong/correct email login returning to exact pending
+  meme, unselected Save UI, explicit Save yielding one matching favorite, cookie-free
+  recipient and unknown-content no-substitution. No captured runtime exceptions.
+- Evidence/limits recorded in BROWSER_ACCEPTANCE_2026_10_16.md. No native share,
+  OAuth/crawler, database pre-save query or browser 404-status assertion claimed.
+  No application changes or quality-score increase; production acceptance stays open.
+
+### Maintenance metadata/rendering validation
+
+- Basic maintenance fallback now rejects non-hash candidates, unsafe browser URLs,
+  non-text/blank titles and non-text/blank communities using existing MediaUrl policy.
+  Mixed malformed candidates do not discard valid candidates. Three regressions
+  cover valid remote/local media, invalid inputs and nonmutation.
+- Optional pipeline and bootstrap contracts are unchanged by this increment.
+  Renderability does not prove MIME, availability, readability, moderation or humor;
+  no network fetch/probe introduced. Previously retained inventory is not purged.
+- Full isolated backend: **1020 examples, zero failures, seven pending**, 56.66s;
+  **73.85% coverage (4530/6134)**, gates pass, **exit 0**. **117 frontend tests pass**;
+  16 targeted quality/refresh examples pass (partial coverage exit 2), syntax and
+  whitespace pass. Scores unchanged; no live Reddit, push or deployment.
+
+### Revised roadmap execution: quality-error safety and research preparation
+
+- Maintenance quality evaluation now rejects the new batch on exceptions, including
+  earlier partial approvals, instead of returning unfiltered input. No candidates
+  means no publication or stale retirement, preserving working inventory.
+  Five regressions cover approval/rejection, errors, partial errors, empty input and
+  retained inventory. Optional pipeline absence still uses basic metadata checks;
+  bootstrap still uses its separate basic validation. This is not moderation or a
+  humor/readability guarantee, and those contracts remain follow-up work.
+- Added FEED_EXPERIENCE_AUDIT.md with consecutive sampling, three participant tasks,
+  privacy rules, denominators and one-experiment decision criteria. Audit/study is
+  prepared, not performed. Production/operator/device/provider work stays open.
+- Full isolated backend: **1017 examples, zero failures, seven pending**, 56.85s;
+  **73.78% coverage (4524/6132)**, gates pass, **exit 0**. **117 frontend tests pass**;
+  13 targeted quality/refresh examples pass (partial coverage exit 2); syntax and
+  whitespace pass. Scores unchanged; no production calls, push or deployment.
 
 - Added `.ruby-version` matching the existing Gemfile (3.2.1).
 - Attempted native BCrypt repair; RubyGems itself fails loading mismatched
@@ -27,6 +265,121 @@ to this document's security, test and operational release gates.
   then address lock ownership and remaining rendering surfaces.
 
 ## First principles
+
+### Local browser follow-up
+
+- Nine additional Chrome assertions pass: held/typed Space, browser Back/Forward
+  URL restoration, distinct impression IDs, pager href context, actual Saved Back
+  click, and persisted Remove/Undo through profile navigation. No captured runtime
+  exceptions in corrected run; initial driver sequence error documented separately.
+- No application code changes. Browser checklist remains partial; provider/device/
+  accessibility/crawler and unexecuted network/action-state cases remain open.
+
+### Local Chrome acceptance evidence (partial)
+
+- Executed headless Chrome 155 against isolated local web/test PostgreSQL/disposable
+  Redis fixtures. Saved search/page 2, Likes page 3, detail return href, Remove/Undo,
+  no-match/clear, narrow overflow, image error/keyboard retry/recovery, five Space
+  advances, focused Next/Space, Previous and random.json privacy checks passed.
+  No captured runtime exceptions. See BROWSER_ACCEPTANCE_2026_10_16.md for exact
+  assertion limits, temporary evidence paths and all NOT RUN scenarios.
+- Browser acceptance is now partially executed, not complete or release-approved.
+  No real OAuth, physical device, screen reader, crawler or production acceptance.
+  Local Chrome/web/Redis stopped; disposable browser account/fixtures remain in the
+  isolated test database for later cleanup. Vite build passed; no application code
+  changes in this browser run and no push/deployment.
+
+### Acceptance checklist and diagnostic CLI regression coverage
+
+- Browser checklist now includes Saved title/community search, filtered pagination/
+  detail return, Likes beyond 50, early Saved image failure, retry, unsafe media,
+  keyboard/focus/network/cache checks. Checklist remains explicitly not executed.
+- Added subprocess regressions for absent and invalid Redis configuration: exit 1,
+  no stdout and generic stderr without synthetic credential/host values.
+- Full isolated backend: **1012 examples, zero failures, seven pending**, 56.9s;
+  **73.70% coverage (4519/6132)**, gates pass, **exit 0**. **117 frontend tests pass**;
+  four targeted diagnostic examples pass (partial coverage exit 2); syntax/whitespace
+  pass. No production execution, browser acceptance claim, push or deployment.
+
+### Read-only operator inventory diagnostic
+
+- Added standalone fixed-key metadata report: count, age since refresh, pool TTLs/
+  list lengths and cooldown/maintenance lease TTL. No app boot, Reddit requests,
+  key scans, payload/owner reads, mutations or connection details in output/errors.
+  Missing/invalid metadata is null; non-atomic sampling limitations documented.
+- Two diagnostic examples pass; local disposable-Redis CLI succeeds, missing-env
+  CLI exits 1 with generic text. Full backend: **1010 examples, zero failures,
+  seven pending**, 56.7s; **73.70% coverage (4519/6132)**, gates pass, **exit 0**.
+  **117 frontend tests pass**; syntax/whitespace pass. No production execution,
+  scheduler/OAuth/shared-Redis proof, push or deployment.
+
+### Inventory batch diagnostics quick win
+
+- Structured batch outcome adds unique fetched/validated counts, previous unique
+  inventory, candidate new URLs, planned inventory, publication status and 429 state.
+  Existing fetched/validated/stored/replaced result fields retained. Numeric/boolean
+  fields only; candidate/planned values explicitly do not claim measured growth.
+- Two regression examples cover overlapping responses and failed publication.
+  **13 targeted diagnostics/inventory/refresh examples pass** (partial coverage exit 2).
+  Full isolated backend: **1008 examples, zero failures, seven pending**, 57.66s;
+  **73.69% coverage (4504/6112)**, gates pass, **exit 0**. **117 frontend tests pass**;
+  syntax/whitespace pass. No live Reddit calls, push, deployment or production claim.
+
+### Saved broken-image recovery
+
+- Replaced nonexistent-sibling inline error handler with external load/error
+  listeners, early cached-failure detection, explicit retry and live status. Retry
+  blocks duplicates and never changes/removes the favorite; unsafe sources have no
+  retry and show an unavailable state. Existing Saved search/page return is retained.
+- Four frontend regressions cover early failure, repeat retry/failure/success,
+  normal load and unsafe media. **117 frontend tests pass**; Vite build passes.
+- Full backend: **1006 examples, zero failures, seven pending**, 56.16s;
+  **73.74% coverage (4504/6108)**, gates pass, **exit 0**. Final scoped hidden CSS/
+  unsafe server-side hidden adjustment rechecked with **12 rendering/search examples,
+  zero failures** (partial coverage exit 2); whitespace passes.
+- Browser/network/focus acceptance remains open; retry cannot guarantee an origin
+  will recover or bypass browser cache. No deployment or live-source verification.
+
+### Saved retrieval search quick win
+
+- Account-scoped, parameterized title/community text matching, case-insensitive
+  and literal (not SQL wildcard or semantic search). Bounded text input, filtered
+  pagination/count, clear/no-match states; account-wide saved total stays unchanged.
+  Query persists through paging, retry and Saved detail return, escaped for URLs/HTML.
+- Four new route examples cover title/community matching and account isolation,
+  literal/injection-like input, detail-return context and malformed query rejection.
+  **12 targeted search/pagination examples pass** (partial coverage exit 2).
+- Full isolated backend: **1006 examples, zero failures, seven pending**, 56.71s;
+  **73.74% coverage (4504/6108)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  syntax/whitespace pass. Browser acceptance and large-account query performance
+  remain unverified. No push/deployment or production inventory claim.
+
+### Likes retrieval quick win
+
+- Replaced the profile's newest-50 Likes cutoff with 24-item pages, stable
+  timestamp/ID ordering and account-wide totals. Page values are validated and
+  clamped; Likes/Saved pagers preserve the other section's page, Likes retry keeps
+  page context, and failed loads remain distinct from empty accounts.
+- Four route regressions cover older likes, account isolation, bad pages and count
+  failure. Updated existing rendering assertions for the new total-count label.
+- Full isolated backend: **1002 examples, zero failures, seven pending**, 54.92s;
+  **73.61% coverage (4487/6096)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  syntax/whitespace pass. Browser acceptance remains open; no deployment.
+
+### Bootstrap quick wins and remaining priorities
+
+- Bootstrap now preserves shared cooldown on partial 429 success, even if Redis
+  publication fails, while returning usable content. Probe/full-fetch overlap is
+  deduplicated before publication and response counts. Three regression tests added.
+- Full isolated backend: **998 examples, zero failures, seven pending**, 53.59s;
+  **73.64% coverage (4484/6089)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  Ruby syntax/whitespace pass. No push, deployment or live Reddit calls.
+- Remaining priorities: measured production inventory growth; scheduler/OAuth/shared
+  Redis verification; publication fencing and media hash retention; hosted CI and
+  browser/device/OAuth/crawler acceptance; credential rotation and CSP migration.
+  UX work remains on recently viewed/context recovery, Saved search/unavailable
+  media, Likes pagination, guest persistence decisions, feed steering, search and
+  baseline usability research. Implemented slices are not accepted phases.
 
 ### Scheduled maintenance overlap guard
 

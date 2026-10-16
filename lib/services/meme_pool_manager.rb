@@ -7,6 +7,7 @@ require_relative 'reddit_fetcher_service'
 # require_relative 'turbocharged_reddit_fetcher'  # Deleted during service cleanup - use reddit_fetcher_service instead
 # require_relative 'quality_pipeline_service'  # Removed during Elon audit - file not found
 require_relative 'redis_service'
+require_relative '../security/media_url'
 require 'yaml'
 require 'digest'
 
@@ -399,13 +400,18 @@ class MemePoolManager
       memes = test_memes + remaining_memes
 
       # SKIP quality filter on bootstrap for speed (basic validation only)
-      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
+      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }.uniq { |m| m['url'] }
       stored = store_in_pool(validated)
 
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
 
-      # Bootstrap succeeded - clear any prior rate-limit cooldown
-      RedisService.delete(BOOTSTRAP_COOLDOWN_KEY) if stored > 0
+      # Partial success must not clear a confirmed rate limit. Keep the usable
+      # probe results while spacing out subsequent bootstrap/maintenance jobs.
+      if fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
+        RedisService.set(BOOTSTRAP_COOLDOWN_KEY, 'true', ttl: BOOTSTRAP_COOLDOWN_TTL)
+      elsif stored > 0
+        RedisService.delete(BOOTSTRAP_COOLDOWN_KEY)
+      end
 
       # BUG FIX (Aug 25, 2026, round 6): success used to be defined as
       # `stored > 0` - i.e. it depended on RedisService.set succeeding
@@ -533,8 +539,17 @@ class MemePoolManager
         RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
       end
       
-      { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count,
-        replaced: stored_count > 0 ? retired_urls.size : 0 }
+      result = { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count,
+        replaced: stored_count > 0 ? retired_urls.size : 0,
+        fetched_unique: all_memes.map { |m| m['url'] }.compact.uniq.size,
+        validated_unique: validated_memes.map { |m| m['url'] }.compact.uniq.size,
+        previous_unique: current_urls.compact.uniq.size,
+        candidate_new_unique: new_urls.compact.size,
+        planned_unique: inventory.size,
+        publication_succeeded: stored_count > 0,
+        rate_limited: fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited? }
+      AppLogger.info('[PoolManager] Inventory batch outcome', **result)
+      result
     rescue => e
       log_error("Fetch batch error", e)
       { fetched: 0, validated: 0, stored: 0, error: e.message }
@@ -648,14 +663,18 @@ class MemePoolManager
       if defined?(QualityPipelineService)
         memes.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
-        # Basic filtering if pipeline not available
+        # Structural/rendering validation only, not moderation or humor scoring.
         memes.select do |meme|
-          meme["url"] && meme["title"] && meme["subreddit"]
+          meme.is_a?(Hash) && MediaUrl.safe(meme['url']) &&
+            %w[title subreddit].all? { |key| meme[key].is_a?(String) && !meme[key].strip.empty? }
         end
       end
     rescue => e
       log_error("Quality filter error", e)
-      memes # Return unfiltered on error
+      # An evaluation failure is not approval. Reject this new batch; callers
+      # retain the working pool when no candidates pass. Do not claim moderation
+      # or humor/readability guarantees from the basic metadata fallback above.
+      []
     end
     
 # Categorize memes by their subreddit tier - FIXED July 13: NOW CREATES ALL 5 POOLS

@@ -82,3 +82,43 @@ test('Undo restores metadata and allows retry after a rejected restore', async (
   assert.equal(requests[1].body.get('subreddit'), 'cats');
   assert.equal(requests[1].body.get('url'), '/favorite.jpg');
 });
+test('Undo replaces deleted detail identity while preserving search/page context', async () => {
+  let click;
+  let call = 0;
+  let replaced;
+  const button = { dataset: {}, addEventListener: (_, fn) => { click = fn; } };
+  const status = {};
+  const back = { href: 'http://localhost/profile?saved_page=2&saved_q=cats#saved-card-7' };
+  vm.runInNewContext(source, {
+    document: { getElementById: id => ({ 'remove-saved-meme': button, 'saved-removal-status': status, 'saved-back-link': back })[id], querySelector: () => ({ value: '/favorite.jpg' }) },
+    window: { location: { href: 'http://localhost/saved/7?saved_page=2&saved_q=cats' }, history: { state: null, replaceState: (_, __, path) => { replaced = path; } } },
+    URL, URLSearchParams,
+    fetch: async () => ({ ok: true, json: async () => ++call === 1 ? { success: true, unsaved: true } : { success: true, saved: true, saved_id: 42 } })
+  });
+  await click();
+  await click();
+  assert.equal(replaced, '/saved/42?saved_page=2&saved_q=cats');
+  assert.equal(back.href, 'http://localhost/profile?saved_page=2&saved_q=cats#saved-card-42');
+  assert.equal(status.textContent, 'Favorite restored.');
+});
+
+test('History failure never misreports a persisted Undo as a failed restore', async () => {
+  let click;
+  let call = 0;
+  const button = { dataset: {}, addEventListener: (_, fn) => { click = fn; } };
+  const status = {};
+  vm.runInNewContext(source, {
+    document: { getElementById: id => id === 'remove-saved-meme' ? button : status, querySelector: () => ({ value: '/favorite.jpg' }) },
+    window: { location: { href: 'http://localhost/saved/7' }, history: { replaceState: () => { throw new Error('blocked'); } } },
+    URL, URLSearchParams,
+    fetch: async () => ({ ok: true, json: async () => ++call % 2 === 1 ? { success: true, unsaved: true } : { success: true, saved: true, saved_id: 42 } })
+  });
+  await click();
+  await click();
+  assert.equal(button.textContent, 'Remove');
+  assert.equal(button.disabled, false);
+  assert.match(status.textContent, /^Favorite restored\./);
+  assert.match(status.textContent, /address could not be updated/);
+  await click();
+  assert.equal(button.textContent, 'Undo removal');
+});

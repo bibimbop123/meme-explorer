@@ -2,6 +2,55 @@
 
 Status: proposed UX execution plan. Nothing below is marked shipped by this document.
 
+## Current priorities — October 16, 2026
+
+Provisional assessment: **website 75/100; meme experience 45/100**. These are
+editorial planning scores, not measured user satisfaction or production acceptance.
+See the [scoring rubric and delivery order](PRODUCT_ROADMAP_2026_10_15.md#current-assessment-and-next-delivery-order--october-16-2026).
+Meme humor/variety is especially uncertain: local browser fixtures reused artwork,
+and production inventory growth has not been established.
+
+### Revised priorities: parallel learning, then one focused improvement
+
+The previous sequence overemphasized inventory before user observation. More memes
+are useful only when people can find something worthwhile without excessive repeats,
+broken media or unreadable punchlines. This order supersedes the old sequential plan.
+
+1. **Run supply diagnostics and content/user observation in parallel.** Operator
+   verifies ordinary maintenance; product/design audits a consecutive feed sample
+   and watches 5–8 target users. Separate same artwork from same template; record
+   voluntary would-send judgments and disagreement. Do not treat this as a growth study.
+2. **Finish one trustworthy discover → recover → send release.** Verify real mobile,
+   another desktop browser, keyboard/screen reader, exact recipient identity, Saved
+   context and failure recovery, guest/auth continuation and provider-specific flows.
+   Fix known critical defects immediately; research does not block repairs.
+3. **Choose one reversible feed experiment based on the observed failure.** Supply
+   rotation, repeat/source controls, optional topic controls or readability fixes—not
+   all at once. Avoid treating views or Next as evidence of humor or dislike.
+4. **Compare the same tasks and feed-health measures.** Declare the baseline,
+   eligible audience, stop/rollback rules and evidence requirements before rollout.
+   Keep the simpler behavior if results are inconclusive.
+
+**User-facing quality bar:** content is readable; controls do not jump or obscure
+punchlines; navigation does not act on the wrong meme; failures offer a way forward;
+saving and sharing are truthful; controls/preferences are optional and reversible.
+An exhausted feed should admit limited supply and offer a choice, not imply endless
+novelty or silently substitute repeated content as fresh.
+
+**Score discipline:** retain website 75/100 and meme experience 45/100 only as dated,
+low/moderate-confidence planning estimates under the linked rubric. No score increase
+is earned by more tests, a larger pool or a new feature without user/production evidence.
+Maintenance's fallback checks structure, browser-safe URLs and nonblank metadata,
+not humor/readability; evaluation errors reject new batches. Bootstrap validation
+and broader content safety still need review, not stronger marketing.
+
+**Defer:** cosmetic redesign, collections, compulsory onboarding and opaque ranking
+until the core journeys and the measured feed bottleneck justify them. Reporting must
+have a review owner; privacy/consent and rollback are part of the experience, not polish.
+
+Success means worthwhile memes users can see, recover and send with confidence—not
+more requested posts, longer sessions, or a higher automated test count.
+
 ## Product promise
 
 **Open Meme Explorer, find something that makes you laugh, and send it to someone.**
@@ -22,8 +71,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 995 backend examples, zero failures, seven pending;
-113 frontend tests pass; 73.61% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 1021 backend examples, zero failures, seven pending;
+119 frontend tests pass; 73.85% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -54,6 +103,9 @@ Keep account access and secondary links out of the core content hierarchy. Brows
 viewing a shared meme and trying a mood never require signup.
 
 ## Phase 0 — Baseline and prototype
+
+Execution worksheet: [feed audit and user observation](FEED_EXPERIENCE_AUDIT.md).
+Prepared only; no user findings or production feed results are implied.
 
 **Deliverable:** a small validated design brief, not a visual rewrite.
 **Accountability:** product/design with engineering support.
@@ -424,7 +476,14 @@ open. Native API resolution is a handoff signal, not proof a friend received a m
 1. Execute [browser acceptance](BROWSER_ACCEPTANCE.md), including auth return,
    two-tab behavior, expired sessions, keyboard focus and Undo failure recovery.
 2. Decide guest device-local persistence before offering reload/offline retention.
-3. Add Saved search and unavailable-media recovery; paginate Likes.
+3. Saved detail now has broken-image status, explicit retry and browse/Back recovery;
+   unsafe sources cannot retry. Browser/network/focus acceptance remains open.
+   Saved now has account-scoped title/community
+   text search, literal case-insensitive matching, filtered pagination, clear/no-match
+   states and detail-return query context. Browser acceptance remains open.
+   Likes now has 24-item pages,
+   stable timestamp/ID ordering, account-wide totals, validated/clamped page inputs
+   and retryable errors; browser/keyboard acceptance remains open.
 4. Decide whether Undo must preserve ordering and avoid all save engagement effects.
 5. Add collections only after basic retrieval has passed acceptance.
 
@@ -489,6 +548,11 @@ are discoverable; keyboard/screen-reader journeys work; no preference/consent pr
 exceeds implemented behavior.
 
 ## Release verification matrix
+
+Local headless Chrome has a partial pass documented in
+[October 16 evidence](BROWSER_ACCEPTANCE_2026_10_16.md). It does not complete the
+matrix: physical devices, provider/crawler and assistive-technology checks and
+several interactive/network scenarios remain NOT RUN.
 
 Every phase needs relevant automated tests plus real-browser evidence:
 

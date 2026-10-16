@@ -15,6 +15,22 @@ Larger response bodies can increase processing time; monitor duration and rate l
 
 ## Operator checks (no secrets in logs)
 
+With `REDIS_URL` already supplied by the deployment environment, run the read-only
+`scripts/check_pool_inventory.rb` using the application's bundled Ruby. Locally:
+
+```sh
+ruby scripts/isolated_bundle.rb exec ruby scripts/check_pool_inventory.rb
+```
+
+Do not paste credentials into shell commands or reports. The script reads only
+fixed metadata keys, TTLs and list lengths; it does not boot the app, scan Redis,
+read media/lock-owner payloads, mutate keys or contact Reddit. Missing metadata is
+null, not a fabricated zero. TTL -2 means absent and -1 means no expiry. Output is
+a non-atomic sample, not verified unique inventory, scheduler/OAuth health, or proof
+that two processes share Redis. Compare web/worker samples and deployment config
+privately; matching counts alone do not establish shared Redis. Failures exit 1
+with generic text and omit exception/connection details.
+
 1. Confirm a live Sidekiq worker consumes default jobs and the maintenance schedule
    actually runs. Web startup saying 'pool ready' does not prove maintenance runs.
 2. Check maintenance logs: current pool count, fetched count, filtered count, stored
@@ -24,7 +40,24 @@ Larger response bodies can increase processing time; monitor duration and rate l
 5. Wait for normal maintenance and observe unique inventory growth. Do not purge
    the working pool, disable cooldowns or spawn parallel Reddit fetch storms.
 
+Maintenance emits `[PoolManager] Inventory batch outcome` with numeric/boolean
+fields only: `fetched`, `fetched_unique`, `validated`, `validated_unique`,
+`previous_unique`, `candidate_new_unique`, `planned_unique`, `stored`, `replaced`,
+`publication_succeeded`, and `rate_limited`. No URLs/tokens/credentials are included.
+Candidate additions are before target truncation and publication; planned size is
+not a read-back measurement. `stored` is total published inventory, not additions.
+Publication success is the transaction response, not proof of later retention or
+absence of a concurrent overwrite. Compare subsequent observed pool counts before
+claiming growth; ambiguous EXEC disconnects and partial runtime errors remain open.
+
 ## Remaining supply constraints
+
+Maintenance quality evaluation errors now reject new candidates rather than
+returning the unfiltered batch; existing inventory is retained. The optional
+pipeline's absence checks hash shape, browser-safe URL and nonblank title/community
+text; bootstrap has separate basic validation. Existing retained content is not
+purged. “Validated” does not certify availability, moderation, readability or humor. Use
+FEED_EXPERIENCE_AUDIT.md for the planned real-feed/user evaluation; none performed.
 
 The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
 merges new unique URLs with retained pool entries, bounded at that target; new
@@ -56,6 +89,9 @@ do not manually delete a live owner's lease to force inventory expansion.
   sets the existing cooldown even if partial content was stored. Subsequent calls
   on that fetcher make no HTTP requests; later jobs create fresh fetchers after
   normal cooldown checks. Separate workers still need publication coordination.
+- Bootstrap also preserves cooldown after partial 429 success, including failed
+  Redis publication, and deduplicates overlapping probe/fetch URLs before reporting
+  usable inventory. Partial usable content remains available to the current caller.
 - Stale refresh keeps existing items until quality-filtered replacements arrive.
   Only genuinely new URLs retire stale entries, at most one per new unique URL;
   duplicate snapshots update metadata without reducing unique inventory. Empty or

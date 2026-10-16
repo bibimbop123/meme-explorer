@@ -2,13 +2,23 @@
 <div class="saved-meme-container">
   <div class="meme-display-section">
     <div class="meme-display-card">
+      <% saved_media_url = MediaUrl.safe(@image_src) %>
       <img
         id="meme-img"
         src="<%= Rack::Utils.escape_html(MediaUrl.safe(@image_src) || '/images/meme-placeholder.svg') %>"
         alt="<%= Rack::Utils.escape_html(@meme["title"] || 'Meme Image') %>"
         class="meme-display-image"
-        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+        data-saved-media="<%= saved_media_url ? 'available' : 'unavailable' %>"
+        <%= 'hidden' unless saved_media_url %>
       >
+      <div id="saved-media-recovery" <%= 'hidden' if saved_media_url %>>
+        <p id="saved-media-status" role="status" aria-live="polite">This image is unavailable. Your favorite is still saved unless you remove it.</p>
+        <% if saved_media_url %>
+          <button id="retry-saved-media" type="button">Try image again</button>
+        <% end %>
+        <p>Use Back to return to your favorites, or browse another meme.</p>
+        <a href="/random">Browse another meme</a>
+      </div>
     </div>
   </div>
 
@@ -61,7 +71,7 @@
       <span class="button-text">Remove</span>
     </button>
 
-    <a href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
+    <a id="saved-back-link" href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
       <span class="button-icon">⬅️</span>
       <span class="button-text">Back</span>
     </a>
@@ -91,8 +101,12 @@
 <% end %>
 
 <script src="/js/saved-detail.js" defer></script>
+<script src="/js/saved-media-recovery.js" defer></script>
 
 <style>
+  .saved-meme-container [hidden] {
+    display: none !important;
+  }
   .saved-meme-container {
     max-width: 900px;
     margin: 0 auto;
