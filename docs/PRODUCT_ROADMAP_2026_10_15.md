@@ -28,6 +28,15 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Production viewer schema incident tooling
+
+- Added explicit read-only viewer table check with opt-in --apply for only catalog/
+  impression migrations, transaction/timeouts and credential-free error output.
+  Added recovery/verification runbook; no automatic boot migration or full schema
+  execution. Local isolated test DB check and idempotent apply pass, syntax and
+  whitespace pass. Production not accessed; reported UndefinedTable still requires
+  operator verification/application against the actual deployed database.
+
 ### Crosspost permalink attribution and GIF preservation
 
 - Resolver retains GIF media type and deepest resolved parent community through
