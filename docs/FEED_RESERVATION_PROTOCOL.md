@@ -1,6 +1,6 @@
 # Feed reservations and acknowledged-history protocol
 
-Status: implementation design, **not implemented or approved for rollout**.
+Status: partially implemented prerequisites; **not integrated or approved for rollout**.
 Identity prerequisite implemented locally: shared validated random feed_session_id
 used by homepage/random/similar and initialized for recipient impressions. Preserved
 through successful email/signup/validated OAuth session rotation; cleared on logout.
@@ -27,6 +27,20 @@ final full run is green. No live route behavior change or rollout approval.
 
 ## Code anchors and current semantics
 
+Latest prerequisite: acknowledgement issuance now requires a syntactically valid
+server-supplied impression_id, persists that association and returns it on lookup.
+An optional expected impression ID must match; mismatches are invalid, corrupt
+stored bindings are unavailable. This binds supplied metadata; it does not verify
+that the impression exists in PostgreSQL or make issuance atomic with DB writes.
+Routes remain unchanged; history reconciliation and active-lease binding are open.
+No migration of existing unbound metadata: unused-store records lacking the field
+are rejected as unavailable until expiry. No live clients use this store yet.
+
+Eight targeted store tests pass (partial coverage exit 2). Latest full backend:
+1081 examples, zero failures, seven pending, 61.79s; 74.53% (4677/6275), gates pass,
+exit 0; 121 frontend tests pass; syntax/whitespace pass. Earlier measurements below
+are historical evidence, not current integration status.
+
 Acknowledgement-store review adds stored-payload size/shape/content validation and
 an independent-two-connection last-capacity-slot race test. Six targeted store
 examples pass (partial coverage exit 2). Final full backend: 1079 examples, zero
@@ -37,8 +51,9 @@ Longer-lived metadata prerequisite implemented locally as unused
 FeedAcknowledgementStore: opaque token issuance, session-scoped digest keys,
 Redis server-time 30-minute expiry, atomic 20-token cap/pruning and non-renewing
 lookup. Stores bounded content URL metadata, not title/account data. Invalid and
-unavailable results differ. Not tied to impression IDs, active owner tokens, DB
-dedupe or history yet; no routes migrated. Oldest unexpired tokens are not evicted
+unavailable results differ. Now tied to supplied impression IDs as described above,
+but not active owner tokens, DB dedupe or history; no routes migrated.
+Oldest unexpired tokens are not evicted
 to admit new tokens, so limit-reached needs an explicit integration policy.
 
 Four Redis tests pass; full backend 1077 examples, zero failures, seven pending,

@@ -173,6 +173,17 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Acknowledgement metadata impression binding
+
+- Unused store issuance requires a valid impression ID and lookup returns the
+  persisted association. Expected-ID mismatches reject; corrupt stored bindings
+  fail unavailable. This validates association/shape, not DB existence or atomic
+  DB/Redis issuance. No route, viewed-history or active-lease integration yet.
+- Two regressions added. Full backend **1081 examples, zero failures, seven pending**,
+  61.79s; **74.53% coverage (4677/6275)**, gates pass, exit 0; **121 frontend tests
+  pass**. Eight targeted tests pass (partial coverage exit 2), syntax/whitespace pass.
+  No deployment, production changes or score increase.
+
 ### Acknowledgement-store review validation
 
 - Reject corrupt, oversized, blank/non-text stored content metadata; independent

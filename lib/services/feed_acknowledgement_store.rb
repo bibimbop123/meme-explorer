@@ -32,10 +32,10 @@ module MemeExplorer
       return redis.call('HGET', KEYS[2], ARGV[1])
     LUA
 
-    def self.issue(session_id, content)
-      return { status: :invalid } unless valid_id?(session_id) && valid_content?(content)
+    def self.issue(session_id, content, impression_id:)
+      return { status: :invalid } unless valid_id?(session_id) && valid_content?(content) && valid_id?(impression_id)
       token = SecureRandom.hex(32)
-      payload = JSON.generate('content' => content)
+      payload = JSON.generate('content' => content, 'impression_id' => impression_id)
       reply = RedisService.with_redis do |redis|
         redis.eval(ISSUE, keys: keys(session_id), argv: [Digest::SHA256.hexdigest(token), payload, TTL, LIMIT])
       end
@@ -48,8 +48,9 @@ module MemeExplorer
       { status: :unavailable }
     end
 
-    def self.lookup(session_id, token)
-      return { status: :invalid } unless valid_id?(session_id) && valid_id?(token)
+    def self.lookup(session_id, token, impression_id: nil)
+      return { status: :invalid } unless valid_id?(session_id) && valid_id?(token) &&
+        (impression_id.nil? || valid_id?(impression_id))
       reply = RedisService.with_redis do |redis|
         # Wrap so a missing Redis response differs from a missing token.
         [redis.eval(LOOKUP, keys: keys(session_id), argv: [Digest::SHA256.hexdigest(token)])]
@@ -58,8 +59,9 @@ module MemeExplorer
       return { status: :invalid } unless reply.first
       return { status: :unavailable } unless reply.first.is_a?(String) && reply.first.bytesize <= 32_768
       data = JSON.parse(reply.first)
-      return { status: :unavailable } unless data.is_a?(Hash) && valid_content?(data['content'])
-      { status: :valid, content: data['content'] }
+      return { status: :unavailable } unless data.is_a?(Hash) && valid_content?(data['content']) && valid_id?(data['impression_id'])
+      return { status: :invalid } if impression_id && impression_id != data['impression_id']
+      { status: :valid, content: data['content'], impression_id: data['impression_id'] }
     rescue StandardError
       { status: :unavailable }
     end
