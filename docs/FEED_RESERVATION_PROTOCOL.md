@@ -10,6 +10,21 @@ parallel requests before session persistence and session-store races remain open
 Builds on ANTI_REPEAT_EXECUTION_PLAN.md Phase 2. Existing anti-repeat selection
 remains active; do not remove selection marking until all migrated paths are tested.
 
+Active-reservation primitive is now implemented locally as FeedReservationService,
+but unused by app routes. Atomic acquire/release uses Redis server time, 120-second
+expiry, 20-active cap, hashed content/session key namespace, and token ownership.
+It does not write viewed history, validate impression/acknowledgement tokens or
+atomically recheck viewed-history eligibility. Those integration steps remain open.
+Returned token is stored as owner metadata in Redis (not hashed there); no raw media
+payloads are stored. Two keys share a hash tag; real Cluster deployment not tested.
+
+Nine real-Redis examples cover ownership, capacity, expiry/successor protection,
+session isolation, unchanged history, key TTLs, invalid input, errors/unavailability
+and two independent connections racing on one content identity. Full backend:
+1070 examples, zero failures, seven pending, 62.26s; 74.28% (4623/6224), gates pass,
+exit 0; 121 frontend tests pass. Initial error-stub teardown failure was corrected;
+final full run is green. No live route behavior change or rollout approval.
+
 ## Code anchors and current semantics
 
 - SimpleMemeSelector.select marks selection in ViewingHistoryService; random/similar

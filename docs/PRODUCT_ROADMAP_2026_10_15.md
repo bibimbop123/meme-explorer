@@ -173,6 +173,19 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Isolated active reservation primitive
+
+- Added unused FeedReservationService: atomic acquire/release, Redis server-time
+  expiry, 120-second TTL, 20-active cap, hashed key/content namespaces and ownership
+  protection. Nine Redis regressions include independent-connection contention,
+  successor token safety, TTL/capacity recovery and no viewed-history writes.
+- Full final backend **1070 examples, zero failures, seven pending**, 62.26s;
+  **74.28% coverage (4623/6224)**, gates pass, exit 0; **121 frontend tests pass**.
+  Nine targeted tests pass (partial coverage exit 2); syntax/whitespace pass.
+- No routes migrated, impression-token validation or history eligibility recheck
+  implemented. Prefetch remains selection-marked; privacy/capacity/security gates
+  open. No production changes, deployment or quality-score increase.
+
 ### Shared opaque feed identity prerequisite
 
 - Added validated random feed_session_id helper; homepage/random/similar use it,
