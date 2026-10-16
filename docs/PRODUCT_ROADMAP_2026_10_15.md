@@ -28,6 +28,18 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Inventory batch diagnostics quick win
+
+- Structured batch outcome adds unique fetched/validated counts, previous unique
+  inventory, candidate new URLs, planned inventory, publication status and 429 state.
+  Existing fetched/validated/stored/replaced result fields retained. Numeric/boolean
+  fields only; candidate/planned values explicitly do not claim measured growth.
+- Two regression examples cover overlapping responses and failed publication.
+  **13 targeted diagnostics/inventory/refresh examples pass** (partial coverage exit 2).
+  Full isolated backend: **1008 examples, zero failures, seven pending**, 57.66s;
+  **73.69% coverage (4504/6112)**, gates pass, **exit 0**. **117 frontend tests pass**;
+  syntax/whitespace pass. No live Reddit calls, push, deployment or production claim.
+
 ### Saved broken-image recovery
 
 - Replaced nonexistent-sibling inline error handler with external load/error

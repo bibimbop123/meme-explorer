@@ -538,8 +538,17 @@ class MemePoolManager
         RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
       end
       
-      { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count,
-        replaced: stored_count > 0 ? retired_urls.size : 0 }
+      result = { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count,
+        replaced: stored_count > 0 ? retired_urls.size : 0,
+        fetched_unique: all_memes.map { |m| m['url'] }.compact.uniq.size,
+        validated_unique: validated_memes.map { |m| m['url'] }.compact.uniq.size,
+        previous_unique: current_urls.compact.uniq.size,
+        candidate_new_unique: new_urls.compact.size,
+        planned_unique: inventory.size,
+        publication_succeeded: stored_count > 0,
+        rate_limited: fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited? }
+      AppLogger.info('[PoolManager] Inventory batch outcome', **result)
+      result
     rescue => e
       log_error("Fetch batch error", e)
       { fetched: 0, validated: 0, stored: 0, error: e.message }

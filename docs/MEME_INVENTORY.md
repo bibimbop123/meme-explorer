@@ -24,6 +24,16 @@ Larger response bodies can increase processing time; monitor duration and rate l
 5. Wait for normal maintenance and observe unique inventory growth. Do not purge
    the working pool, disable cooldowns or spawn parallel Reddit fetch storms.
 
+Maintenance emits `[PoolManager] Inventory batch outcome` with numeric/boolean
+fields only: `fetched`, `fetched_unique`, `validated`, `validated_unique`,
+`previous_unique`, `candidate_new_unique`, `planned_unique`, `stored`, `replaced`,
+`publication_succeeded`, and `rate_limited`. No URLs/tokens/credentials are included.
+Candidate additions are before target truncation and publication; planned size is
+not a read-back measurement. `stored` is total published inventory, not additions.
+Publication success is the transaction response, not proof of later retention or
+absence of a concurrent overwrite. Compare subsequent observed pool counts before
+claiming growth; ambiguous EXEC disconnects and partial runtime errors remain open.
+
 ## Remaining supply constraints
 
 The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
