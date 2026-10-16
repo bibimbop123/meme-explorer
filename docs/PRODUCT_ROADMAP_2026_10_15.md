@@ -28,6 +28,100 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Non-destructive stale inventory refresh
+
+- Removed pre-fetch stale deletion. Existing inventory remains available during
+  fetching; only validated, genuinely new URLs displace stale entries, bounded
+  one-for-one. Duplicate snapshots do not count as replacements. Empty/rejected
+  results do not publish, failed publication reports zero replacements, and a zero
+  rounded refresh budget skips fetching. Prior stale-deletion follow-up superseded.
+- Eight regression examples cover empty/rejected supply, duplicates, partial supply,
+  refreshed stale snapshots, write failure reporting, zero budget and fetch errors.
+- Full isolated backend: **979 examples, zero failures, seven pending**, 53.61s;
+  **73.05% coverage (4435/6071)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  Ruby syntax/whitespace pass. No live Reddit calls, push or deployment.
+- Redis publication is still multi-key/non-atomic: partial writes and concurrent
+  publishers remain open. No production inventory increase is claimed.
+
+### Pagination/cooldown checkpoint validation
+
+- Added OAuth/static tests preserving first-page results on second-page timeout,
+  HTTP 503 and malformed JSON. Scheduled maintenance's entry-point cooldown check
+  verified by code inspection; actual scheduler execution remains unverified.
+- Full isolated backend: **971 examples, zero failures, seven pending**, 53.2s;
+  **72.84% coverage (4417/6064)**, coverage gates pass, **exit 0**. **113 frontend
+  tests pass**; syntax/whitespace pass. No push/deployment or live Reddit calls.
+- Separate follow-up: stale refresh currently removes old inventory before fetching
+  replacements; preserve working content on failed replacement. Multi-key publication
+  atomicity and overlapping workers also remain open before scaling production.
+
+### Maintenance rate-limit propagation
+
+- Shared fetcher now retains 429 state for its lifetime; later calls decline HTTP.
+  Manager stops later tiers and sets cooldown even when partial inventory publishes,
+  rather than clearing it on partial success. Prior propagation-open notes superseded.
+- **35 targeted pagination/inventory/manager examples pass**, partial coverage exit
+  2; Ruby syntax/whitespace pass. Full suite not rerun; last full 964 examples,
+  zero failures, seven pending, 72.71%, exit 0. No production requests/deployment.
+
+### Pagination safety full verification
+
+- Added malformed/missing cursor and second-page 429 tests for OAuth/static paths.
+  Rate limiting now stops the entire fetcher's community batch while retaining
+  prior results, rather than requesting remaining communities. Manager's later
+  tier calls still need shared rate-limit propagation as separate follow-up.
+- **22 targeted examples pass**; full isolated backend **964 examples, zero failures,
+  seven pending**, 53.16s; **72.71% coverage (4401/6053)**, gates pass, **exit 0**.
+  **113 frontend tests pass**, Ruby/whitespace pass. No live Reddit calls/deployment.
+
+### Inventory expansion: bounded second listing page
+
+- Added optional pages argument capped at two for OAuth/static Reddit fetching;
+  maintenance opts in, bootstrap/default stays one page. Follows validated Reddit
+  after cursor, stops on missing/repeated cursors/errors and deduplicates URLs.
+- **35 targeted fetcher/pool examples pass**, partial coverage exit 2; Ruby syntax/
+  whitespace pass. Full suite not rerun; last full 953 examples, 72.48%, exit 0.
+  No live Reddit requests or production inventory gain claimed. Cross-run cursor
+  persistence, rate-limit/worker duration and publication concurrency remain open.
+
+### Inventory and opt-in CSP accumulated regression
+
+- Full isolated backend **953 examples, zero failures, seven pending**, 53.44s;
+  **72.48% coverage (4373/6033)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, whitespace pass. Covers fetch budget/retention/count changes and
+  default-disabled CSP report-only scaffolding. No real inventory increase measured;
+  publication atomicity and source pagination remain next inventory priorities.
+
+### Inventory priority: hidden cap and replacement corrected
+
+- Found 300-item cap on every tier including random/everything, replacement-only
+  maintenance and overlapping-tier summed count. Pools now retain up to 5,000 unique
+  URLs, merge fetched/retained content per maintenance batch and report unique
+  random-pool count. New snapshots win collisions. No production purge/API calls.
+- **26 targeted pool examples pass**, partial coverage exit 2; whitespace pass.
+  Full suite not rerun. Multi-key publication/concurrent publisher consistency,
+  memory/command volume and top/week overlap remain explicit follow-ups.
+
+### Inventory priority: background fetch budget correction
+
+- Investigated 167-item pool versus 5,000 target: small bootstrap, maintenance
+  dependency and top/week overlap constrain supply. Fixed maintenance dividing
+  budgets across whole tiers before fetcher silently caps communities: select at
+  most 25 unique communities first, ceil budget, cap listing at 100, rotate batches.
+- **24 targeted pool examples pass**, partial coverage exit 2; Ruby/whitespace pass.
+  No production API calls/pool purge. See MEME_INVENTORY.md for worker/OAuth/Redis
+  checks and remaining pagination/supply constraints. Inventory growth not claimed.
+
+### Opt-in nonce CSP report-only scaffolding
+
+- Added CSP_REPORT_ONLY=true middleware flag: per-request nonce before rendering,
+  additional report-only script/attribute/object/base policy and private/no-store.
+  Layout script tags receive nonce; enforced policy unchanged. Disabled by default.
+  No strict-dynamic ad trust or report collector; other templates/handlers stay open.
+- **3 focused middleware/layout examples pass** (partial coverage exit 2),
+  **113 frontend tests pass**, Ruby/layout ERB/whitespace pass. Full suite not rerun.
+  See CSP_ROLLOUT.md for staging checks, privacy limitations and rollback.
+
 ### Checkpoint branch CI eligibility
 
 - Enabled checkpoint/** push triggers and manual workflow_dispatch, preserving
@@ -1785,6 +1879,12 @@ a ticket closed. A critical security failure blocks release regardless of total.
 repeatable verification, operational maturity, and no unresolved critical risks.
 
 ## Gate A — Earn trust: target 70/100
+
+**Current gate status:** local Ruby isolation, full regression/coverage, CSRF and
+ownership-lock contracts have implementation evidence in the execution log. Gate A
+is still **not accepted**: hosted CI, private secret rotation/assessment, CSP work
+and real browser journeys remain open. Checkboxes below are end-to-end acceptance
+requirements, not a claim that their implementation has never started.
 
 **Planning window:** weeks 1–2, subject to the backend failure inventory.
 **Accountability:** engineering lead; owner handles credential rotation.

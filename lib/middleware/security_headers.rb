@@ -1,6 +1,7 @@
 # Security Headers Middleware
 # Implements OWASP-recommended security headers for production security
 # Phase 0 Task 2.2 - Security Hardening
+require 'securerandom'
 
 class SecurityHeaders
   def initialize(app)
@@ -8,10 +9,22 @@ class SecurityHeaders
   end
 
   def call(env)
+    report_only = ENV['CSP_REPORT_ONLY'] == 'true'
+    env['meme.csp_nonce'] = SecureRandom.base64(24) if report_only
     status, headers, response = @app.call(env)
     
     # Apply security headers to all responses
     headers.merge!(security_headers)
+    if report_only
+      headers['Content-Security-Policy-Report-Only'] = [
+        "script-src 'self' 'nonce-#{env['meme.csp_nonce']}'",
+        "script-src-attr 'none'",
+        "object-src 'none'",
+        "base-uri 'self'"
+      ].join('; ')
+      # Nonces must not be replayed by shared/browser caches during evaluation.
+      headers['Cache-Control'] = 'no-store, private'
+    end
     
     [status, headers, response]
   end

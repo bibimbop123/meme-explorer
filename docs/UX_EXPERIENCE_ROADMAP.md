@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 945 backend examples, zero failures, seven pending;
-113 frontend tests pass; 71.97% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 979 backend examples, zero failures, seven pending;
+113 frontend tests pass; 73.05% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -404,61 +404,33 @@ open. Native API resolution is a handoff signal, not proof a friend received a m
 
 ## Phase 3 — Saving means “you won't lose this”
 
-Reddit OAuth now shares the bounded pending-meme return behavior after validated
-state and session rotation. Earlier OAuth-continuation open notes are superseded
-for server implementation, not actual provider/browser acceptance.
+### Current implementation status
 
-Guest Save can now retain a single expiring catalog ID through email login/signup
-session rotation and return to the exact meme for explicit Save confirmation.
-This supersedes earlier email-return limitations, not guest persistence or OAuth
-continuation. Missing/removed catalog content is not silently replaced.
+- Account Saved supports semantic detail links, 24-item account-scoped pages,
+  stable ordering, total counts and truthful query-error/retry states.
+- Detail Back returns to the originating page/card anchor. Offset changes and
+  pixel/focus restoration still require browser acceptance.
+- Detail removal offers page-lifetime Undo with retry. Restore uses Save, can
+  change ordering and engagement effects, and is not transactional rollback.
+- Guest Save explains account value and retains one expiring catalog ID through
+  email login/signup and validated Reddit OAuth session rotation. The user must
+  press Save after return; no automatic saving or device-local favorites promised.
+- Existing-save retries/insertion conflicts do not repeat reward/preference effects.
+- Likes failures are distinct from empty lists; count is honestly capped at 50.
+  Saved detail media and attribute values are validated/escaped.
 
-Guest Save now offers sign-in with explicit not-saved/account-scope messaging and
-an exact-link preservation suggestion. It does not promise persistence through
-login; secure pending-save recovery remains open.
+### Remaining work
 
-Retrying an already-persisted save no longer repeats preference/reward/activity
-side effects; insertion conflicts are successful unchanged saves. This supports
-reliable retries, but pending-save login recovery remains unimplemented.
+1. Execute [browser acceptance](BROWSER_ACCEPTANCE.md), including auth return,
+   two-tab behavior, expired sessions, keyboard focus and Undo failure recovery.
+2. Decide guest device-local persistence before offering reload/offline retention.
+3. Add Saved search and unavailable-media recovery; paginate Likes.
+4. Decide whether Undo must preserve ordering and avoid all save engagement effects.
+5. Add collections only after basic retrieval has passed acceptance.
 
-Saved detail removal now stays in place and offers Undo until leaving the page.
-Undo restores title/community through the existing save endpoint; failures retain
-retry state. Restoration may change saved order and uses existing save engagement
-side effects, not transactional rollback. This supersedes automatic-return behavior.
-
-Saved removal now waits for confirmed success before returning to its originating
-page; HTTP/application/network failures retain content and offer inline retry.
-Duplicate clicks are blocked while pending. Undo remains unimplemented.
-
-Saved detail Back links preserve validated page context and target the original
-card anchor. Invalid context defaults to page 1; no arbitrary return URLs accepted.
-Changing results may shift offset pages; pixel/focus acceptance remains open.
-
-Quick wins: Likes query errors now show alert/retry rather than an empty account;
-the capped count is labeled recent likes (up to 50), not all-time. Saved detail
-media/form URL attributes are validated/escaped. Failure/retry and unsafe stored
-source regressions pass; Saved return context/removal recovery remain open.
-
-Saved boundary regressions verify account-isolated counts/results/detail access and
-retryable count-query failures without false empty states. Accumulated Saved full
-regression: 809 examples, zero failures, seven pending; coverage 60.47%, exit 2.
-
-Saved now has account-scoped 24-item SQL pages, stable timestamp/ID ordering,
-account-wide counts and accessible Previous/More links anchored to Saved. Invalid
-page values return 400; oversized pages clamp to the last page. Error retry retains
-the page. Concurrent changes can shift offset pages; browser acceptance remains open.
-
-Saved query failure now renders an alert/retry action instead of the empty-account
-message or zero saved count. Retry regression confirms retained favorites reappear.
-General profile failures no longer expose exception details. Liked-list error
-distinction, pagination and remaining Saved recovery work are still open.
-
-First recovery slice: Saved cards are semantic links instead of click-only divs;
-the empty state explains account persistence and links to discovery. A route
-regression reopens the selected favorite. This does not complete the Saved screen:
-loading/error distinction, pagination, unavailable media, undo, guest scope and
-pending-save/login merging remain open. Phase 2 browser/crawler gates remain open;
-this independent accessibility improvement does not imply Phase 2 acceptance.
+These are implementation results, not phase acceptance. Historical slice evidence
+is retained in the engineering execution log; old intermediate test counts are
+not the current baseline.
 
 **Outcome:** favorites are easy to keep and recover without interrupting discovery.
 **Dependency:** canonical IDs and Phase 1 recovery behavior.
