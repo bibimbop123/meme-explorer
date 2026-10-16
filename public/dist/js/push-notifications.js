@@ -14,6 +14,7 @@
 (function () {
   const config = window.PUSH_NOTIFICATIONS_CONFIG || {};
   if (!config.enabled) return;
+  if (typeof config.vapidPublicKey !== 'string' || !config.vapidPublicKey.trim()) return;
 
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.log('⚠️ Push notifications not supported');
@@ -70,8 +71,8 @@
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         window.closePushPrompt();
-        await registerPushNotifications();
-        showSuccessMessage('🎉 Notifications enabled! We\'ll keep your streak safe.');
+        const saved = await registerPushNotifications();
+        if (saved) showSuccessMessage('Notification subscription saved.');
       }
     } catch (error) {
       console.error('❌ Push notification error:', error);
@@ -112,12 +113,17 @@
       });
 
       if (response.ok) {
+        const data = await response.json();
+        if (data.success !== true) return false;
         console.log('✅ Push subscription saved successfully');
+        return true;
       } else {
-        console.error('❌ Failed to save push subscription:', await response.text());
+        console.error('❌ Failed to save push subscription');
+        return false;
       }
     } catch (error) {
       console.error('❌ Push registration error:', error);
+      return false;
     }
   }
 

@@ -22,9 +22,26 @@ module Routes
     # -----------------------
     app.post "/api/subscribe-push" do
       require_auth!
+      content_type :json
+
+      subscription_data = begin
+        JSON.parse(request.body.read)
+      rescue JSON::ParserError
+        nil
+      end
+      endpoint = subscription_data['endpoint'] if subscription_data.is_a?(Hash)
+      keys = subscription_data['keys'] if subscription_data.is_a?(Hash)
+      valid_endpoint = begin
+        uri = URI.parse(endpoint) if endpoint.is_a?(String) && endpoint.bytesize <= 4096
+        uri && uri.scheme == 'https' && uri.host && !uri.userinfo && !uri.fragment && !endpoint.match?(/[\x00-\x20\x7f]/)
+      rescue URI::InvalidURIError
+        false
+      end
+      unless valid_endpoint && keys.is_a?(Hash) && %w[p256dh auth].all? { |key| keys[key].is_a?(String) && keys[key].match?(/\A[A-Za-z0-9_-]{1,512}={0,2}\z/) }
+        halt 400, { success: false, error: 'Invalid push subscription' }.to_json
+      end
 
       begin
-        subscription_data = JSON.parse(request.body.read)
         subscription_json = subscription_data.to_json
 
         # Store subscription in database (SQLite-compatible)
@@ -54,8 +71,8 @@ module Routes
         content_type :json
         { success: true, message: "Push subscription saved" }.to_json
       rescue => e
-        AppLogger.error("❌ Push subscription error: #{e.message}")
-        halt 500, { error: "Failed to save subscription", details: e.message }.to_json
+        AppLogger.error('Push subscription persistence unavailable', error: e.class.name)
+        halt 503, { success: false, error: 'Failed to save subscription' }.to_json
       end
     end
 

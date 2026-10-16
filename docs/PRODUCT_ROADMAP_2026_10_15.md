@@ -28,6 +28,32 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Push hardening full regression
+
+- Full isolated backend **940 examples, zero failures, seven pending**, 56.29s;
+  **71.96% coverage (4331/6019)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, syntax/static mirror/whitespace pass. Push functionality is NOT
+  accepted: schema reconciliation and delivery remain open. No deployment.
+
+### Push configuration and truthful confirmation
+
+- Missing/blank VAPID key now suppresses push prompts/registration entirely.
+  Permission grant alone no longer claims notifications enabled: confirmation
+  requires HTTP/application persistence success and says only subscription saved.
+- **113 frontend tests pass**, build/static mirror/whitespace pass. Backend not
+  changed/run this slice. Conflicting push schemas and absent delivery service
+  still block functional push; no schema migration/provider requests performed.
+
+### Push input/error boundary hardening
+
+- Found conflicting endpoint/key versus subscription_data push schemas; no schema
+  migration performed. Existing endpoint now rejects malformed/non-HTTPS/credentialed
+  subscriptions and invalid key shapes before storage. Persistence errors return
+  generic 503; logs omit raw exception/endpoint details. This does NOT repair storage.
+- **3 targeted route examples pass**, partial coverage exit 2; Ruby/whitespace pass.
+  Full suite not rerun. Push schema reconciliation, provider delivery and browser
+  consent remain open; no external push requests or production changes.
+
 ### Reviewed Vite security upgrade
 
 - Upgraded existing Vite dependency from 5.x to **6.4.4** after checking Node 18/
