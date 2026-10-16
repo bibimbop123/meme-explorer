@@ -15,6 +15,22 @@ Larger response bodies can increase processing time; monitor duration and rate l
 
 ## Operator checks (no secrets in logs)
 
+With `REDIS_URL` already supplied by the deployment environment, run the read-only
+`scripts/check_pool_inventory.rb` using the application's bundled Ruby. Locally:
+
+```sh
+ruby scripts/isolated_bundle.rb exec ruby scripts/check_pool_inventory.rb
+```
+
+Do not paste credentials into shell commands or reports. The script reads only
+fixed metadata keys, TTLs and list lengths; it does not boot the app, scan Redis,
+read media/lock-owner payloads, mutate keys or contact Reddit. Missing metadata is
+null, not a fabricated zero. TTL -2 means absent and -1 means no expiry. Output is
+a non-atomic sample, not verified unique inventory, scheduler/OAuth health, or proof
+that two processes share Redis. Compare web/worker samples and deployment config
+privately; matching counts alone do not establish shared Redis. Failures exit 1
+with generic text and omit exception/connection details.
+
 1. Confirm a live Sidekiq worker consumes default jobs and the maintenance schedule
    actually runs. Web startup saying 'pool ready' does not prove maintenance runs.
 2. Check maintenance logs: current pool count, fetched count, filtered count, stored

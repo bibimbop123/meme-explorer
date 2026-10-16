@@ -28,6 +28,18 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Read-only operator inventory diagnostic
+
+- Added standalone fixed-key metadata report: count, age since refresh, pool TTLs/
+  list lengths and cooldown/maintenance lease TTL. No app boot, Reddit requests,
+  key scans, payload/owner reads, mutations or connection details in output/errors.
+  Missing/invalid metadata is null; non-atomic sampling limitations documented.
+- Two diagnostic examples pass; local disposable-Redis CLI succeeds, missing-env
+  CLI exits 1 with generic text. Full backend: **1010 examples, zero failures,
+  seven pending**, 56.7s; **73.70% coverage (4519/6132)**, gates pass, **exit 0**.
+  **117 frontend tests pass**; syntax/whitespace pass. No production execution,
+  scheduler/OAuth/shared-Redis proof, push or deployment.
+
 ### Inventory batch diagnostics quick win
 
 - Structured batch outcome adds unique fetched/validated counts, previous unique
