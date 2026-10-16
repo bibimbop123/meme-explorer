@@ -26,7 +26,8 @@ module Routes
           # nothing better is available, so call it unconditionally
           # instead of trusting a possibly-stale MEME_CACHE snapshot.
           pool = random_memes_pool
-          @meme = pool.sample
+          session_id = feed_session_id
+          @meme = MemeExplorer::SimpleMemeSelector.select(pool, session_id, user_id: current_user_id)
           @meme ||= fallback_meme
         rescue => e
           AppLogger.error("Error in root route: #{e.class}: #{e.message}")

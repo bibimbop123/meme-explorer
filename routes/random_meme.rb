@@ -41,6 +41,7 @@ module Routes
         reddit_path: reddit_path,
         likes: likes,
         media_type: media_type,
+        inventory_exhausted: meme['inventory_exhausted'] == true,
         **MediaDimensions.for(meme)
       }
 
@@ -64,6 +65,7 @@ module Routes
         end
 
         def issue_impression(response_data)
+          feed_session_id
           session[:impression_session_key] ||= SecureRandom.hex(32)
           pending = (session[:pending_impressions] || {}).reject { |_, item| item['expires_at'].to_i < Time.now.to_i }
           pending.shift while pending.size >= 20
@@ -198,7 +200,7 @@ module Routes
           # doesn't universally respond to `.id`. Guard with
           # `respond_to?(:id)` so this falls through to the request-IP
           # fallback instead of crashing the whole request.
-          session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+          session_id = feed_session_id
 
           # The core product loop: given this person, pick their meme.
           # Timed end-to-end AND broken into stages (pool lookup vs.
@@ -293,7 +295,7 @@ module Routes
           
           halt 404, { error: "No memes available" }.to_json if meme_pool.empty?
 
-          session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+          session_id = feed_session_id
 
           # Find similar meme (same subreddit)
         similar_pool = meme_pool.select { |m| m['subreddit']&.downcase == subreddit }
@@ -330,7 +332,7 @@ module Routes
       app.get "/random.json" do
         AppLogger.debug("🔄 [/random.json] Request received")
 
-        session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+        session_id = feed_session_id
 
         # The core product loop, timed end-to-end AND per-stage - see
         # lib/services/selection_benchmark.rb. This is the endpoint most

@@ -4,11 +4,11 @@
 
 module MemeExplorer
   class ViewingHistoryService
-    # TTL for viewing history (2 hours)
-    HISTORY_TTL = 7200
+    # Bounded recent-selection memory, including speculative prefetch selections.
+    HISTORY_TTL = 604800 # seven days since the latest selection
     
     # Maximum history size per user
-    MAX_HISTORY_SIZE = 200
+    MAX_HISTORY_SIZE = 5000
     
     class << self
       # Mark a meme as seen
@@ -19,7 +19,9 @@ module MemeExplorer
         
         RedisService.with_redis do |redis|
           # Add to sorted set with timestamp score
-          redis.zadd(key, Time.now.to_i, meme_identifier)
+          now = Time.now.to_f
+          redis.zremrangebyscore(key, '-inf', now - HISTORY_TTL)
+          redis.zadd(key, now, meme_identifier)
           
           # Keep only last MAX_HISTORY_SIZE memes
           redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
@@ -41,6 +43,7 @@ module MemeExplorer
         
         seen = RedisService.with_redis do |redis|
           # Get all seen memes (returns array of strings)
+          redis.zremrangebyscore(key, '-inf', Time.now.to_f - HISTORY_TTL)
           redis.zrange(key, 0, -1)
         end
         

@@ -103,8 +103,10 @@ class AuthRoutes
             # ✅ SECURITY FIX: Prevent session fixation attacks by regenerating session ID
             # Clear old session and create new one with different ID
             pending_save = session[:pending_save]
+            browsing_identity = feed_session_id
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
+            session[:feed_session_id] = browsing_identity
             
             # ✅ CRITICAL FIX: Fetch user role from database and store in session
             user = UserService.find_by_id(user_id)
@@ -204,8 +206,10 @@ class AuthRoutes
               
               # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
               pending_save = session[:pending_save]
+              browsing_identity = feed_session_id
               env['rack.session'].clear
               env['rack.session'].options[:renew] = true
+              session[:feed_session_id] = browsing_identity
               
               # ✅ CRITICAL FIX: Fetch user role from database and store in session
               user = UserService.find_by_id(user_id)
@@ -311,8 +315,10 @@ class AuthRoutes
 
             # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
             pending_save = session[:pending_save]
+            browsing_identity = feed_session_id
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
+            session[:feed_session_id] = browsing_identity
             
             # ✅ CRITICAL FIX: Fetch user role from database and store in session
             user = UserService.find_by_id(user_id)

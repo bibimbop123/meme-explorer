@@ -12,6 +12,14 @@
 #   current_user_id                # Returns integer user id or nil
 
 module AuthHelpers
+  # Browsing continuity, not authentication or cross-device identity. Never use
+  # an IP address or user-supplied query parameter as the history namespace.
+  def feed_session_id
+    existing = session[:feed_session_id]
+    return existing if existing.is_a?(String) && existing.match?(/\A[a-f0-9]{64}\z/)
+    session[:feed_session_id] = SecureRandom.hex(32)
+  end
+
   def pending_save_target(pending)
     return nil unless pending.is_a?(Hash) && pending['id'].is_a?(String) &&
                       pending['id'].match?(/\A[a-f0-9]{64}\z/) &&

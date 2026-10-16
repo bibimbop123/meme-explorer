@@ -28,6 +28,8 @@
 # Date: July 21, 2026
 # Author: Senior Developer Audit
 
+require 'set'
+
 module MemeExplorer
   class SimpleMemeSelector
     class << self
@@ -65,17 +67,24 @@ module MemeExplorer
         return all_memes.sample if all_memes.empty?
         
         # 1. Filter out previously seen memes
+        all_memes = all_memes.uniq { |m| m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id] }
         seen = ViewingHistoryService.get_seen_memes(session_id)
+        seen_lookup = seen.to_set
         unseen = all_memes.reject do |meme|
-          meme_id = meme['url'] || meme[:url] || meme['id'] || meme[:id]
-          seen.include?(meme_id.to_s)
+          meme_id = meme['url'] || meme[:url] || meme['file'] || meme[:file] || meme['id'] || meme[:id]
+          seen_lookup.include?(meme_id.to_s)
         end
         
-        # 2. Reset if everything has been seen
+        # 2. Preserve history on exhaustion. Replay the least recently selected
+        # item instead of making the entire pool (including the last item) unseen.
+        exhausted = unseen.empty?
         if unseen.empty?
-          AppLogger.info("[SimpleMemeSelector] User #{session_id} has seen all #{all_memes.size} memes - resetting history")
-          ViewingHistoryService.clear_history(session_id)
-          unseen = all_memes
+          recency = seen.each_with_index.to_h
+          oldest = all_memes.min_by do |m|
+            id = m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id]
+            recency.fetch(id.to_s, -1)
+          end
+          unseen = [oldest]
         end
         
         # 3. Optionally boost fresh content (10% of the time)
@@ -90,9 +99,9 @@ module MemeExplorer
         
         # 4. Selection: weight towards higher-engagement memes (likes/views)
         # when we have that data, otherwise fall back to pure uniform random.
-        # This surfaces content users are more likely to enjoy without
-        # sacrificing variety — unseen-filtering (step 1) already guarantees
-        # no repeats, and boost_fresh (step 3) still injects new content.
+        # Unseen-first applies while eligible URLs remain. Redis availability,
+        # history expiry/eviction and visual reposts limit repeat protection;
+        # engagement weighting is not evidence of humor quality.
         #
         # ROADMAP.md Phase 1: when logged in, also fold in this specific
         # user's subreddit preferences (real signal from likes/saves - see
@@ -114,13 +123,16 @@ module MemeExplorer
         selected ||= pool.sample
         
         # 5. Mark as seen (for next time)
-        meme_id = selected['url'] || selected[:url] || selected['id'] || selected[:id]
+        selected = selected.dup
+        meme_id = selected['url'] || selected[:url] || selected['file'] || selected[:file] || selected['id'] || selected[:id]
         ViewingHistoryService.mark_seen(session_id, meme_id.to_s)
         
         # 6. Add metadata for debugging
         selected['selection_method'] = selection_method
         selected['pool_size'] = pool.size
         selected['total_unseen'] = unseen.size
+        selected['total_unseen'] = 0 if exhausted
+        selected['inventory_exhausted'] = exhausted
         
         AppLogger.debug("[SimpleMemeSelector] Selected meme from pool of #{pool.size} (#{unseen.size} unseen total)")
         
