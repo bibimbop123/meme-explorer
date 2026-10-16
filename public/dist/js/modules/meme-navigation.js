@@ -416,6 +416,15 @@ export class MemeNavigation {
   }
 
   handleKeyPress(event) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    const focused = document.activeElement;
+    const nextFocused = event.code === 'Space' && focused?.matches?.('[data-action="next-meme"], .next-button, #next-btn');
+    if (nextFocused && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.altKey && !document.body.classList.contains('modal-open')) {
+      // Prevent native keyup activation so this path cannot also dispatch a click.
+      event.preventDefault();
+      if (!event.repeat && !focused.disabled) this.loadNextMeme();
+      return;
+    }
     // Don't trigger if user is typing in an input
     if (this.isInputFocused() || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || document.body.classList.contains('modal-open')) {
       return;

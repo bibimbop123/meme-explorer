@@ -28,6 +28,15 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Spacebar after focused Next
+
+- Focused Next now handles Space explicitly through navigation and prevents native
+  keyup activation; repeated/disabled presses do not navigate. Other focused controls,
+  editable fields and browser modifiers retain native behavior. This addresses a
+  focus-dependent gap, not confirmed production acceptance.
+- **104 frontend tests pass**, production build, module mirror parity and whitespace
+  pass. Backend not changed/run. Existing Vite warning remains; deployment required.
+
 ### Render frontend build configuration
 
 - Web Blueprint now runs bundle install plus npm ci --include=dev and Vite build,
