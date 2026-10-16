@@ -16,6 +16,14 @@ RSpec.describe 'Saved profile pagination' do
     expect(last_response.status).to eq(200)
     expect(last_response.body).to include('Favorite 0', 'Page 2 of 2', 'Previous favorites')
     expect(last_response.body).not_to include('More favorites', 'Favorite 24')
+    path = last_response.body[/href="(\/saved\/[0-9]+\?saved_page=2)"/, 1]
+    expect(path).not_to be_nil
+    id = path[/\/saved\/([0-9]+)/, 1]
+    get path
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include("href=\"/profile?saved_page=2#saved-card-#{id}\"")
+    get "/saved/#{id}", saved_page: '//evil.example'
+    expect(last_response.body).to include("href=\"/profile?saved_page=1#saved-card-#{id}\"")
   end
 
   it 'does not include another account favorites in counts, pages or detail access' do

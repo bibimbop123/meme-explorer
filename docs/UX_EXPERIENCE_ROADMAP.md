@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 912 backend examples, zero failures, seven pending;
-95 frontend tests pass; 71.48% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 915 backend examples, zero failures, seven pending;
+102 frontend tests pass; 71.53% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -394,6 +394,24 @@ denial, unavailable native share, cancellation, removed content and malformed ID
 open. Native API resolution is a handoff signal, not proof a friend received a message.
 
 ## Phase 3 — Saving means “you won't lose this”
+
+Saved detail removal now stays in place and offers Undo until leaving the page.
+Undo restores title/community through the existing save endpoint; failures retain
+retry state. Restoration may change saved order and uses existing save engagement
+side effects, not transactional rollback. This supersedes automatic-return behavior.
+
+Saved removal now waits for confirmed success before returning to its originating
+page; HTTP/application/network failures retain content and offer inline retry.
+Duplicate clicks are blocked while pending. Undo remains unimplemented.
+
+Saved detail Back links preserve validated page context and target the original
+card anchor. Invalid context defaults to page 1; no arbitrary return URLs accepted.
+Changing results may shift offset pages; pixel/focus acceptance remains open.
+
+Quick wins: Likes query errors now show alert/retry rather than an empty account;
+the capped count is labeled recent likes (up to 50), not all-time. Saved detail
+media/form URL attributes are validated/escaped. Failure/retry and unsafe stored
+source regressions pass; Saved return context/removal recovery remain open.
 
 Saved boundary regressions verify account-isolated counts/results/detail access and
 retryable count-query failures without false empty states. Accumulated Saved full

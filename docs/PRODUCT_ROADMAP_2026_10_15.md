@@ -28,6 +28,54 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Saved removal Undo
+
+- Successful removal stays on detail with Undo; Back remains available. Restore
+  reuses save endpoint/title/community, with retryable failure and duplicate guards.
+  This supersedes immediate redirect. Undo is page-lifetime, not durable rollback;
+  restored ordering and existing save engagement side effects can change.
+- **102 frontend tests pass**, **16 targeted backend examples pass**, including
+  actual removal/restoration metadata (partial coverage exit 2). Build, mirror,
+  ERB/whitespace pass. Full suite not rerun; last full 915 examples, 71.53%, exit 0.
+
+### Saved quick-win regression verification
+
+- Added persistence-rejection contract test ensuring failed removal does not claim
+  unsaved or erase the favorite. Frontend tests cover invalid JSON, pending duplicate
+  suppression and external return-path rejection.
+- Full isolated backend **915 examples, zero failures, seven pending**, 46.79s;
+  **71.53% coverage (4257/5951)**, both gates pass, **exit 0**. **101 frontend tests
+  pass**, static mirror parity, syntax/whitespace pass. Browser/Undo work stays open.
+
+### Truthful Saved removal recovery
+
+- Replaced inline removal script with tested standalone handler: requires HTTP and
+  application success, disables pending duplicate clicks, retains content on error,
+  and returns via validated local page context. API unsaved/message reflect failure.
+- **99 frontend tests pass**, **26 targeted backend examples pass** (partial
+  coverage exit 2). Build, static mirror parity and whitespace pass. Full backend
+  not rerun; last full 914 examples, zero failures, seven pending, 71.48%, exit 0.
+  Undo/browser acceptance remain open. No deployment.
+
+### Saved return-context recovery
+
+- Saved cards carry page context; detail Back targets that page/card anchor.
+  Invalid context defaults to page 1. Route regression covers page-2 reopening
+  and unsafe context. Targeted **12 examples pass**, partial coverage exit 2;
+  Ruby/ERB syntax and whitespace pass. Full suite not rerun; last full remains
+  914 examples, zero failures, seven pending, 71.48%, exit 0. No JS/build changes.
+
+### Quick wins: truthful Likes and safe Saved detail attributes
+
+- Likes query failures now display unavailable count/alert/retry while preserving
+  Saved page context. Capped list count is labeled recent likes (up to 50), not
+  all-time. Saved detail image sources use MediaUrl validation and URL attributes
+  are escaped, closing stored attribute-injection paths.
+- Added failure/retry and unsafe-source regressions. Targeted **22 examples pass**;
+  full isolated backend **914 examples, zero failures, seven pending**, 46.56s,
+  **71.48% coverage (4251/5947)**, both gates pass, **exit 0**. **95 frontend tests
+  pass**, Ruby/ERB syntax and whitespace pass. No asset build needed or deployment.
+
 ### CI native dependency diagnostic
 
 - Committed validated environment tooling as 5a2ce31. Added explicit native-load

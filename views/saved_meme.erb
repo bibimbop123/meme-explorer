@@ -4,7 +4,7 @@
     <div class="meme-display-card">
       <img
         id="meme-img"
-        src="<%= @image_src || '/images/funny1.jpeg' %>"
+        src="<%= Rack::Utils.escape_html(MediaUrl.safe(@image_src) || '/images/meme-placeholder.svg') %>"
         alt="<%= Rack::Utils.escape_html(@meme["title"] || 'Meme Image') %>"
         class="meme-display-image"
         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
@@ -38,7 +38,7 @@
 
   <div class="meme-actions-section">
     <form class="action-form" action="/like" method="POST">
-      <input type="hidden" name="url" value="<%= @image_src || '' %>">
+      <input type="hidden" name="url" value="<%= Rack::Utils.escape_html(@image_src.to_s) %>">
       
       <button
         type="submit"
@@ -51,18 +51,23 @@
 
     <button
       type="button"
-      onclick="unsaveMeme(<%= @saved_meme_id %>)"
+      id="remove-saved-meme"
+      data-title="<%= Rack::Utils.escape_html(@meme['title'].to_s) %>"
+      data-subreddit="<%= Rack::Utils.escape_html(@meme['subreddit'].to_s) %>"
+      data-return-path="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>"
       class="action-button action-button-danger"
     >
       <span class="button-icon">🗑️</span>
       <span class="button-text">Remove</span>
     </button>
 
-    <a href="/profile" class="action-button action-button-secondary">
+    <a href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
       <span class="button-icon">⬅️</span>
       <span class="button-text">Back</span>
     </a>
   </div>
+
+  <p id="saved-removal-status" role="status" aria-live="polite"></p>
 
   <!-- Ad improvement: this page had zero ad inventory before, despite
        being a real single-meme detail page with substantial content
@@ -85,26 +90,7 @@
 </div>
 <% end %>
 
-<script>
-function unsaveMeme(savedId) {
-  const url = document.querySelector("input[name='url']").value;
-  
-  fetch("/api/unsave-meme", {
-    method: "POST",
-    body: new URLSearchParams({ url: url }),
-    headers: { "Accept": "application/json" }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-    window.location.href = "/profile";
-  })
-  .catch(err => {
-    alert("Error: " + err);
-    if (navigator.vibrate) navigator.vibrate(200);
-  });
-}
-</script>
+<script src="/js/saved-detail.js" defer></script>
 
 <style>
   .saved-meme-container {

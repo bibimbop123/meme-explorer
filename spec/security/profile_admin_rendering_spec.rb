@@ -1,6 +1,37 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Stored content rendering boundaries' do
+  it 'distinguishes unavailable Likes from an empty list and recovers on retry' do
+    set_session(user_id: create_test_user('likes-error@example.com'))
+    failed = false
+    allow(DB).to receive(:execute).and_wrap_original do |original, sql, *args|
+      if sql.include?('SELECT meme_url, created_at as liked_at FROM user_liked_memes') && !failed
+        failed = true
+        raise PG::ConnectionBad, 'private likes failure'
+      end
+      original.call(sql, *args)
+    end
+    get '/profile'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('could not load your liked memes', 'Try loading Likes again', '<strong>Unavailable</strong> recent likes')
+    expect(last_response.body).not_to include('No liked memes yet', 'private likes failure')
+    get '/profile'
+    expect(last_response.body).to include('No liked memes yet', 'recent likes (up to 50)')
+    expect(last_response.body).not_to include('could not load your liked memes')
+  end
+
+  it 'rejects executable Saved detail media and escapes stored attribute values' do
+    user_id = create_test_user('saved-detail-safe@example.com')
+    set_session(user_id: user_id)
+    url = 'javascript:alert(1)" autofocus onfocus="alert(2)'
+    UserService.save_meme(user_id, url, 'Unsafe source', 'funny')
+    id = DB.execute('SELECT id FROM saved_memes WHERE user_id = ?', [user_id]).first['id']
+    get "/saved/#{id}"
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('src="/images/meme-placeholder.svg"', '&quot; autofocus')
+    expect(last_response.body).not_to include('src="javascript:', '" autofocus onfocus="')
+  end
+
   it 'distinguishes a Saved query failure from an empty account and recovers on retry' do
     user_id = create_test_user('saved-error@example.com')
     set_session(user_id: user_id)
@@ -28,7 +59,7 @@ RSpec.describe 'Stored content rendering boundaries' do
     set_session(user_id: user_id)
     UserService.save_meme(user_id, 'https://i.redd.it/favorite.jpg', 'Recovered favorite', 'funny')
     get '/profile'
-    path = last_response.body[/href="(\/saved\/[0-9]+)"/, 1]
+    path = last_response.body[/href="(\/saved\/[0-9]+\?saved_page=[0-9]+)"/, 1]
     expect(path).not_to be_nil
     expect(last_response.body).not_to include("onclick=\"window.location.href='/saved/")
     get path

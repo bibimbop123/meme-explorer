@@ -46,6 +46,7 @@ module Routes
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
             AppLogger.error("Error fetching liked memes: #{e.message}")
+            @liked_load_error = true
             []
           end
           
@@ -164,8 +165,8 @@ module Routes
         content_type :json
         {
           success: result[:success],
-          unsaved: true,
-          message: "Meme unsaved"
+          unsaved: !!result[:success],
+          message: result[:success] ? 'Meme unsaved' : 'Could not remove meme'
         }.to_json
       end
 
@@ -190,6 +191,9 @@ module Routes
         @image_src = saved_meme["meme_url"]
         @likes = get_meme_likes(@image_src)
         @saved_meme_id = saved_id
+        page = params[:saved_page].to_s
+        page = '1' unless page.match?(/\A[1-9][0-9]{0,8}\z/)
+        @saved_return_path = "/profile?saved_page=#{page}#saved-card-#{saved_id}"
 
         erb :saved_meme
       end
