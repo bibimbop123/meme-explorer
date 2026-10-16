@@ -8,12 +8,11 @@
  */
 
 const CACHE_VERSION = 'meme-explorer-v2.2';
-const STATIC_CACHE = 'static-v2.2';
-const API_CACHE = 'api-v2.2';
+const STATIC_CACHE = 'static-v2.3';
+const API_CACHE = 'api-v2.3';
 const IMAGE_CACHE = 'images-v2.2';
 
 const STATIC_ASSETS = [
-  '/',
   '/offline.html',
   '/css/meme_explorer.css',
   '/css/dark-mode.css',
@@ -58,6 +57,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  // Never intercept third-party traffic or cache personalized/session-bound data.
+  if (url.origin !== self.location.origin) return;
+  if (request.method !== 'GET' || url.pathname.startsWith('/api/') ||
+      url.pathname === '/' || url.pathname === '/random' ||
+      url.pathname.endsWith('.json') || url.pathname.startsWith('/meme/') ||
+      url.pathname.startsWith('/saved') || url.pathname === '/profile') return;
   
   // API requests - network first, fallback to cache
   if (url.pathname.startsWith('/api/')) {

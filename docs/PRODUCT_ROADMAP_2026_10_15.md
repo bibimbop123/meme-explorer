@@ -28,6 +28,16 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Production navigation incident: service-worker stale viewer protection
+
+- Inspection found / cached as a static asset, replaying session-bound viewer HTML.
+  Removed it from precache and bypassed dynamic viewer/JSON/API/profile/Saved traffic,
+  mutations and cross-origin ad scripts. Bumped static/API cache versions to evict
+  old caches on activation. This fixes stale-state risk, not proof of click root cause.
+- **103 frontend tests pass**, build, service-worker syntax, mirror and whitespace
+  pass. No backend changes/run. Production update/browser activation unverified;
+  missing catalog migrations and old skip-generating client still need resolution.
+
 ### Production viewer schema incident tooling
 
 - Added explicit read-only viewer table check with opt-in --apply for only catalog/
