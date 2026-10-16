@@ -75,6 +75,10 @@ are scoped contracts, not guarantees during Redis loss, session reset or concurr
 
 ## Phase 2 — Separate selection reservations from acknowledged views
 
+Implementation contract: [reservation protocol](FEED_RESERVATION_PROTOCOL.md).
+Design prepared only; constants, identity transition and failure semantics require
+review before changing selection-time history writes.
+
 **Owner:** engineering. **Status:** design required before implementation.
 
 Current history records selection/prefetch, not actual viewing. Define one shared

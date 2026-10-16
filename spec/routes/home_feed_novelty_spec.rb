@@ -1,11 +1,11 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Homepage novelty continuity' do
-  let(:identity) { "home-novelty-#{SecureRandom.hex(8)}" }
+  let(:identity) { SecureRandom.hex(32) }
   let(:pool) { 3.times.map { |i| { 'url' => "/images/funny1.jpeg?novelty=#{i}", 'title' => "Novelty #{i}", 'subreddit' => 'cats' } } }
 
   before do
-    set_session(session_id: identity)
+    set_session(feed_session_id: identity)
     allow_any_instance_of(MemeExplorer::App).to receive(:random_memes_pool).and_return(pool)
   end
 
@@ -34,7 +34,7 @@ RSpec.describe 'Homepage novelty continuity' do
 
   it 'keeps unseen-first continuity for an authenticated homepage session' do
     user_id = create_test_user('home-novelty-account@example.test')
-    set_session(session_id: identity, user_id: user_id)
+    set_session(feed_session_id: identity, user_id: user_id)
     urls = 3.times.map do
       get '/'
       expect(last_response.status).to eq(200)

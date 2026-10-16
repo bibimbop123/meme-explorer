@@ -173,6 +173,27 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Shared opaque feed identity prerequisite
+
+- Added validated random feed_session_id helper; homepage/random/similar use it,
+  recipient impression creation initializes it. Removed their Rack/IP fallback.
+  Successful auth rotation allowlists browsing identity, logout clears it. No legacy
+  IP history migration; one-time continuity reset and initial-session races documented.
+- Six helper/auth regressions added; 19 targeted cases pass (partial coverage exit 2).
+  Full backend **1061 examples, zero failures, seven pending**, 61.83s; **74.22%
+  coverage (4595/6191)**, gates pass, exit 0; **121 frontend tests pass**, syntax/
+  whitespace pass. Reservation/ack changes still unimplemented; no production changes.
+
+### Prefetch reservation protocol prepared
+
+- Inspected selector/route marks, session pending-impression map and PostgreSQL
+  acknowledgement dedupe. FEED_RESERVATION_PROTOCOL.md specifies atomic bounded
+  reservations, identity migration, late acknowledgement ownership, expiry and
+  DB-success/Redis-failure reconciliation; no distributed atomicity claim.
+- Design only: no history marks removed, no behavior switch, deployment or score
+  change. Next ticket is the shared feed-session identity contract before reservation
+  service/route migration. Security and privacy/capacity release gates remain open.
+
 ### Anti-repeat automated size/account acceptance
 
 - Five real-Redis selector matrix cases (1/2/20/200/5,000) verify last-unseen priority

@@ -26,7 +26,7 @@ module Routes
           # nothing better is available, so call it unconditionally
           # instead of trusting a possibly-stale MEME_CACHE snapshot.
           pool = random_memes_pool
-          session_id = session[:session_id] || (session.respond_to?(:id) ? session.id : nil) || "anonymous_#{request.ip}"
+          session_id = feed_session_id
           @meme = MemeExplorer::SimpleMemeSelector.select(pool, session_id, user_id: current_user_id)
           @meme ||= fallback_meme
         rescue => e
