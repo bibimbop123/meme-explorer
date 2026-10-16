@@ -27,6 +27,25 @@ final full run is green. No live route behavior change or rollout approval.
 
 ## Code anchors and current semantics
 
+Acknowledgement-store review adds stored-payload size/shape/content validation and
+an independent-two-connection last-capacity-slot race test. Six targeted store
+examples pass (partial coverage exit 2). Final full backend: 1079 examples, zero
+failures, seven pending, 62.24s; 74.50% (4674/6274), gates pass, exit 0; 121 frontend
+tests pass, syntax/whitespace pass. No route use or reconciliation implemented.
+
+Longer-lived metadata prerequisite implemented locally as unused
+FeedAcknowledgementStore: opaque token issuance, session-scoped digest keys,
+Redis server-time 30-minute expiry, atomic 20-token cap/pruning and non-renewing
+lookup. Stores bounded content URL metadata, not title/account data. Invalid and
+unavailable results differ. Not tied to impression IDs, active owner tokens, DB
+dedupe or history yet; no routes migrated. Oldest unexpired tokens are not evicted
+to admit new tokens, so limit-reached needs an explicit integration policy.
+
+Four Redis tests pass; full backend 1077 examples, zero failures, seven pending,
+62.26s, 74.50% (4672/6271), gates pass, exit 0; 121 frontend tests pass. Syntax/
+whitespace pass. Concurrent cap tests and malformed stored-data tests remain review
+follow-ups. This component does not by itself make prefetch acknowledgement-safe.
+
 Active lease validation now atomically checks server-time expiry and exact session/
 content/token ownership without renewal. Status distinguishes active, invalid and
 unavailable. It is unused by routes and must NOT substitute for the proposed

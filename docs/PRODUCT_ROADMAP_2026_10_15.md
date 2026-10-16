@@ -173,6 +173,26 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Acknowledgement-store review validation
+
+- Reject corrupt, oversized, blank/non-text stored content metadata; independent
+  concurrent issuers cannot overfill final capacity slot. Store remains unused.
+- Full backend **1079 examples, zero failures, seven pending**, 62.24s; **74.50%
+  coverage (4674/6274)**, gates pass, exit 0; **121 frontend tests pass**. Six targeted
+  examples pass (partial coverage exit 2), syntax/whitespace pass. No route migration,
+  acknowledgement reconciliation, deployment, production change or score increase.
+
+### Separate acknowledgement metadata prerequisite
+
+- Added unused FeedAcknowledgementStore: opaque session-bound token, 30-minute
+  server-time expiry, atomic 20-token cap/expired pruning, non-renewing lookup and
+  explicit invalid/unavailable outcomes. Versioned namespace separate from leases.
+  No impression-ID binding, DB reconciliation, history commit or route switch yet.
+- Four Redis regressions; full backend **1077 examples, zero failures, seven pending**,
+  62.26s; **74.50% coverage (4672/6271)**, gates pass, exit 0; **121 frontend tests
+  pass**, syntax/whitespace pass. Review concurrency/corrupt-metadata cases before
+  checkpoint/integration. No deployment, production changes or score increase.
+
 ### Active reservation ownership validation
 
 - Added unused atomic active-lease validation: exact session/content/token and Redis
