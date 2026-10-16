@@ -37,6 +37,8 @@ RSpec.describe 'Saved favorites search' do
     expect(last_response.body).to include("/saved/#{id}?saved_page=1&amp;saved_q=Cats+%26+dogs")
     get "/saved/#{id}", saved_q: 'Cats & dogs', saved_page: '1'
     expect(last_response.body).to include("/profile?saved_page=1&amp;saved_q=Cats+%26+dogs#saved-card-#{id}")
+    expect(last_response.body).to include('id="saved-media-recovery" hidden', 'id="retry-saved-media"', 'data-saved-media="available"')
+    expect(last_response.body).not_to include('nextElementSibling')
   end
 
   it 'rejects oversized and structured query inputs' do

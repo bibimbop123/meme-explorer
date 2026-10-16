@@ -29,6 +29,8 @@ RSpec.describe 'Stored content rendering boundaries' do
     get "/saved/#{id}"
     expect(last_response.status).to eq(200)
     expect(last_response.body).to include('src="/images/meme-placeholder.svg"', '&quot; autofocus')
+    expect(last_response.body).to include('data-saved-media="unavailable"', 'Your favorite is still saved unless you remove it.', '/js/saved-media-recovery.js')
+    expect(last_response.body).not_to include('id="retry-saved-media"', 'nextElementSibling')
     expect(last_response.body).not_to include('src="javascript:', '" autofocus onfocus="')
   end
 

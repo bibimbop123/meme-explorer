@@ -28,6 +28,21 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Saved broken-image recovery
+
+- Replaced nonexistent-sibling inline error handler with external load/error
+  listeners, early cached-failure detection, explicit retry and live status. Retry
+  blocks duplicates and never changes/removes the favorite; unsafe sources have no
+  retry and show an unavailable state. Existing Saved search/page return is retained.
+- Four frontend regressions cover early failure, repeat retry/failure/success,
+  normal load and unsafe media. **117 frontend tests pass**; Vite build passes.
+- Full backend: **1006 examples, zero failures, seven pending**, 56.16s;
+  **73.74% coverage (4504/6108)**, gates pass, **exit 0**. Final scoped hidden CSS/
+  unsafe server-side hidden adjustment rechecked with **12 rendering/search examples,
+  zero failures** (partial coverage exit 2); whitespace passes.
+- Browser/network/focus acceptance remains open; retry cannot guarantee an origin
+  will recover or bypass browser cache. No deployment or live-source verification.
+
 ### Saved retrieval search quick win
 
 - Account-scoped, parameterized title/community text matching, case-insensitive
