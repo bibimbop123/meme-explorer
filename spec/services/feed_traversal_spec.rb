@@ -121,6 +121,83 @@ RSpec.describe MemeExplorer::FeedTraversal do
     expect(traversal.advance).to eq(status: :closed)
   end
 
+  it 'preserves frozen gallery and video metadata without copying credentials or viewer state' do
+    gallery = [{ url: '/slide.jpg', width: 640, height: 900 }]
+    pool = [{ url: '/media.jpg', file: '/video.mp4', media_type: 'video', width: 640,
+              gallery_images: gallery, is_gallery: true, ack_token: 'private', saved: true }]
+    traversal = described_class.new(pool, identity)
+    gallery.first[:url].replace('/mutated.jpg')
+    allow(issuer).to receive(:issue).and_return(status: :issued)
+    result = traversal.advance[:meme]
+    expect(result).to include('file' => '/video.mp4', 'media_type' => 'video', 'width' => 640)
+    expect(result['gallery_images']).to eq([{ 'url' => '/slide.jpg', 'width' => 640, 'height' => 900 }])
+    expect(result['gallery_images'].first['url']).to be_frozen
+    expect(result).not_to have_key('ack_token')
+    expect(result).not_to have_key('saved')
+  end
+
+  it 'rejects oversized, deeply nested and unsupported media payloads before issuance' do
+    expect(issuer).not_to receive(:issue)
+    deep = 'value'
+    8.times { deep = [deep] }
+    [deep, Object.new, ['x' * (described_class::MAX_PAYLOAD_BYTES + 1)],
+     Array.new(described_class::MAX_PAYLOAD_NODES + 1, nil), [{ url: '/a', 'url' => '/b' }]].each do |payload|
+      traversal = described_class.new([{ url: '/payload.jpg', gallery_images: payload }], identity)
+      expect(traversal.advance).to eq(status: :invalid)
+    end
+  end
+
+  it 'preserves gallery and video fields through the existing JSON response builder' do
+    gallery = { url: '/builder-gallery.jpg', title: 'Gallery', subreddit: 'test',
+      width: 640, height: 900, is_gallery: true,
+      gallery_images: [{ url: '/builder-slide.jpg', width: 320, height: 450 }],
+      permalink: '/r/test/comments/abc123/gallery' }
+    video = { file: '/builder-video.mp4', title: 'Video', media_type: 'video',
+      width: 1280, height: 720, permalink: '/r/test/comments/def456/video' }
+    [gallery, video].each do |source|
+      result = described_class.new([source], identity).advance
+      expect(result[:status]).to eq(:issued)
+      snapshot = result[:meme]
+      response = Routes::RandomMeme.build_meme_json(snapshot,
+        media_type: snapshot['media_type'] || 'image', likes: 3)
+      expect(response).to include(url: source[:url] || source[:file], title: source[:title],
+        width: source[:width], height: source[:height], reddit_path: source[:permalink], likes: 3)
+      if source[:is_gallery]
+        expect(response).to include(is_gallery: true, total_images: 1)
+        expect(response[:gallery_images].first).to include('url' => '/builder-slide.jpg', 'width' => 320)
+      else
+        expect(response).to include(file: '/builder-video.mp4', media_type: 'video')
+      end
+      expect(store.history(identity)).to eq(status: :available, entries: [])
+    end
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+  end
+
+  it 'shares payload byte limits across unique candidates and accepts the exact boundary' do
+    stub_const('MemeExplorer::FeedTraversal::MAX_PAYLOAD_BYTES', 8)
+    allow(issuer).to receive(:issue).and_return(status: :already_acknowledged)
+    first = { url: '/bytes-one.jpg', media_type: '1234' }
+    second = { url: '/bytes-two.jpg', media_type: '12345' }
+    invalid = described_class.new([first, second], identity)
+    expect(invalid.advance).to eq(status: :invalid)
+    expect(invalid.instance_variable_get(:@candidates)).to eq([])
+    expect(issuer).not_to have_received(:issue)
+    second[:media_type] = '1234'
+    expect(described_class.new([first, first.dup, second], identity).advance).to eq(status: :snapshot_complete, reserved: false, empty: false)
+    expect(issuer).to have_received(:issue).twice
+  end
+
+  it 'shares payload node limits across unique candidates before any issuance' do
+    stub_const('MemeExplorer::FeedTraversal::MAX_PAYLOAD_NODES', 3)
+    allow(issuer).to receive(:issue).and_return(status: :already_acknowledged)
+    pool = [{ url: '/nodes-one.jpg', gallery_images: [nil] },
+            { url: '/nodes-two.jpg', gallery_images: [nil] }]
+    expect(described_class.new(pool, identity).advance).to eq(status: :invalid)
+    expect(issuer).not_to have_received(:issue)
+    pool.last[:gallery_images] = []
+    expect(described_class.new(pool, identity).advance).to eq(status: :snapshot_complete, reserved: false, empty: false)
+  end
+
   it 'drops internal candidate and identity references after invalid or terminal passes' do
     invalid = described_class.new([{ url: '/partial.jpg' }, {}], identity)
     expect(invalid.advance).to eq(status: :invalid)

@@ -74,11 +74,62 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1173 backend examples, zero failures, seven pending;
-75.40% (4907/6508), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1182 backend examples, zero failures, seven pending;
+75.54% (4938/6537), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Aggregate media-budget regressions: two additional cases verify byte/node budgets
+are shared across unique candidates, exact boundaries accepted, duplicate identities
+not double-charged, and aggregate overflow rejected before issuance with partial
+snapshot released. No implementation change or measured capacity approval.
+Full backend 1182 examples, zero failures, seven pending, 66.00s; 75.54%
+(4938/6537), gates pass, exit 0; 17 targeted snapshot cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
+
+Snapshot-to-JSON-builder regression: real issuance then existing build_meme_json
+preserves gallery slides/count, video file/type, dimensions and Reddit permalink,
+with no speculative history or DB impressions. Not browser rendering/live-media
+or all resolver-field acceptance. Full backend 1180 examples, zero failures, seven
+pending, 65.65s; 75.54% (4938/6537), gates pass, exit 0; 15 targeted snapshot tests
+pass (partial coverage exit 2); 121 frontend tests pass; syntax/whitespace pass.
+No route migration or rollout enabled; release gates remain open.
+
+Snapshot media preservation: allowlisted file/type/dimensions/gallery/source fields
+now recursively copied/frozen, excluding credentials/viewer state. Separate 1 MiB
+payload-string and 20000-node aggregate budgets plus depth 6, alongside original
+metadata/count caps. Invalid types/nonfinite floats/colliding normalized nested keys
+reject before issuance. Not URL safety/media semantic validation or full renderer
+acceptance. Two regressions cover immutable media and malformed/budget rejection.
+Full backend 1179 examples, zero failures, seven pending, 66.66s; 75.45%
+(4932/6537), gates pass, exit 0; 14 targeted snapshot tests pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
+
+Parsed expired-credential boundary: new real Redis/DB regression verifies a shaped
+v2 envelope can still be unauthorized after deadline expiry, without starting DB
+transaction, writing history/counters or deleting a successor lease. Score-driven
+expiry simulation, not wall-clock/provider acceptance. Full backend 1177 examples,
+zero failures, seven pending, 66.11s; 75.32% (4902/6508), gates pass, exit 0;
+29 targeted coordinator/envelope cases pass (partial coverage exit 2); 121 frontend
+tests pass; syntax/whitespace pass. Routes unchanged; release gates remain open.
+
+Parsed envelope/coordinator integration: two real Redis/PostgreSQL regressions feed
+strict v2 JSON into coordinator, verify duplicate counters once and issued metadata
+instead of forged body attribution, and reject syntactically valid credentials in
+another session. Parser shape is not authorization. Full backend 1176 examples,
+zero failures, seven pending, 66.16s; 75.37% (4905/6508), gates pass, exit 0;
+28 targeted coordinator/envelope cases pass (partial coverage exit 2); 121 frontend
+tests pass; syntax/whitespace pass. No routes connected or rollout enabled.
+
+ACK raw JSON duplicate-key rejection uses installed JSON allow_duplicate_key:false.
+One matrix regression covers repeated IDs/protocol/token, escaped-equivalent keys
+and nested duplicates. Already-parsed Hash cannot recover lost duplicate provenance.
+Initial custom object insertion approaches failed because parser collapses keys;
+removed in favor of supported strict option. Final full backend 1174 examples, zero
+failures, seven pending, 66.04s; 75.37% (4905/6508), gates pass, exit 0; nine targeted
+envelope tests pass (partial coverage exit 2); 121 frontend tests pass; syntax/
+whitespace pass. No routes changed or rollout enabled.
 
 Unused ACK body reader: reads at most 1025 bytes for a 1 KiB cap, bounds JSON nesting,
 then uses the no-fallback envelope classifier. Caller owns stream position/content

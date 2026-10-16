@@ -13,9 +13,10 @@ work. Its existence does not implement this proposal or approve the switch.
 Change homepage/random/similar selection and their selection-time marks together.
 Keep exact recipient and Saved recovery addressable regardless of feed eligibility.
 Preserve existing filtering, personalization, share identity and media/gallery
-payloads. FeedTraversal currently copies only URL/title/subreddit: do not render its
-normalized candidate as a complete media payload. Resolve the returned identity
-against the same immutable server snapshot containing the full eligible payload.
+payloads. FeedTraversal now copies bounded allowlisted gallery/video/source metadata,
+but that is not full media validation or proof every rendering field is preserved.
+Verify exact identity/full payload mapping through existing media resolvers and
+renderer integration tests before rendering a migrated response.
 
 No client URL/title/user value authorizes an impression. Never clear history at
 exhaustion or migrate speculative legacy marks into acknowledged history. Initial

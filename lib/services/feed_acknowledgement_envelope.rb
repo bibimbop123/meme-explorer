@@ -12,7 +12,7 @@ module MemeExplorer
     def self.read(body)
       raw = body.read(MAX_BODY_BYTES + 1)
       return { status: :invalid } unless raw.is_a?(String) && raw.bytesize <= MAX_BODY_BYTES
-      parse(JSON.parse(raw, max_nesting: 4))
+      parse(JSON.parse(raw, max_nesting: 4, allow_duplicate_key: false))
     rescue JSON::ParserError, EncodingError, IOError
       { status: :invalid }
     end

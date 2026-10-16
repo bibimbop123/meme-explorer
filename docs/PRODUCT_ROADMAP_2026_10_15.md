@@ -173,6 +173,63 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Aggregate snapshot media-budget tests
+
+- Two regressions verify cross-candidate byte/node limits, exact boundaries and
+  duplicate accounting, rejecting overflow before issuance. No implementation change.
+- Full backend **1182 examples, zero failures, seven pending**, 66.00s;
+  **75.54% (4938/6537)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  17 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; renderer/replay/migration/capacity/privacy gates remain open.
+
+### Snapshot to existing JSON-builder contract test
+
+- Real issuance/builder regression checks gallery/video, dimensions, attribution
+  and speculative non-marking. Not browser/live-media acceptance. Routes unchanged.
+- Full backend **1180 examples, zero failures, seven pending**, 65.65s;
+  **75.54% (4938/6537)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  15 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Renderer/replay/migration/capacity/privacy gates remain open.
+
+### Bounded immutable media metadata preservation
+
+- Snapshot copies allowlisted gallery/video/dimensions/source fields recursively,
+  excludes credentials/viewer state, rejects invalid/deep/oversized structures.
+  Separate provisional 1 MiB string/20000-node payload bounds; no media safety claim.
+- Two regressions. Full backend **1179 examples, zero failures, seven pending**,
+  66.66s; **75.45% (4932/6537)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**; 14 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Routes unchanged; renderer/replay/migration/capacity/privacy gates remain.
+
+### Parsed expired credential authorization regression
+
+- Real Redis/DB case verifies syntactically valid expired envelope rejected before
+  transaction, preserving successor lease and empty history/counters. Simulated
+  Redis deadline, not wall-clock expiry acceptance. Routes unchanged.
+- Full backend **1177 examples, zero failures, seven pending**, 66.11s;
+  **75.32% (4902/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  29 targeted coordinator/envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Parsed v2 envelope to real ACK coordinator coverage
+
+- Two DB/Redis regressions verify strict parsed envelope ACK/duplicate behavior,
+  server attribution and cross-session rejection. Routes still unchanged.
+- Full backend **1176 examples, zero failures, seven pending**, 66.16s;
+  **75.37% (4905/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  28 targeted coordinator/envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Strict ACK JSON duplicate-key rejection
+
+- Raw reader uses installed JSON allow_duplicate_key:false; repeated/escaped/nested
+  duplicates rejected. One matrix regression. Failed custom object approaches removed;
+  parsed Hash alone cannot detect prior duplicate collapse. No routes changed.
+- Final backend **1174 examples, zero failures, seven pending**, 66.04s;
+  **75.37% (4905/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  nine targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Migration/replay/capacity/privacy gates remain open.
+
 ### Unused bounded ACK JSON body reader
 
 - Envelope reader adds 1 KiB cap (1025-byte sentinel), bounded nesting and malformed/

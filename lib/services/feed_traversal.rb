@@ -7,6 +7,10 @@ module MemeExplorer
   class FeedTraversal
     MAX_CANDIDATES = 5000
     MAX_METADATA_BYTES = 1_048_576 # Copied string bytes, not Ruby heap/RSS usage.
+    MAX_PAYLOAD_BYTES = 1_048_576
+    MAX_PAYLOAD_NODES = 20_000
+    MEDIA_FIELDS = %w[file media_type width height is_gallery gallery_images permalink
+                      reddit_post_urls is_crosspost original_subreddit].freeze
 
     def initialize(candidates, session_id, user_id: nil)
       @offset = 0
@@ -21,6 +25,7 @@ module MemeExplorer
       identities = Set.new
       @candidates = []
       metadata_bytes = 0
+      payload_budget = { bytes: 0, nodes: 0 }
       candidates.each do |meme|
         unless meme.is_a?(Hash)
           @valid = false
@@ -41,8 +46,18 @@ module MemeExplorer
           @candidates.clear
           break
         end
-        @candidates << { 'url' => content.dup.freeze, 'title' => title&.dup&.freeze,
-                         'subreddit' => subreddit&.dup&.freeze }.freeze
+        snapshot = { 'url' => content.dup.freeze, 'title' => title&.dup&.freeze,
+                     'subreddit' => subreddit&.dup&.freeze }
+        begin
+          MEDIA_FIELDS.each do |field|
+            value = meme.key?(field) ? meme[field] : meme[field.to_sym]
+            snapshot[field] = copy_media(value, payload_budget) unless value.nil?
+          end
+        rescue ArgumentError
+          @valid = false
+          break
+        end
+        @candidates << snapshot.freeze
       end
       release_snapshot unless @valid
       @candidates.freeze
@@ -90,6 +105,33 @@ module MemeExplorer
     end
 
     private
+
+    def copy_media(value, budget, depth = 0)
+      budget[:nodes] += 1
+      raise ArgumentError if depth > 6 || budget[:nodes] > MAX_PAYLOAD_NODES
+      case value
+      when String
+        budget[:bytes] += value.bytesize
+        raise ArgumentError unless value.valid_encoding? && budget[:bytes] <= MAX_PAYLOAD_BYTES
+        value.dup.freeze
+      when Array
+        raise ArgumentError if value.size > MAX_PAYLOAD_NODES - budget[:nodes]
+        value.map { |item| copy_media(item, budget, depth + 1) }.freeze
+      when Hash
+        raise ArgumentError if value.size > MAX_PAYLOAD_NODES - budget[:nodes]
+        value.each_with_object({}) do |(key, item), result|
+          raise ArgumentError unless key.is_a?(String) || key.is_a?(Symbol)
+          copied_key = copy_media(key.to_s, budget, depth + 1)
+          raise ArgumentError if result.key?(copied_key)
+          result[copied_key] = copy_media(item, budget, depth + 1)
+        end.freeze
+      when Integer, TrueClass, FalseClass, NilClass then value
+      when Float
+        raise ArgumentError unless value.finite?
+        value
+      else raise ArgumentError
+      end
+    end
 
     def release_snapshot
       @candidates = [].freeze

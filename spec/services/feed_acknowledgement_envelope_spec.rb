@@ -77,4 +77,15 @@ RSpec.describe MemeExplorer::FeedAcknowledgementEnvelope do
     stream.close
     expect(described_class.read(stream)).to eq(status: :invalid)
   end
+
+  it 'rejects duplicate decoded JSON keys rather than choosing a credential value' do
+    bodies = [
+      %({"impression_id":"#{id}","impression_id":"#{id}"}),
+      %({"impression_id":"#{id}","impression_protocol":1,"impression_protocol":2,"ack_token":"#{token}"}),
+      %({"impression_id":"#{id}","impression_protocol":2,"ack_token":null,"ack_token":"#{token}"}),
+      %({"impression_id":"#{id}","impression_protocol":2,"ack_token":"#{token}","ack_\\u0074oken":"#{token}"}),
+      %({"impression_id":"#{id}","extra":{"key":1,"key":2}})
+    ]
+    bodies.each { |raw| expect(described_class.read(StringIO.new(raw))).to eq(status: :invalid) }
+  end
 end
