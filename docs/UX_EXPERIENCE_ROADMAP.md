@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 802 backend examples, zero failures, seven pending;
-95 frontend tests pass; 60.42% backend coverage remains below the required 70%.
+Latest full-suite engineering evidence: 809 backend examples, zero failures, seven pending;
+95 frontend tests pass; 60.47% backend coverage remains below the required 70%.
 Native dependencies still use a temporary local workaround. No production rollout
 or fresh score is implied. See the engineering execution log for current evidence.
 
@@ -383,6 +383,20 @@ denial, unavailable native share, cancellation, removed content and malformed ID
 open. Native API resolution is a handoff signal, not proof a friend received a message.
 
 ## Phase 3 — Saving means “you won't lose this”
+
+Saved boundary regressions verify account-isolated counts/results/detail access and
+retryable count-query failures without false empty states. Accumulated Saved full
+regression: 809 examples, zero failures, seven pending; coverage 60.47%, exit 2.
+
+Saved now has account-scoped 24-item SQL pages, stable timestamp/ID ordering,
+account-wide counts and accessible Previous/More links anchored to Saved. Invalid
+page values return 400; oversized pages clamp to the last page. Error retry retains
+the page. Concurrent changes can shift offset pages; browser acceptance remains open.
+
+Saved query failure now renders an alert/retry action instead of the empty-account
+message or zero saved count. Retry regression confirms retained favorites reappear.
+General profile failures no longer expose exception details. Liked-list error
+distinction, pagination and remaining Saved recovery work are still open.
 
 First recovery slice: Saved cards are semantic links instead of click-only divs;
 the empty state explains account persistence and links to discovery. A route

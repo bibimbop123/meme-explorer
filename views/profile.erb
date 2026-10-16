@@ -10,7 +10,7 @@
       <p><strong>Member Since:</strong> <%= @user["created_at"] || "Unknown" %></p>
     <% end %>
     <hr>
-    <p>📌 <strong><%= @saved_count %></strong> memes saved</p>
+    <p>📌 <strong><%= @saved_load_error ? 'Unavailable' : @saved_count %></strong> memes saved</p>
     <p>❤️ <strong><%= @liked_count %></strong> memes liked (all-time)</p>
   </div>
 
@@ -36,9 +36,12 @@
     </div>
   <% end %>
 
-  <h2>My Saved Memes</h2>
+  <h2 id="saved-memes">My Saved Memes</h2>
   
-  <% if @saved_memes.empty? %>
+  <% if @saved_load_error %>
+    <p role="alert">We could not load your saved memes. This does not mean your favorites were removed.</p>
+    <p><a href="/profile?saved_page=<%= @saved_page %>#saved-memes">Try loading Saved again</a></p>
+  <% elsif @saved_memes.empty? %>
     <p style="text-align: center;">No saved memes yet. Use Save while browsing to keep favorites in your account.</p>
     <p style="text-align: center;"><a href="/random">Find a meme to save</a></p>
   <% else %>
@@ -54,6 +57,18 @@
         </a>
       <% end %>
     </div>
+  <% end %>
+
+  <% if !@saved_load_error && @saved_pages && @saved_pages > 1 %>
+    <nav aria-label="Saved meme pages" style="display: flex; justify-content: center; gap: 24px; padding: 16px;">
+      <% if @saved_page > 1 %>
+        <a rel="prev" href="/profile?saved_page=<%= @saved_page - 1 %>#saved-memes">← Previous favorites</a>
+      <% end %>
+      <span>Page <%= @saved_page %> of <%= @saved_pages %></span>
+      <% if @saved_page < @saved_pages %>
+        <a rel="next" href="/profile?saved_page=<%= @saved_page + 1 %>#saved-memes">More favorites →</a>
+      <% end %>
+    </nav>
   <% end %>
 
   <div style="margin-top: 30px;">

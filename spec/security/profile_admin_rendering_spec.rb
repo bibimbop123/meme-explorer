@@ -1,6 +1,28 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Stored content rendering boundaries' do
+  it 'distinguishes a Saved query failure from an empty account and recovers on retry' do
+    user_id = create_test_user('saved-error@example.com')
+    set_session(user_id: user_id)
+    UserService.save_meme(user_id, 'https://i.redd.it/retained.jpg', 'Retained favorite', 'funny')
+    failed = false
+    allow(DB).to receive(:execute).and_wrap_original do |original, sql, *args|
+      if sql.include?('SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes') && !failed
+        failed = true
+        raise PG::ConnectionBad, 'private database connection details'
+      end
+      original.call(sql, *args)
+    end
+    get '/profile'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('role="alert"', 'could not load your saved memes', 'Try loading Saved again')
+    expect(last_response.body).not_to include('No saved memes yet', 'private database connection details', '<strong>0</strong> memes saved')
+    get '/profile'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('Retained favorite')
+    expect(last_response.body).not_to include('could not load your saved memes')
+  end
+
   it 'provides keyboard-accessible saved links that reopen the selected favorite' do
     user_id = create_test_user('saved-recovery@example.com')
     set_session(user_id: user_id)

@@ -8,6 +8,9 @@ module Routes
       app.get "/profile" do
         require_auth!
         user_id = current_user_id
+        raw_page = params[:saved_page] || '1'
+        halt 400, 'Saved page must be a positive integer.' unless raw_page.is_a?(String) && raw_page.match?(/\A[1-9][0-9]{0,8}\z/)
+        @saved_page = raw_page.to_i
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -20,13 +23,17 @@ module Routes
           
           # Get user's saved memes from saved_memes table
           @saved_memes = begin
+            @saved_count = UserService.get_saved_memes_count(user_id)
+            @saved_pages = [(@saved_count / 24.0).ceil, 1].max
+            @saved_page = [@saved_page, @saved_pages].min
             results = MemeExplorer::App::DB.execute(
-              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC LIMIT 50",
-              [user_id]
+              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC, id DESC LIMIT ? OFFSET ?",
+              [user_id, 24, (@saved_page - 1) * 24]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
             AppLogger.error("Error fetching saved memes: #{e.message}")
+            @saved_load_error = true
             []
           end
           
@@ -52,11 +59,10 @@ module Routes
           # Log the error and return proper error response
           AppLogger.error("Profile Error: #{e.class}: #{e.message}")
           AppLogger.info("backtrace", lines: e.backtrace.join("\n"))
-          halt 500, "Error loading profile: #{e.message}"
+          halt 500, "Unable to load your profile right now. Please try again later."
         end
       
         # Count stats (with fallback to engagement service)
-        @saved_count = @saved_memes.size
         @liked_count = @liked_memes.size
         
         # Add comprehensive stats for display

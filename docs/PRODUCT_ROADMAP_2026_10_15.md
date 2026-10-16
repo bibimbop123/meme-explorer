@@ -28,6 +28,38 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Phase 3: Saved boundaries and full regression
+
+- Added cross-account count/result/detail isolation and failed-total-query retry
+  regressions. Existing implementation passes; no additional application change.
+- Targeted Saved/profile/security **24 examples pass**. Full backend after Saved
+  accessibility, truthful errors and pagination: **809 examples, zero failures,
+  seven pending**, 45.01s; **60.47% coverage (3627/5998)**, enforced exit 2 below
+  70%. **95 frontend tests pass**; Ruby/profile ERB and whitespace pass.
+- These results supersede earlier suite counts, not browser/device acceptance.
+  Guest persistence, undo, pending-login saves and other Phase 3 work stay open.
+
+### Phase 3: reach older Saved favorites
+
+- Replaced the silent 50-item cutoff with account-scoped 24-item SQL pagination,
+  stable saved_at/id ordering, total account count and Previous/More links. Strict
+  bounded positive page input, last-page clamping and page-preserving retry added.
+- Targeted pagination/profile/security **22 examples pass**, partial coverage
+  **26.86%**, enforced exit 2 below 70%; **95 frontend tests pass**, Ruby/profile
+  ERB and whitespace pass. No JavaScript change/build; full backend not rerun.
+- Offset pages can shift under concurrent saves/removals. Liked-list errors and
+  pagination, Saved unavailable media, undo and login recovery remain open.
+
+### Phase 3: truthful Saved loading failures
+
+- Saved query errors now have an explicit alert and retry link rather than falsely
+  reporting an empty account/zero saves. Added failure-then-retry regression that
+  recovers retained favorites. General profile errors now omit exception details.
+- Targeted profile/security **20 examples pass**, partial coverage **26.75%**,
+  enforced exit 2 below 70%; **95 frontend tests pass**, Ruby/profile ERB and
+  whitespace pass. No JavaScript change/build required; full backend not rerun.
+  Liked-list errors, pagination and other Phase 3 requirements remain open.
+
 ### Phase 3 first slice: accessible Saved recovery
 
 - Replaced click-only Saved card divs with semantic links to the existing
