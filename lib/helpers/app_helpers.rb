@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'digest'
 
 # AppHelpers - Extracted from app.rb during Phase 2 Refactoring
 # Contains helper methods that were previously inline in the main app file
@@ -13,6 +14,13 @@
 # Phase 2: app.rb Refactoring
 
 module AppHelpers
+  # Content fingerprint changes only when deployed bundle bytes change.
+  VIEWER_BUNDLE_VERSION = Digest::SHA256.file(File.expand_path('../../public/dist/bundle.js', __dir__)).hexdigest[0, 16].freeze
+
+  def viewer_bundle_path
+    "/dist/bundle.js?v=#{VIEWER_BUNDLE_VERSION}"
+  end
+
   # ====================
   # CURATED COLLECTIONS
   # ====================

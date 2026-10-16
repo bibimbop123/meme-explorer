@@ -28,6 +28,26 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Render frontend build configuration
+
+- Web Blueprint now runs bundle install plus npm ci --include=dev and Vite build,
+  with Node 22 matching CI. Worker command unchanged. Added deployed-commit,
+  fingerprint/service-worker/Network Initiator verification guide; manually managed
+  Render settings must be updated separately. No production access/deployment.
+- Fresh npm ci, build, **103 frontend tests**, YAML and whitespace checks pass.
+  npm reports **3 vulnerabilities (1 moderate, 2 high)**; no automatic force upgrade
+  applied. Existing Vite CJS warning remains. Backend not changed/run this slice.
+
+### Viewer bundle content fingerprint
+
+- No skip-meme caller exists in current public assets, unlike production incident
+  logs. Added boot-time SHA256 fingerprint of built bundle to layout script URL,
+  preventing unchanged URL reuse across differing deployed bundle bytes. Build
+  before boot; does not repair a stale build or already-open tab by itself.
+- Rendered layout fingerprint test passes; **103 frontend tests pass**, syntax/
+  whitespace pass. Targeted backend coverage exits 2; full suite not rerun.
+  Production client/build identity and Next failure still require live verification.
+
 ### Production navigation incident: service-worker stale viewer protection
 
 - Inspection found / cached as a static asset, replaying session-bound viewer HTML.
