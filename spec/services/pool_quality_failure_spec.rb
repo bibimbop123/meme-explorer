@@ -35,6 +35,18 @@ RSpec.describe 'Pool quality evaluation failure' do
     expect(MemePoolManager.send(:quality_filter, [])).to eq([])
   end
 
+  it 'never sends malformed or browser-unsafe candidates to the optional pipeline' do
+    invalid = [nil, {}, candidate.merge('url' => 'javascript:alert(1)'),
+      candidate.merge('title' => ''), candidate.merge('subreddit' => 42)]
+    expect(QualityPipelineService).to receive(:passes_all_gates?).with(candidate).once.and_return(true)
+    expect(MemePoolManager.send(:quality_filter, [*invalid, candidate])).to eq([candidate])
+  end
+
+  it 'skips optional evaluation when every candidate fails the mandatory basic checks' do
+    expect(QualityPipelineService).not_to receive(:passes_all_gates?)
+    expect(MemePoolManager.send(:quality_filter, [nil, candidate.merge('url' => '//evil.example/image.jpg')])).to eq([])
+  end
+
   it 'preserves working inventory and does not publish after evaluation fails' do
     retained = { 'url' => '/working.jpg' }
     allow(QualityPipelineService).to receive(:passes_all_gates?).and_raise('Evaluation unavailable')

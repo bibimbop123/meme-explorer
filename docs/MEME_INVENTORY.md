@@ -53,9 +53,10 @@ claiming growth; ambiguous EXEC disconnects and partial runtime errors remain op
 ## Remaining supply constraints
 
 Maintenance quality evaluation errors now reject new candidates rather than
-returning the unfiltered batch; existing inventory is retained. The optional
-pipeline's absence checks hash shape, browser-safe URL and nonblank title/community
-text; bootstrap shares this cheap predicate but bypasses the optional pipeline.
+returning the unfiltered batch; existing inventory is retained. Mandatory maintenance
+checks require hash shape, browser-safe URL and nonblank title/community text before
+any optional pipeline evaluation; absent pipeline uses just these structural checks.
+Bootstrap shares this cheap predicate but bypasses the optional pipeline.
 Existing retained content is not
 purged. “Validated” does not certify availability, moderation, readability or humor. Use
 FEED_EXPERIENCE_AUDIT.md for the planned real-feed/user evaluation; none performed.

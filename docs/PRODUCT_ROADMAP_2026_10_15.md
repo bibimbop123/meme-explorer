@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,034 backend
-examples, zero failures, seven pending; 73.97% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,036 backend
+examples, zero failures, seven pending; 74.04% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -168,6 +168,17 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Mandatory basic checks before optional quality evaluation
+
+- Maintenance always applies shared structural/browser-URL checks before optional
+  pipeline evaluation, so the optional path cannot approve malformed/unsafe inputs
+  or fail an otherwise valid batch just by receiving malformed candidates.
+- Two regressions cover mixed invalid/valid candidates and all-invalid pipeline
+  bypass. Full backend: **1036 examples, zero failures, seven pending**, 56.98s;
+  **74.04% coverage (4560/6159)**, gates pass, exit 0. **119 frontend tests pass**;
+  ten targeted quality examples pass (partial coverage exit 2), syntax/whitespace
+  pass. Not moderation/humor/availability validation; scores unchanged, no deployment.
 
 ### Optimistic pool publication conflict rejection
 

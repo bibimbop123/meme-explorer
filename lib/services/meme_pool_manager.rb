@@ -671,12 +671,13 @@ class MemePoolManager
     # Apply quality pipeline to filter memes
     def quality_filter(memes)
       return [] if memes.empty?
+      candidates = memes.select { |meme| basic_candidate_valid?(meme) }
       
       if defined?(QualityPipelineService)
-        memes.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
+        candidates.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
         # Structural/rendering validation only, not moderation or humor scoring.
-        memes.select { |meme| basic_candidate_valid?(meme) }
+        candidates
       end
     rescue => e
       log_error("Quality filter error", e)
