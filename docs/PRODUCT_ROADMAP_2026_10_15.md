@@ -173,6 +173,332 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Unused server-owned single-pass snapshot traversal
+
+- FeedTraversal copies/deduplicates bounded URL/title/subreddit snapshot, retains
+  private progress and cross-chunk conflicts, serializes advance and closes terminal
+  passes. Snapshot completion never authorizes global exhaustion/replay. No durable
+  cursor, full media payload transport or route use. Memory bound provisional.
+- Four mocked-issuance regressions. Full backend **1157 examples, zero failures,
+  seven pending**, 65.02s; **75.19% (4860/6464)** coverage, gates pass, exit 0;
+  **121 frontend tests pass**; four targeted cases pass (partial coverage exit 2),
+  syntax/whitespace pass. Replay/migration/capacity/privacy gates remain open.
+
+### Completed-credential history-loss recovery coverage
+
+- Two real DB/Redis regressions: retained credential repairs deleted history without
+  counter/deadline renewal; lost credential prevents DB-only authorization. No full
+  Redis-loss recovery or background repair guarantee. Routes remain unchanged.
+- Full backend **1153 examples, zero failures, seven pending**, 65.07s;
+  **75.07% (4821/6422)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  17 targeted coordinator cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Traversal user-identity preflight
+
+- Shared issuance-context validation now runs before traversal, including empty/end
+  offsets. One malformed-ID matrix regression. No routes changed.
+- Full backend **1151 examples, zero failures, seven pending**, 64.82s;
+  **75.10% (4823/6422)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  19 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Protocol consolidation and coordinated-migration review checklist
+
+- Added current component/live-path map and explicit prerequisites for snapshot-bound
+  progress/replay, exact recovery, default-off protocol coexistence/rollback, credential
+  transport and all-entry-point acceptance. Corrected stale opening eligibility claim
+  and conflict-budget table; historical checkpoint notes labeled as evidence.
+- Documentation-only review; last validated code unchanged: **1150 backend examples,
+  zero failures, seven pending**, **75.10% (4822/6421)** coverage, gates pass, exit 0;
+  **121 frontend tests pass**. No new acceptance evidence or production changes.
+
+### Persisted impression timestamp preflight
+
+- Coordinator validates created_at against PostgreSQL clock before counters commit;
+  null/infinite/nonpositive/future/expired rows fail database-stage unavailable.
+  One real DB regression covers correction/retry. Redis clock skew remains open.
+- Full backend **1150 examples, zero failures, seven pending**, 65.19s;
+  **75.10% (4822/6421)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  15 targeted coordinator cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Lease content validation consistency
+
+- Invalid UTF-8 now rejected before strip/Redis, matching acknowledgement validation.
+  One malformed-content matrix regression spans all four lease operations.
+- Full backend **1149 examples, zero failures, seven pending**, 65.00s;
+  **75.05% (4817/6418)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  18 targeted reservation cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Lease-only mutation schema preflight
+
+- Acquire/release preflight key types, preventing predictable WRONGTYPE partial
+  owner/expiry mutation; two real Redis fault/recovery regressions. Not general Lua
+  rollback safety. Routes remain unchanged.
+- Full backend **1148 examples, zero failures, seven pending**, 65.11s;
+  **75.09% (4819/6418)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  28 targeted reservation/issuance cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Attribution preflight before lease acquisition
+
+- Shared validated issuance context checked before reservation, avoiding malformed
+  attribution creating cleanup-dependent lease side effects. Store revalidates.
+  One regression with malformed values; no live routes changed.
+- Full backend **1146 examples, zero failures, seven pending**, 64.81s;
+  **75.09% (4819/6418)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  38 targeted issuance/store cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Real bounded-continuation lifecycle
+
+- Unmocked Redis/PostgreSQL regression reaches item 101 after acknowledged prefix,
+  preserves prefix timestamps/history until new ACK and retains suffix-only outcome.
+  No snapshot-binding, browser or latency acceptance claim.
+- Full backend **1145 examples, zero failures, seven pending**, 71.42s;
+  **75.12% (4818/6414)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  18 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Continuation reservation observation preservation
+
+- Incomplete traversal results include chunk reservation-conflict flag; prefix
+  contention no longer lost at work-budget boundary. One multichunk regression plus
+  adapted boundary assertions. Snapshot binding/aggregation remain integration work.
+- Full backend **1144 examples, zero failures, seven pending**, 64.30s;
+  **75.04% (4813/6414)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  17 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Server-only bounded traversal continuation
+
+- Added validated offset/next_offset progress and suffix_complete (never whole-pool
+  exhaustion from suffix). No array slicing. Requires stable server snapshot; no
+  client credential, snapshot binding or cross-chunk aggregation yet. Three tests.
+- Full backend **1143 examples, zero failures, seven pending**, 64.27s;
+  **75.07% (4815/6414)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  16 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; snapshot/replay/migration/capacity/privacy gates remain open.
+
+### Candidate traversal work budgets
+
+- Cap unused traversal at 100 issuance attempts/1000 inspected entries per call;
+  traversal_incomplete differs from exhaustion. Three boundary/dedup regressions.
+  Provisional limits, no latency claim. Continuation/reranking remains required to
+  avoid repeatedly visiting unchanged prefix; no live route changes.
+- Full backend **1140 examples, zero failures, seven pending**, 64.55s;
+  **75.06% (4813/6412)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  13 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Continuation/replay/migration/capacity/privacy gates remain open.
+
+### Ambiguous issuance and cleanup-failure bounds
+
+- Two real-Redis fault-injection regressions demonstrate saved-but-lost issuance
+  responses cannot exceed pending cap, credential deadlines remain bounded and
+  expiry pruning restores capacity; failed owner cleanup recovers at lease expiry.
+  Expiry simulated through scores, not real network-partition acceptance.
+- Full backend **1137 examples, zero failures, seven pending**, 64.18s;
+  **75.02% (4807/6408)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  10 targeted issuance cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; capacity/privacy/wait UX/replay/migration gates remain open.
+
+### Real traversal capacity cleanup tests
+
+- Pending and total credential capacity exercised through traversal; attempted lease
+  cleaned up and existing credentials preserved. Receipt fixture uses trusted Redis
+  reconciliation directly: capacity accounting evidence, not DB provenance.
+- Full backend **1135 examples, zero failures, seven pending**, 64.06s;
+  **75.02% (4807/6408)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  10 targeted candidate cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; provisional limits, wait UX/capacity/privacy gates remain open.
+
+### Traversal failure/recovery integration regressions
+
+- Added DB rollback/retry and real Redis wrong-type-after-commit repair tests through
+  traversal/issuance/ACK. Original impression counters once; successor lease preserved.
+  Explicitly demonstrates reissuance window after lease expiry while Redis history
+  lags committed DB. No cross-store exactly-once selection guarantee.
+- Full backend **1133 examples, zero failures, seven pending**, 64.13s;
+  **75.02% (4807/6408)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  eight targeted candidate cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Real candidate traversal lifecycle/concurrency evidence
+
+- Two additional real Redis/PostgreSQL service tests cover abandonment, lease-expiry
+  recovery, ACK history/counters/exhaustion and simultaneous distinct issuance.
+  Not route/browser/multi-tab or production-load acceptance.
+- Full backend **1131 examples, zero failures, seven pending**, 64.16s;
+  **75.05% (4809/6408)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  six targeted candidate cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Unused candidate traversal coordinator
+
+- Traverses caller-ranked server-filtered candidates, deduplicates URL/file identity,
+  skips acknowledged/reserved conflicts, stops immediately at capacity/failure.
+  Separates empty/exhausted/temporarily_reserved; no replay or atomic pool snapshot.
+- Four mocked issuance tests. Full backend **1129 examples, zero failures, seven
+  pending**, 64.08s; **75.05% (4809/6408)** coverage, gates pass, exit 0;
+  **121 frontend tests pass**; four targeted cases pass (partial coverage exit 2),
+  syntax/whitespace pass. Real traversal concurrency/replay/migration remain open;
+  routes unchanged, no production evidence or score increase.
+
+### Unused acknowledged-history snapshot reader
+
+- Store exposes bounded oldest-first committed history, Redis-time pruning, no TTL
+  renewal and explicit invalid/unavailable outcomes. Snapshot is not replay admission.
+  Three regressions; no selector/routes migrated.
+- Full backend **1125 examples, zero failures, seven pending**, 64.05s;
+  **74.96% (4788/6387)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  27 targeted store cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open; no production score increase.
+
+### Stored acknowledgement timestamp shape validation
+
+- Lookup now rejects malformed present acknowledged_at before DB recording. One
+  regression covers malformed shapes/values and recovery with duplicate ACK.
+- Full backend **1122 examples, zero failures, seven pending**, 63.93s;
+  **74.85% (4771/6374)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  38 targeted acknowledgement cases pass (partial coverage exit 2), syntax/whitespace
+  pass. No routes changed or production acceptance evidence.
+
+### Unseen-admission race and non-renewal tests
+
+- Three regressions cover independent-connection unseen admission race, rejected
+  history score/expiry preservation, and invalid/unavailable distinction.
+- Full backend **1121 examples, zero failures, seven pending**, 63.97s;
+  **74.86% (4768/6369)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  23 targeted reservation/issuance cases pass (partial coverage exit 2), syntax/
+  whitespace pass. No routes changed; replay/migration/capacity/privacy gates open.
+
+### Atomic unseen candidate admission prerequisite
+
+- Added acquire_unseen: acknowledged-recency check and lease acquisition share one
+  Redis script; issuance uses it. Stale acknowledged candidates rejected, aged-out
+  history permits admission without history reset, corrupt key fails closed.
+  Candidate traversal/exhausted replay and route/client migration remain open.
+- Three regressions; full backend **1118 examples, zero failures, seven pending**,
+  64.08s; **74.86% (4768/6369)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**; 20 targeted issuance/reservation cases pass (partial coverage exit 2),
+  syntax/whitespace pass. No routes changed, deployment or score increase.
+
+### Unused reservation-to-credential issuance coordinator
+
+- FeedIssuanceService acquires lease, generates impression ID, binds credential and
+  safely cleans up only its owner token on failure/capacity. Conflicts retain existing
+  lease; successor ownership protected. Not atomic acquisition/issuance or eligibility;
+  ambiguous/crash leftovers bounded by TTL. No routes or selection marks changed.
+- Five regressions including issuance-to-ACK. Full backend **1115 examples, zero
+  failures, seven pending**, 65.37s; **74.83% (4755/6354)** coverage, gates pass,
+  exit 0; **121 frontend tests pass**; five targeted issuance cases pass (partial
+  coverage exit 2), syntax/whitespace pass. Capacity/privacy and rollout gates remain.
+
+### Issuance-bound reservation ownership
+
+- Credential stores optional validated reservation owner; reconciliation uses stored
+  token and rejects supplied mismatches before DB writes, with Lua association recheck.
+  No-bound credentials cannot release; expired lease still allows late ACK repair.
+  Atomic acquisition/issuance remains integration work. No routes changed.
+- Two coordinator regressions plus adapted ownership cases. Full backend **1110
+  examples, zero failures, seven pending**, 64.06s; **74.77% (4739/6338)** coverage,
+  gates pass, exit 0; **121 frontend tests pass**; 37 targeted acknowledgement cases
+  pass (partial coverage exit 2), syntax/whitespace pass. No deployment/score increase.
+
+### Redis wrong-type failure preflight
+
+- Mutation scripts preflight key types before writes, preventing predictable
+  WRONGTYPE partial mutation. Two real-Redis fault/recovery regressions added;
+  no claim of general Lua rollback safety. Routes remain unchanged.
+- Full backend **1108 examples, zero failures, seven pending**, 63.63s;
+  **74.68% (4730/6334)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  35 targeted acknowledgement cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Capacity/privacy approval, total-cap wait UX and rollout review still open.
+
+### PostgreSQL duplicate-ACK concurrency regression
+
+- Added synchronized coordinator race on two verified distinct PostgreSQL backend
+  connections. Exactly one insertion/counter update; both calls acknowledge; history
+  uses committed timestamp and pending slot clears. No live route or load claim.
+- Full backend **1106 examples, zero failures, seven pending**, 65.18s;
+  **74.71% (4732/6334)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  33 targeted acknowledgement cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Routes unchanged; capacity/privacy, wait UX and rollout review remain open.
+
+### Capacity race regression coverage
+
+- Two independent-Redis-connection regressions verify final-total-slot admission
+  and duplicate concurrent reconciliation freeing exactly one pending slot while
+  preserving history timestamp/credential expiry. No production capacity claim.
+- Full backend **1105 examples, zero failures, seven pending**, 63.32s;
+  **74.74% (4734/6334)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  32 targeted acknowledgement cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Provisional limits, wait UX and capacity/privacy approval remain open;
+  no route migration, deployment or score increase.
+
+### Unused pending/completed credential capacity split
+
+- Separate 20-pending admission from provisional 200-total credential cap. Successful
+  Redis reconciliation frees pending slot while retaining original credential/deadline
+  for retries; failures retain slot. Atomic expiry pruning and both limits; never
+  evict unexpired repair credentials. Separate receipt_limit_reached outcome.
+- Three capacity regressions added; pending-cap concurrent test adapted. Full backend
+  **1103 examples, zero failures, seven pending**, 63.86s; **74.71% (4732/6334)**,
+  gates pass, exit 0; **121 frontend tests pass**, 30 targeted acknowledgement cases
+  pass (partial coverage exit 2), syntax/whitespace pass.
+- Limits remain unapproved; total-cap wait UX, capacity/privacy measurements and
+  completed-receipt concurrency review remain open. No routes migrated, live rollout,
+  production evidence or score increase. Unused old index records not migrated.
+
+### Issuance-bound acknowledgement attribution
+
+- Store now binds/validates title, subreddit and issuance user in credential metadata.
+  Coordinator reads that context, not ACK attribution arguments. Exposure only for
+  matching current/issued user; anonymous-to-login and account switch stay unattributed.
+  Missing/corrupt context fails closed. No routes migrated or live token migration.
+- Four regressions added. Full backend **1100 examples, zero failures, seven pending**,
+  63.29s; **74.69% (4728/6330)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**, 27 targeted cases pass (partial coverage exit 2), syntax/whitespace pass.
+- Capacity behavior documented as proposal only: no eviction of repair credentials.
+  Current 20-token/30-minute cap may stall browsing; bounded completed-receipt design
+  or explicit wait-policy approval still blocks coordinated route integration.
+
+### Unused cross-store acknowledgement coordinator
+
+- Added FeedAcknowledgementService: validates token before DB work, verifies persisted
+  session/content binding on duplicate, commits counters once, repairs Redis using
+  original PostgreSQL timestamp even after recorded:false. DB rollback and committed
+  history-failure outcomes are distinct; nested transactions refused. Server-owned
+  attribution context remains an integration requirement. No routes migrated.
+- Eight new DB/Redis cases cover repair, rollback, conflicts, credential failure,
+  successor lease, lost response, expiry race and outer transaction refusal.
+- Full backend **1096 examples, zero failures, seven pending**, 62.39s;
+  **74.68% coverage (4720/6320)**, gates pass, exit 0; **121 frontend tests pass**.
+  Eight targeted coordinator cases pass (partial coverage exit 2), syntax/whitespace
+  pass. No deployment, production changes or quality-score increase.
+
+### Reconciliation expiry review
+
+- Added unchanged credential-deadline/history-retention and expired-token-no-write
+  regressions. No live integration. Full backend **1088 examples, zero failures,
+  seven pending**, 62.18s; **74.57% coverage (4691/6291)**, gates pass, exit 0;
+  **121 frontend tests pass**, 15 targeted cases pass (partial coverage exit 2),
+  syntax/whitespace pass. No deployment, production changes or score increase.
+
+### Redis acknowledged-history reconciliation prerequisite
+
+- Unused store reconciliation validates bound token, writes separate versioned
+  history with original trusted DB timestamp, preserves newer recency and releases
+  only matching lease owner. First ACK timestamp persisted as decimal string after
+  full-suite test exposed cjson rounding. No DB verification/coordinator or routes.
+- Five regressions added; final backend **1086 examples, zero failures, seven pending**,
+  62.64s; **74.50% coverage (4687/6291)**, gates pass, exit 0; **121 frontend tests
+  pass**, 13 targeted cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Cross-store partial failure and route integration still require end-to-end testing;
+  no production changes, deployment or quality-score increase.
+
 ### Acknowledgement metadata impression binding
 
 - Unused store issuance requires a valid impression ID and lookup returns the

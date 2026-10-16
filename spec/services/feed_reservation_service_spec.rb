@@ -1,11 +1,61 @@
 require_relative '../spec_helper'
 require_relative '../../lib/services/feed_reservation_service'
+require 'timeout'
 
 RSpec.describe MemeExplorer::FeedReservationService do
   let(:identity) { SecureRandom.hex(32) }
   let(:content) { '/fixture.jpg' }
+  let(:history) { "feed:acknowledged:v1:{#{Digest::SHA256.hexdigest(identity)}}:history" }
   after do
-    RedisService.with_redis { |redis| redis.del(*described_class.send(:keys, identity)) }
+    RedisService.with_redis { |redis| redis.del(*described_class.send(:keys, identity), history) }
+  end
+
+  it 'allows one unseen-admission winner across independent connections without writing history' do
+    connections = 2.times.map { Redis.new(url: ENV.fetch('REDIS_URL')) }
+    ready, start = Queue.new, Queue.new
+    keys = [*described_class.send(:keys, identity), history]
+    threads = connections.map do |redis|
+      Thread.new do
+        ready << true
+        start.pop
+        redis.eval(described_class::ACQUIRE_UNSEEN, keys: keys,
+          argv: [Digest::SHA256.hexdigest(content), SecureRandom.hex(32), described_class::TTL,
+                 described_class::LIMIT, content, MemeExplorer::ViewingHistoryService::HISTORY_TTL])
+      end
+    end
+    Timeout.timeout(10) { 2.times { ready.pop } }
+    2.times { start << true }
+    expect(threads.map(&:value).sort).to eq([1, 2])
+    RedisService.with_redis do |redis|
+      expect(redis.exists?(history)).to eq(false)
+      expect(redis.zcard(keys.first)).to eq(1)
+      expect(redis.hlen(keys[1])).to eq(1)
+    end
+  ensure
+    2.times { start << true } if start
+    threads&.each(&:join)
+    connections&.each(&:close)
+  end
+
+  it 'preserves acknowledged history score and expiry when rejecting repeated admission' do
+    score = Time.now.to_f - 10
+    RedisService.with_redis do |redis|
+      redis.zadd(history, score, content)
+      redis.expire(history, 60)
+    end
+    2.times { expect(described_class.acquire_unseen(identity, content)).to eq(status: :already_acknowledged) }
+    RedisService.with_redis do |redis|
+      expect(redis.zscore(history, content)).to eq(score)
+      expect(redis.ttl(history)).to be_between(58, 60)
+      expect(redis.exists?(described_class.send(:keys, identity).first)).to eq(false)
+    end
+  end
+
+  it 'distinguishes invalid unseen admission from Redis unavailability' do
+    allow(RedisService).to receive(:with_redis).and_return(nil)
+    expect(described_class.acquire_unseen('invalid', content)).to eq(status: :invalid)
+    expect(RedisService).not_to have_received(:with_redis)
+    expect(described_class.acquire_unseen(identity, content)).to eq(status: :unavailable)
   end
 
   it 'reserves once and releases only with the owning token' do
@@ -15,6 +65,52 @@ RSpec.describe MemeExplorer::FeedReservationService do
     expect(described_class.release(identity, content, SecureRandom.hex(32))).to eq(false)
     expect(described_class.release(identity, content, result[:token])).to eq(true)
     expect(described_class.release(identity, content, result[:token])).to eq(false)
+  end
+
+  it 'rejects malformed content consistently before Redis access across all lease operations' do
+    token = SecureRandom.hex(32)
+    malformed = [nil, 42, [], '', ' ', 'x' * 4097, "\xFF".dup.force_encoding(Encoding::UTF_8)]
+    allow(RedisService).to receive(:with_redis).and_call_original
+    malformed.each do |value|
+      expect(described_class.acquire(identity, value)).to eq(status: :invalid)
+      expect(described_class.acquire_unseen(identity, value)).to eq(status: :invalid)
+      expect(described_class.validate(identity, value, token)).to eq(status: :invalid)
+      expect(described_class.release(identity, value, token)).to eq(false)
+    end
+    expect(RedisService).not_to have_received(:with_redis)
+  end
+
+  it 'preserves owner metadata when release encounters a wrong-type expiry key' do
+    lease = described_class.acquire(identity, content)
+    expiry, owners = described_class.send(:keys, identity)
+    member = Digest::SHA256.hexdigest(content)
+    RedisService.with_redis do |redis|
+      redis.del(expiry)
+      redis.set(expiry, 'wrong-type')
+    end
+    expect(described_class.release(identity, content, lease[:token])).to eq(false)
+    RedisService.with_redis do |redis|
+      expect(redis.hget(owners, member)).to eq(lease[:token])
+      redis.del(expiry)
+      redis.zadd(expiry, Time.now.to_f + described_class::TTL, member)
+    end
+    expect(described_class.release(identity, content, lease[:token])).to eq(true)
+  end
+
+  it 'rejects wrong-type acquire keys without pruning expired metadata' do
+    expiry, owners = described_class.send(:keys, identity)
+    member = Digest::SHA256.hexdigest(content)
+    RedisService.with_redis do |redis|
+      redis.zadd(expiry, 0, member)
+      redis.set(owners, 'wrong-type')
+    end
+    expect(described_class.acquire(identity, content)).to eq(status: :unavailable)
+    RedisService.with_redis do |redis|
+      expect(redis.zscore(expiry, member)).to eq(0)
+      expect(redis.get(owners)).to eq('wrong-type')
+      redis.del(owners)
+    end
+    expect(described_class.acquire(identity, content)[:status]).to eq(:reserved)
   end
 
   it 'enforces a bounded active limit' do
