@@ -159,6 +159,10 @@ expired leases and media-hash retention remain reliability work before larger lo
 
 ### Next concrete deliverables
 
+Release preparation packet: [controlled release](CONTROLLED_RELEASE_2026_10_16.md),
+pinned to application candidate 67661da. Approval/hosted CI/operator/device gates
+remain open; preparation is not authorization to push or deploy.
+
 1. **Engineering/operator:** reviewed checkpoint + CI and credential-rotation evidence;
    normal-maintenance samples and dated retained-inventory observations.
 2. **Product/design:** feed audit and user-observation brief with ranked failures.
@@ -168,6 +172,28 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Security remediation batch 1
+
+- Conservative isolated patch updates: rack 3.2.7, rack-session 2.1.2, bcrypt 3.1.22,
+  concurrent-ruby 1.3.8. Exactly four lockfile entries changed; constraints unchanged.
+  Repeat audit clears those gem families but still exits 1 for eight others; release
+  blocked. CI audit invocation fix and advisory queue documented separately.
+- Native/Ruby and CSRF checks, Vite build and **119 frontend tests pass**. Full
+  backend: **1044 examples, zero failures, seven pending**, 56.06s; **74.12% coverage
+  (4571/6167)**, gates pass, exit 0. No provider/production acceptance or hosted green
+  audit claimed. Candidate must be repinned; no push, deployment or score increase.
+
+### Controlled-release verification and parallel audit preparation
+
+- Fresh GitHub full-SHA lookup for 67661da finds run 38951948445: test job succeeds,
+  security job fails at Run security audit. Release is blocked; do not waive the gate.
+  Failure details/remediation remain follow-up; no run triggered or deployment made.
+- Public recipient still lacks canonical/og:url/og:image. Isolated Ruby/native and
+  Blueprint checks pass; live environment/deployed SHA remain unverified.
+- Release packet updated; empty feed-audit CSV prepared. No feed observations,
+  participant recruitment/scheduling or research results are claimed. Redesign,
+  collections and elaborate ranking remain deferred.
 
 ### Truthful maintenance outcome reporting
 

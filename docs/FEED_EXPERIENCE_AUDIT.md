@@ -3,6 +3,12 @@
 Status: ready to execute; **no production audit or user study performed**.
 Use with the current delivery slices in PRODUCT_ROADMAP_2026_10_15.md.
 
+Start from the header-only [capture sheet](FEED_AUDIT_CAPTURE.csv). It contains no
+observations. Leave unknown fields blank; do not invent timing, commit or judgments.
+Keep completed sheets private under an agreed retention policy, not committed here.
+Arrange a facilitator, 5–8 consenting target participants and guest/account plus
+mobile/desktop coverage; recruitment and scheduling have not been performed.
+
 ## Audit setup
 
 Record the owner, date, deployed commit, environment, audience, device/browser,
