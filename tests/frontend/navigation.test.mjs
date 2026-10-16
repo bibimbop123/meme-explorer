@@ -7,6 +7,32 @@ const source = await readFile(new URL('../../public/js/modules/meme-navigation.j
 const { MemeNavigation } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const navigation = () => Object.create(MemeNavigation.prototype);
 
+test('single-item exhaustion retains current media without duplicate retry requests', async () => {
+  const original = globalThis.document;
+  const supply = { hidden: true };
+  globalThis.document = { getElementById: () => supply };
+  const nav = navigation();
+  const errors = [];
+  let requests = 0;
+  let renders = 0;
+  Object.assign(nav, {
+    currentMeme: { url: '/only.jpg' }, prefetchedMeme: { url: '/only.jpg', inventory_exhausted: true },
+    showLoadingState() {}, hideLoadingState() {}, prefetchNext() {},
+    async fetchMeme() { requests++; },
+    async renderMeme() { renders++; },
+    showError: message => errors.push(message)
+  });
+  try {
+    await nav.loadNextMeme();
+    assert.equal(requests, 0);
+    assert.equal(renders, 0);
+    assert.equal(nav.currentMeme.url, '/only.jpg');
+    assert.equal(nav.loading, false);
+    assert.equal(supply.hidden, false);
+    assert.match(errors[0], /No different meme is available/);
+  } finally { globalThis.document = original; }
+});
+
 for (const exhausted of [false, true]) {
   test(`Next rejects duplicate prefetched content (exhausted=${exhausted})`, async () => {
     const nav = navigation();
@@ -1088,4 +1114,20 @@ test('like/save state resets the real rendered controls and counts', () => {
   assert.equal(elements['#save-btn']['aria-pressed'], 'true');
   assert.equal(elements['#like-count'].textContent, 7);
   delete globalThis.document;
+});
+test('feed exhaustion notice is truthful and ignores stale navigation', () => {
+  const original = globalThis.document;
+  const supply = { hidden: true };
+  const status = {};
+  globalThis.document = { getElementById: id => id === 'feed-supply-status' ? supply : status };
+  const nav = navigation();
+  nav.navigationVersion = 3;
+  try {
+    nav.announceMeme({ title: 'Replay', inventory_exhausted: true }, 3);
+    assert.equal(supply.hidden, false);
+    nav.announceMeme({ title: 'Stale', inventory_exhausted: false }, 2);
+    assert.equal(supply.hidden, false);
+    nav.announceMeme({ title: 'New', inventory_exhausted: false }, 3);
+    assert.equal(supply.hidden, true);
+  } finally { globalThis.document = original; }
 });

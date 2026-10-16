@@ -32,6 +32,18 @@ RSpec.describe MemeExplorer::ViewingHistoryService do
     expect(described_class.seen_count(visitor)).to eq(described_class::MAX_HISTORY_SIZE)
   end
 
+  it 'prunes old entries even when the session key remains active' do
+    key = "viewing_history:#{visitor}"
+    RedisService.with_redis do |redis|
+      redis.zadd(key, Time.now.to_f - described_class::HISTORY_TTL - 1, 'expired')
+      redis.zadd(key, Time.now.to_f, 'recent')
+      redis.expire(key, described_class::HISTORY_TTL)
+    end
+    expect(described_class.get_seen_memes(visitor)).to eq(['recent'])
+    described_class.mark_seen(visitor, 'new')
+    expect(described_class.get_seen_memes(visitor)).to eq(%w[recent new])
+  end
+
   it 'returns safe empty values during Redis unavailability' do
     allow(RedisService).to receive(:redis_available?).and_return(false)
     expect { described_class.mark_seen(visitor, 'offline') }.not_to raise_error

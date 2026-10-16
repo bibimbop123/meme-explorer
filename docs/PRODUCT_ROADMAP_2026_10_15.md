@@ -173,6 +173,60 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Anti-repeat automated size/account acceptance
+
+- Five real-Redis selector matrix cases (1/2/20/200/5,000) verify last-unseen priority
+  then oldest replay with history intact; signed-in homepage continuity added.
+  Prior history seeded, not every browser view simulated; multi-tab race remains open.
+- Full backend **1055 examples, zero failures, seven pending**, 60.47s; **74.14%
+  coverage (4582/6180)**, gates pass, exit 0; **121 frontend tests pass**. 27 targeted
+  route/selector examples pass (partial coverage exit 2), syntax/whitespace pass.
+  No application changes in this increment, deployment or score increase.
+
+### Single-item exhaustion: no retry storm or misleading load error
+
+- Explicit exhausted response identical to current media no longer performs two
+  duplicate retry requests. Keep current media, reveal supply notice and explain
+  no different content is available. Ordinary unflagged duplicates retain bounded
+  retry handling. Frontend regression added; stale operation checks retained.
+- Chrome guest/prefetch-enabled single-item pass: three assertions PASS, one initial
+  prefetch and zero extra requests on Next; no runtime exceptions captured.
+  Full final-build backend: **1049 examples, zero failures, seven pending**, 59.77s;
+  **74.14% coverage (4582/6180)**, gates pass, exit 0; **121 frontend tests pass**,
+  build/whitespace pass. Account/multi-tab/broader size matrix and rollout gates open.
+
+### Anti-repeat Phase 1 execution
+
+- Homepage/session integration and active history-age pruning regressions added.
+  Set membership improves large-history filtering; active entries older than seven
+  days pruned on reads/writes, bounded at 5,000 with inactivity TTL. Not rollout approval.
+- Full post-build backend **1049 examples, zero failures, seven pending**, 58.87s;
+  **74.14% coverage (4582/6180)**, gates pass, exit 0; **120 frontend tests pass**.
+  27 targeted tests pass (partial coverage exit 2). Four three-item guest/Save-Data
+  Chrome assertions pass, no captured exceptions. Account/prefetch/multi-tab matrix open.
+- Local 5,000-entry, 100-request sequential benchmark: p50 8.65ms, p95 9.68ms;
+  613,480 Redis bytes/history key. Capacity/privacy approval required; not production
+  concurrency evidence. No deployment, push or quality-score increase.
+
+### User-reported repeats: random-feed audit and first fix
+
+- See RANDOM_FEED_AUDIT_2026_10_16.md. Homepage bypassed history; exhaustion erased
+  all history; 200-item/two-hour memory was below inventory horizon. Homepage now
+  uses selector, exhausted feed replays oldest selected without clearing history,
+  URL/file candidates deduplicate and metadata copies avoid shared-pool mutation.
+- History now bounds 5,000 selections for seven days, fractional timestamps. Review
+  increased Redis memory/privacy retention before rollout. Prefetch is still recorded
+  as selection, not acknowledged view; concurrent selection/Redis outages and visual
+  reposts remain open. Visible exhaustion notice avoids calling replays fresh.
+- Public iFunny listing comparison informs freshness/topic choice only, not claims
+  of proprietary algorithm/library access. Revised priority: novelty/repeat audit,
+  acknowledged-view reservation design and measured supply before ranking rebuild.
+- Final post-build backend: **1046 examples, zero failures, seven pending**, 57.77s;
+  **74.12% coverage (4577/6175)**, gates pass, exit 0. **120 frontend tests pass**;
+  24 targeted selector/history tests pass (partial coverage exit 2), build/syntax/
+  whitespace pass. Local security patch bundle included; remaining audit failures
+  still block release. No production changes, push, deployment or score increase.
+
 ### Security remediation batch 1
 
 - Conservative isolated patch updates: rack 3.2.7, rack-session 2.1.2, bcrypt 3.1.22,

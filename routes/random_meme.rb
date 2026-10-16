@@ -41,6 +41,7 @@ module Routes
         reddit_path: reddit_path,
         likes: likes,
         media_type: media_type,
+        inventory_exhausted: meme['inventory_exhausted'] == true,
         **MediaDimensions.for(meme)
       }
 

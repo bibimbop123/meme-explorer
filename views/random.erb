@@ -18,6 +18,7 @@
     <p><a href="<%= Rack::Utils.escape_html(@search_return_path) %>">← Back to search results</a></p>
   <% end %>
   <p id="viewer-status" class="viewer-sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+  <p id="feed-supply-status" role="status" <%= 'hidden' unless @meme && @meme['inventory_exhausted'] %>>You've reached the end of the currently available unseen memes. Showing the least recently selected items again; try Search or return later for more.</p>
   <div class="meme-container">
     <!-- Left Ad Column -->
     <% if should_show_ads? %>

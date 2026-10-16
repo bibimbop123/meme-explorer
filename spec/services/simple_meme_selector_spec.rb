@@ -15,6 +15,24 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
   end
 
   describe '.select' do
+    [1, 2, 20, 200, 5000].each do |size|
+      it "selects the last unseen URL before replay for a #{size}-item inventory" do
+        pool = size.times.map { |i| { 'url' => "/matrix-#{i}.jpg" } }
+        now = Time.now.to_f
+        RedisService.with_redis do |redis|
+          entries = pool.first(size - 1).each_with_index.map { |m, i| [now - size + i, m['url']] }
+          redis.zadd("viewing_history:#{session_id}", entries) unless entries.empty?
+        end
+        selected = described_class.select(pool, session_id, boost_fresh: false)
+        expect(selected['url']).to eq(pool.last['url'])
+        expect(selected['inventory_exhausted']).to eq(false)
+        replay = described_class.select(pool, session_id, boost_fresh: false)
+        expect(replay['url']).to eq(pool.first['url'])
+        expect(replay['inventory_exhausted']).to eq(true)
+        expect(MemeExplorer::ViewingHistoryService.seen_count(session_id)).to eq(size)
+      end
+    end
+
     it 'returns nil for an empty pool' do
       expect(described_class.select([], session_id)).to be_nil
     end
@@ -45,9 +63,31 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
       other_url = (%w[meme1 meme2] - [first['url']]).first
       MemeExplorer::ViewingHistoryService.mark_seen(session_id, other_url)
 
-      # Pool is now fully seen -> selector should reset history rather than error
+      # Exhausted pool replays oldest without erasing its history.
       second = described_class.select(pool, session_id, boost_fresh: false)
       expect(second).not_to be_nil
+      expect(second['inventory_exhausted']).to eq(true)
+      expect(MemeExplorer::ViewingHistoryService.seen_count(session_id)).to eq(2)
+    end
+
+    it 'replays the oldest selection after exhaustion, then advances through the cycle' do
+      pool = %w[a b c].map { |url| { 'url' => url } }
+      pool.each { |m| MemeExplorer::ViewingHistoryService.mark_seen(session_id, m['url']) }
+      allow(MemeExplorer::ViewingHistoryService).to receive(:clear_history).and_call_original
+      replay = 3.times.map { described_class.select(pool, session_id, boost_fresh: false) }
+      expect(replay.map { |m| m['url'] }).to eq(%w[a b c])
+      expect(replay.map { |m| m['total_unseen'] }).to eq([0, 0, 0])
+      expect(MemeExplorer::ViewingHistoryService).not_to have_received(:clear_history)
+    end
+
+    it 'prefers new inventory over previously selected content and does not mutate pool records' do
+      old = { 'url' => 'old' }
+      fresh = { 'url' => 'fresh' }
+      MemeExplorer::ViewingHistoryService.mark_seen(session_id, 'old')
+      selected = described_class.select([old, old.dup, fresh], session_id, boost_fresh: false)
+      expect(selected['url']).to eq('fresh')
+      expect(selected['inventory_exhausted']).to eq(false)
+      expect(fresh).not_to have_key('selection_method')
     end
   end
 

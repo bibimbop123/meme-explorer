@@ -523,9 +523,16 @@ export class MemeNavigation {
       }
 
       // Cached/stale selection must never repaint the currently displayed meme.
-      for (let attempt = 0; meme.url === this.currentMeme?.url && attempt < 2; attempt++) {
+      for (let attempt = 0; meme.url === this.currentMeme?.url && !meme.inventory_exhausted && attempt < 2; attempt++) {
         if (version !== this.navigationVersion) return;
         meme = await this.fetchMeme('/random.json');
+      }
+      if (meme.url === this.currentMeme?.url && meme.inventory_exhausted === true) {
+        if (version !== this.navigationVersion) return;
+        const supply = document.getElementById('feed-supply-status');
+        if (supply) supply.hidden = false;
+        this.showError('No different meme is available right now. Your current meme is still here. Try Search or return later.');
+        return;
       }
       if (meme.url === this.currentMeme?.url) throw new Error('No different meme available');
 
@@ -658,6 +665,8 @@ export class MemeNavigation {
   }
 
   announceMeme(meme, version) {
+    const supply = document.getElementById('feed-supply-status');
+    if (supply && version === this.navigationVersion) supply.hidden = meme.inventory_exhausted !== true;
     if (version !== this.navigationVersion) return;
     const status = document.getElementById('viewer-status');
     if (!status) return;

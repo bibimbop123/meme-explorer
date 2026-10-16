@@ -4,6 +4,13 @@ Status: proposed UX execution plan. Nothing below is marked shipped by this docu
 
 ## Current priorities — October 16, 2026
 
+**User-reported repetition takes priority:** see
+[random-feed audit](RANDOM_FEED_AUDIT_2026_10_16.md). Local fixes remove homepage's
+history bypass and exhaustion history reset; replay is oldest-selected and explicitly
+labeled. Verify with real sessions before rollout; prefetch versus viewed history,
+visual reposts and actual supply still need work. No quality-score lift claimed.
+Execution order and acceptance gates: [anti-repeat plan](ANTI_REPEAT_EXECUTION_PLAN.md).
+
 **Observed production sharing blocker:** the confirmed public origin serves exact
 content but sampled recipient responses omit canonical/og:url/og:image. See
 [public production evidence](PRODUCTION_ACCEPTANCE_2026_10_16.md). Operator must
@@ -79,8 +86,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 1044 backend examples, zero failures, seven pending;
-119 frontend tests pass; 74.12% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 1055 backend examples, zero failures, seven pending;
+121 frontend tests pass; 74.14% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
