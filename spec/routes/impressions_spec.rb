@@ -4,6 +4,7 @@ RSpec.describe 'Acknowledged AJAX impressions' do
   def select_meme
     get '/random.json'
     expect(last_response.status).to eq(200)
+    expect(last_response.headers['cache-control']).to include('no-store', 'private')
     JSON.parse(last_response.body)
   end
 

@@ -7,6 +7,37 @@ const source = await readFile(new URL('../../public/js/modules/meme-navigation.j
 const { MemeNavigation } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const navigation = () => Object.create(MemeNavigation.prototype);
 
+for (const exhausted of [false, true]) {
+  test(`Next rejects duplicate prefetched content (exhausted=${exhausted})`, async () => {
+    const nav = navigation();
+    let calls = 0;
+    const renders = [];
+    const errors = [];
+    Object.assign(nav, {
+      currentMeme: { url: '/same.jpg' }, prefetchedMeme: { url: '/same.jpg' },
+      showLoadingState() {}, hideLoadingState() {}, prefetchNext() {}, trackView() {},
+      async fetchMeme() { calls++; return { url: exhausted ? '/same.jpg' : '/different.jpg' }; },
+      async renderMeme(meme) { renders.push(meme.url); return true; },
+      showError: message => errors.push(message)
+    });
+    await nav.loadNextMeme();
+    assert.deepEqual(renders, exhausted ? [] : ['/different.jpg']);
+    assert.equal(calls, exhausted ? 2 : 1);
+    assert.equal(errors.length, exhausted ? 1 : 0);
+    assert.equal(nav.loading, false);
+  });
+}
+
+test('meme fetch bypasses browser HTTP cache', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.cache, 'no-store');
+    return { ok: true, json: async () => ({ url: '/fresh.jpg' }) };
+  };
+  try { assert.equal((await navigation().fetchMeme('/random.json')).url, '/fresh.jpg'); }
+  finally { globalThis.fetch = original; }
+});
+
 test('navigation status announces current content as text and ignores stale operations', () => {
   const original = globalThis.document;
   const status = {};

@@ -522,6 +522,13 @@ export class MemeNavigation {
         meme = await this.fetchMeme('/random.json');
       }
 
+      // Cached/stale selection must never repaint the currently displayed meme.
+      for (let attempt = 0; meme.url === this.currentMeme?.url && attempt < 2; attempt++) {
+        if (version !== this.navigationVersion) return;
+        meme = await this.fetchMeme('/random.json');
+      }
+      if (meme.url === this.currentMeme?.url) throw new Error('No different meme available');
+
       // Render the new meme
       if (version !== this.navigationVersion) return;
       meme = this.withConfirmedInteractions(meme);
@@ -920,7 +927,7 @@ export class MemeNavigation {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch(url, { signal: controller.signal });
+      const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const meme = await response.json();
       if (!meme || typeof meme !== 'object' || Array.isArray(meme) || typeof meme.url !== 'string' || !meme.url) {
