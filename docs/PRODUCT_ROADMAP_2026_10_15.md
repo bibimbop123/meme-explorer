@@ -28,6 +28,13 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Checkpoint branch CI eligibility
+
+- Enabled checkpoint/** push triggers and manual workflow_dispatch, preserving
+  main/develop PR triggers. Allows hosted validation before merge/deployment.
+- Local workflow YAML/trigger validation passes. Hosted run results unavailable
+  through current tooling; no push, dispatch, merge or deployment performed.
+
 ### Account cache fix full verification
 
 - Full isolated backend **945 examples, zero failures, seven pending**, 53.3s;
