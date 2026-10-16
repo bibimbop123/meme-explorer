@@ -1,5 +1,7 @@
 # Viewer asset deployment check
 
+After asset verification, execute [browser acceptance](BROWSER_ACCEPTANCE.md).
+
 The web Blueprint builds the Vite bundle with:
 
 ```sh

@@ -220,6 +220,26 @@ test('guest Save rolls back and offers sign-in without claiming persistence', as
   } finally { Object.assign(globalThis, original); }
 });
 
+test('guest Save resets recovery promises when a later catalog lookup fails', async () => {
+  const original = { document: globalThis.document, fetch: globalThis.fetch };
+  const message = {};
+  const panel = { hidden: true, querySelector: selector => selector === 'p' ? message : { focus() {} } };
+  const button = { classList: { contains: () => false, add() {}, remove() {} } };
+  globalThis.document = { getElementById: () => button, querySelector: selector => selector === '#save-sign-in' ? panel : null };
+  let pending = true;
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ pending_save: pending }) });
+  const interactions = Object.create(MemeInteractions.prototype);
+  Object.assign(interactions, { getCurrentMemeUrl: () => '/guest.jpg', createRipple() {}, triggerHaptic() {}, updateSaveButton() {}, showToast() {} });
+  try {
+    await interactions.handleSave({});
+    assert.match(message.textContent, /Sign in to return to this meme/);
+    pending = false;
+    await interactions.handleSave({});
+    assert.match(message.textContent, /Automatic return to this meme is unavailable/);
+    assert.doesNotMatch(message.textContent, /Sign in to return to this meme/);
+  } finally { Object.assign(globalThis, original); }
+});
+
 test('delayed guest Save failure does not prompt or steal focus after navigation', async () => {
   const original = { document: globalThis.document, fetch: globalThis.fetch };
   let current = '/first.jpg';

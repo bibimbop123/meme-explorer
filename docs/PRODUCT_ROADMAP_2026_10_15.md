@@ -28,6 +28,22 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Browser acceptance handoff
+
+- Added BROWSER_ACCEPTANCE.md with explicit NOT EXECUTED status, environment/
+  evidence requirements and pass criteria for navigation, media recovery, sharing,
+  guest authentication return and Saved Undo/context. Linked deployment guide.
+  Documentation only; no live browser/provider tests claimed or production actions.
+
+### Guest recovery messaging resets after catalog failure
+
+- Sign-in prompt now resets its recovery promise on every unauthorized Save:
+  a later failed catalog lookup cannot retain an earlier successful-return claim.
+  Added sequential success/failure frontend regression. **110 frontend tests pass**,
+  build/module parity/bundle syntax/whitespace pass. No backend changes/run;
+  last full remains 937 examples, zero failures, seven pending, 71.78%, exit 0.
+  Actual browser/provider acceptance remains open.
+
 ### Authentication recovery failure boundaries: full verification
 
 - Added expired OAuth-state and unavailable-catalog/malformed-payload regressions:
