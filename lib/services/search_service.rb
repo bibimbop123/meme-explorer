@@ -37,9 +37,11 @@ class SearchService
     # Tier 3: Fall back to DB + YAML if still empty
     if cache_results.empty?
       db_results = begin
+        # Literal substring semantics, matching String#include? in other tiers.
+        literal_query = query_lower.gsub(/[!%_]/) { |character| "!#{character}" }
         DB.execute(
-          "SELECT * FROM meme_stats WHERE title ILIKE ?",
-          ["%#{query_lower}%"]
+          "SELECT * FROM meme_stats WHERE title ILIKE ? ESCAPE '!'",
+          ["%#{literal_query}%"]
         ).map { |r| r.transform_keys(&:to_s) }
       rescue
         []

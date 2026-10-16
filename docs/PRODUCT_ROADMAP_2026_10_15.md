@@ -1,0 +1,1338 @@
+# Meme Explorer: 56 → 90+ execution roadmap
+
+Date: October 15, 2026. Status: proposed execution plan, not completed work.
+Baseline: 56/100 in the October repository audit, before its targeted fixes.
+
+For the user-facing experience workstream, see
+[UX Experience Roadmap](UX_EXPERIENCE_ROADMAP.md): focused discovery, exact-meme
+sharing, saving/recovery and explicit feed control. Its rollout remains subject
+to this document's security, test and operational release gates.
+
+## Execution log — Gate A, first implementation slice
+
+- Added `.ruby-version` matching the existing Gemfile (3.2.1).
+- Attempted native BCrypt repair; RubyGems itself fails loading mismatched
+  Date/Psych extensions. Toolchain repair and full backend verification remain open.
+- Inspected installed `rack-csrf` source: it is not token-based and reads incorrect
+  Rack header keys. Replaced its app configuration with explicit session-token
+  middleware, constant-time validation, safe-method handling, and an exact Stripe
+  webhook exception (the route separately verifies Stripe signatures).
+- Added early shared browser integration for same-origin fetch mutations and native
+  forms; the session token is not attached to cross-origin requests.
+- Validated 14 standalone middleware checks, 11 frontend tests, production build,
+  Ruby syntax, layout ERB syntax and whitespace. Added middleware checks to CI.
+- These are isolated contract tests, not completed full-stack acceptance. No gate
+  is marked complete and no score increase is claimed. Next: repair native gems,
+  run isolated backend tests, exercise actual sessions/login/like/save in browsers,
+  then address lock ownership and remaining rendering surfaces.
+
+## First principles
+
+### Phase 3 first slice: accessible Saved recovery
+
+- Replaced click-only Saved card divs with semantic links to the existing
+  authorized saved-detail route. Empty state explains account persistence and
+  offers discovery. Added selected-favorite route and empty-state regressions.
+- Targeted profile/security **19 examples pass**, partial coverage **26.68%**,
+  enforced exit 2 below 70%. **95 frontend tests pass**, profile ERB/whitespace
+  pass. No JavaScript change/build required; full backend not rerun this slice.
+- Guest persistence, pending-save login merging, undo, Saved errors/pagination and
+  unavailable-media recovery remain open. Phase 2 crawler/browser gates are not
+  marked complete; this independent accessibility slice does not waive them.
+
+### Recipient ad-policy boundaries and full regression
+
+- Added server eligibility tests for valid/invalid recipient links versus /random,
+  and frontend checks for unavailable recipient paths and retained desktop
+  accepted-consent loading on /random. Tests execute scripts in a sandbox only;
+  no real advertising requests are made. No application changes required.
+- **95 frontend tests pass**; targeted backend **16 examples pass**. Full backend
+  **802 examples, zero failures, seven pending**, 43.11s; **60.42% coverage
+  (3620/5991)**, enforced exit 2 below 70%. Test syntax and whitespace pass.
+  Test/docs-only slice required no asset rebuild. Real browser/ad-network and
+  accessibility acceptance remain open; no deployment performed.
+
+### Recipient content-first advertising policy
+
+- Excluded /meme/ routes from server ad eligibility and independent cookie-consent
+  Monetag initialization/loading, preventing intrusive site-wide ads on shared
+  links (including unavailable pages). Added post-viewer discovery link. Revenue
+  on recipient pages is intentionally suppressed; /random policy is unchanged.
+- **93 frontend tests pass**, including no ad-consent storage or script injection
+  on recipient pages. Targeted recipient **14 examples pass**, partial coverage
+  **25.48%**, enforced exit 2 below 70%. Production build, applicable static mirror,
+  bundle syntax, Ruby/viewer ERB and whitespace pass. Existing Vite warning remains.
+- Full backend not rerun; real browser/ad-network acceptance remains open.
+  No deployment or production services used.
+
+### Manual recovery navigation-race guard
+
+- Late clipboard/native fallback failures now check displayed share identity before
+  revealing recovery and moving focus. Navigation to different content suppresses
+  stale recovery UI/feedback while still releasing the share lock. Existing keyboard
+  handlers exclude inputs. Added deferred clipboard-denial/navigation regression.
+- **92 frontend tests pass**; production build, touched module mirror parity,
+  bundle syntax and whitespace pass. Existing Vite CJS warning remains. Backend
+  not rerun; last full run 799 examples, zero failures, seven pending, 60.42%
+  coverage exit 2. Actual keyboard/device acceptance remains open; no deployment.
+
+### Manual exact-link copy recovery
+
+- Added labeled read-only exact URL field with manual-copy help. Clipboard denial
+  or unsupported APIs reveal/focus/select it; navigation hides prior recovery UI.
+  URL values use property assignment, not HTML insertion. Cancellation stays silent.
+- **91 frontend tests pass**, including recovery invocation and focus/selection;
+  production build, touched module mirror parity, bundle syntax, viewer ERB and
+  whitespace pass. Existing Vite CJS warning remains. Backend not rerun this slice;
+  last full run 799 examples, zero failures, seven pending, 60.42% coverage exit 2.
+- Actual keyboard/native-device acceptance remains open. No deployment.
+
+### Share identity across navigation/history
+
+- Added rendering regression for Next, restored content and unregistered content:
+  exact share paths replace/restore/clear alongside displayed media. Strengthened
+  pushState/popstate tests to preserve exact path in content state. No application
+  change needed. **90 frontend tests pass**, test syntax, navigation module mirror
+  parity and whitespace pass. Tests/docs only; no build or backend run required.
+- Last full backend remains 799 examples, zero failures, seven pending, 60.42%
+  coverage with enforced exit 2. Real browser-history/native acceptance stays open.
+
+### Asynchronous Share regression coverage
+
+- Added deferred native-share scenarios for success, failure-to-clipboard fallback
+  and cancellation while displayed content changes. Tests confirm duplicate-tap
+  suppression, original payload snapshot, lock release and subsequent sharing of
+  new content. Existing implementation passes; no application change required.
+- **89 frontend tests pass**, test syntax, touched module mirror parity and
+  whitespace pass. Test/docs-only slice: no rebuild or backend run required.
+  Last full backend remains 799 examples, zero failures, seven pending, 60.42%
+  coverage with enforced exit 2. Actual native-device acceptance remains open.
+
+### Native Share title and failure feedback
+
+- Native sharing now uses displayed meme title text (trimmed, bounded to 180)
+  rather than potentially stale document title. Unsupported/clipboard failure
+  messages no longer recommend copying a page address that may identify an
+  earlier meme. Added exact URL/title regression with stale page/Search context.
+- **86 frontend tests pass**, Vite production build, module mirror parity,
+  bundle syntax and whitespace pass. Existing Vite CJS deprecation warning remains.
+  No backend changes/run; last full result remains 799 examples, zero failures,
+  seven pending, 60.42% coverage with enforced exit 2. Device acceptance is open.
+
+### Exact-share fallback correctness
+
+- Removed page-address fallback when displayed content lacks a valid exact path:
+  after viewer navigation the original address could identify a different meme
+  or include Search context. Share now reports exact-link unavailability without
+  invoking native sharing or clipboard. Earlier fallback notes are superseded.
+- Added three missing/unsafe/malformed-path regressions and retained native-share
+  cancellation/failure/clipboard scenarios. **85 frontend tests pass**, production
+  Vite build succeeds, touched module mirror parity and whitespace pass. Vite's
+  existing CJS API deprecation warning remains. No backend changes/run this slice;
+  last full backend remains 799 examples, zero failures, seven pending, 60.42%
+  coverage with enforced exit 2. Browser acceptance remains open; no deployment.
+
+### Recovery regression and accumulated layout verification
+
+- Added outage-then-retry route regression: same registered content returns 200
+  after the initial 503, restores canonical/index metadata and does not retain
+  Retry-After, noindex header or retry message. No application change required.
+- Targeted permalink **13 examples pass**. Full backend after generic preview,
+  shared-origin and unavailable-page changes: **799 examples, zero failures,
+  seven pending**, 43s; **60.42% coverage (3620/5991)**, enforced exit 2 below
+  70%. **82 frontend tests pass**; Ruby/ERB syntax and whitespace pass.
+- These results supersede earlier full-suite counts, not crawler/browser
+  acceptance. Native toolchain workaround, coverage and deployment configuration
+  remain open; no production rollout performed.
+
+### Recipient unavailable-page recovery and indexing
+
+- Recipient 404/503 pages now have an error title, noindex/nofollow header/meta,
+  and no canonical/social metadata. Catalog outages include Retry-After: 60 and
+  a validated same-meme retry link; 404 missing/removed content is not replaced.
+- Targeted recipient/layout **14 examples pass**, partial coverage **26.23%**,
+  enforced exit 2 below 70%. **82 frontend tests pass**; Ruby/ERB syntax and
+  whitespace pass. Full backend not rerun. Actual crawler/browser acceptance
+  remains open; no deployment or production configuration changes.
+
+### Generic preview metadata cleanup
+
+- Generic pages now emit summary cards without images, removing SVG placeholder
+  tags and fixed/unverified type/dimensions. Dynamic feed URLs no longer advertise
+  the current random image as stable shared content. Exact recipient raster cards
+  remain unchanged. This resolves the earlier generic SVG/fixed-dimension notes;
+  a verified brand raster preview can be considered separately.
+- Targeted layout/home/permalink **20 examples pass**, partial coverage **29.20%**,
+  enforced exit 2 below 70%; **82 frontend tests pass**, layout ERB/whitespace pass.
+  Full backend not rerun. Real platform rendering checks remain open; no deployment.
+
+### Shared-layout trusted-origin continuation
+
+- Generic social URLs, placeholder image URLs and canonical links now use the
+  same validated PUBLIC_ORIGIN policy as recipient pages. Production without
+  configuration omits request-derived values; development fallback remains.
+- Added forwarded-host/configured-origin and production-without-origin route
+  regressions. Targeted layout/home/permalink **20 examples pass**, partial
+  coverage **29.20%**, enforced exit 2 below 70%. **82 frontend tests pass**;
+  layout ERB and whitespace pass. Full backend not rerun for this slice.
+- Generic SVG preview quality/fixed dimensions remain unchanged; actual crawler
+  checks and production configuration are still required. No deployment.
+
+### UX Phase 2 verification: production origin and full regression
+
+- Added three route regressions exercising production metadata with absent,
+  non-HTTPS and path-bearing PUBLIC_ORIGIN. Viewer stays usable; canonical,
+  Open Graph/Twitter URL/image tags omit request-derived values.
+- Targeted origin/permalink **15 examples pass**. Full backend after accumulated
+  Search recovery and preview/origin changes: **796 examples, zero failures,
+  seven pending**, 43.03s; **60.39% coverage (3615/5986)**, enforced exit 2 below
+  70%. **82 frontend tests pass**; Ruby/ERB syntax and whitespace pass.
+- No production services/deployment or native-gem repair performed. PUBLIC_ORIGIN
+  must be configured before rollout. Real crawler/device/accessibility acceptance,
+  remaining origin surfaces and coverage remain open.
+
+### UX Phase 2 continuation: trusted recipient metadata origin
+
+- Added PUBLIC_ORIGIN validation (HTTPS origin only, no credentials/path/query/
+  fragment), documented in .env.example. Recipient canonical/social/image URLs
+  use it rather than forwarded hosts. Production missing/invalid configuration
+  omits these tags while retaining the viewer; request fallback is nonproduction
+  only. Configure the real production origin before rollout.
+- Origin/candidate/permalink **14 examples pass**, partial coverage **25.55%**,
+  enforced exit 2 below 70%; **82 frontend tests pass**. Ruby syntax/whitespace
+  passed. Full backend not rerun for this slice. Other pages' request-based origin
+  handling and actual crawler acceptance remain open; no deployment performed.
+
+### UX Phase 2 continuation: social-preview edge cases
+
+- Extracted fail-closed raster metadata candidate selection into MediaUrl;
+  malformed local URIs no longer raise during preview parsing. Gallery candidate
+  selection checks array/hash shape before reading the first image URL.
+- Added local absolute/query-escaped and first-gallery-image route regressions,
+  plus candidate rejection tests for malformed, executable, credentialed,
+  protocol-relative and non-raster sources. Targeted **10 examples pass**;
+  partial coverage **25.53%**, enforced exit 2 below 70%. **82 frontend tests pass**;
+  Ruby syntax and whitespace pass. Full backend not rerun for this slice.
+- Extension checks do not validate actual MIME, availability or crawler support.
+  Trusted production origin still uses request.base_url and remains an explicit
+  follow-up. No server downloads, JavaScript changes or production rollout.
+
+### UX Phase 2 continuation: return from detail to Search
+
+- Search links preserve query/page/card position using encoded context. Recipient
+  pages validate bounded context and build only fixed local Search return links;
+  result anchors provide position recovery without accepting arbitrary return URLs.
+  Explicit clean permalink share data keeps Search context out of shared URLs.
+- Targeted search/permalink **26 examples, zero failures**; partial coverage
+  **27.15%**, enforced exit 2 below 70%. **82 frontend tests pass**; Ruby/ERB
+  syntax and whitespace pass. Full backend not rerun for this slice.
+- Anchor recovery does not guarantee pixel-exact scroll, stable results or focus
+  behavior. Browser acceptance remains open; no JavaScript changes or deployment.
+
+### UX Phase 2 continuation: bounded HTML Search pages
+
+- Render/register only 24 results per HTML page. Added accessible page navigation,
+  query-preserving escaped links, total counts and last-page clamping; existing
+  pagination validator rejects nonpositive values. JSON search remains unchanged.
+  This bounds per-request catalog registration, not search computation or memory.
+- Full backend: **783 examples, zero failures, seven pending**, 43.31s;
+  **60.22% coverage (3591/5963)**, enforced exit 2 below 70%. An additional
+  last-page regression subsequently passed with the targeted search suite:
+  **20 examples, zero failures**, partial coverage exit 2. **82 frontend tests pass**.
+  Ruby/ERB syntax and whitespace passed. No JavaScript changes or build required.
+- Earlier large-result registration follow-up is addressed for HTML pages;
+  search scroll restoration, upstream search costs and browser acceptance remain
+  open. No production rollout or release-gate completion is implied.
+
+### UX Phase 2 continuation: Search to exact app detail pages
+
+- HTML search results now register known snapshots and use stable detail paths;
+  catalog errors retain validated media-link fallback. JSON search contract unchanged.
+- Strengthened selected-result-to-recipient route test and added catalog-failure
+  fallback regression. Targeted search **17 examples pass**, partial coverage exit 2
+  (26.60%); **82 frontend tests pass**, Ruby syntax/whitespace pass. Full backend
+  not rerun. Registration work per large result set, preserved search scroll and
+  actual browser/crawler acceptance remain follow-ups; no production rollout.
+
+### UX Phase 2 continuation: recipient social metadata
+
+- Valid permalink pages now render exact escaped document/social titles and URLs,
+  a single Open Graph/Twitter branch and validated raster image candidates. Generic
+  SVG/type/fabricated image dimensions are omitted on these pages. Video without
+  preview uses summary metadata rather than a video URL as an image.
+- Added two recipient metadata regressions. Full run exposed concurrent in-place
+  pending-impression hash iteration; issuance now builds/reassigns a filtered copy.
+  This avoids the observed exception, not Redis session lost-update conflicts.
+- Final full backend **780 examples, zero failures, seven pending**, 42.67s;
+  coverage **60.00% (3570/5950)** with enforced exit 2 below 70%. **82 frontend
+  tests pass**; targeted recipient five examples pass, ERB/Ruby syntax and whitespace
+  pass. External crawler/image accessibility checks remain open; no deployment.
+
+### UX Phase 2 continuation: recipient route and Share wiring
+
+- Added public /meme/:id resolving only catalog snapshots; no arbitrary remote
+  fetching. Reuses viewer/engagement/impression flow; unknown/removed content is
+  404 with an honest unavailable page, lookup outage 503. Registration preserves
+  browsing on catalog errors and attaches content_id/share_path when available.
+- Initial/AJAX/history viewer state carries stable share path. Native/clipboard
+  Share prefers validated same-origin /meme/<64-hex> destination, otherwise the
+  existing page URL. Exact-link guarantee therefore requires catalog availability.
+- Recipient/impression targeted **10 backend examples pass** (coverage gate exit 2,
+  31.52%); frontend destination regression added. Full suite not rerun; social
+  metadata/raster previews/crawler checks and removal administration remain open.
+- Apply add_meme_catalog.sql before rollout; no production migration/deployment.
+
+### UX Phase 2 foundation: durable URL-v1 content registry
+
+- Added MemeIdentityService and additive meme_catalog migration/base schema. Stable
+  SHA256 URL-v1 IDs resolve stored, bounded JSON snapshots without arbitrary remote
+  fetching; malformed IDs/unsafe sources rejected. Duplicate registration preserves
+  original snapshot and does not resurrect removed records.
+- Four registry examples pass; **81 frontend tests pass**; Ruby syntax/whitespace
+  pass. Targeted backend coverage gate exits 2 (22.10%). Applied migration only to
+  isolated local test DB; no production changes. Service not yet wired to viewer/
+  Share; no claim that exact-meme sharing is complete. Existing engagement URL keys
+  remain unchanged; canonical aliasing/repost identity requires further design.
+
+### UX share preparation: honest cancellation/error feedback
+
+- Share handler now awaits/catches native and clipboard operations, suppresses
+  duplicate simultaneous share flows, silently respects AbortError cancellation,
+  falls back on other native failures and gives actionable browser-address advice
+  for denied/unavailable clipboard. Native success is labeled handoff, not receipt.
+- Four frontend scenarios added. **81 frontend tests pass**; production build,
+  module parity and whitespace pass. Backend unchanged/not rerun.
+- Critical scope limit: handler still shares current page URL, not stable exact-meme
+  identity. Canonical IDs/detail pages/previews are still required before claiming
+  exact-meme sharing. No delivery or distribution-lift claim.
+
+### UX Phase 1 continuation: concise viewer status announcements
+
+- Added visually hidden polite/atomic viewer status region, updated after guarded
+  rendering with content type and bounded title via textContent. No whole-display
+  live region or forced focus movement; stale versions cannot announce old content.
+- Status describes selection, not media-load/impression success. Added text/stale/
+  length regression. **77 frontend tests pass**; build, ERB syntax, deploy parity
+  and whitespace pass. Backend not rerun; actual assistive-technology acceptance,
+  repeated-title announcements and release coverage gate remain open.
+
+### UX attribution continuation: safe original-post links
+
+- AJAX metadata now retains Source attribution. Added server RedditSource path
+  normalization for initial templates/JSON and matching client host/post validation.
+  Links normalize to HTTPS www.reddit.com post paths without tracking queries;
+  foreign/lookalike hosts and attribute injection are rejected/omitted.
+- Added two Ruby source-policy examples and frontend attribution regression.
+  **76 frontend tests pass**; targeted source/random **15 examples pass**, partial
+  coverage exit 2 (31.04%). Build, deploy parity and whitespace pass. Full backend
+  not rerun; no claim of complete source metadata, rights or moderation validation.
+
+### UX Phase 1 continuation: title visibility disclosure
+
+- Initial title button lacked click wiring and AJAX metadata omitted it. Added one
+  delegated controller, consistent target ID, visible Show/Hide labels and expanded/
+  controls semantics. Keyboard T uses the same function; new titles start visible.
+- Added hidden/label/ARIA regression. **75 frontend tests pass**; build, metadata
+  ERB syntax, deployment-module parity and whitespace pass. Backend not rerun;
+  no persistent preference or browser accessibility conformance claimed.
+
+### UX feedback correction: Next is not dislike
+
+- Removed automatic skip POST and unused client trackSkip method. Ordinary Next
+  previously decremented subreddit preference even after Like/Save, contrary to
+  explicit-control UX principle. Navigation no longer emits negative feedback.
+- Backend skip endpoint retained for compatibility; historical weights unchanged.
+  Explicit preference/undo/reset control remains future roadmap work.
+- Added liked/saved navigation no-negative-request regression; updated prefetch
+  test to assert zero skip calls. **74 frontend tests pass**; build, deploy parity
+  and whitespace pass. Backend unchanged/not rerun. No recommendation lift claimed.
+
+### UX Phase 1 continuation: active-gallery impression observation
+
+- Gallery-position changes restart visibility observation on the newly active image
+  before qualification, rather than remaining attached to hidden/unloaded first media.
+- Bounded local 200-ID qualification set prevents slide changes/revisits restarting
+  already-completed dwell observation. Server primary-key deduplication remains the
+  counting boundary; existing delivery retry budget is unchanged.
+- Strengthened position/observer regression and added qualified-ID no-reobserve test.
+  **73 frontend tests pass**; production build, deploy parity and whitespace pass.
+  Backend unchanged/not rerun. Browser visibility behavior and retry exhaustion
+  remain acceptance/measurement limits; no release-gate closure claimed.
+
+### UX Phase 1 continuation: Recently viewed focus stability
+
+- List rerender now captures focused meme identity, restores its replacement button
+  without scroll, and falls back to Clear if evicted. Outside focus is not stolen.
+  Added escaped URL data attributes and comparison without CSS selector injection.
+- Two regressions cover reorder/outside-focus and eviction. **72 frontend tests
+  pass**; production build, deploy parity and whitespace pass. Backend unchanged/
+  not rerun; browser/assistive-technology acceptance and coverage gate remain open.
+
+### UX Phase 1 continuation: single initial-gallery initializer
+
+- Confirmed initial galleries emitted gallery_script in both display partial and
+  layout. Removed the partial copy and added per-gallery idempotent guard; optional
+  dot access no longer throws when a carousel has no matching indicator.
+- Added rendered-page ownership regression. Targeted gallery/media **10 examples
+  pass** (partial coverage gate exits 2, 27.84%); **70 frontend tests pass**;
+  generated JS syntax and whitespace pass. Full backend not rerun; real-browser
+  single-action click/swipe acceptance remains open. No production rollout.
+
+### UX Phase 1 continuation: source dimensions through ingestion
+
+- Unified RedditFetcherService now preserves each gallery source's validated x/y
+  dimensions and copies the primary image dimensions into the meme. Non-gallery
+  preview dimensions are accepted only for an exact selected-source URL match.
+- Malformed/invalid preview metadata is ignored without dropping otherwise usable
+  content. No thumbnail-ratio guess or remote image probe introduced.
+- Added three fetcher regressions. Full backend **768 examples, zero failures,
+  seven pending**, 44.04s; coverage **59.70% (3517/5891)** with enforced exit 2.
+  Targeted fetcher/dimensions **10 examples pass**; **70 frontend tests pass**;
+  Ruby syntax/whitespace pass. No production rollout or measured CLS claim.
+
+### UX Phase 1 continuation: validated image dimensions
+
+- Added shared positive-integer dimension validation (maximum 30,000 per axis),
+  optional JSON width/height and initial image/gallery attributes. AJAX images and
+  galleries use validated dimensions with an auto/source-ratio loading hint.
+- Unknown/invalid dimensions remain omitted; no external probing or guessed fixed
+  ratio introduced. Existing data without metadata still needs ingestion enrichment.
+- **70 frontend tests pass**; targeted dimensions/random **15 examples pass** with
+  partial coverage exit 2 (31.04%). Build, deploy parity and whitespace pass. Full
+  backend not rerun; actual CLS and initial stylesheet interactions need browser
+  measurement. No performance gain or release-gate closure claimed.
+
+### UX Phase 1 continuation: uncropped natural-ratio images
+
+- Found viewer hidden overflow/height caps plus global forced 16:9 image sizing.
+  Late viewer-scoped overrides remove container/image caps and restore natural
+  image aspect, full available width and ordinary page scrolling. Videos retain
+  a 75vh bound; inner media wrappers can shrink to their available column width.
+- Added CSS contract regression. **69 frontend tests pass**, stylesheet deployment
+  parity and whitespace pass. Backend unchanged/not rerun. This is not visual
+  browser proof; real media dimensions/CLS reservation, galleries and small-screen
+  readability remain acceptance requirements. No measured performance claim.
+
+### UX Phase 1 continuation: mobile control layout
+
+- Added late-loaded viewer-scoped CSS overriding legacy four-control grid and large
+  icon typography. Mobile uses paired Previous/Next, three secondary actions and
+  full-width download, with safe-area padding, minmax columns and readable labels.
+- Expanded toolbar is normal-flow rather than a tall bottom-sticky overlay; Next
+  receives primary-action emphasis. Existing ad-placement rules left unchanged.
+- Added stylesheet order/layout contract tests. **68 frontend tests pass**; layout
+  ERB, CSS deployment parity and whitespace pass. Backend not rerun. No real-device
+  overflow, contrast or touch-target measurement claimed; persistent compact layout
+  remains a design/research decision rather than assumed solved.
+
+### UX Phase 1 continuation: browser Save-Data preference
+
+- Prefetch selection is skipped when navigator.connection.saveData is true; image
+  preloading rechecks the preference after selection. User-requested Next still
+  fetches normally, and absent connection API does not disable normal behavior.
+- Added Save-Data explicit-navigation and unsupported-API regressions. **66 frontend
+  tests pass**; production build, deployment-module parity and whitespace pass.
+  Backend unchanged/not rerun. Already-started requests are not aborted; video,
+  third-party downloads and a manual data-saver UI remain outside this slice.
+
+### UX state continuation: stale prefetch interaction flags
+
+- Next/Similar now overlay confirmed URL-bound page-session interactions on selection
+  responses, matching history/recent restoration. Renderer merges again after its
+  transition wait to cover interaction completion during animation.
+- Server state remains unchanged without a local override; original prefetch object
+  is copied at consumption and impression identity is retained. This does not provide
+  cross-tab/device reconciliation or make local counts authoritative indefinitely.
+- Added stale-prefetch and server-default regressions. **64 frontend tests pass**;
+  production build, deployment-module parity and whitespace pass. Backend unchanged/
+  not rerun; overall coverage and browser acceptance gates remain open.
+
+### UX Phase 1 continuation: authoritative initial engagement state
+
+- Added shared viewer lookup for persistent account likes/saves, guest session likes
+  and actual like count. Home/random HTML controls and JSON impression responses
+  now receive this state; initial escaped history data includes liked/saved flags.
+- Removed hardcoded initial zero likes. Account/guest flags are read from existing
+  engagement sources, not inferred from stale page-local state. Cross-tab live
+  synchronization and transient lookup-failure presentation remain follow-ups.
+- Added four route state regressions; full backend **763 examples, zero failures,
+  seven pending**, 43.01s. Coverage report **59.01% (3462/5867)**, enforced exit 2
+  below 70%. **62 frontend tests pass**; Ruby syntax/whitespace pass. No rollout.
+
+### UX Phase 1 continuation: primary control semantics
+
+- Added visible Like text and stable Like/Save/Share/Download accessible names;
+  all six controls explicitly use type=button. Initial Like/Save aria-pressed now
+  reflects rendered state rather than waiting for a JavaScript interaction.
+- Added 44px minimum target styles, focus-visible outline and disabled affordance.
+  This is CSS intent, not a measured physical-device target/contrast guarantee.
+- Two template-semantic regressions added; targeted controls/random **15 examples
+  pass**, partial coverage 30.63% with enforced exit 2. **62 frontend tests pass**;
+  stylesheet deploy parity and whitespace pass. Full backend not rerun; earlier
+  coverage/release blockers and authoritative initial interaction state remain open.
+
+### UX Phase 1 continuation: reduced-motion viewer transitions
+
+- Viewer reads current prefers-reduced-motion on each render and skips transition
+  wait/classes for reduced motion. Matching stylesheet disables entrance/exit
+  animation rather than replacing them with a different fade. Existing guarded
+  rendering and nonanimated recovery scroll remain intact.
+- Added immediate-swap/no-animation regression. **62 frontend tests pass**;
+  production build, JS/CSS deployment parity and whitespace pass. Backend unchanged/
+  not rerun. Broader interaction/third-party motion and browser accessibility
+  acceptance remain open; this does not complete Phase 1 or close coverage gates.
+
+### UX media recovery continuation: focus and status feedback
+
+- Retry now announces retrying status; repeated failure updates the existing notice
+  rather than duplicating actions. Successful loading returns focus to the media
+  display without scrolling only when focus was inside the removed notice; unrelated
+  focus is not stolen. This preserves ordinary keyboard progress after recovery.
+- Added focus ownership regression. **61 frontend tests pass**; production build,
+  module parity and whitespace pass. Backend unchanged/not rerun. Screen-reader
+  announcements and focus appearance still require actual browser acceptance.
+
+### UX Phase 1 continuation: initial-page media recovery
+
+- Initial display images/video and server galleries now opt into delegated recovery.
+  Removed initial inline placeholder substitution; MemeDisplay's legacy listener
+  skips recovery-owned media. Startup scans catch completed failed images/video
+  whose error event preceded bundle initialization.
+- Added pre-initialization image failure regression; **60 frontend tests pass**.
+  Targeted media/random backend **22 examples pass**, partial coverage 32.34% and
+  enforced exit 2. Production build, ERB/Ruby syntax, deploy parity and whitespace
+  pass. Full backend not rerun; overall coverage gate remains open.
+- Existing generic lazy-load/fallback code outside these opted-in display paths
+  remains a separate audit surface. Physical-browser load/retry/focus behavior and
+  unavailable video source variations still need acceptance testing.
+
+### UX Phase 1 continuation: explicit AJAX media recovery
+
+- AJAX images/video/gallery media now use delegated failure/load handling: a single
+  status notice offers Try again and Show another meme. Removed AJAX image's silent
+  placeholder onerror assignment. Retry uses the original source or native video
+  load, respects loading guards, and clears the notice on successful media load.
+- Impression readiness now rejects flagged failed media and rechecks readiness/
+  document visibility at dwell completion, preventing an error during dwell from
+  being counted as successfully presented content.
+- Added three frontend rendering/notice/action regressions. **59 frontend tests
+  pass**; production build, module parity and whitespace pass. Backend unchanged/
+  not rerun. Initial server-rendered fallback and other independent media handlers
+  remain separate review surfaces; physical-browser recovery validation is open.
+
+### UX recovery continuation: latest state in Recently viewed
+
+- Existing recent entries now receive gallery/video/scroll and confirmed interaction
+  updates without reordering the tray or adding unseen/cleared items. Impression
+  identity is preserved. Clear remains effective for subsequent state-only updates.
+- Separated history push from position-reset behavior: reopening a recent meme can
+  push history while restoring its saved reading offset; ordinary Next/Similar
+  keep fresh-selection behavior.
+- Added existing-only state synchronization regression and strengthened reopen test
+  for recovery mode. **56 frontend tests pass**; production build, deployment-module
+  parity and whitespace pass. Backend unchanged/not rerun; page-memory-only scope,
+  timing limits and browser acceptance remain open.
+
+### UX Phase 1 continuation: page-session Recently viewed
+
+- Added collapsed Recently viewed tray, explicit refresh-clears-list scope, 20-item
+  unique-URL cap, escaped title buttons and Clear action. No storage or account
+  synchronization introduced. Entries are captured at client visibility dwell,
+  not prefetch; successful server delivery is not required for local recovery.
+- Initial observer now receives full seeded meme data. Reopening uses the normal
+  version-guarded renderer and existing impression ID with latest local Like/Save
+  state, so a previously acknowledged ID is not newly counted server-side.
+- Added bounded/deduplicated list, safe render/clear and identity-preserving reopen
+  regressions. **55 frontend tests pass**; targeted home/random/impressions **26
+  examples pass** (partial coverage 31.40%, enforced exit 2). Build, ERB, deploy
+  parity and whitespace pass. Full backend not rerun; its coverage blocker remains.
+- Limits: page-memory only, cleared on reload; cached gallery/video/scroll position
+  reflects eligibility-time snapshot rather than necessarily the latest departure.
+  Real-browser task study, persistent recovery and canonical IDs remain open.
+
+### UX recovery continuation: bounded delayed-layout restoration
+
+- History scroll restoration now retries on media load/metadata and display resize
+  when the initial layout clamps the requested offset. Retry window is three
+  seconds; completion cleans observers/listeners/timer.
+- Reader wheel/touch/pointer/key input cancels retries, as do new navigation,
+  pagehide and detached display. Stale callbacks cannot reclaim the scroll position.
+- Added delayed-resize completion/cleanup and user-input cancellation regressions.
+  **52 frontend tests pass**; production build, source/deploy parity and whitespace
+  pass. Backend unchanged/not rerun. Exact recovery beyond the bounded window and
+  physical-device acceptance remain open; no production UX lift claimed.
+
+### UX recovery continuation: tall-meme reading position
+
+- Added animation-frame-coalesced scroll capture into the current history entry,
+  retaining meme/impression/navigation identity. Loading/version guards prevent
+  stale callbacks from recording another navigation's offset.
+- History restores saved nonnegative offsets without smooth animation; fresh
+  content starts at top. Viewer manages same-document scroll restoration while
+  active, restores the prior policy on pagehide and reclaims it on pageshow.
+- Added two regressions for initial/history/stale restoration and captured state/
+  lifecycle. **50 frontend tests pass**; production build, module parity and
+  whitespace pass. Backend unchanged/not rerun; prior coverage gate remains open.
+- Limit: initial restoration uses current layout; delayed media dimensions may
+  clamp the offset. Browser/device acceptance and layout stabilization remain
+  required before claiming exact reading-position recovery.
+
+### UX recovery continuation: video playback position
+
+- Added delegated capture listeners for pause/seek/timeupdate on persistent media
+  display. Position replaces the current history entry while preserving identity,
+  impression ID and navigation position; frequent playback updates are coalesced.
+- Restores saved time once metadata is available, clamps finite duration, handles
+  unseekable sources gracefully and ignores superseded/detached video callbacks.
+  Recovery never calls play or forces autoplay.
+- Added three regressions for clamping/no-autoplay, late metadata and history
+  preservation. **48 frontend tests pass**; production build, deployment-module
+  parity and whitespace pass. Backend unchanged/not rerun. Real-device acceptance
+  and exact scroll recovery remain open; continuous playback position can lag
+  roughly two seconds. No cross-session persistence or release-gate closure claimed.
+
+### UX recovery continuation: preserve gallery position
+
+- Gallery changes now replace the current history entry with gallery_index,
+  preserving impression ID, interaction flags and history position. Initial
+  server carousel emits the same position event; AJAX controls record directly.
+- History rendering restores/clamps the selected slide before setting up its
+  impression observer, which now prefers the active slide image.
+- **45 frontend tests pass**, including history state preservation/loading guard
+  and slide-index clamping. Production build, generated gallery JS syntax, Ruby
+  syntax, source/deploy parity and whitespace pass. Backend suite not rerun for
+  this frontend/generated-script slice; previous coverage blocker remains open.
+- Scope is gallery slide recovery, not video playback or scroll restoration.
+  Physical-device and actual browser Back/Forward acceptance remain required.
+
+### UX delivery continuation: visible Previous control
+
+- Started UX Phase 1 with Previous, initially disabled and enabled only for known
+  in-app history positions. Back/Forward restores position; ArrowLeft outside
+  galleries no longer blindly leaves the initial meme. Loading cleanup preserves
+  initial disabled state rather than enabling every button unconditionally.
+- Added boundary/availability/history-position tests. **44 frontend tests pass**;
+  targeted home/random **19 examples pass**, partial coverage gate exits 2.
+  Production build, ERB syntax and deploy parity pass. Full backend unchanged/not
+  rerun; last full result 757 examples, zero failures, seven pending, 58.87% coverage.
+- Scope is page-session recovery, not persistent recent history. Browser research,
+  playback/gallery-position restoration and actual mobile layout remain open.
+
+### Search continuation: apostrophes and literal wildcard matching
+
+- Narrowed search punctuation rejection to permit ordinary apostrophes while
+  retaining existing statement/comment-pattern and length rules. Parameter binding
+  remains the SQL boundary and escaped templates remain the HTML boundary.
+- PostgreSQL substring lookup now escapes !/%/_ using explicit LIKE ESCAPE '!';
+  percent and underscore no longer unexpectedly match arbitrary content compared
+  with the in-memory String#include? tier. Added real-DB route checks and an
+  apostrophe validator regression; adjusted the ordinary-punctuation boundary test.
+- Full backend: **757 examples, zero failures, seven pending**, 42.12s; coverage
+  **58.87% (3451/5862)** with enforced exit 2 below 70%. Targeted search/validator/
+  boundary **102 examples pass**; **41 frontend tests pass**, Ruby syntax and
+  whitespace pass. No production deployment or broad input-policy rewrite.
+
+### Search validation continuation: explicit errors versus empty results
+
+- Opening HTML search without a query now renders neutral guidance without invoking
+  search. Submitted invalid queries return 400; JSON clients receive success:false,
+  error, results:[] and total:0 consistently on both search endpoints. HTML clients
+  get escaped correction feedback with role=alert and field aria-invalid/describedby.
+- Valid no-match searches retain a distinct empty-results state. Added six route
+  regressions covering initial form, empty/oversized/rejected queries, HTML feedback
+  and JSON content negotiation. Updated three older boundary assertions to expect
+  explicit rejection while preserving the SQL-injection database-integrity check.
+- Resumed validation completed: **754 examples, zero failures, seven pending**,
+  42.07s; full coverage **58.76% (3444/5861)** with enforced exit 2 below 70%.
+  Targeted search/rendering/boundary run **34 examples pass**; **41 frontend tests
+  pass**, standalone CSRF/lease checks, Ruby/ERB syntax and whitespace pass.
+- Existing query policy is unchanged; legitimate apostrophes and some other
+  characters remain rejected by the historical validator. That usability/security
+  policy merits a separate parameterized-search review rather than silent removal.
+  No production deployment or browser acceptance claim.
+
+### Search continuation: usable form, functional links and safe results
+
+- Added a labeled GET search form with retained escaped query and length bound;
+  the page previously instructed users to type above without providing an input.
+- Replaced result links to fragments/invented saved routes with validated media
+  destinations. Escaped query/title/subreddit/source output and media attributes;
+  unsafe media URLs use a local placeholder. Result images load lazily.
+- Added three search-rendering regressions for the form/query, actual destinations,
+  and malicious result metadata/URLs. Full backend: **748 examples, zero failures,
+  seven pending**, 42.09s; coverage **58.75% (3437/5850)**, enforced exit 2 below
+  70%. **41 frontend tests pass**, search ERB and whitespace checks pass.
+- Links currently open media directly, not a stable app detail/share page. Query
+  validation error presentation, result-source freshness and upstream search
+  latency remain separate follow-ups. No browser UX score lift or deployment.
+
+### Cache refresh continuation: upstream outcomes and safe quality validation
+
+- Added refresh tests for successful validated publication, timeout/socket failure,
+  empty upstream response and rejected media; each verifies lease release and
+  cached-content fallback where appropriate, with credentials restored after tests.
+- Quality validation now skips non-Hash entries, applies browser media URL safety,
+  and uses exact parsed hostname checks for extensionless recognized media hosts
+  instead of accepting prefix-lookalike hosts. Media-extension URLs remain allowed
+  from other HTTP(S) hosts; this is not a server-side download/SSRF allowlist.
+- Added malformed-entry/host-lookalike validation regression. Full suite:
+  **745 examples, zero failures, seven pending**, 41.93s; coverage **58.70%
+  (3434/5850)**, enforced exit 2 below 70%. Targeted cache **44 examples pass**;
+  **41 frontend tests pass**; Ruby syntax and whitespace pass. No deployment.
+
+### Cache publication continuation: reject expired refresher writes
+
+- Refresh publication now checks Redis lease ownership atomically with content
+  and timestamp writes in one Lua operation; memory-only publication checks token
+  and expiry under the mutex. Lost ownership/publication failure returns current
+  cached content rather than publishing the late result.
+- Redis-owned refreshes publish only to Redis, avoiding an independent delayed
+  memory-backup overwrite after atomic commit. Memory-owned refreshes retain local
+  publication; the general set_cached_memes API remains for explicit callers.
+  Cross-process Redis-outage fallback is not a globally fenced system.
+- Added Redis successor/memory-expiry publication tests and a completed-fetch
+  lost-ownership fallback test. Full run before the final added example:
+  **738 examples, zero failures, seven pending**, 41.9s; coverage **58.04%
+  (3394/5848)**, enforced exit 2. Subsequent targeted cache run including all three
+  additions: **38 examples, zero failures**, partial coverage gate still fails.
+  **41 frontend tests pass**; Ruby syntax/whitespace pass. No rollout performed.
+
+### Cache refresh continuation: ownership-safe leases
+
+- ApiCacheService refresh previously used timestamp locks and unconditional delete;
+  an expired owner could delete its successor. It now returns random-token leases,
+  releases Redis ownership atomically with compare/delete, and compares memory
+  tokens under the mutex. Each lease captures its backend so Redis recovery cannot
+  make a memory lease delete an unrelated Redis lock.
+- Increased TTL from 60 to 180 seconds to cover both possible 60-second fetch
+  phases plus processing margin. This is a finite lease, not a fencing system;
+  a pathological refresh exceeding its TTL may still require stale-write guards.
+- Preserved fresh-cache fast path and stale-content follower fallback. Added four
+  regressions for Redis/memory successor ownership and no-fetch fast/follower paths.
+- Full backend: **736 examples, zero failures, seven pending**, 41.7s; coverage
+  **57.80% (3371/5832)**, enforced exit 2 below 70%. **41 frontend tests pass**;
+  targeted cache 35 examples pass, Ruby syntax/whitespace pass. No deployment or
+  measured upstream-request reduction claimed.
+
+### Cache continuation: bounded invalidation batches
+
+- Removed collection of all matching Redis scan results. Generic invalidation now
+  streams into delete batches of at most 200 keys and sums actual DEL removals,
+  avoiding inflated counts from repeated SCAN hits. Memory invalidation still runs
+  if a Redis batch fails; no all-keyspace flush is introduced.
+- Added three regressions: 451 keys split 200/200/51, duplicate scan results, and
+  memory cleanup after a failed Redis batch. Targeted cache run: **31 examples,
+  zero failures**, partial coverage 22.29% with enforced exit 2. **41 frontend tests
+  pass**, syntax/whitespace pass. Full backend not rerun; last full evidence is
+  729 examples, zero failures, seven pending, 57.49% coverage.
+- Reviewed latest-meme snapshot fallback: it intentionally provides stale content
+  on upstream failure. Policy left unchanged rather than unexpectedly emptying
+  the feed. A bounded stale window/status indicator and background refresh need
+  explicit product/availability acceptance. No latency improvement measurement
+  is claimed from these unit tests.
+
+### Cache continuation: fallback expiry and invalidation
+
+- Generic ApiCacheService memory fallback previously ignored TTL. Added lazy
+  expiration under its existing mutex for reads, existence and increments;
+  overwriting without TTL clears prior expiration and expired counters restart.
+- Pattern invalidation now scans Redis incrementally instead of KEYS and also
+  clears memory after Redis recovery. Fixed internal wildcard matching in the
+  memory fallback; unrelated suffixes are retained.
+- Added five expiry/invalidation regressions. Full suite: **729 examples, zero
+  failures, seven pending**, 41.64s; coverage **57.49% (3346/5820)** with enforced
+  exit 2 below 70%. **41 frontend tests pass**, Ruby syntax/whitespace pass.
+- Scope: generic cache API only; the separate latest-meme snapshot fallback and
+  its stale-content policy still need review. Lazy expiry removes entries when
+  accessed; this is not a bounded-memory eviction strategy. SCAN results are
+  currently collected before deletion, so very large invalidations still need
+  batched-delete/memory-budget review. No production performance claim made.
+
+### Stored-content continuation: profile/admin and shared layout boundaries
+
+- Escaped profile identity and saved title/subreddit text plus media attributes;
+  liked-media navigation now uses a safe URL anchor with noopener rather than
+  interpolating stored URLs inside onclick JavaScript. Invalid media sources use
+  local fallbacks. Other profile helpers remain separate audit surfaces.
+- Escaped admin table content and moved deletion URLs from inline JavaScript into
+  escaped data attributes with direct click listeners. Removed unused layout
+  sessionLikedMemes interpolation, which could close its surrounding script tag.
+- Added three stored-content regressions for profile metadata/executable sources,
+  admin content/deletion handlers and session script injection. Final full suite:
+  **724 examples, zero failures, seven pending**, 42.05s. Coverage **57.02%
+  (3312/5808)**; enforced exit 2 remains below 70%. **41 frontend tests pass**;
+  changed ERB compilation and whitespace checks pass.
+- This closes identified stored-content boundaries, not an application-wide XSS
+  clearance. Historical gamification inline scripts and remaining render helpers
+  still require review. No production deployment or score increase claimed.
+
+### Theme/navigation continuation: single theme owner and duplicate reload removal
+
+- Found three competing theme initializers using different storage keys, DOM class
+  versus data-theme, and an obsolete toggle ID. Consolidated into early-loaded
+  dark-mode.js using both CSS hooks, current button, validated preference with
+  legacy-key fallback, system updates and storage-error-safe manual override.
+- Removed layout's inline theme handler and layout-utils theme initializer.
+  Preserved Cmd/Ctrl+K theme shortcut with input/repeat/default-prevented guards.
+- Also found and removed layout's competing inline Space/Next full-page reload
+  handlers, which bypassed AJAX navigation and could race the module handler.
+- Added three theme tests: legacy/CSS state consistency, blocked storage, and
+  system changes versus explicit user choice. **41 frontend tests pass**, build,
+  layout ERB/JS syntax, deploy parity and whitespace checks pass. Backend not rerun;
+  no claim of live-browser first-paint/contrast validation or coverage-gate closure.
+
+### Navigation continuation: functional accessible disclosure menu
+
+- Found menuToggle/hamburgerMenu had no matching JS controller; the toggle was
+  hidden on desktop despite secondary links only existing in that menu. Added
+  one idempotent disclosure initializer, visible toggle at all sizes, hidden-state
+  synchronization and aria-controls/aria-expanded. Escape closes and returns focus;
+  outside clicks/focus departure close without trapping normal keyboard traversal.
+- Added Search to secondary navigation and limited the Metrics link to admins.
+  Added visible focus outlines. Retained ordinary link/button semantics rather
+  than assigning ARIA menu roles with unimplemented keyboard requirements.
+- Added four disclosure regressions. **38 frontend tests pass**, production build,
+  template syntax, JS/CSS deployment parity and whitespace pass. Targeted backend
+  home/real-session tests: **15 examples, zero failures**, partial coverage 34.05%
+  and enforced exit 2. Full backend not rerun; its previous coverage blocker remains.
+- Narrow-screen layout, theme contrast and assistive-technology acceptance still
+  need browser validation. No browser-level accessibility conformance claimed.
+
+### Gallery continuation: keyboard and swipe ownership
+
+- Removed initial gallery's document-global arrow listener. MemeNavigation now
+  sends arrows to the current gallery's existing buttons when present; Space
+  remains Next meme and focused/modified/default-prevented events remain guarded.
+- Global meme swipe resets gesture state and excludes server/AJAX galleries.
+  AJAX galleries receive display-delegated horizontal swipe handling with vertical
+  scroll rejection and touch-cancel reset. Initial galleries retain their existing
+  local swipe initializer; a gesture no longer also triggers global meme navigation.
+- Added arrow ownership and horizontal/vertical gesture regressions. **34 frontend
+  tests pass**; production rebuild/module parity, Ruby syntax, generated gallery
+  JavaScript syntax and whitespace pass. Targeted backend media/random tests:
+  **22 examples, zero failures**, partial coverage 32.45% with enforced exit 2.
+- Full backend suite not rerun; last full evidence remains 721 examples, zero
+  failures, seven pending, 57.04% coverage. Physical-device swipe/pinch and
+  screen-reader/keyboard acceptance remain required; mocks are not browser proof.
+
+### Gallery continuation: production-safe AJAX controls
+
+- Confirmed AJAX gallery arrows invoked window.memeApp, only exposed on localhost.
+  Replaced inline debug-global handlers with delegated actions on the persistent
+  meme display, so AJAX content replacement retains working production controls.
+- Added button types/accessible names and a polite live slide counter. First slide
+  starts active; inactive slides are explicitly hidden, including display state
+  to avoid competing gallery CSS overriding the hidden attribute. Slide updates
+  are scoped to the current AJAX gallery, and empty galleries do not throw.
+- Added three regressions covering generated controls without debug globals,
+  delegated previous/next clicks, and scoped slide visibility/counter updates.
+  **32 frontend tests pass**, production bundle rebuild/module parity and
+  whitespace checks pass. Backend unchanged/not rerun; prior coverage gate remains.
+- Initial server-rendered galleries still use the existing separate carousel
+  initializer. Touch/keyboard conflicts across that initializer and standalone
+  swipe handlers remain a browser-validation follow-up, not declared fixed here.
+
+### Navigation continuation: stale-operation ordering guards
+
+- Added monotonically increasing navigation versions for Next, Similar and
+  Back/Forward. A later history action supersedes an earlier request/transition;
+  stale completions cannot replace content, mutate history/current identity, start
+  an impression observer, report a skip/view, or unlock another operation's UI.
+- The renderer checks ownership after its transition wait and before the DOM swap.
+  Popstate handles its own completion/error cleanup and synchronizes identity only
+  while it remains the latest operation.
+- Updated the popstate test mock for loading cleanup; added regressions for Back
+  during pending Next and invalidation during a render transition. **29 frontend
+  tests pass**; production build, deployment-module parity and whitespace checks
+  pass. Backend unchanged/not rerun; latest full backend evidence remains 721
+  examples, zero failures, seven pending, 57.04% coverage (coverage-gate exit 2).
+- This is logical result cancellation, not transport abortion: an already-started
+  request may finish and reserve a selection server-side, but cannot take over the
+  display. Real-browser rapid-navigation acceptance and broader lifecycle cleanup
+  remain open. No performance or retention gains are claimed from unit tests.
+
+### Navigation continuation: confirmed Like/Save state restoration
+
+- Confirmed successful interactions now publish URL-bound state; navigation keeps
+  a bounded 200-item state cache and replaces the current history entry only when
+  its meme matches the completed action. Back/Forward overlays the latest known
+  interaction state and restores button classes, data attributes and aria-pressed.
+- Save/Like no longer treat an HTTP 200 body declaring success:false as success.
+  Late responses cannot repaint a different meme's button or like count; failures
+  roll back optimistic state only if the originating meme remains on screen.
+- Added tests for confirmed history updates, failed-save rollback, late like
+  responses and restored pressed/count state. **27 frontend tests pass**; production
+  build, source/deploy parity and whitespace checks pass. Backend unchanged and
+  not rerun; latest full evidence remains 721 examples, zero failures, seven
+  pending, 57.04% coverage (coverage-gate exit 2).
+- Limits: cache is page-local and not a substitute for authoritative server state
+  across tabs/devices or a reload. Rapid navigation ordering/cancellation and
+  initial already-liked/saved server state still require further verification.
+
+### Navigation continuation: initial history and Back/Forward identity
+
+- Added escaped JSON data for the initial server-rendered meme, preserving the
+  original content URL, metadata and issued impression ID without inline script
+  interpolation. Navigation seeds the current history entry with replaceState,
+  rather than creating an extra entry or discarding existing history state.
+- Back/Forward restoration now updates currentMeme, its shown-at timestamp and
+  document title after rendering without pushing history. The existing impression
+  ID is retained, so server deduplication still applies on revisits.
+- Added frontend regressions for initial replacement and popstate identity/title.
+  **24 frontend tests pass**; production bundle build, module parity, ERB syntax
+  and whitespace checks pass. Targeted backend pages/impressions: **26 examples,
+  zero failures**, coverage-gate exit 2 for the partial run (31.48%). Full backend
+  suite was not rerun for this template/frontend slice; last full evidence remains
+  721 examples, zero failures, seven pending, 57.04% coverage.
+- Scope limits: rapid competing Back/Next operations still need cancellation/
+  ordering tests; changed Like/Save state is not yet persisted into history for
+  accurate restoration. No claim of complete browser-history UX is made.
+
+### Impression continuation: initial pages, activity and authenticated exposure
+
+- Removed request-time view/exposure increments from home and `/random`, including
+  random's asynchronous analytics task. Both now issue IDs rendered as escaped
+  data attributes; navigation initialization observes the existing media before
+  prefetching. No-JavaScript/bot page requests are not counted as impressions.
+- Acknowledgment now transactionally records the view activity entry and, for the
+  same authenticated identity that received the selection, exposure count. Duplicate
+  IDs cannot double-count any of these writes. Base schema/additive impression
+  migration now include the activity-log table needed on fresh installations.
+- Added three backend initial-page/exposure examples and frontend initialization
+  ordering coverage. Full suite: **721 examples, zero failures, seven pending**,
+  41.01s; coverage **57.04% (3313/5808)**, enforced exit 2 below 70%. **22 frontend
+  tests pass**, CSRF/lease checks, build, changed ERB and artifact parity pass.
+- These discovery entry points now use the same acknowledgment convention. Old
+  historical counts remain mixed and are not rewritten; segment reporting at
+  deployment. Other app surfaces may still have legacy tracking and need review.
+  Selection history remains reservation-based rather than proof of display.
+- Deployment still requires the updated additive impression migration before
+  application rollout. No production schema or analytics history was changed.
+
+### Impression delivery continuation: retries, rollback and bounded retention
+
+- Impression delivery now retries network errors, 429 and server failures with
+  the same issued ID, up to three attempts, five-second request deadlines and
+  500/1000ms backoff. Other client errors stop immediately. Delivery remains
+  best-effort rather than a persistent offline queue.
+- Added a database-failure regression proving view-update failure rolls back the
+  deduplication insert, then a safe retry records one view.
+- Fixed DatabaseCleanupWorker expecting command metadata from DB.execute's Array
+  return value; DELETE RETURNING now supplies accurate counts. Removed cleanup of
+  the absent historical experiment_assignments table.
+- Worker now deletes up to 10,000 impression rows older than seven days per run,
+  with a created_at index in base schema/additive migration. This exceeds the
+  30-minute ID validity window so cleanup does not reopen valid IDs for counting.
+  Monitor backlog if daily traffic outpaces scheduled cleanup capacity.
+- Added two worker retention/progression tests, one transactional route test and
+  two frontend retry tests. Full suite: **718 examples, zero failures, seven
+  pending**, 40.78s. Coverage **57.21% (3330/5821)**; enforced coverage exit 2
+  remains. **21 frontend tests pass**, CSRF/lease contracts pass, build and syntax
+  checks pass. Deployment still requires the impression migration (including its
+  new index); no production migration was executed.
+
+### Core-loop continuation: acknowledged AJAX impressions
+
+- `/random.json` and `/similar.json` no longer increment meme_stats views while
+  building responses. Each selection now issues a random, session-bound ID with
+  a 30-minute validity window and bounded session reservation storage (20 IDs).
+- Added CSRF-protected `/api/impressions`: accepts only session-issued unexpired
+  IDs and transactionally inserts a primary-key deduplication row plus one view
+  increment. Repeated acknowledgments cannot increment again. Database failure
+  returns 503 instead of claiming successful tracking.
+- AJAX renderer observes usable image/video visibility; acknowledges after one
+  continuous second with at least half the smaller of media/viewport area visible
+  on an active document. Observation is canceled when content changes. This is a
+  client visibility convention, not proof of enjoyment or fraud prevention.
+- Added additive `db/migrations/add_meme_impressions.sql` and base-schema table.
+  **Apply the migration before deployment.** No production database was changed.
+  Impression-row retention/cleanup policy is still required for long-term operation.
+- Added backend tests for selection-without-view, duplicate acknowledgments,
+  cross-session IDs, expiry and malformed payloads; frontend observer/dwell tests.
+- Validation: **715 backend examples, zero failures, seven pending**, 41.29s;
+  coverage **56.90% (3312/5821)**, enforced exit 2 below 70%. **19 frontend tests
+  pass**, CSRF contract passes, build and source/deploy parity checks pass.
+- Scope limits: HTML home/random views still use legacy request-count analytics;
+  selection history still reserves prefetched content for anti-repeat behavior.
+  Do not describe all meme_stats views as verified impressions. AJAX acknowledgment
+  currently sends once without network retry; delivery failure undercounts rather
+  than inflating. Activity-log/retention alignment and full browser validation
+  remain follow-up work before controlled personalization experiments.
+
+### Core-loop continuation: single-flight prefetch and recoverable navigation
+
+- Confirmed post-navigation prefetch returned immediately because the caller was
+  still marked loading. Replenishment now happens only after controls unlock.
+- Navigation awaits an already-running prefetch instead of selecting a competing
+  second meme. Prefetch requests share one promise and release it after completion
+  or failure. Network fetches have a 10-second abort deadline and validate the
+  response shape before rendering.
+- Failed next navigation no longer reports the current meme as skipped. Similar
+  lookup failure preserves content and no longer schedules an unsolicited random
+  navigation. Existing historical skip semantics still need explicit-feedback
+  redesign; Next is not proven dislike.
+- Added five frontend regressions for in-flight reuse, post-unlock replenishment,
+  failure state preservation, single-flight cleanup, response validation and
+  timeout abortion. **17 frontend tests pass**; bundle rebuild, deployment-module
+  parity and whitespace checks pass. No backend files changed in this slice.
+- **Important unresolved measurement issue:** `/random.json` still increments
+  views and selection history on fetch. Working prefetch may therefore increase
+  speculative view counts. Do not interpret these as displayed impressions or
+  compare engagement rates across this change. Separate reservation/selection
+  from idempotent visible-impression acknowledgment before recommendation tests.
+- Latest backend evidence remains the preceding run: 712 examples, zero failures,
+  seven pending, 56.73% coverage and coverage-gate exit 2. Not rerun for this
+  frontend-only slice. No measured browser speed or retention lift is claimed.
+
+### Gate A continuation: protected logout and real session lifecycle
+
+- Logout previously mutated session state on GET, and a data-method link had no
+  handler to convert it. Logout now requires token-protected POST. GET is a
+  non-mutating redirect to profile. Replaced navigation/profile/admin logout
+  links with a shared native POST form containing an escaped session token.
+- Added five real Redis-session examples: GET/unprotected POST cannot log out;
+  valid logout destroys server identity and an old cookie replay cannot recover
+  it; login rotates cookie/token and rejects the prior token; inactive sessions
+  cannot save; deleted accounts cannot like. Updated older tests to use POST.
+- Aligned integration session-cookie TTL with deployment's 30 days so advancing
+  past 24-hour inactivity tests application invalidation rather than client-cookie
+  expiry. No production session settings were changed.
+- Final full backend run: **712 examples, zero failures, seven pending**, 101.55s.
+  Coverage **56.73% (3287/5794)**; exits 2 below 70%. Coverage varies slightly
+  across full runs/background paths; no threshold changes or score lift claimed.
+- Also passed 12 frontend tests, 14 CSRF checks, 11 lease checks, Ruby syntax,
+  changed ERB compilation and whitespace checks. No visual-browser claim is made.
+
+### Gate A continuation: safe media rendering boundaries
+
+- Added shared server-side browser media URL validation (HTTP(S) or rooted local
+  paths; rejects executable schemes, protocol-relative URLs, userinfo and unsafe
+  characters). This is explicitly not a server-download SSRF policy.
+- Escaped gallery titles/captions and image attributes; primary gallery images
+  now load eagerly. Corrected Reddit gallery extraction reading numeric width
+  `s.x` instead of URL `s.u`, and media detection with query strings/fragments.
+- Hardened smart fallback HTML/JavaScript: script-safe JSON literals, message
+  assignment via textContent, local placeholder instead of unrelated external
+  photos, safe fallback sources, escaped attributes and working placeholder opt-out.
+- Applied media URL filtering to AJAX images/video/gallery and the random-page
+  server-rendered media sources. Rebuilt the production bundle/module mirror.
+- Added nine backend media regression examples and one frontend URL-policy test.
+- Full backend run: **707 examples, zero failures, seven pending**, 38.63s;
+  report coverage **56.79% (3289/5792)**. Coverage enforcement still exits 2 below
+  70%. Also passed 12 frontend tests, 14 CSRF checks, 11 Redis lease checks,
+  build, changed Ruby syntax, display ERB compilation and whitespace checks.
+- This hardens touched rendering boundaries, not a claim that every application
+  template, script context, URL source or third-party integration is audited safe.
+
+### Gate A continuation: fail-closed session verification
+
+- Found session validation failed open on DB errors and queried user identity and
+  role separately. It now uses one authoritative lookup for both, blocks protected
+  authenticated requests with a retryable/no-store 503 during lookup failure, and
+  preserves the session so users can recover without forced logout. Guest public
+  discovery remains available. This intentionally favors authorization safety over
+  authenticated availability when identity cannot be verified.
+- Corrected invalid-session audit logging to capture the user ID before clearing
+  the session; added explicit Rack/JSON/CGI requires to the validator.
+- Added nine session-validation examples covering stale-role downgrade, verified
+  admin, database outage, inactivity/max-lifetime expiry, deleted accounts, optional
+  strict IP checks and guest/protected routes. Added seven authorization examples
+  covering role boundaries, guest role forgery, and browser/JSON responses.
+- Full backend run: **698 examples, zero failures, seven pending**, 38.58s.
+  Coverage **55.23% (3187/5770)**, still below 70%; command exits 2. The threshold
+  is unchanged. Standalone CSRF/lease checks and 11 frontend tests also passed.
+- Reviewed the seven remaining pending examples: they target absent historical
+  diversity/pool/config/scoring/worker APIs. Left them pending rather than deleting
+  them merely to produce a cleaner count. Future selection tests should exercise
+  the live SimpleMemeSelector path, not resurrect those APIs for coverage.
+
+### Gate A continuation: real Redis-session journeys and JSON contract fixes
+
+- Added four integration examples using real Rack::Session::Redis cookies,
+  SessionValidator and AuthorizationMiddleware in deployment order, without fake
+  session/token injection. Exercises signup, login, profile identity, JSON save/
+  unsave, authenticated like, malformed payloads and missing/forged CSRF rejection.
+  This is a Rack integration stack, not a visual browser or full config.ru boot.
+- Those tests exposed Save/Unsave reading only form params while the browser sends
+  JSON. Routes now accept JSON objects and return 400 for malformed/non-object
+  JSON while preserving form clients.
+- Fresh-install schema omitted `user_liked_memes`, already defined in an existing
+  production migration and required by live authenticated likes. Added its
+  idempotent definition/indexes to the base schema. CI now actually loads that
+  schema with psql instead of running connection-pool configuration as setup.
+- Corrected the test user helper to honor its admin flag and activated the admin
+  test; activated the existing complete-signup validation test as well.
+- Isolated signup quota state for repeatable test runs without disabling throttles.
+- Final full suite: **682 examples, zero failures, seven pending** in 37.15s.
+  Coverage report: **54.54% (3144/5765)**; coverage enforcement still exits 2 below
+  70%. Remaining seven pending cases reference absent historical features.
+- Standalone checks remain passing: 14 CSRF, 11 Redis leases, 11 frontend tests.
+  No production database was migrated; schema changes were tested locally only.
+
+### Gate A continuation: backend failures resolved, coverage gate still open
+
+- Fixed a production trending query/schema mismatch: the query selected
+  `meme_stats.created_at`, which does not exist in the checked-in PostgreSQL
+  schema. Removed that unsupported projection; kept engagement/time filtering.
+- Added explicit test-client CSRF refresh after replacing/clearing a session or
+  loading login after signup. Production token validation remains unchanged.
+- Reset Redis availability between examples so simulated outages do not leak
+  the service's cached 30-second unavailable state into unrelated tests.
+- Added five viewing-history regressions: persistence/membership/clear,
+  deduplication/TTL, bounded growth, unavailable Redis, and absent visitor IDs.
+- Replaced an invalid signup-test password with a policy-compliant one and
+  removed its conditional pending marker rather than masking validation failure.
+- Final full backend run: **678 examples, zero failures, nine pending** in
+  35.05 seconds. **53.98% line coverage; exit 2** because the required 70% is not
+  met. No coverage threshold was lowered. This is not yet a green backend build.
+- Also verified 14 standalone CSRF checks, 11 Redis lease checks, 11 frontend
+  tests, production asset build, Ruby syntax and whitespace checks.
+- Remaining release gates include meaningful coverage expansion, review of
+  pending tests, real session-stack/browser acceptance, permanent native-gem
+  repair, remaining rendering/URL checks and private secret assessment.
+
+### Gate A continuation: lease safety and native dependency diagnosis
+
+- Removed startup deletion of shared bootstrap locks and rate-limit cooldowns.
+- Redis lock acquisition now returns a random ownership token; pool bootstrap
+  completion uses atomic Lua compare-and-delete, protecting a successor's lease.
+- Added 11 standalone real-Redis checks covering contention, wrong-owner release,
+  expiry/reacquisition and concurrent callers, using random keys without flushing.
+  Added this contract check to CI and aligned the pool-manager mock with tokens.
+- Compiled BCrypt and Date extensions under Ruby 3.2 into
+  `/tmp/meme-explorer-native-ruby32`, without overwriting shared gems. With those
+  directories on `RUBYLIB`, BCrypt/Date/Psych/PG/Puma load and the app boots for
+  RSpec discovery. This is a temporary diagnostic workaround, not a permanent
+  dependency installation repair.
+- Full suite discovery finds 673 examples (two already pending). Dry-run executes
+  no examples and fails the coverage threshold; it is not a passing backend run.
+  Next is isolated test database/schema setup and real backend execution, including
+  intentional session/CSRF setup in the legacy test harness.
+
+### Backend execution results after session-harness integration
+
+- Created local-only PostgreSQL database `meme_explorer_gate_a_test` from the
+  repository schema and a separate disposable Redis process on port 16379.
+  The separate process isolates legacy tests that call `flushdb` from normal Redis.
+- First actual suite: 673 examples, 241 failures, nine pending; many failures
+  were missing session setup in route specs mounting Sinatra without config.ru.
+- Initialized the existing fake session and its valid CSRF header for ordinary
+  route tests, without bypassing production middleware. Standalone rejection
+  tests continue to send missing/forged tokens explicitly.
+- Targeted like/auth/pool-manager run: 37 examples, zero failures, one pending;
+  the command still fails the enforced coverage threshold (not enough code covered).
+- Second full suite: 673 examples, 16 failures, ten pending; line coverage 53.58%,
+  below the required 70%. Remaining failures include replaced-session token
+  synchronization, auth journey, trending data and viewing-history behavior.
+  These remain open; the backend suite is not green and coverage was not weakened.
+
+
+Inspired by Jensen Huang's public emphasis on full-stack systems, bottlenecks,
+and compounding platforms—not a claim about what he would personally endorse.
+
+**Product promise: open the app, find something funny, send it to someone.**
+
+The system is a pipeline:
+
+**Rights-aware content supply → normalized media → trustworthy selection →
+instant presentation → meaningful feedback → better selection → return/share.**
+
+Optimize the bottleneck across this pipeline. A faster selector cannot rescue
+broken images. A sophisticated model cannot learn from fabricated impressions.
+More traffic cannot rescue broken Save. Every phase must improve the whole loop.
+
+### Operating rules
+
+1. Reliability and safety are release gates, not points traded for new features.
+2. Ship thin, end-to-end user outcomes, not disconnected infrastructure layers.
+3. Measure before optimizing. Distinguish targets, baselines, and observations.
+4. Keep Sinatra and vanilla JS until evidence shows a specific constraint.
+5. Buy or reuse commodity capabilities; own content quality and recommendation
+   feedback. Do not introduce GPUs, vector databases, or microservices for image.
+6. Treat Next as navigation, not automatic dislike; explicit feedback is stronger.
+7. Preserve user agency: no forced signup, intrusive notifications, or manipulative
+   retention mechanics in the discovery loop.
+
+## Score ladder
+
+These are conditional rubric targets, not promised gains or measured results.
+Re-audit the same six dimensions after each gate; never add points merely because
+a ticket closed. A critical security failure blocks release regardless of total.
+
+| Dimension | Audit | Gate A | Gate B | Gate C | Gate D |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Discovery /20 | 13 | 13 | 16 | 17 | 19 |
+| UX and accessibility /20 | 10 | 13 | 17 | 18 | 19 |
+| Security and privacy /20 | 7 | 15 | 16 | 17 | 18 |
+| Reliability /15 | 11 | 12 | 13 | 13 | 14 |
+| Performance and delivery /15 | 8 | 10 | 12 | 13 | 13 |
+| Quality and measurement /10 | 7 | 7 | 8 | 8 | 9 |
+| **Conditional total** | **56** | **70** | **82** | **86** | **92** |
+
+100 is not a roadmap promise. A 90+ judgment requires measured user outcomes,
+repeatable verification, operational maturity, and no unresolved critical risks.
+
+## Gate A — Earn trust: target 70/100
+
+**Planning window:** weeks 1–2, subject to the backend failure inventory.
+**Accountability:** engineering lead; owner handles credential rotation.
+**Dependency:** none. This blocks public feature expansion.
+
+- [ ] Pin one supported Ruby/toolchain; rebuild native gems; resolve BCrypt boot
+  failure. Use isolated PostgreSQL and Redis for tests, never a production URL.
+- [ ] Run the complete backend suite; classify real defects vs stale contracts.
+  Fix failures without weakening assertions or bypassing meaningful coverage.
+- [ ] Verify Rack::CSRF's actual contract; wire forms and fetch calls to it.
+  Test accepted valid requests and rejected missing/invalid-token requests through
+  the full middleware stack, including login, like, save, unsave and skip.
+- [ ] Privately assess tracked production configuration/database and history.
+  Rotate exposed credentials, untrack sensitive artifacts, and add secret scanning.
+  Coordinate history rewriting separately; it is disruptive and not revocation.
+- [ ] Audit templates, gallery rendering and HTML construction for contextual
+  escaping; validate media/link schemes and allowed sources independently.
+- [ ] Stage nonce-based CSP in report-only mode; migrate inline handlers and
+  constrain ad scripts before enforcement. Document any residual trust exceptions.
+- [ ] Replace startup lock deletion with owner-token leases and atomic release;
+  prove two instances cannot erase each other's active bootstrap ownership.
+- [ ] Close browser-history, selector and wrong-content interaction regressions;
+  verify the audit patch in real browsers rather than assuming tests prove UX.
+
+**Exit evidence:** clean backend/frontend CI; no untriaged failures; full-stack
+CSRF/security regressions; secret assessment recorded privately; two-instance
+lock test; guest and signed-in 20-meme journeys without silent failures.
+
+## Gate B — Make the core loop exceptional: target 82/100
+
+**Planning window:** weeks 3–5. **Accountability:** engineering + product/design.
+**Dependency:** Gate A; impression semantics precede recommendation experiments.
+
+- [ ] Define a canonical content ID distinct from CDN/media delivery URLs.
+  Migrate existing likes/saves with compatibility mapping and rollback support.
+- [ ] Unify home and next-meme selection behavior; test empty/cold/exhausted pools,
+  repeat suppression, unavailable media, galleries and videos.
+- [ ] Separate selection/prefetch from visible impression acknowledgment. Deduplicate
+  impression IDs server-side and keep selection timing separate from view counts.
+- [ ] Define impression eligibility: media presented, page visible, and at least
+  50% of the meme viewport visible for one second. Document this as an initial
+  measurement convention, not proof of enjoyment; account for very tall images.
+- [ ] Add request timeouts/cancellation, single-flight prefetch, stale-response
+  rejection, offline recovery and useful media-failure alternatives.
+- [ ] Make Next, Like, Save and Share obvious; retain focus, return state, and
+  accurate button status across AJAX navigation and Back/Forward.
+- [ ] Validate narrow screens, safe areas, touch targets, keyboard navigation,
+  screen-reader announcements, dialogs, contrast and reduced motion.
+- [ ] Reserve media dimensions; profile the critical request path and load only
+  necessary page assets. Optimize observed LCP/INP/CLS bottlenecks.
+- [ ] Remove inert ad space; preserve an explicit ad feature switch for rollback.
+
+**Exit evidence:** screen recordings and repeatable acceptance checklist on mobile
+Safari, mobile Chrome and desktop; automated interaction regressions; prefetch
+never creates impressions; no wrong-meme engagement in test journeys; measured
+performance report by device/network and warm/cold cache.
+
+## Gate C — Build something people send and revisit: target 86/100
+
+**Planning window:** weeks 6–7. **Accountability:** product + engineering.
+**Dependency:** stable content IDs and trusted impression instrumentation.
+
+- [ ] Stable per-meme permalink with correct server-rendered title, source and
+  raster social preview. Removed/unavailable content gets an honest landing page.
+- [ ] Native sharing plus accessible copy-link fallback; cancellation is not an
+  error or a completed share. Record intent separately from confirmed outcomes.
+- [ ] Simple collections with reliable save/unsave and return-to-browse behavior.
+  Prompt for an account when persistence offers value, not before discovery.
+- [ ] Expose search in navigation and provide useful empty/no-result states.
+- [ ] Make attribution and report/broken-media actions easy to find. Establish
+  takedown, unsafe-content and source-policy handling before promoting sharing.
+- [ ] Make non-essential consent explicit and revocable; stop relying on timezone
+  as jurisdiction evidence. Review retention/deletion and ad behavior with
+  qualified privacy guidance.
+- [ ] Observe 5–8 target users finding, saving and sending memes. Record failures
+  and repeat the tasks after fixes; this is usability research, not growth proof.
+
+**Exit evidence:** permalink preview checks; recipient landing-page task success;
+share-cancel/copy-failure tests; no signup barrier to browsing; collections work
+across sessions; source/takedown workflow verified.
+
+## Gate D — Create a compounding discovery advantage: target 92/100
+
+**Planning window:** weeks 8–12+, dependent on enough eligible traffic.
+**Accountability:** product/analytics + engineering. A small team may combine roles.
+**Dependency:** Gates A–C and trustworthy baseline cohorts.
+
+- [ ] Build a content health dashboard: eligible fresh inventory, unavailable
+  media, exact/repost duplicates, source failures and consumption concentration.
+- [ ] Normalize source metadata; deduplicate exact content first. Introduce
+  perceptual similarity only if measured repost volume justifies the complexity.
+- [ ] Add explicit “more like this / less like this,” with undo/reset controls.
+  Keep exploration and diversity; do not let a single action collapse the feed.
+- [ ] Establish transparent popularity/freshness and current-personalization
+  baselines. Evaluate relevance alongside diversity, safety and latency.
+- [ ] Randomize a controlled personalization test by persistent eligible identity
+  with appropriate consent. Define primary metric, sample-size/power assumptions,
+  exposure rules and stopping criteria before launch. Do not repeatedly peek and
+  declare a win. If traffic is insufficient, report uncertainty and keep learning.
+- [ ] Explore embeddings or additional ranking models only after baseline errors
+  show they solve a real problem and a measured cost/latency budget permits it.
+- [ ] Add staged releases, rollback drills, restore verification, incident runbook
+  and multi-instance load testing. Model DB/Redis capacity per web/worker process.
+- [ ] Evaluate monetization after trust: unobtrusive placements and premium value,
+  measured against retention, complaints, performance and revenue per retained user.
+
+**Exit evidence:** predeclared experiment report with confidence/uncertainty and
+guardrails; cohort retention report; tested recovery/rollback; recommendation
+improvement not explained by instrumentation changes or narrower content variety.
+
+## Instrument panel
+
+Capture a clean baseline before setting relative lift goals. Never compare the
+new displayed-impression denominator directly with old speculative view counts.
+
+| Metric | Definition / initial acceptance target |
+| --- | --- |
+| Primary value proxy | Weekly users with at least one saved meme or successful share handoff; label as a proxy, not demonstrated happiness. |
+| Quality engagement | Saves and share handoffs per 100 eligible displayed impressions; separate intent, handoff and recipient opens. |
+| Return | D1/D7 cohort return with explicit windows/timezone; separate guests and accounts, handle identity resets and consent. |
+| Media reliability | Successful media presentations / attempted presentations; initial target >=99%, segmented by type/source. |
+| Content repetition | Repeat canonical IDs per session and reviewed repost rate; zero exact repeats before eligible pool exhaustion. |
+| User-perceived speed | Next action to usable media, warm and cold reported separately; initial warm p95 target <=500ms on a documented test profile. |
+| Web vitals | Browser p75 LCP <=2.5s, INP <=200ms, CLS <=0.1, segmented by mobile/desktop. |
+| Safety and trust | Reports, takedown response, consent errors, intrusive-ad complaints; operational targets set with response capacity. |
+| System efficiency | Source/API requests, DB/Redis work and serving cost per 1,000 displayed impressions. |
+
+All thresholds above are proposed acceptance targets, not current achievements.
+Guest retention needs a privacy-respecting durable identity policy before it can
+be interpreted reliably. D7 results require mature seven-day observation windows.
+
+## First ten workdays
+
+| Window | Deliverable |
+| --- | --- |
+| Days 1–2 | Repair toolchain; run and inventory full tests; private credential assessment; verify audit changes in browser. |
+| Days 3–4 | Fix full-stack CSRF and remaining high-risk rendering; add integration regressions. |
+| Days 5–6 | Prove distributed-lock ownership; remove startup lock deletion; stage CSP reports. |
+| Days 7–8 | Fix Back/Forward and interaction identity; test adverse network/media and mobile flows. |
+| Days 9–10 | Review Gate A evidence; schedule remaining blockers; design canonical IDs and impression acknowledgment. |
+
+These are sequencing estimates for a focused small team, not fixed commitments.
+Do not rush a security fix or dismiss substantial suite failures to meet a date.
+
+## Explicitly not building yet
+
+- New game modes, XP economies, leaderboards or cosmetic particle systems.
+- A native app before the mobile web loop is demonstrably strong.
+- A framework rewrite, distributed services, custom foundation model or GPU stack.
+- Push-notification growth tactics before people voluntarily return.
+- Claims of personalization superiority without a trustworthy comparison.
+
+## Weekly decision ritual
+
+1. Review one complete new-user journey and one failure/recovery journey.
+2. Review the bottleneck dashboard, not just aggregate traffic.
+3. Pick the smallest change with the highest expected user value and confidence.
+4. Record owner, hypothesis, test, rollback and evidence for every release.
+5. Re-score only the rubric dimensions supported by new evidence.
+
+**Definition of success:** people reliably find content they value, share it
+without friction, and choose to return—while the service stays safe, affordable
+and understandable to maintain.

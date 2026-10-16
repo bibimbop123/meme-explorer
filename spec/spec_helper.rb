@@ -127,14 +127,30 @@ RSpec.configure do |config|
   # Helper to explicitly set the whole session hash (rarely needed
   # directly - prefer `session[:key] = value`, which now works standalone).
   def set_session(hash)
-    @rack_test_session = hash
-    env 'rack.session', @rack_test_session
+    @rack_test_session = FakeSessionHash.new.merge(hash)
+    refresh_csrf_token
+  end
+
+  # Models loading a new page after login/logout or replacing the session.
+  def refresh_csrf_token
+    session['csrf'] ||= SecureRandom.hex(32)
+    header 'X-CSRF-Token', session['csrf']
+  end
+
+  # Route specs mount Sinatra directly, outside config.ru's session store.
+  # Model an ordinary same-session client; security rejection cases are tested
+  # independently in tests/csrf_protection_test.rb with missing/forged tokens.
+  config.before(:each) do
+    refresh_csrf_token
+    # Outage simulations can leave the service's 30-second circuit cache false
+    # after RSpec restores method stubs. Probe independently in the next test.
+    RedisService.refresh_availability! if defined?(RedisService)
   end
   
   # Helper to create test user
   def create_test_user(email = 'test@example.com', password = 'password123', admin = false)
-    DB.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
-      [email, BCrypt::Password.create(password)])
+    DB.execute("INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+      [email, BCrypt::Password.create(password), admin ? 'admin' : 'user'])
     DB.get_first_value("SELECT id FROM users WHERE email = ?", [email])
   end
   
@@ -226,6 +242,9 @@ RSpec.configure do |config|
       DB.execute("DELETE FROM meme_activity_log") rescue nil
       DB.execute("DELETE FROM stripe_webhook_events") rescue nil
       DB.execute("DELETE FROM user_meme_stats") rescue nil
+      DB.execute("DELETE FROM meme_impressions") rescue nil
+      DB.execute("DELETE FROM meme_catalog") rescue nil
+      DB.execute("DELETE FROM user_liked_memes") rescue nil
       DB.execute("DELETE FROM user_meme_exposure") rescue nil
       DB.execute("DELETE FROM user_subreddit_preferences") rescue nil
       DB.execute("DELETE FROM saved_memes") rescue nil

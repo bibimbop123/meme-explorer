@@ -9,25 +9,40 @@ function toggleMobileNav() {
   }
 }
 
-// Theme preference
-function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('theme', theme);
-}
-
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  setTheme(savedTheme);
-}
-
 // Initialize on DOM load
+function initNavigationDisclosure() {
+  const toggle = document.getElementById('menuToggle');
+  const menu = document.getElementById('hamburgerMenu');
+  if (!toggle || !menu || toggle.dataset.disclosureReady) return;
+  toggle.dataset.disclosureReady = 'true';
+  const setOpen = open => {
+    menu.hidden = !open;
+    menu.classList.toggle('active', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  setOpen(false);
+  toggle.addEventListener('click', () => setOpen(menu.hidden));
+  document.addEventListener('click', event => {
+    if (!toggle.contains(event.target) && !menu.contains(event.target)) setOpen(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || menu.hidden) return;
+    event.preventDefault();
+    setOpen(false);
+    toggle.focus();
+  });
+  document.addEventListener('focusin', event => {
+    if (!toggle.contains(event.target) && !menu.contains(event.target)) setOpen(false);
+  });
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initTheme);
+  document.addEventListener('DOMContentLoaded', initNavigationDisclosure);
 } else {
-  initTheme();
+  initNavigationDisclosure();
 }
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { toggleMobileNav, setTheme, initTheme };
+  module.exports = { toggleMobileNav, initNavigationDisclosure };
 }

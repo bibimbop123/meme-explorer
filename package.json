@@ -4,6 +4,7 @@
   "description": "Endless feed of high-quality memes, organized, personalized, and optimized for pure entertainment",
   "private": true,
   "scripts": {
+    "test": "node --test tests/frontend/*.test.mjs",
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview"

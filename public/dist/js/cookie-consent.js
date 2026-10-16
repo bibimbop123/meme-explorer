@@ -1,6 +1,8 @@
 // EU Cookie Consent - Monetag Compliance (Section 9 GDPR)
 class CookieConsent {
   constructor() {
+    // Recipient links must show shared content without intrusive site-wide ads.
+    if (window.location.pathname.startsWith('/meme/')) return;
     this.consentKey = 'meme_explorer_cookie_consent';
     this.consentValue = localStorage.getItem(this.consentKey);
     this.isEU = this.detectEUUser();
@@ -128,6 +130,7 @@ class CookieConsent {
   }
   
   loadMonetag() {
+    if (window.location.pathname.startsWith('/meme/')) return;
     // Only load if not already loaded and user consented (or is non-EU)
     if (!document.querySelector('script[src*="quge5.com"]')) {
       const script = document.createElement('script');

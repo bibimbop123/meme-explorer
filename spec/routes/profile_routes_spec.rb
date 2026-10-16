@@ -35,6 +35,7 @@ describe 'Profile Routes' do
 
     it 'requires authentication' do
       session.clear
+      refresh_csrf_token
       post '/api/save-meme', { url: 'http://example.com/meme.jpg' }, xhr_headers
       expect(last_response.status).to eq(401)
     end
@@ -66,6 +67,7 @@ describe 'Profile Routes' do
 
     it 'requires authentication' do
       session.clear
+      refresh_csrf_token
       post '/api/unsave-meme', { url: 'http://example.com/meme.jpg' }, xhr_headers
       expect(last_response.status).to eq(401)
     end

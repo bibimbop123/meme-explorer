@@ -132,7 +132,9 @@ module Validators
     raise ValidationError, "Search query exceeds maximum length (#{max_length} chars)" if query.length > max_length
     
     # Reject SQL injection patterns
-    raise ValidationError, "Search query contains invalid characters" if query.match?(/'|";|--|\*|\/\*|\*\/|xp_|sp_/i)
+    # Apostrophes are ordinary title text. SQL safety comes from bound parameters,
+    # not rejecting names/contractions; retain the existing statement/comment policy.
+    raise ValidationError, "Search query contains invalid characters" if query.match?(/['"]\s*;|--|\*|\/\*|\*\/|xp_|sp_/i)
     
     # Sanitize XSS vectors
     query = sanitize_string(query, max_length: max_length)

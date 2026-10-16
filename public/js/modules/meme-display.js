@@ -50,7 +50,7 @@ export class MemeDisplay {
   
   setupImageErrorHandling() {
     const memeImage = document.getElementById('meme-image');
-    if (memeImage) {
+    if (memeImage && !memeImage.hasAttribute('data-recoverable-media')) {
       memeImage.addEventListener('error', () => this.handleImageError());
     }
   }

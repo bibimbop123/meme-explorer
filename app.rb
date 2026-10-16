@@ -24,7 +24,7 @@ require "bcrypt"
 require 'dotenv/load'
 require 'colorize'
 require 'timeout'
-require 'rack/csrf'
+require_relative './lib/middleware/csrf_protection'
 
 require_relative "./db/setup"
 require_relative "./lib/error_handler"
@@ -157,8 +157,7 @@ module MemeExplorer
   # -----------------------
   # CSRF Protection
   # -----------------------
-  # ✅ SECURITY FIX: Only skip GET OAuth callback, never skip POST operations
-  use Rack::CSRF, raise: true, skip: ['GET:/auth/reddit/callback']
+  use CsrfProtection
 
   # -----------------------
   # Request ID Middleware (Week 2: Tracing)

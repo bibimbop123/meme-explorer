@@ -54,6 +54,8 @@
      */
     setupEventListeners() {
       document.addEventListener('keydown', (e) => {
+        if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.target.closest?.('input, textarea, select, button, a, [contenteditable]')) return;
         // Don't capture keys when typing in inputs
         if (this.state.inputFocused) return;
         
@@ -141,7 +143,7 @@
      */
     likeMeme() {
       console.log('❤️ Like meme (l)');
-      const likeButton = document.querySelector('[data-action="like"], .like-button, button[onclick*="like"]');
+      const likeButton = document.querySelector('#like-btn, [data-action="like"], .like-button, button[onclick*="like"]');
       if (likeButton) {
         likeButton.click();
         this.showFeedback('Liked!');
@@ -158,7 +160,7 @@
      */
     saveMeme() {
       console.log('💾 Save meme (s)');
-      const saveButton = document.querySelector('[data-action="save"], .save-button, button[onclick*="save"]');
+      const saveButton = document.querySelector('#save-btn, [data-action="save"], .save-button, button[onclick*="save"]');
       if (saveButton) {
         saveButton.click();
         this.showFeedback('Saved!');

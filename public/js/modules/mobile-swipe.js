@@ -79,6 +79,11 @@
    * Handle touch start
    */
   function handleTouchStart(e) {
+    touchStartX = 0;
+    touchStartY = 0;
+    isSwiping = false;
+    // Gallery owns its gesture; never also navigate away from the meme.
+    if (e.target.closest('.gallery-carousel, .meme-gallery')) return;
     // Ignore if touching input/textarea
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
       return;

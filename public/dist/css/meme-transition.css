@@ -8,6 +8,21 @@
   transform-origin: center center;
 }
 
+.meme-controls .control-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.meme-controls .control-btn:focus-visible {
+  outline: 3px solid #667eea;
+  outline-offset: 3px;
+}
+
+.meme-controls .control-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Outgoing meme: quick pop-out + blur + slight rotation, feels punchy */
 #meme-display.meme-transition-out {
   animation: memeTransitionOut 140ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
@@ -70,10 +85,10 @@
  * crossfade with no scale/blur/rotation gimmicks. */
 @media (prefers-reduced-motion: reduce) {
   #meme-display.meme-transition-out {
-    animation: memeTransitionOutReduced 80ms linear forwards;
+    animation: none;
   }
   #meme-display.meme-transition-in {
-    animation: memeTransitionInReduced 80ms linear forwards;
+    animation: none;
   }
   .meme-flash-pulse {
     display: none;

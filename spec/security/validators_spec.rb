@@ -253,7 +253,7 @@ RSpec.describe Validators do
   end
 
   describe 'Integration: Auth Flow' do
-    it 'validates complete signup', skip: 'Integration test - run with full suite' do
+    it 'validates complete signup' do
       safe_params = Validators.whitelist_params(
         { email: 'new@example.com', username: 'newuser', password: 'ValidPass123', password_confirm: 'ValidPass123' },
         allowed_keys: [:email, :username, :password, :password_confirm],

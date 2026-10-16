@@ -48,6 +48,22 @@ RSpec.describe DatabaseCleanupWorker do
       allow(DB).to receive(:execute).and_raise(PG::Error, 'connection lost')
       expect { worker.perform }.not_to raise_error
     end
+
+    it 'deletes only old unengaged stats after completing broken-image cleanup' do
+      DB.execute("INSERT INTO meme_stats (url, views, likes, updated_at) VALUES (?, 0, 0, NOW() - INTERVAL '10 days')", ['https://example.com/stale.jpg'])
+      DB.execute("INSERT INTO meme_stats (url, views, likes, updated_at) VALUES (?, 0, 0, NOW())", ['https://example.com/recent.jpg'])
+      worker.perform
+      urls = DB.execute('SELECT url FROM meme_stats').map { |row| row['url'] }
+      expect(urls).not_to include('https://example.com/stale.jpg')
+      expect(urls).to include('https://example.com/recent.jpg')
+    end
+
+    it 'retains recent impression dedupe records and removes records beyond seven days' do
+      DB.execute("INSERT INTO meme_impressions (id, meme_url, session_key, created_at) VALUES ('old', '/old.jpg', 'session', NOW() - INTERVAL '8 days')")
+      DB.execute("INSERT INTO meme_impressions (id, meme_url, session_key, created_at) VALUES ('recent', '/recent.jpg', 'session', NOW() - INTERVAL '1 day')")
+      worker.perform
+      expect(DB.execute('SELECT id FROM meme_impressions').map { |row| row['id'] }).to eq(['recent'])
+    end
   end
 
   describe 'Sidekiq configuration' do

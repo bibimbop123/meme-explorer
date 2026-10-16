@@ -1,6 +1,14 @@
 -- PostgreSQL Schema for Meme Explorer
 
 -- users table
+CREATE TABLE IF NOT EXISTS meme_catalog (
+  id VARCHAR(64) PRIMARY KEY,
+  media_url TEXT NOT NULL UNIQUE,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  removed_at TIMESTAMP WITH TIME ZONE
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   reddit_id VARCHAR(255) UNIQUE,
@@ -32,6 +40,34 @@ CREATE INDEX IF NOT EXISTS idx_meme_stats_subreddit ON meme_stats(subreddit);
 CREATE INDEX IF NOT EXISTS idx_meme_stats_updated_at ON meme_stats(updated_at DESC);
 
 -- user_meme_stats table
+CREATE TABLE IF NOT EXISTS meme_impressions (
+  id VARCHAR(64) PRIMARY KEY,
+  meme_url TEXT NOT NULL,
+  session_key VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_meme_impressions_created_at ON meme_impressions(created_at);
+CREATE TABLE IF NOT EXISTS meme_activity_log (
+  id SERIAL PRIMARY KEY,
+  meme_url TEXT NOT NULL,
+  activity_type TEXT NOT NULL,
+  user_id INTEGER,
+  session_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Persistent likes used by the live /like route and profile. Mirrors the
+-- additive fix_production_errors_2026 migration for fresh installations.
+CREATE TABLE IF NOT EXISTS user_liked_memes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  meme_url TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, meme_url)
+);
+CREATE INDEX IF NOT EXISTS idx_user_liked_memes_user_id ON user_liked_memes(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_liked_memes_meme_url ON user_liked_memes(meme_url);
+
 CREATE TABLE IF NOT EXISTS user_meme_stats (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,4 +1,19 @@
-# 🎯 Roadmap: The Thiel Test
+# Meme Explorer Roadmap
+
+## Current execution plan — October 15, 2026
+
+The active, release-gated plan is
+[56 → 90+ Product Roadmap](docs/PRODUCT_ROADMAP_2026_10_15.md), based on the
+[October code audit](docs/PRODUCT_CODE_AUDIT_2026_10_15.md).
+It supersedes sequencing and completion claims in the historical narrative
+below. The verified audit baseline is 56/100; future scores require evidence.
+
+The [UX Experience Roadmap](docs/UX_EXPERIENCE_ROADMAP.md) defines the user journeys,
+interaction priorities and acceptance criteria within that engineering release plan.
+
+---
+
+## Historical strategy: The Thiel Test
 
 **Last written:** this session, grounded in the actual state of the codebase
 (`git log`, `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`) - not aspirational.

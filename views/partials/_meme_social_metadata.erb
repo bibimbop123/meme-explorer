@@ -1,0 +1,19 @@
+<meta property="og:type" content="website">
+<% if @social_url %>
+<meta property="og:url" content="<%= Rack::Utils.escape_html(@social_url) %>">
+<% end %>
+<meta property="og:title" content="<%= Rack::Utils.escape_html(@meme['title'].to_s[0, 180]) %>">
+<meta property="og:description" content="A meme shared with you on Meme Explorer. View it and find your next favorite.">
+<meta property="og:site_name" content="Meme Explorer">
+<meta name="twitter:card" content="<%= @social_image ? 'summary_large_image' : 'summary' %>">
+<% if @social_url %>
+<meta name="twitter:url" content="<%= Rack::Utils.escape_html(@social_url) %>">
+<% end %>
+<meta name="twitter:title" content="<%= Rack::Utils.escape_html(@meme['title'].to_s[0, 180]) %>">
+<meta name="twitter:description" content="A meme shared with you on Meme Explorer.">
+<% if @social_image %>
+  <meta property="og:image" content="<%= Rack::Utils.escape_html(@social_image) %>">
+  <meta property="og:image:alt" content="<%= Rack::Utils.escape_html(@meme['title'].to_s[0, 180]) %>">
+  <meta name="twitter:image" content="<%= Rack::Utils.escape_html(@social_image) %>">
+  <meta name="twitter:image:alt" content="<%= Rack::Utils.escape_html(@meme['title'].to_s[0, 180]) %>">
+<% end %>

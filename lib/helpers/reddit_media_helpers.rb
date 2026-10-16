@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../security/media_url'
 
 # RedditMediaHelpers - Reddit API integration and media processing
 #
@@ -103,10 +104,10 @@ module RedditMediaHelpers
     # Media metadata gallery
     if post_data["gallery_data"]&.dig("items")&.first
       gallery_id = post_data["gallery_data"]["items"].first["media_id"]
-      if post_data["media_metadata"]&.dig(gallery_id, "s", "x")
-        gallery_url = post_data["media_metadata"][gallery_id]["s"]["x"]
+      if post_data["media_metadata"]&.dig(gallery_id, "s", "u")
+        gallery_url = MediaUrl.safe(post_data["media_metadata"][gallery_id]["s"]["u"].to_s.gsub('&amp;', '&'))
         # Only return if it ends with an image extension
-        return gallery_url if gallery_url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+        return gallery_url if gallery_url && gallery_url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
       end
     end
 
@@ -184,7 +185,7 @@ module RedditMediaHelpers
   def detect_media_type(url)
     return 'image' unless url.is_a?(String)
     
-    ext = File.extname(url).downcase
+    ext = File.extname(url.split(/[?#]/, 2).first).downcase
     case ext
     when '.mp4', '.webm', '.mov'
       'video'

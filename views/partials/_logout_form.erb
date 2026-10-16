@@ -1,0 +1,4 @@
+<form method="post" action="/logout" style="display: inline-block; margin: 0;">
+  <input type="hidden" name="authenticity_token" value="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
+  <button type="submit" class="logout" style="padding: 10px 20px; border: 0; border-radius: 4px; background: #666; color: white; cursor: pointer; font: inherit;">Logout</button>
+</form>

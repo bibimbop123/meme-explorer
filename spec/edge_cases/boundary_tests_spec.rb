@@ -40,7 +40,8 @@ RSpec.describe 'Edge Case and Boundary Tests' do
 
     it 'handles search with empty query' do
       get '/search?q='
-      expect(last_response).to be_ok
+      expect(last_response.status).to eq(400)
+      expect(last_response.body).to include('Search query cannot be empty')
     end
   end
 
@@ -79,7 +80,8 @@ RSpec.describe 'Edge Case and Boundary Tests' do
     it 'prevents SQL injection in search query' do
       malicious_query = "test'; DROP TABLE meme_stats; --"
       get "/search?q=#{CGI.escape(malicious_query)}"
-      expect(last_response).to be_ok
+      expect(last_response.status).to eq(400)
+      expect(last_response.body).to include('invalid characters')
       # Verify meme_stats table still exists and is queryable
       expect(DB.execute("SELECT COUNT(*) FROM meme_stats").first).not_to be_nil
     end
@@ -166,7 +168,8 @@ RSpec.describe 'Edge Case and Boundary Tests' do
 
     it 'handles special characters in search' do
       get '/search?q=' + CGI.escape('test & < > " \' %')
-      expect(last_response).to be_ok
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).not_to include('Search query contains invalid characters')
     end
   end
 

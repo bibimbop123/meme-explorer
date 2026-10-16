@@ -225,7 +225,8 @@ class MemePoolManager
       # bootstraps; everyone else gets a quick single re-check and, if the
       # pool still isn't ready, falls straight back to the fast local pool
       # instead of blocking the request thread.
-      unless RedisService.acquire_lock(BOOTSTRAP_LOCK_KEY, ttl: BOOTSTRAP_LOCK_TTL)
+      lock_token = RedisService.acquire_lock(BOOTSTRAP_LOCK_KEY, ttl: BOOTSTRAP_LOCK_TTL)
+      unless lock_token
         waited = wait_for_pool(BOOTSTRAP_WAIT_RETRIES, BOOTSTRAP_WAIT_INTERVAL)
         return waited if waited
 
@@ -265,7 +266,7 @@ class MemePoolManager
         rescue => e
           log_error("Background bootstrap error", e)
         ensure
-          RedisService.delete(BOOTSTRAP_LOCK_KEY)
+          RedisService.release_lock(BOOTSTRAP_LOCK_KEY, lock_token)
         end
       end
 

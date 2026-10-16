@@ -72,9 +72,19 @@ module Routes
       app.post "/api/save-meme" do
         require_auth!
 
-        url = params[:url]
-        title = params[:title] || 'Unknown'
-        subreddit = params[:subreddit] || 'unknown'
+        payload = params
+        if request.media_type == 'application/json'
+          begin
+            request.body.rewind
+            payload = JSON.parse(request.body.read)
+            halt 400, { error: 'JSON object required' }.to_json unless payload.is_a?(Hash)
+          rescue JSON::ParserError
+            halt 400, { error: 'Invalid JSON' }.to_json
+          end
+        end
+        url = payload['url'] || payload[:url]
+        title = payload['title'] || payload[:title] || 'Unknown'
+        subreddit = payload['subreddit'] || payload[:subreddit] || 'unknown'
 
         # BUG FIX: `unless url` only rejects nil/false - an empty string
         # ('') is truthy in Ruby, so `POST /api/save-meme` with `url: ''`
@@ -122,7 +132,17 @@ module Routes
       app.post "/api/unsave-meme" do
         require_auth!
 
-        url = params[:url]
+        payload = params
+        if request.media_type == 'application/json'
+          begin
+            request.body.rewind
+            payload = JSON.parse(request.body.read)
+            halt 400, { error: 'JSON object required' }.to_json unless payload.is_a?(Hash)
+          rescue JSON::ParserError
+            halt 400, { error: 'Invalid JSON' }.to_json
+          end
+        end
+        url = payload['url'] || payload[:url]
         # Same empty-string bug fix as /api/save-meme above.
         halt 400, { error: "URL required" }.to_json if url.to_s.strip.empty?
 

@@ -4,6 +4,40 @@ require_relative '../spec_helper'
 require_relative '../../lib/services/reddit_fetcher_service'
 
 RSpec.describe RedditFetcherService do
+  describe 'source dimensions' do
+    let(:fetcher) { described_class.new }
+
+    def parse_post(post)
+      fetcher.send(:parse_reddit_response, { 'data' => { 'children' => [{ 'data' => post }] } }).first
+    end
+
+    it 'preserves gallery dimensions for each source and primary image' do
+      post = { 'is_gallery' => true, 'gallery_data' => { 'items' => [{ 'media_id' => 'one' }] },
+        'media_metadata' => { 'one' => { 's' => { 'u' => 'https://i.redd.it/one.jpg', 'x' => 800, 'y' => 1600 } } } }
+      meme = parse_post(post)
+      expect(meme).to include('width' => 800, 'height' => 1600)
+      expect(meme['gallery_images'].first).to include('width' => 800, 'height' => 1600)
+    end
+
+    it 'uses preview dimensions only when its source URL exactly matches the media' do
+      post = { 'url' => 'https://i.redd.it/one.jpg', 'preview' => { 'images' => [{ 'source' => {
+        'url' => 'https://i.redd.it/one.jpg', 'width' => 640, 'height' => 1280
+      } }] } }
+      expect(parse_post(post)).to include('width' => 640, 'height' => 1280)
+      post['preview']['images'][0]['source']['url'] = 'https://preview.redd.it/different.jpg'
+      expect(parse_post(post)).not_to have_key('width')
+    end
+
+    it 'ignores malformed or invalid preview metadata without dropping the meme' do
+      [nil, [], { 'images' => [nil, { 'source' => 'bad' }] },
+        { 'images' => [{ 'source' => { 'url' => 'https://i.redd.it/one.jpg', 'width' => -2, 'height' => 40 } }] }].each do |preview|
+        meme = parse_post('url' => 'https://i.redd.it/one.jpg', 'preview' => preview)
+        expect(meme['url']).to eq('https://i.redd.it/one.jpg')
+        expect(meme).not_to have_key('width')
+      end
+    end
+  end
+
   describe 'initialization' do
     it 'initializes successfully' do
       expect { described_class.new }.not_to raise_error

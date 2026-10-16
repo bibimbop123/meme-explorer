@@ -1,0 +1,10 @@
+<section style="max-width: 700px; margin: 40px auto; padding: 24px;">
+  <h1>This meme is unavailable</h1>
+  <% if @retry_path %>
+    <p>We cannot load this meme right now. Please wait a minute and try the same link again.</p>
+    <p><a href="<%= Rack::Utils.escape_html(@retry_path) %>">Try this meme again</a></p>
+  <% else %>
+    <p>The link may be invalid or the content may have been removed.</p>
+  <% end %>
+  <a href="/random">Find your next favorite</a>
+</section>

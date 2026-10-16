@@ -45,7 +45,7 @@ nav.main-nav button:hover {
 
 /* Hamburger menu */
 .hamburger {
-  display: none;
+  display: block;
   font-size: 1.5rem;
   padding: 0.5rem;
 }
@@ -66,6 +66,17 @@ nav.main-nav button:hover {
 
 .hamburger-menu.active {
   display: block;
+}
+
+.hamburger-menu[hidden] {
+  display: none;
+}
+
+nav.main-nav button:focus-visible,
+.hamburger-menu a:focus-visible,
+.hamburger-menu button:focus-visible {
+  outline: 3px solid #667eea;
+  outline-offset: 3px;
 }
 
 .hamburger-menu a {
