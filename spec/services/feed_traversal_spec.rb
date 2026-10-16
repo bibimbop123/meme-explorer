@@ -281,4 +281,31 @@ RSpec.describe MemeExplorer::FeedTraversal do
     advance&.join
     cancel&.join
   end
+
+  it 'bounds scheduled chunks and retains progress for a later invocation' do
+    pool = 201.times.map { |i| { url: "/run-budget-#{i}.jpg" } }
+    traversal = described_class.new(pool, identity)
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(10.0)
+    allow(issuer).to receive(:issue).and_return(status: :already_acknowledged)
+    expect(traversal.advance_with_budget).to eq(status: :traversal_incomplete, reserved: false)
+    expect(issuer).to have_received(:issue).exactly(200).times
+    expect(traversal.advance_with_budget).to eq(status: :snapshot_complete, reserved: false, empty: false)
+    expect(issuer).to have_received(:issue).exactly(201).times
+  end
+
+  it 'does not schedule a second chunk once the soft time budget is reached' do
+    traversal = described_class.new(101.times.map { |i| { url: "/time-budget-#{i}.jpg" } }, identity)
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(10.0, 11.0)
+    allow(issuer).to receive(:issue).and_return(status: :already_reserved)
+    expect(traversal.advance_with_budget).to eq(status: :traversal_incomplete, reserved: true)
+    expect(issuer).to have_received(:issue).exactly(100).times
+  end
+
+  it 'returns issued credentials without another scheduling step even if issuance is slow' do
+    traversal = described_class.new([{ url: '/slow-issuance.jpg' }], identity)
+    expect(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).once.and_return(10.0)
+    expect(issuer).to receive(:issue).once.and_return(status: :issued, token: 'keep-credential')
+    expect(traversal.advance_with_budget).to include(status: :issued, token: 'keep-credential')
+    expect(traversal.advance).to eq(status: :closed)
+  end
 end

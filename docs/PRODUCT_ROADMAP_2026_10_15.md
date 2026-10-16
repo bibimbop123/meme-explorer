@@ -173,6 +173,17 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Bounded snapshot chunk scheduler
+
+- Unused advance_with_budget: two chunks maximum, 100ms soft monotonic check before
+  additional chunk; no interruption of issuance or lost returned credential.
+  Three mocked clock/issuance tests. Not hard HTTP/Redis/mutex deadline or measured
+  production latency; repeated invocations still require request-level orchestration.
+- Full backend **1185 examples, zero failures, seven pending**, 65.89s;
+  **75.58% (4948/6547)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  20 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; hard deadline/replay/migration/capacity/privacy gates remain open.
+
 ### Aggregate snapshot media-budget tests
 
 - Two regressions verify cross-candidate byte/node limits, exact boundaries and

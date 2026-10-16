@@ -74,11 +74,21 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1182 backend examples, zero failures, seven pending;
-75.54% (4938/6537), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1185 backend examples, zero failures, seven pending;
+75.58% (4948/6547), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Unused advance_with_budget runner schedules at most two chunks per invocation,
+checking 100ms monotonic soft budget before another chunk. Retains incomplete state;
+returns terminal/issued outcomes immediately. Not hard request latency: initial
+chunk, Redis calls, snapshot construction and mutex waits can exceed budget; no
+interruption/rollback or cross-invocation request budget. Limits provisional.
+Three deterministic mocked clock/issuance tests. Full backend 1185 examples, zero
+failures, seven pending, 65.89s; 75.58% (4948/6547), gates pass, exit 0; 20 targeted
+snapshot cases pass (partial coverage exit 2); 121 frontend tests pass; syntax/
+whitespace pass. Routes unchanged; hard deadline/migration/replay gates remain open.
 
 Aggregate media-budget regressions: two additional cases verify byte/node budgets
 are shared across unique candidates, exact boundaries accepted, duplicate identities

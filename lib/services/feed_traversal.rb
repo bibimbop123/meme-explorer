@@ -9,6 +9,8 @@ module MemeExplorer
     MAX_METADATA_BYTES = 1_048_576 # Copied string bytes, not Ruby heap/RSS usage.
     MAX_PAYLOAD_BYTES = 1_048_576
     MAX_PAYLOAD_NODES = 20_000
+    MAX_CHUNKS_PER_RUN = 2
+    RUN_BUDGET_SECONDS = 0.1
     MEDIA_FIELDS = %w[file media_type width height is_gallery gallery_images permalink
                       reddit_post_urls is_crosspost original_subreddit].freeze
 
@@ -90,6 +92,19 @@ module MemeExplorer
         end
         result
       end
+    end
+
+    # Soft scheduling budget per invocation, not a hard request/network deadline.
+    # Never interrupt issuance: an issued credential must still reach the caller.
+    def advance_with_budget
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = nil
+      MAX_CHUNKS_PER_RUN.times do
+        break if result && Process.clock_gettime(Process::CLOCK_MONOTONIC) - started >= RUN_BUDGET_SECONDS
+        result = advance
+        return result unless result[:status] == :traversal_incomplete
+      end
+      result
     end
 
     # Process-local disposal only. Waits for an in-flight advance; does not undo
