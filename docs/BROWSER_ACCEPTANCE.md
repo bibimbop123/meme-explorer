@@ -1,7 +1,8 @@
 # Viewer and Saved browser acceptance
 
-Status: **not executed**. Automated tests and this checklist do not establish
-browser, device, accessibility or OAuth-provider acceptance.
+Status: **partially executed locally**. See
+[local Chrome evidence](BROWSER_ACCEPTANCE_2026_10_16.md). Unlisted scenarios are
+NOT RUN; device, accessibility, provider and production acceptance remain open.
 
 ## Record before testing
 
@@ -56,12 +57,30 @@ request. Capture Network Initiator and first Console exception on failure.
 
 ## Saved retrieval and removal
 
+- Search Saved by title and community, including mixed case, punctuation, `%`,
+  `_`, and non-Latin text. Results stay account-scoped; the total Saved count
+  remains account-wide while the match count describes the filter.
+- Search with no matches: distinct no-results message, not an empty-account claim.
+  Clear search returns to the unfiltered list. Oversized/malformed inputs fail safely.
+- With at least 25 matching favorites, page through results and open a card. Back
+  returns to the same query/page/card anchor. Retry a staging query failure and
+  verify that the filter survives without claiming favorites were removed.
+- With at least 51 Likes, reach the oldest item, check stable ordering and total,
+  and verify Likes/Saved paging preserves the other section's current page/filter.
 - Open a favorite from page 2; Back returns to that page/card anchor.
 - Remove: stays on detail with Undo. Undo restores metadata; failure stays retryable.
 - Double click during request: one mutation. Reload profile verifies persisted state.
 - Empty list, staging query outage and unavailable media have distinct truthful UI.
 - Tab/Enter reaches cards, Back, Remove/Undo and retry controls; visible focus is
   not obscured. Screen reader announces status without repeatedly stealing focus.
+- In local staging, fail a Saved image before the deferred script initializes:
+  unavailable status appears and the favorite remains saved. Try image again once;
+  duplicate clicks while pending issue no additional retries. Repeat failure stays
+  retryable; successful load displays the image and announces recovery.
+- Verify unsafe Saved sources show the unavailable state with no retry. Back keeps
+  query/page context; Browse another meme does not remove the favorite. Test retry
+  with keyboard focus, slow/offline/reconnected network and cached failed responses;
+  do not assume retry bypasses browser cache or guarantees source recovery.
 
 Undo lasts only for the current page, can change saved ordering and is not a
 transactional rollback. URL-v1 identity cannot detect identical art at different URLs.
