@@ -173,6 +173,54 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Unused bounded ACK JSON body reader
+
+- Envelope reader adds 1 KiB cap (1025-byte sentinel), bounded nesting and malformed/
+  unreadable rejection. Caller still owns content type/rewind; no route integration.
+  Three regressions. Full backend **1173 examples, zero failures, seven pending**,
+  65.56s; **75.40% (4907/6508)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**; eight targeted envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Validated ACK envelope value ownership
+
+- Legacy/v2 parsed envelopes now freeze copied ID/token strings and result, not
+  caller data. One mutation regression; no route connection or authorization change.
+- Full backend **1170 examples, zero failures, seven pending**, 66.07s;
+  **75.34% (4898/6501)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  five targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Migration/replay/capacity/privacy gates remain open.
+
+### Unused ACK envelope classification prerequisite
+
+- Added parsed-JSON validator for legacy or complete v2 envelopes, no fallback when
+  any new field appears, and no propagation of client attribution. Not authorization
+  or route migration. Four regressions.
+- Full backend **1169 examples, zero failures, seven pending**, 65.55s;
+  **75.34% (4898/6501)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  four targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; migration/replay/capacity/privacy gates remain open.
+
+### Proposed selection/ACK HTTP and retry mapping
+
+- Inspected current fetchMeme/Next and visibility/ACK loops. Migration proposal now
+  distinguishes selection outcomes before media validation, suppresses capacity/
+  contention retry storms, specifies ACK terminal/retryable mapping and same-token
+  retry bounds. Calls out qualified-vs-confirmed state gap after exhausted retries.
+- Proposal only, not approved behavior or new evidence. Documentation checks pass;
+  last code validation remains 1165 backend examples, zero failures, seven pending;
+  75.30% coverage/gates pass, 121 frontend tests pass. No JS/routes/config changed.
+
+### Replay and migration contract proposal
+
+- Added FEED_MIGRATION_CONTRACT.md: proposed default-off selection switch with
+  independent dual-protocol ACK/rollback support; no invalid-token fallback; immutable
+  full-media mapping; replay admission prerequisites and client/acceptance matrix.
+  Inventory generation, request budget, HTTP mapping and wait UX remain review items.
+- Documentation-only; no new test or production evidence. Last validated code remains
+  1165 backend examples, zero failures, seven pending; 75.30% (4886/6489), gates pass;
+  121 frontend tests pass. No routes/configuration changed; no rollout approval.
+
 ### Real multi-chunk snapshot conflict aggregation
 
 - Real Redis/PostgreSQL regression retains prefix conflict after lease expiry,

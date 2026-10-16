@@ -28,6 +28,10 @@ final full run is green. No live route behavior change or rollout approval.
 
 ## Current implementation map and next migration review
 
+Concrete proposed transition/replay rules and acceptance matrix are in
+[Feed migration contract](FEED_MIGRATION_CONTRACT.md). This is a review proposal,
+not implemented route behavior or permission to enable a switch.
+
 The checkpoint notes below are reverse-chronological engineering evidence, not a
 single cumulative statement of current gaps. Older "unimplemented" statements are
 historical. Current local prerequisites:
@@ -70,11 +74,34 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1165 backend examples, zero failures, seven pending;
-75.30% (4886/6489), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1173 backend examples, zero failures, seven pending;
+75.40% (4907/6508), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Unused ACK body reader: reads at most 1025 bytes for a 1 KiB cap, bounds JSON nesting,
+then uses the no-fallback envelope classifier. Caller owns stream position/content
+type; no Content-Length trust or route integration. Three tests cover valid legacy/
+v2, byte boundary/oversize sentinel, malformed/deep/unreadable body. Full backend
+1173 examples, zero failures, seven pending, 65.56s; 75.40% (4907/6508), gates pass,
+exit 0; eight targeted envelope cases pass (partial coverage exit 2); 121 frontend
+tests pass; syntax/whitespace pass. Release gates unchanged.
+
+Envelope ownership follow-up: valid legacy/v2 parse results and copied identifier
+strings are frozen; request strings remain mutable without altering validated
+results. One mutation regression; still no route use or authorization claim.
+Full backend 1170 examples, zero failures, seven pending, 66.07s; 75.34%
+(4898/6501), gates pass, exit 0; five targeted envelope cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Release gates unchanged.
+
+Unused FeedAcknowledgementEnvelope validates parsed JSON shape and classifies
+legacy-only IDs or complete integer-version-2 ID/token envelopes. Presence of any
+new field prevents legacy fallback; malformed/mixed keys rejected, client attribution
+excluded from result. Shape only, not ownership/expiry/DB authorization; routes
+still unchanged. Four regression cases. Full backend 1169 examples, zero failures,
+seven pending, 65.55s; 75.34% (4898/6501), gates pass, exit 0; four targeted envelope
+cases pass (partial coverage exit 2); 121 frontend tests pass; syntax/whitespace pass.
 
 Real snapshot conflict aggregation: Redis/PostgreSQL regression holds a prefix
 lease, acknowledges remaining candidates, preserves conflict across chunk boundary
