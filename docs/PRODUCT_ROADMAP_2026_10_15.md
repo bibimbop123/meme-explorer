@@ -28,6 +28,14 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### CI native dependency diagnostic
+
+- Committed validated environment tooling as 5a2ce31. Added explicit native-load
+  diagnostic after CI dependency installation, before service-dependent tests.
+  This detects Ruby/native ABI problems early; it does not change coverage gates.
+- Local isolated diagnostic and workflow YAML parsing pass. Actual GitHub Actions
+  execution remains unverified until pushed/PR run; no push or deployment performed.
+
 ### Second isolated dependency installation reproduced
 
 - Installed locked dependencies into a previously absent ignored directory,
