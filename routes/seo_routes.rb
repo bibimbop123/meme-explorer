@@ -241,7 +241,7 @@ module Routes
               purpose: "any maskable"
             },
             {
-              src: "#{base_url}/images/favicon.png",
+              src: "#{base_url}/images/icon-512.png",
               sizes: "512x512",
               type: "image/png",
               purpose: "any maskable"
@@ -280,7 +280,7 @@ module Routes
             <Contact>admin@meme-explorer.com</Contact>
             <Url type="text/html" template="#{base_url}/search?q={searchTerms}"/>
             <Url type="application/x-suggestions+json" template="#{base_url}/api/search-suggestions?q={searchTerms}"/>
-            <Image height="16" width="16" type="image/png">#{base_url}/images/favicon.png</Image>
+            <Image height="192" width="192" type="image/png">#{base_url}/images/favicon.png</Image>
             <InputEncoding>UTF-8</InputEncoding>
             <SearchForm>#{base_url}/search</SearchForm>
           </OpenSearchDescription>

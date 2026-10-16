@@ -53,12 +53,14 @@ class SelectionBenchmark
     # the given stage.
     def record(duration_ms, stage: :total)
       key = redis_key(stage)
-      RedisService.rpush(key, duration_ms.round(2))
-      # Trim to the most recent MAX_SAMPLES entries directly via the pool -
-      # RedisService doesn't expose ltrim, and this is the one spot narrow
-      # enough to justify reaching past it rather than growing its public
-      # API for a single caller.
-      RedisService.with_redis { |redis| redis.ltrim(key, -MAX_SAMPLES, -1) }
+      # Telemetry must not add two sequential network round trips per stage.
+      # Commands remain ordered on one connection; concurrent writers also trim.
+      RedisService.with_redis do |redis|
+        redis.pipelined do |pipeline|
+          pipeline.rpush(key, duration_ms.round(2))
+          pipeline.ltrim(key, -MAX_SAMPLES, -1)
+        end
+      end
     rescue => e
       AppLogger.warn("⚠️  [SelectionBenchmark] Failed to record latency (stage=#{stage}): #{e.message}") if defined?(AppLogger)
     end

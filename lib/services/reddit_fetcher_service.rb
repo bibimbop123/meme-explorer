@@ -6,6 +6,7 @@ require 'httparty'
 require 'net/http'
 require 'uri'
 require 'json'
+require 'time'
 require_relative '../helpers/media_dimensions'
 require_relative 'reddit_media_resolver'
 
@@ -187,6 +188,14 @@ class RedditFetcherService
         "permalink" => post_data["permalink"]
       }
       meme.merge!(resolved)
+      # Fetch time is not content freshness. Preserve source provenance so pool
+      # audits/replacement can distinguish old weekly-top posts from new supply.
+      source_time = post_data['created_utc']
+      if source_time.is_a?(Numeric) && source_time.finite? && source_time > 0 && source_time <= Time.now.to_f
+        meme['created_at'] = Time.at(source_time).utc.iso8601
+      end
+      source_id = post_data['id']
+      meme['reddit_post_id'] = source_id if source_id.is_a?(String) && source_id.match?(/\A[a-z0-9]{1,16}\z/)
       dimensions = if gallery_images && gallery_images.any?
                      MediaDimensions.for(gallery_images.first)
                    else

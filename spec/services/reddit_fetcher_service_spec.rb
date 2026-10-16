@@ -36,6 +36,21 @@ RSpec.describe RedditFetcherService do
         expect(meme).not_to have_key('width')
       end
     end
+
+    it 'preserves original source age and identity rather than declaring fetched posts fresh' do
+      post = { 'url' => 'https://i.redd.it/source.jpg', 'created_utc' => 1_700_000_000,
+               'id' => 'abc123', 'title' => 'Source meme' }
+      expect(parse_post(post)).to include('created_at' => '2023-11-14T22:13:20Z', 'reddit_post_id' => 'abc123')
+    end
+
+    it 'ignores malformed source provenance without losing usable media' do
+      [nil, '1700000000', -1, 0, Float::INFINITY, Float::NAN, Time.now.to_f + 3600].each do |value|
+        meme = parse_post('url' => 'https://i.redd.it/source.jpg', 'created_utc' => value, 'id' => '../bad')
+        expect(meme['url']).to eq('https://i.redd.it/source.jpg')
+        expect(meme).not_to have_key('created_at')
+        expect(meme).not_to have_key('reddit_post_id')
+      end
+    end
   end
 
   describe 'initialization' do

@@ -1,5 +1,11 @@
 # Meme inventory: diagnosis and expansion
 
+New user-supplied 23:24 UTC production excerpt repeatedly reports 163 manager-pool
+records. See [experience-first recovery plan](MEME_EXPERIENCE_RECOVERY_PLAN.md) for
+evidence, diagnosis matrix and revised delivery order. Nonempty get_pool does not
+expand on reads; background maintenance must demonstrate retained usable additions.
+No worker/provider root cause can be established from that 33-second excerpt alone.
+
 The 5,000 target is an aspiration, not a fetched-content guarantee. A pool near
 167 can be the deliberately small cold-start bootstrap; maintenance is responsible
 for background growth. Increasing TARGET_POOL_SIZE alone does not add content.

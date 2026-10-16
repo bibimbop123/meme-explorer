@@ -4,6 +4,14 @@ Status: proposed UX execution plan. Nothing below is marked shipped by this docu
 
 ## Current priorities — October 16, 2026
 
+**Experience-first production priority:** [163-item recovery plan](MEME_EXPERIENCE_RECOVERY_PLAN.md).
+User logs show limited nonfallback supply, slow random responses and ACK rejection,
+not simply a missing inventory target. Prioritize readable worthwhile content,
+dependable fast navigation and retained usable novelty. Pause disconnected helper
+expansion for bottleneck diagnosis/coordinated integration and real content/user
+observation. Vitals/favicon 404s are secondary repairs. The short excerpt does not
+prove scheduler failure, provider rate limits, repeated artwork or humor quality.
+
 **User-reported repetition takes priority:** see
 [random-feed audit](RANDOM_FEED_AUDIT_2026_10_16.md). Local fixes remove homepage's
 history bypass and exhaustion history reset; replay is oldest-selected and explicitly
@@ -86,8 +94,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 1188 backend examples, zero failures, seven pending;
-121 frontend tests pass; 75.55% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 1192 backend examples, zero failures, seven pending;
+123 frontend tests pass; 75.56% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
