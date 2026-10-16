@@ -624,6 +624,8 @@ export class MemeNavigation {
     display.dataset.memeUrl = meme.url || '';
     const manualShare = document.querySelector('#manual-share');
     if (manualShare) manualShare.hidden = true;
+    const saveSignIn = document.querySelector('#save-sign-in');
+    if (saveSignIn) saveSignIn.hidden = true;
     const shareData = document.querySelector('#viewer-share-data');
     if (shareData) shareData.dataset.sharePath = meme.share_path || '';
     if (meme.is_gallery) this.showGallerySlide(meme.gallery_index || 0, false);

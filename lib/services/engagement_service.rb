@@ -111,6 +111,7 @@ class EngagementService
             "SELECT id FROM saved_memes WHERE user_id = ? AND meme_url = ?",
             [user_id, meme_url]
           ).first
+          return result.merge(success: true, unchanged: true) if existing
           
           unless existing
             # BUG FIX: `saved_memes`' real column is `saved_at` (see
@@ -122,10 +123,11 @@ class EngagementService
             # built its `saved: true` response unconditionally instead
             # of checking `result[:success]`, so users saw a success
             # message while nothing was actually saved.
-            db.execute(
-              "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit, saved_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            inserted = db.execute(
+              "INSERT INTO saved_memes (user_id, meme_url, meme_title, meme_subreddit, saved_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_id, meme_url) DO NOTHING RETURNING id",
               [user_id, meme_url, title, subreddit]
             )
+            return result.merge(success: true, unchanged: true) if inserted.empty?
             AppLogger.info("✅ [ENGAGEMENT] Save recorded for user #{user_id}")
           end
 

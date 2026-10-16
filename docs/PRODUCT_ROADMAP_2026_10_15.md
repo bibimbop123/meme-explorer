@@ -28,6 +28,36 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Guest Save navigation race and accumulated regression
+
+- Late unauthorized Save no longer prompts for old content after navigation;
+  successful navigation hides the prior sign-in panel. Added deferred response and
+  panel-reset regressions. Pending-save login persistence remains open.
+- **109 frontend tests pass**, build and module parity pass. Full isolated backend
+  rerun after build completed: **927 examples, zero failures, seven pending**,
+  53.54s; **71.05% coverage (4259/5994)**, both gates pass, **exit 0**.
+  Initial overlapping build/test run failed the boot-time bundle fingerprint test;
+  do not rebuild assets during a running Ruby process/test suite. No deployment.
+
+### Guest Save account-value prompt
+
+- Unauthorized Save rolls back optimistic state and reveals a keyboard-focused
+  sign-in action explaining cross-device favorites and explicitly stating the meme
+  is not saved. Suggests keeping an exact Share link before leaving. No implicit
+  pending-save persistence or session-auth changes; automatic login recovery stays open.
+- **108 frontend tests pass**, build, touched module parity, viewer ERB/whitespace
+  pass. Backend not changed/run; last full 925 examples, 71.21%, exit 0.
+
+### Saved retry idempotency
+
+- Existing favorites now return successful unchanged saves before repeating
+  preference/activity/reward effects. Conflict-safe INSERT RETURNING also suppresses
+  side effects when another request won the insertion race. Remove/re-save cycles
+  still count as new saves; durable undo semantics remain separate.
+- **35 targeted service/profile examples pass**, partial coverage exit 2;
+  **107 frontend tests pass**, Ruby syntax/whitespace pass. Full suite not rerun;
+  last full 925 examples, zero failures, seven pending, 71.21%, exit 0.
+
 ### Duplicate-selection full regression
 
 - Full isolated backend after random no-store/client duplicate guard: **925 examples,

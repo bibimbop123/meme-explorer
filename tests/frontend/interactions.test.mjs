@@ -196,6 +196,52 @@ for (const scenario of ['cancel', 'native-failure', 'clipboard-denied', 'unsuppo
   });
 }
 
+test('guest Save rolls back and offers sign-in without claiming persistence', async () => {
+  const original = { document: globalThis.document, fetch: globalThis.fetch };
+  let focused = false;
+  const panel = { hidden: true, querySelector: () => ({ focus: () => { focused = true; } }) };
+  const button = { classList: { contains: () => false, add() {}, remove() {} } };
+  const states = [];
+  globalThis.document = { getElementById: () => button, querySelector: selector => selector === '#save-sign-in' ? panel : null };
+  globalThis.fetch = async () => ({ ok: false, status: 401 });
+  const interactions = Object.create(MemeInteractions.prototype);
+  Object.assign(interactions, {
+    getCurrentMemeUrl: () => '/guest.jpg', createRipple() {}, triggerHaptic() {},
+    showToast: message => assert.match(message, /Not saved/),
+    updateSaveButton: state => states.push(state),
+    publishInteraction() { assert.fail('guest save must not publish persistence'); }
+  });
+  try {
+    await interactions.handleSave({});
+    assert.deepEqual(states, [true, false]);
+    assert.equal(panel.hidden, false);
+    assert.equal(focused, true);
+    assert.equal(interactions.isProcessing, false);
+  } finally { Object.assign(globalThis, original); }
+});
+
+test('delayed guest Save failure does not prompt or steal focus after navigation', async () => {
+  const original = { document: globalThis.document, fetch: globalThis.fetch };
+  let current = '/first.jpg';
+  let finish;
+  const button = { classList: { contains: () => false, add() {}, remove() {} } };
+  globalThis.document = { getElementById: () => button, querySelector: () => null };
+  globalThis.fetch = () => new Promise(resolve => { finish = resolve; });
+  const interactions = Object.create(MemeInteractions.prototype);
+  Object.assign(interactions, {
+    getCurrentMemeUrl: () => current, createRipple() {}, triggerHaptic() {}, updateSaveButton() {},
+    showToast() { assert.fail('stale sign-in feedback'); },
+    publishInteraction() { assert.fail('no persistence'); }
+  });
+  try {
+    const pending = interactions.handleSave({});
+    current = '/second.jpg';
+    finish({ ok: false, status: 401 });
+    await pending;
+    assert.equal(interactions.isProcessing, false);
+  } finally { Object.assign(globalThis, original); }
+});
+
 test('failed save response rolls back optimistic state and never publishes success', async () => {
   const original = { document: globalThis.document, fetch: globalThis.fetch };
   const changes = [];

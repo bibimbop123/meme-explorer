@@ -225,6 +225,16 @@ export class MemeInteractions {
         this.showToast(wasSaved ? 'Removed from saved' : '🔖 Saved to profile!', 'success');
       } else {
         if (this.getCurrentMemeUrl() === memeUrl) this.updateSaveButton(wasSaved, false);
+        if (response.status === 401) {
+          if (this.getCurrentMemeUrl() !== memeUrl) return;
+          const panel = document.querySelector('#save-sign-in');
+          if (panel && this.getCurrentMemeUrl() === memeUrl) {
+            panel.hidden = false;
+            panel.querySelector?.('a')?.focus();
+          }
+          this.showToast('Not saved. Sign in to keep favorites across devices.', 'info');
+          return;
+        }
         const error = await response.json();
         console.error('[MemeInteractions] Save failed:', error);
         this.showToast(error.error || 'Error saving meme', 'error');
