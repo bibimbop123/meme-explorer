@@ -33,6 +33,9 @@ with generic text and omit exception/connection details.
 
 1. Confirm a live Sidekiq worker consumes default jobs and the maintenance schedule
    actually runs. Web startup saying 'pool ready' does not prove maintenance runs.
+   Local regression now exercises the server startup callback loading sidekiq.yml,
+   assigns its schedule and requests scheduler reload; all four configured worker
+   classes/queues are checked. This is mocked scheduler wiring, not live cron firing.
 2. Check maintenance logs: current pool count, fetched count, filtered count, stored
    count, errors and cooldowns. Compare distinct media URLs, not requested limits.
 3. Verify OAuth succeeds; unauthenticated Reddit access may be heavily rate-limited.

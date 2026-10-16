@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,038 backend
-examples, zero failures, seven pending; 74.02% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,040 backend
+examples, zero failures, seven pending; 74.05% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -168,6 +168,18 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Maintenance scheduler startup contract
+
+- Existing server startup wiring inspected; no application wiring defect found.
+  Two regressions execute captured startup callback, verify schedule assignment/
+  reload and five-minute default-queue maintenance entry, and check all configured
+  worker classes implement perform on declared queues. Scheduler itself mocked;
+  no cron jobs executed, Reddit fetched or production schedule verified.
+- Full backend: **1040 examples, zero failures, seven pending**, 57.29s;
+  **74.05% coverage (4564/6163)**, gates pass, exit 0. **119 frontend tests pass**;
+  two targeted examples pass (partial coverage exit 2), syntax/whitespace pass.
+  No app behavior change, production execution, deployment or quality-score increase.
 
 ### Aggregate candidate rejection diagnostics
 
