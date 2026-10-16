@@ -31,25 +31,25 @@ RSpec.describe 'Non-destructive stale pool refresh' do
   it 'refreshes duplicate snapshots without retiring existing unique content' do
     snapshot = old.merge('title' => 'Updated')
     allow(MemePoolManager).to receive(:fetch_from_tier).and_return([snapshot])
-    expect(MemePoolManager).to receive(:store_in_pool).with([snapshot, recent]).and_return(2)
+    expect(MemePoolManager).to receive(:store_in_pool).with([snapshot, recent], expected_pool: anything).and_return(2)
     expect(MemePoolManager.send(:replace_stale, percentage: 0.5)).to eq(replaced: 0)
   end
 
   it 'retires only as many stale entries as there are new unique replacements' do
     allow(MemePoolManager).to receive(:fetch_from_tier).and_return([fresh])
-    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, recent]).and_return(2)
+    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, recent], expected_pool: anything).and_return(2)
     expect(MemePoolManager.send(:replace_stale, percentage: 1.0)).to eq(replaced: 1)
   end
 
   it 'does not count refreshed stale snapshots as retired' do
     allow(MemePoolManager).to receive(:fetch_from_tier).and_return([fresh, old])
-    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, old]).and_return(2)
+    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, old], expected_pool: anything).and_return(2)
     expect(MemePoolManager.send(:replace_stale, percentage: 1.0)).to eq(replaced: 1)
   end
 
   it 'reports no replacement when publication fails' do
     allow(MemePoolManager).to receive(:fetch_from_tier).and_return([fresh])
-    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, recent]).and_return(0)
+    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, recent], expected_pool: anything).and_return(0)
     expect(MemePoolManager.send(:replace_stale, percentage: 0.5)).to eq(replaced: 0)
   end
 

@@ -48,8 +48,9 @@ novelty or silently substitute repeated content as fresh.
 low/moderate-confidence planning estimates under the linked rubric. No score increase
 is earned by more tests, a larger pool or a new feature without user/production evidence.
 Maintenance's fallback checks structure, browser-safe URLs and nonblank metadata,
-not humor/readability; evaluation errors reject new batches. Bootstrap validation
-and broader content safety still need review, not stronger marketing.
+not humor/readability; evaluation errors reject new batches. Bootstrap shares those
+cheap checks while bypassing the optional pipeline. Broader content safety still
+needs review, not stronger marketing.
 
 **Defer:** cosmetic redesign, collections, compulsory onboarding and opaque ranking
 until the core journeys and the measured feed bottleneck justify them. Reporting must
@@ -78,8 +79,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 1021 backend examples, zero failures, seven pending;
-119 frontend tests pass; 73.85% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 1036 backend examples, zero failures, seven pending;
+119 frontend tests pass; 74.04% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.

@@ -44,6 +44,8 @@ RSpec.describe 'Transactional pool publication' do
   it 'leaves the old snapshot intact if transaction submission fails' do
     RedisService.set('meme_pool', [{ 'url' => '/retained.jpg' }])
     connection = double
+    allow(connection).to receive(:watch).with('meme_pool').and_yield
+    allow(connection).to receive(:unwatch)
     allow(connection).to receive(:multi).and_raise(Redis::CannotConnectError, 'Unavailable')
     allow(RedisService).to receive(:with_redis).and_yield(connection)
     expect(MemePoolManager.send(:store_in_pool, [meme])).to eq(0)
@@ -58,5 +60,59 @@ RSpec.describe 'Transactional pool publication' do
   it 'does not write an empty inventory' do
     expect(RedisService).not_to receive(:with_redis)
     expect(MemePoolManager.send(:store_in_pool, [])).to eq(0)
+  end
+
+  it 'rejects a stale merge without replacing newer inventory' do
+    expect(MemePoolManager.send(:store_in_pool, [meme])).to eq(1)
+    stale = meme.merge('url' => '/stale.jpg')
+    expect(MemePoolManager.send(:store_in_pool, [stale], expected_pool: [])).to eq(0)
+    expect(RedisService.get('meme_pool').map { |m| m['url'] }).to eq([meme['url']])
+  end
+
+  it 'publishes when the merge snapshot matches the current pool' do
+    expect(MemePoolManager.send(:store_in_pool, [meme])).to eq(1)
+    snapshot = RedisService.get('meme_pool')
+    fresh = meme.merge('url' => '/new.jpg', 'id' => 'new-id')
+    expect(MemePoolManager.send(:store_in_pool, [fresh, *snapshot], expected_pool: snapshot)).to eq(2)
+    expect(RedisService.get('meme_pool').map { |m| m['url'] }).to eq(['/new.jpg', meme['url']])
+  end
+
+  it 'aborts EXEC when another connection changes the pool after WATCH' do
+    redis = Redis.new(url: ENV.fetch('REDIS_URL'))
+    allow(RedisService).to receive(:with_redis).and_wrap_original do |original, &block|
+      original.call do |connection|
+        allow(connection).to receive(:multi).and_wrap_original do |multi, &commands|
+          redis.set('meme_pool', [{ 'url' => '/concurrent.jpg' }].to_json)
+          multi.call(&commands)
+        end
+        block.call(connection)
+      end
+    end
+    expect(MemePoolManager.send(:store_in_pool, [meme])).to eq(0)
+    expect(RedisService.get('meme_pool')).to eq([{ 'url' => '/concurrent.jpg' }])
+  ensure
+    redis&.close
+  end
+
+  it 'captures the expected snapshot before adding generated IDs to retained records' do
+    snapshot = [meme.dup]
+    RedisService.set('meme_pool', snapshot)
+    expect(snapshot.first).not_to have_key('id')
+    expect(MemePoolManager.send(:store_in_pool, snapshot, expected_pool: snapshot)).to eq(1)
+    expect(RedisService.get('meme_pool').first['id']).to eq(Digest::SHA256.hexdigest(meme['url']))
+  end
+
+  it 'clears WATCH after rejecting a stale snapshot before reusing the connection' do
+    RedisService.with_redis do |connection|
+      connection.set('meme_pool', [{ 'url' => '/current.jpg' }].to_json)
+      allow(RedisService).to receive(:with_redis).and_yield(connection)
+      expect(MemePoolManager.send(:store_in_pool, [meme], expected_pool: [])).to eq(0)
+      other = Redis.new(url: ENV.fetch('REDIS_URL'))
+      other.set('meme_pool', [{ 'url' => '/newer.jpg' }].to_json)
+      replies = connection.multi { |transaction| transaction.ping }
+      expect(replies).to eq(['PONG'])
+    ensure
+      other&.close
+    end
   end
 end

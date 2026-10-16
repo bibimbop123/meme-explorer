@@ -5,6 +5,7 @@ class AuthRoutes
   def self.register(app)
         # OAuth Reddit Routes
         app.get "/auth/reddit" do
+          headers 'Cache-Control' => 'no-store, private'
           # ✅ SECURITY FIX: Generate and store OAuth state parameter
           state = SecureRandom.hex(32)
           session[:oauth_state] = state
@@ -18,6 +19,7 @@ class AuthRoutes
         end
 
         app.get "/auth/reddit/callback" do
+          headers 'Cache-Control' => 'no-store, private'
           begin
             AppLogger.info("Reddit OAuth callback received",
               code_present: !params[:code].nil?,
@@ -146,10 +148,12 @@ class AuthRoutes
 
         # Email/Password Routes
         app.get "/login" do
+          headers 'Cache-Control' => 'no-store, private'
           erb :login
         end
 
         app.post "/login" do
+          headers 'Cache-Control' => 'no-store, private'
           content_type :json
           
           begin
@@ -258,10 +262,12 @@ class AuthRoutes
         end
 
         app.get "/signup" do
+          headers 'Cache-Control' => 'no-store, private'
           erb :signup
         end
 
         app.post "/signup" do
+          headers 'Cache-Control' => 'no-store, private'
           content_type :json
           
           begin
@@ -338,10 +344,12 @@ class AuthRoutes
         # ✅ CRITICAL FIX: Logout route - Proper Redis session destruction
         # GET must not mutate identity (link prefetch/cross-site navigation).
         app.get "/logout" do
+          headers 'Cache-Control' => 'no-store, private'
           redirect '/profile', 303
         end
 
         app.post "/logout" do
+          headers 'Cache-Control' => 'no-store, private'
           begin
             # Get session ID before clearing (for logging)
             session_id = request.session_options[:id] rescue 'unknown'

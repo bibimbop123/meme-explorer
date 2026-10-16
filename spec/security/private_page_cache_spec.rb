@@ -1,6 +1,21 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Account page cache boundaries' do
+  it 'prevents caching session-bound authentication forms and OAuth redirects' do
+    ['/login', '/signup', '/auth/reddit', '/auth/reddit/callback', '/logout'].each do |path|
+      get path
+      expect(last_response.status).to be_between(200, 399)
+      expect(last_response.headers['cache-control']).to include('no-store', 'private')
+    end
+  end
+
+  it 'prevents caching authentication mutation responses including validation failures' do
+    ['/login', '/signup', '/logout'].each do |path|
+      post path, {}
+      expect(last_response.headers['cache-control']).to include('no-store', 'private')
+    end
+  end
+
   it 'prevents caching authenticated profile and saved details, including missing records' do
     user_id = create_test_user('private-cache@example.com')
     set_session(user_id: user_id)

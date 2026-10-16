@@ -33,9 +33,9 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,020 backend
-examples, zero failures, seven pending; 73.85% coverage, gates pass, backend exit 0;
-117 frontend tests pass. The score table retains its original assessment basis.
+target, URL count or test count with a better feed. Latest validation: 1,036 backend
+examples, zero failures, seven pending; 74.04% coverage, gates pass, backend exit 0;
+119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
 ### Critique and revised decision rules
@@ -47,7 +47,8 @@ Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
   operations project. Fix known blockers immediately; do not delay them for research.
 - “Validated” does not mean funny, readable or comprehensively safe. Maintenance's
   basic fallback now checks structure, browser-safe URL and nonblank text; evaluation
-  exceptions reject new batches. Bootstrap still has separate basic validation.
+  exceptions reject new batches. Bootstrap shares the basic structural/URL predicate
+  while bypassing the optional expensive pipeline for cold-start latency.
   The earlier fail-open defect is fixed, but no full content-quality gate is implied.
 - Existing engagement weights reward exposure/popularity as well as appeal. Do not
   increase those weights or infer negative preference from Next without evaluation.
@@ -167,6 +168,77 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Mandatory basic checks before optional quality evaluation
+
+- Maintenance always applies shared structural/browser-URL checks before optional
+  pipeline evaluation, so the optional path cannot approve malformed/unsafe inputs
+  or fail an otherwise valid batch just by receiving malformed candidates.
+- Two regressions cover mixed invalid/valid candidates and all-invalid pipeline
+  bypass. Full backend: **1036 examples, zero failures, seven pending**, 56.98s;
+  **74.04% coverage (4560/6159)**, gates pass, exit 0. **119 frontend tests pass**;
+  ten targeted quality examples pass (partial coverage exit 2), syntax/whitespace
+  pass. Not moderation/humor/availability validation; scores unchanged, no deployment.
+
+### Optimistic pool publication conflict rejection
+
+- Final review added generated-ID snapshot and pooled-connection reuse regressions.
+  The reuse test exposed a leaked WATCH on stale early return; explicit UNWATCH in
+  ensure now clears it before pool return. **11 targeted publication examples pass**
+  (partial coverage exit 2). Latest full backend: **1034 examples, zero failures,
+  seven pending**, 58.93s; **73.97% coverage (4555/6158)**, gates pass, exit 0.
+  **119 frontend tests pass**; syntax/whitespace pass. Supersedes earlier run below.
+
+- Bootstrap/maintenance supply merge snapshots; publication WATCHes the legacy pool
+  key and compares before MULTI/EXEC. Stale snapshots skip, changes after WATCH abort
+  EXEC; return zero without automatic HTTP/refetch retry. Capture expected snapshot
+  before payload preparation mutates IDs. Conflicting additions may await a later job.
+- Three real-Redis regressions cover stale rejection, matching merge and a second
+  connection's write after WATCH. Existing mocked publication calls updated for the
+  snapshot keyword. Full backend: **1032 examples, zero failures, seven pending**,
+  58.12s; **73.96% coverage (4554/6157)**, gates pass, exit 0. **119 frontend tests
+  pass**; 29 targeted examples pass (partial coverage exit 2); syntax/whitespace pass.
+- Not expired-owner fencing, Redis runtime-error rollback or protection for arbitrary
+  direct writers that omit snapshot checks. No live requests, deployment or score lift.
+
+### Late-bootstrap inventory retention
+
+- Bootstrap merges usable fetched content with current retained unique inventory
+  before bounded publication; new snapshots win collisions. Empty validated batches
+  do not republish. Bootstrap caller still receives only its fetched usable batch.
+- Three regressions cover a pool populated during fetch, empty validated batches,
+  and target-bound truncation. This closes simple late-bootstrap shrink, not the
+  read-to-EXEC concurrent-writer race; publication fencing remains open.
+- Full isolated backend: **1029 examples, zero failures, seven pending**, 56.96s;
+  **73.98% coverage (4548/6148)**, gates pass, exit 0. **119 frontend tests pass**;
+  30 targeted bootstrap/manager examples pass (partial coverage exit 2); syntax/
+  whitespace pass. No live Reddit requests, production changes, push or deployment.
+
+### Shared bootstrap structural validation
+
+- Bootstrap now shares maintenance fallback's cheap hash/URL/nonblank text predicate.
+  Malformed/unsafe candidates are rejected without losing valid batch members;
+  unique URLs retained. No network probes or optional expensive pipeline at cold start.
+  Usable content still returns if Redis publication fails. Existing pools not purged.
+- Three bootstrap regressions cover mixed invalid input, all-invalid response and
+  pipeline bypass. Older unit fixtures updated from arbitrary strings to local URLs.
+- Full isolated backend: **1026 examples, zero failures, seven pending**, 57.18s;
+  **73.97% coverage (4547/6147)**, gates pass, exit 0. **119 frontend tests pass**;
+  35 targeted bootstrap/filter examples pass (partial coverage exit 2), syntax and
+  whitespace pass. Not moderation/availability/humor verification; no live requests,
+  production changes, push or deployment. Scores unchanged.
+
+### Authentication cache policy follow-up
+
+- Public exact-meme recheck still returns 200 without canonical/og:url/og:image;
+  deployed origin configuration investigation remains open. No production changes.
+- Repository login/signup GET/POST, OAuth entry/callback and logout GET/POST now
+  explicitly return private/no-store for session-bound forms and responses.
+  Two regression examples cover GET redirects/forms and mutation responses.
+- Full isolated backend: **1023 examples, zero failures, seven pending**, 57.38s;
+  **73.98% coverage (4547/6146)**, gates pass, exit 0. **119 frontend tests pass**;
+  14 targeted cache/pending-Save examples pass (partial coverage exit 2), Ruby syntax/
+  whitespace pass. No push/deployment; production cache policy unchanged by local fix.
 
 ### Confirmed public origin: sharing metadata blocker
 

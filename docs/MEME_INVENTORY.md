@@ -53,9 +53,11 @@ claiming growth; ambiguous EXEC disconnects and partial runtime errors remain op
 ## Remaining supply constraints
 
 Maintenance quality evaluation errors now reject new candidates rather than
-returning the unfiltered batch; existing inventory is retained. The optional
-pipeline's absence checks hash shape, browser-safe URL and nonblank title/community
-text; bootstrap has separate basic validation. Existing retained content is not
+returning the unfiltered batch; existing inventory is retained. Mandatory maintenance
+checks require hash shape, browser-safe URL and nonblank title/community text before
+any optional pipeline evaluation; absent pipeline uses just these structural checks.
+Bootstrap shares this cheap predicate but bypasses the optional pipeline.
+Existing retained content is not
 purged. “Validated” does not certify availability, moderation, readability or humor. Use
 FEED_EXPERIENCE_AUDIT.md for the planned real-feed/user evaluation; none performed.
 
@@ -63,13 +65,25 @@ The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
 merges new unique URLs with retained pool entries, bounded at that target; new
 snapshots win duplicate URLs. Count metadata now reflects unique random-pool
 inventory rather than the sum of overlapping tiers. No cache purge is needed.
+Bootstrap also merges its validated batch with inventory present immediately before
+publication, so a late small bootstrap does not simply replace an already-grown
+pool. It returns only its newly fetched usable batch to the caller; retained items
+do not inflate bootstrap's fetched/usable count. Empty validated batches do not
+republish the pool. Bootstrap and maintenance pass the merge snapshot to publication:
+WATCH observes the legacy pool key, compares the snapshot before EXEC, and aborts
+if it differs or another writer changes that key before EXEC. Conflicts return zero
+without automatic HTTP refetch/retry. This is optimistic conflict rejection, not
+expired-worker ownership fencing or a full concurrency/rollback fix.
+UNWATCH runs in ensure, including stale-snapshot early returns, so pooled connections
+do not carry abandoned watches into unrelated transactions. Regression tests cover
+connection reuse and expected-snapshot capture before generated IDs mutate records.
 Publication now queues prepared JSON, lists, media fields and metadata in one Redis
 MULTI/EXEC, so list clearing/rebuilding is not visible between commands. Empty tiers
 are cleared; missing fallback IDs use stable SHA-256 URL digests. Failed/missing EXEC
 results do not report success. This is not rollback safety: Redis execution-time
 errors can leave partial writes, and a connection loss during EXEC has an ambiguous
-outcome. Separate reader commands can straddle snapshots. Concurrent publishers can
-still overwrite newer inventory with stale snapshots; media hash retention and Redis
+outcome. Separate reader commands can straddle snapshots. Writers omitting the
+expected snapshot can still publish stale inventory; media hash retention and Redis
 memory/command cost at larger inventory require follow-up. No old IDs are purged.
 
 Scheduled maintenance now takes an ownership-token Redis lease before fetching.
