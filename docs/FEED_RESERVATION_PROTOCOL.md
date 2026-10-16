@@ -27,6 +27,18 @@ final full run is green. No live route behavior change or rollout approval.
 
 ## Code anchors and current semantics
 
+Active lease validation now atomically checks server-time expiry and exact session/
+content/token ownership without renewal. Status distinguishes active, invalid and
+unavailable. It is unused by routes and must NOT substitute for the proposed
+30-minute acknowledgement token: an expired 120-second lease does not prove that
+a late otherwise-valid displayed impression is invalid. Durable ACK metadata and
+history reconciliation remain unimplemented.
+
+Three validation regressions cover association, no renewal, expiry, successors and
+unavailability. Full backend: 1073 examples, zero failures, seven pending, 62.12s;
+74.35% (4635/6234), gates pass, exit 0; 121 frontend tests pass; 12 targeted lease
+tests pass (partial coverage exit 2); syntax/whitespace pass. No live behavior switch.
+
 - SimpleMemeSelector.select marks selection in ViewingHistoryService; random/similar
   routes also mark it. Homepage now uses the selector. A prefetch therefore counts
   as selected, though not necessarily displayed.

@@ -173,6 +173,16 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Active reservation ownership validation
+
+- Added unused atomic active-lease validation: exact session/content/token and Redis
+  server-time expiry, no renewal. Distinct active/invalid/unavailable outcomes.
+  Not a 30-minute ACK credential or history reconciliation; routes unchanged.
+- Three regressions added. Full backend **1073 examples, zero failures, seven pending**,
+  62.12s; **74.35% coverage (4635/6234)**, gates pass, exit 0; **121 frontend tests
+  pass**. 12 targeted examples pass (partial coverage exit 2), syntax/whitespace pass.
+  No deployment, production changes or score increase.
+
 ### Isolated active reservation primitive
 
 - Added unused FeedReservationService: atomic acquire/release, Redis server-time

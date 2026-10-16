@@ -22,6 +22,36 @@ RSpec.describe MemeExplorer::FeedReservationService do
     expect(described_class.acquire(identity, '/extra.jpg')).to eq(status: :limit_reached)
   end
 
+  it 'validates only the active session/content/token association without renewal' do
+    token = described_class.acquire(identity, content)[:token]
+    expiry = described_class.send(:keys, identity).first
+    score = RedisService.with_redis { |redis| redis.zscore(expiry, Digest::SHA256.hexdigest(content)) }
+    expect(described_class.validate(identity, content, token)).to eq(status: :active)
+    expect(described_class.validate(SecureRandom.hex(32), content, token)).to eq(status: :invalid)
+    expect(described_class.validate(identity, '/other.jpg', token)).to eq(status: :invalid)
+    expect(described_class.validate(identity, content, SecureRandom.hex(32))).to eq(status: :invalid)
+    expect(RedisService.with_redis { |redis| redis.zscore(expiry, Digest::SHA256.hexdigest(content)) }).to eq(score)
+    described_class.release(identity, content, token)
+    expect(described_class.validate(identity, content, token)).to eq(status: :invalid)
+  end
+
+  it 'rejects expired owner metadata and rejects an old token after reacquisition' do
+    token = described_class.acquire(identity, content)[:token]
+    RedisService.with_redis do |redis|
+      redis.zadd(described_class.send(:keys, identity).first, 0, Digest::SHA256.hexdigest(content))
+    end
+    expect(described_class.validate(identity, content, token)).to eq(status: :invalid)
+    successor = described_class.acquire(identity, content)[:token]
+    expect(described_class.validate(identity, content, token)).to eq(status: :invalid)
+    expect(described_class.validate(identity, content, successor)).to eq(status: :active)
+  end
+
+  it 'distinguishes validation unavailability from invalid credentials' do
+    allow(RedisService).to receive(:with_redis).and_return(nil)
+    expect(described_class.validate(identity, content, SecureRandom.hex(32))).to eq(status: :unavailable)
+    expect(described_class.validate(identity, content, 'bad')).to eq(status: :invalid)
+  end
+
   it 'prunes expired leases and never lets an old token release its successor' do
     old = described_class.acquire(identity, content)
     expiry, owners = described_class.send(:keys, identity)

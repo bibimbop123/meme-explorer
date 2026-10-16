@@ -30,6 +30,31 @@ module MemeExplorer
       redis.call('ZREM', KEYS[1], ARGV[1])
       return 1
     LUA
+    VALIDATE = <<~LUA.freeze
+      local expiry = redis.call('ZSCORE', KEYS[1], ARGV[1])
+      if not expiry then return 0 end
+      local time = redis.call('TIME')
+      local now = tonumber(time[1]) + tonumber(time[2]) / 1000000
+      if tonumber(expiry) <= now then return 0 end
+      if redis.call('HGET', KEYS[2], ARGV[1]) ~= ARGV[2] then return 0 end
+      return 1
+    LUA
+
+    # Active lease validation only; expired leases are not valid ACK credentials.
+    # Does not renew expiry or mutate state. Distinguish infrastructure failure.
+    def self.validate(session_id, content, token)
+      return { status: :invalid } unless valid_session?(session_id) && valid_content?(content) && valid_session?(token)
+      reply = RedisService.with_redis do |redis|
+        redis.eval(VALIDATE, keys: keys(session_id), argv: [Digest::SHA256.hexdigest(content), token])
+      end
+      case reply
+      when 1 then { status: :active }
+      when 0 then { status: :invalid }
+      else { status: :unavailable }
+      end
+    rescue StandardError
+      { status: :unavailable }
+    end
 
     def self.acquire(session_id, content)
       return { status: :invalid } unless valid_session?(session_id) && valid_content?(content)
