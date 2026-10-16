@@ -203,7 +203,7 @@ test('guest Save rolls back and offers sign-in without claiming persistence', as
   const button = { classList: { contains: () => false, add() {}, remove() {} } };
   const states = [];
   globalThis.document = { getElementById: () => button, querySelector: selector => selector === '#save-sign-in' ? panel : null };
-  globalThis.fetch = async () => ({ ok: false, status: 401 });
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ pending_save: false }) });
   const interactions = Object.create(MemeInteractions.prototype);
   Object.assign(interactions, {
     getCurrentMemeUrl: () => '/guest.jpg', createRipple() {}, triggerHaptic() {},

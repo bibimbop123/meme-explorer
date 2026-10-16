@@ -77,6 +77,24 @@ module Routes
 
       # Save a meme to user's collection with FULL INTEGRATION
       app.post "/api/save-meme" do
+        unless logged_in?
+          request.body.rewind
+          candidate = begin
+            request.media_type == 'application/json' ? JSON.parse(request.body.read) : params
+          rescue JSON::ParserError
+            nil
+          end
+          id = candidate['content_id'] if candidate.is_a?(Hash)
+          session.delete(:pending_save)
+          if id.is_a?(String) && id.match?(/\A[a-f0-9]{64}\z/)
+            begin
+              session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 1800 } if MemeIdentityService.find(id)
+            rescue => e
+              AppLogger.warn('Pending save lookup unavailable', error: e.class.name)
+            end
+          end
+          halt 401, { error: 'Sign in to save', pending_save: !!session[:pending_save] }.to_json
+        end
         require_auth!
 
         payload = params

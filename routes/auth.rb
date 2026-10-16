@@ -100,7 +100,7 @@ class AuthRoutes
             
             # ✅ SECURITY FIX: Prevent session fixation attacks by regenerating session ID
             # Clear old session and create new one with different ID
-            old_session_data = session.to_hash
+            pending_save = session[:pending_save]
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
             
@@ -122,7 +122,7 @@ class AuthRoutes
               session_regenerated: true
             )
             
-            redirect "/profile", 302
+            redirect pending_save_target(pending_save) || '/profile', 302
             
           rescue => e
             AppLogger.error("Reddit OAuth callback error",
@@ -199,6 +199,7 @@ class AuthRoutes
               AuthService.clear_failed_logins(email, redis)
               
               # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
+              pending_save = session[:pending_save]
               env['rack.session'].clear
               env['rack.session'].options[:renew] = true
               
@@ -219,7 +220,8 @@ class AuthRoutes
                 ip: request.ip
               )
               
-              return { success: true, redirect: "/profile" }.to_json
+              target = pending_save_target(pending_save)
+              return { success: true, redirect: target || '/profile' }.to_json
             else
               # ✅ SECURITY FIX: Record failed login attempt
               AuthService.record_failed_login(email, redis)
@@ -302,6 +304,7 @@ class AuthRoutes
             end
 
             # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
+            pending_save = session[:pending_save]
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
             
@@ -322,7 +325,7 @@ class AuthRoutes
               ip: request.ip
             )
             
-            return { success: true, redirect: "/profile" }.to_json
+            return { success: true, redirect: pending_save_target(pending_save) || '/profile' }.to_json
 
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json

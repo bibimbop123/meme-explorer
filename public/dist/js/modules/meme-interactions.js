@@ -207,7 +207,8 @@ export class MemeInteractions {
       const endpoint = wasSaved ? '/api/unsave-meme' : '/api/save-meme';
       const body = wasSaved 
         ? { url: memeUrl }
-        : { url: memeUrl, title: memeTitle, subreddit: memeSubreddit };
+        : { url: memeUrl, title: memeTitle, subreddit: memeSubreddit,
+            content_id: document.querySelector?.('#viewer-share-data')?.dataset.sharePath?.match(/^\/meme\/([a-f0-9]{64})$/)?.[1] };
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -227,8 +228,11 @@ export class MemeInteractions {
         if (this.getCurrentMemeUrl() === memeUrl) this.updateSaveButton(wasSaved, false);
         if (response.status === 401) {
           if (this.getCurrentMemeUrl() !== memeUrl) return;
+          const data = await response.json();
           const panel = document.querySelector('#save-sign-in');
           if (panel && this.getCurrentMemeUrl() === memeUrl) {
+            const message = panel.querySelector?.('p');
+            if (message && data.pending_save === true) message.textContent = 'Not saved yet. Sign in to return to this meme, then press Save to keep it across devices.';
             panel.hidden = false;
             panel.querySelector?.('a')?.focus();
           }

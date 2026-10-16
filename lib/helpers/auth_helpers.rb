@@ -12,6 +12,13 @@
 #   current_user_id                # Returns integer user id or nil
 
 module AuthHelpers
+  def pending_save_target(pending)
+    return nil unless pending.is_a?(Hash) && pending['id'].is_a?(String) &&
+                      pending['id'].match?(/\A[a-f0-9]{64}\z/) &&
+                      pending['expires_at'].to_i > Time.now.to_i
+    "/meme/#{pending['id']}?save_after_login=1"
+  end
+
   # Returns the current user's DB record (memoized per request).
   # Returns nil if not logged in or user not found.
   def current_user

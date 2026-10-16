@@ -28,6 +28,46 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Authentication recovery failure boundaries: full verification
+
+- Added expired OAuth-state and unavailable-catalog/malformed-payload regressions:
+  no token exchange on expiry, no false recovery promise, stale pending context
+  cleared when a new guest request cannot register recovery.
+- Full isolated backend **937 examples, zero failures, seven pending**, 56.91s;
+  **71.78% coverage (4314/6010)**, both gates pass, **exit 0**. **109 frontend
+  tests pass**, syntax/module parity/whitespace pass. Actual provider/browser
+  acceptance remains open; no deployment performed.
+
+### Reddit OAuth pending-meme continuation
+
+- Successful OAuth retains only bounded pending ID context before session clearing/
+  renewal, then returns to fixed local permalink for explicit Save. Invalid state
+  never exchanges tokens and retains pending context for retry. Removed unused full
+  old-session snapshot. OAuth provider/token operations stubbed in route tests.
+- **18 targeted auth examples pass**, partial coverage exit 2; Ruby syntax/whitespace
+  pass. Full backend not rerun; last full 933 examples, 71.23%, exit 0. Real provider/
+  browser acceptance remains open; no deployment.
+
+### Pending-save authentication regression verification
+
+- Added signup/session-state discard, failed-login retry, expired context and
+  missing/removed catalog regressions. Context is not a silent save promise;
+  post-login explicit Save and existing account authorization remain required.
+- Full isolated backend **933 examples, zero failures, seven pending**, 56.23s;
+  **71.23% coverage (4281/6010)**, both gates pass, **exit 0**. **109 frontend tests
+  pass**, Ruby/viewer ERB, module parity and whitespace pass. OAuth/browser flow
+  acceptance remains open; no deployment performed.
+
+### Pending exact-meme recovery through email authentication
+
+- Guest Save records one existing catalog ID with 30-minute expiry in session.
+  Email login/signup captures only this bounded context before clearing/renewing
+  session and returns a fixed local permalink. User explicitly presses Save after
+  login; no silent save/auth-side mutation. Invalid/missing catalog context degrades
+  to ordinary sign-in. OAuth continuation and automatic save remain open.
+- Initial targeted auth/profile **28 examples pass** (partial coverage exit 2),
+  **109 frontend tests pass**, build/mirror/whitespace pass. Full suite not rerun.
+
 ### Guest Save navigation race and accumulated regression
 
 - Late unauthorized Save no longer prompts for old content after navigation;
