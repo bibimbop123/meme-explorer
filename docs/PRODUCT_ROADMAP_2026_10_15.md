@@ -168,6 +168,55 @@ expired leases and media-hash retention remain reliability work before larger lo
 
 ## Execution log — Gate A, first implementation slice
 
+### Saved Undo/reload defect fixed
+
+- Final review isolates history-update exceptions from mutation success: a persisted
+  restore stays restored and offers Back guidance if the address cannot update.
+  New frontend regression verifies truthful state and subsequent removal. **119
+  frontend tests pass**, Vite build/syntax/whitespace pass. Backend unchanged since
+  the full run below; normal browser reload fix passed before this error-path addition.
+
+- Successful save response includes best-effort account-owned saved_id. Undo updates
+  the current detail URL with replaceState and the Back card anchor, preserving
+  query/page context. Metadata lookup failure does not misreport a persisted save.
+- Backend identity/isolation regression and frontend query/page/anchor regression
+  added. Full backend: **1021 examples, zero failures, seven pending**, 57.27s;
+  **73.85% coverage (4533/6138)**, gates pass, exit 0. **118 frontend tests pass**;
+  Vite build, syntax/whitespace pass. Same Chrome offline/reconnect driver now passes
+  all six assertions including full detail reload; no captured runtime exceptions.
+- Supersedes the open Undo/reload failure below. Broader browser/provider/device
+  acceptance stays open; no score increase, production calls, push or deployment.
+
+### Offline Saved acceptance identifies reload recovery defect
+
+- Chrome offline/reconnect Remove and Undo checks pass; profile confirms restored
+  persistence. Missing recipient fetch confirms 404/noindex/no random substitution.
+- **Open failure:** Undo recreates a Saved row with a new ID, but the detail page
+  retains the deleted row URL, so full reload fails. Next engineering priority is
+  restoring a valid detail/return context and rerunning browser/automated regressions.
+  Do not mark Saved Undo acceptance complete. No application change or score increase.
+
+### Signup and separate recipient browser acceptance
+
+- Four local Chrome assertions pass: guest pending Save returns through rendered
+  signup to exact content; profile shows zero matching favorites before explicit
+  Save and one afterward; separate browser context sees exact fixture without the
+  sender's account UI. No sender-page runtime exceptions captured; recipient
+  exceptions were not monitored. Vite build passed before boot.
+- Evidence in BROWSER_ACCEPTANCE_2026_10_16.md. Local fixture accounts only; no
+  provider OAuth, email-delivery/ownership, physical-device or crawler acceptance.
+  No application code changes or score increase; no push/deployment.
+
+### Exact-share and guest email-auth browser continuation
+
+- Local Chrome assertions pass for simulated clipboard denial/exact-link focus,
+  guest Save sign-in focus, wrong/correct email login returning to exact pending
+  meme, unselected Save UI, explicit Save yielding one matching favorite, cookie-free
+  recipient and unknown-content no-substitution. No captured runtime exceptions.
+- Evidence/limits recorded in BROWSER_ACCEPTANCE_2026_10_16.md. No native share,
+  OAuth/crawler, database pre-save query or browser 404-status assertion claimed.
+  No application changes or quality-score increase; production acceptance stays open.
+
 ### Maintenance metadata/rendering validation
 
 - Basic maintenance fallback now rejects non-hash candidates, unsafe browser URLs,

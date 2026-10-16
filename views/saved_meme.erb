@@ -71,7 +71,7 @@
       <span class="button-text">Remove</span>
     </button>
 
-    <a href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
+    <a id="saved-back-link" href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
       <span class="button-icon">⬅️</span>
       <span class="button-text">Back</span>
     </a>

@@ -158,6 +158,16 @@ module Routes
           saved: result[:success] ? true : false,
           message: result[:success] ? "Meme saved" : "Failed to save meme"
         }
+        if result[:success]
+          begin
+            saved_row = UserService.is_meme_saved?(current_user_id, url)
+            response[:saved_id] = saved_row['id'].to_i if saved_row
+          rescue => e
+            # Saving already succeeded; missing navigation metadata must not
+            # misrepresent that mutation as a failed save.
+            AppLogger.warn('Saved detail identity unavailable', error: e.class.name)
+          end
+        end
         
         # Include XP and level-up info if available
         if result[:xp_awarded] && result[:xp_awarded] > 0
