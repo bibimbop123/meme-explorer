@@ -358,9 +358,8 @@ module Routes
 
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
-        # CDN caching - 1 hour for meme data
-        headers "Cache-Control" => "public, max-age=3600"
-        headers "ETag" => Digest::MD5.hexdigest(memes.to_json)
+        # Each response is a new selection with session-bound impression state.
+        headers 'Cache-Control' => 'no-store, private'
 
         halt 404, { error: "No valid meme found" }.to_json if @meme.nil?
         

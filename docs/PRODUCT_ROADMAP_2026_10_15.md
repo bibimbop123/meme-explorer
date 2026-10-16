@@ -28,6 +28,23 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Duplicate-selection full regression
+
+- Full isolated backend after random no-store/client duplicate guard: **925 examples,
+  zero failures, seven pending**, 47.23s; **71.21% coverage (4267/5992)**,
+  both gates pass, **exit 0**. **107 frontend tests pass**; built module mirror,
+  Ruby syntax and whitespace pass. Live deployment/browser acceptance remains open.
+
+### Repeated Space selection: disable random-response caching
+
+- Found /random.json still emitting public max-age=3600 with a pool-wide ETag,
+  allowing the same session-bound selection to be replayed. Changed to private
+  no-store; client fetch uses cache:no-store. Next retries duplicate current URLs
+  at most twice and retains old content with error if no different item arrives.
+- **107 frontend tests pass**, **7 impression examples pass** (partial coverage
+  exit 2), production build, syntax/mirror/whitespace pass. Full backend not rerun.
+  Deployment/client cache refresh required; no production fix claimed yet.
+
 ### Spacebar after focused Next
 
 - Focused Next now handles Space explicitly through navigation and prevents native

@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 921 backend examples, zero failures, seven pending;
-102 frontend tests pass; 71.16% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 925 backend examples, zero failures, seven pending;
+107 frontend tests pass; 71.21% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
