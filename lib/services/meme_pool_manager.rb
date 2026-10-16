@@ -401,7 +401,11 @@ class MemePoolManager
 
       # SKIP quality filter on bootstrap for speed (basic validation only)
       validated = memes.select { |m| basic_candidate_valid?(m) }.uniq { |m| m['url'] }
-      stored = store_in_pool(validated)
+      # Maintenance/another bootstrap may have populated the pool while HTTP was
+      # in flight. Retain its unique inventory rather than replace it with this
+      # small cold-start batch. This read/merge is not concurrent-write fencing.
+      inventory = validated.empty? ? [] : (validated + get_current_pool).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
+      stored = store_in_pool(inventory)
 
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
 

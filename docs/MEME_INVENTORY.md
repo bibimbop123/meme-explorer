@@ -64,6 +64,12 @@ The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
 merges new unique URLs with retained pool entries, bounded at that target; new
 snapshots win duplicate URLs. Count metadata now reflects unique random-pool
 inventory rather than the sum of overlapping tiers. No cache purge is needed.
+Bootstrap also merges its validated batch with inventory present immediately before
+publication, so a late small bootstrap does not simply replace an already-grown
+pool. It returns only its newly fetched usable batch to the caller; retained items
+do not inflate bootstrap's fetched/usable count. Empty validated batches do not
+republish the pool. Read/merge/publication is still not fenced against concurrent
+writes after that read; this is not a full concurrency fix.
 Publication now queues prepared JSON, lists, media fields and metadata in one Redis
 MULTI/EXEC, so list clearing/rebuilding is not visible between commands. Empty tiers
 are cleared; missing fallback IDs use stable SHA-256 URL digests. Failed/missing EXEC

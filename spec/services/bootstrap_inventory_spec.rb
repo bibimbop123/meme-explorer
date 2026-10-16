@@ -8,6 +8,7 @@ RSpec.describe 'Bootstrap inventory and cooldown' do
   before do
     allow(MemePoolManager).to receive(:create_fetcher).and_return(fetcher)
     allow(MemePoolManager).to receive(:load_tier_subreddits).and_return(%w[funny memes cats dogs])
+    allow(MemePoolManager).to receive(:get_current_pool).and_return([])
   end
 
   it 'retains a cooldown and usable probe results after a partial rate limit' do
@@ -56,5 +57,34 @@ RSpec.describe 'Bootstrap inventory and cooldown' do
     allow(fetcher).to receive(:fetch_memes).and_return([meme], [])
     allow(MemePoolManager).to receive(:store_in_pool).and_return(0)
     expect(MemePoolManager.send(:bootstrap_pool)).to include(success: true, memes: [meme])
+  end
+
+  it 'retains inventory that appeared while bootstrap fetched and prefers new duplicate snapshots' do
+    retained = meme.merge('url' => 'https://i.redd.it/retained.jpg')
+    allow(fetcher).to receive(:fetch_memes).and_return([meme], [])
+    allow(MemePoolManager).to receive(:get_current_pool).and_return([retained, meme.merge('title' => 'Old snapshot')])
+    expect(MemePoolManager).to receive(:store_in_pool).with([meme, retained]).and_return(2)
+    allow(RedisService).to receive(:delete)
+    expect(MemePoolManager.send(:bootstrap_pool)).to include(success: true, size: 1, memes: [meme])
+  end
+
+  it 'does not republish retained inventory when no new candidates are usable' do
+    allow(fetcher).to receive(:fetch_memes).and_return([meme.merge('title' => '')], [])
+    expect(MemePoolManager).not_to receive(:get_current_pool)
+    expect(MemePoolManager).to receive(:store_in_pool).with([]).and_return(0)
+    expect(MemePoolManager.send(:bootstrap_pool)).to include(success: false, size: 0)
+  end
+
+  it 'bounds the merged publication while retaining the new candidate first' do
+    retained = MemePoolManager::TARGET_POOL_SIZE.times.map { |i| meme.merge('url' => "/retained-#{i}.jpg") }
+    allow(fetcher).to receive(:fetch_memes).and_return([meme], [])
+    allow(MemePoolManager).to receive(:get_current_pool).and_return(retained)
+    expect(MemePoolManager).to receive(:store_in_pool) do |inventory|
+      expect(inventory.size).to eq(MemePoolManager::TARGET_POOL_SIZE)
+      expect(inventory.first).to eq(meme)
+      inventory.size
+    end
+    allow(RedisService).to receive(:delete)
+    expect(MemePoolManager.send(:bootstrap_pool)).to include(success: true, size: 1)
   end
 end

@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,026 backend
-examples, zero failures, seven pending; 73.97% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,029 backend
+examples, zero failures, seven pending; 73.98% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -168,6 +168,19 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Late-bootstrap inventory retention
+
+- Bootstrap merges usable fetched content with current retained unique inventory
+  before bounded publication; new snapshots win collisions. Empty validated batches
+  do not republish. Bootstrap caller still receives only its fetched usable batch.
+- Three regressions cover a pool populated during fetch, empty validated batches,
+  and target-bound truncation. This closes simple late-bootstrap shrink, not the
+  read-to-EXEC concurrent-writer race; publication fencing remains open.
+- Full isolated backend: **1029 examples, zero failures, seven pending**, 56.96s;
+  **73.98% coverage (4548/6148)**, gates pass, exit 0. **119 frontend tests pass**;
+  30 targeted bootstrap/manager examples pass (partial coverage exit 2); syntax/
+  whitespace pass. No live Reddit requests, production changes, push or deployment.
 
 ### Shared bootstrap structural validation
 
