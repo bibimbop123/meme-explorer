@@ -64,6 +64,19 @@ browser permission prompt. No native share sheet, OAuth or social crawler exerci
 
 ### Remaining unexecuted scenarios
 
+### Saved original-source retry with intercepted requests
+
+On application commit `465180e` with documentation-only working-tree changes,
+Chrome CDP paused the external recovery script, failed the fixture image request,
+then released the script. Four assertions PASS: failed image completed before
+initialization; late initialization displayed recovery; two Retry clicks while
+pending yielded exactly one additional image request (two total including initial
+failure); fulfilling that same URL with a local JPEG displayed the image and
+“Image loaded.” No captured runtime exceptions. Browser cache bypass was not enabled;
+the fulfilled response used no-store. This does not guarantee remote origin recovery.
+Artifacts: `/tmp/meme-retry-browser-results.json`, `/tmp/meme-retry-browser.mjs`.
+Vite build passed before boot; no app changes made for this pass.
+
 ### Offline removal/Undo follow-up — one failure
 
 Local Chrome/test fixtures on commit `beedd53`: offline Remove stays truthful and
@@ -109,12 +122,55 @@ test database; no real email delivery or email ownership verification was tested
   sessions and two tabs; account isolation in a browser.
 - Saved punctuation/non-Latin/invalid-input cases, corrected Undo full-reload behavior,
   actual paging clicks preserving both sections, staging DB-query failure, unsafe
-  source UI, image failure before deferred script, retry success from network stub.
+  source UI. Early image failure, duplicate pending Retry and successful original-
+  source network-stub retry are now locally exercised as documented above.
 - Physical devices/touch, Safari/Firefox, screen reader announcements, visible focus,
   contrast/zoom, comprehensive visual layout, consent/storage/clipboard denial.
 - Production configuration, scheduler/OAuth/shared Redis, hosted CI, secret rotation.
 
 ## Artifacts and decision
+
+### Accessibility-tree and crawler-style local checks
+
+On commit `465180e` with documentation-only changes, local Chrome checks PASS:
+AX tree exposes named Next/Previous/Save/Share controls; visible buttons have a
+text/aria/title naming source; reduced-motion media preference is exposed; Next
+retains keyboard focus after Enter. No captured runtime exceptions. These are
+structural checks, not screen-reader, focus-visibility, contrast, motion suppression
+or WCAG acceptance. Reduced-motion preference detection alone does not prove that
+every animation respects it. Artifact: `/tmp/meme-ax-results.json`.
+
+No-JavaScript requests with facebookexternalhit/1.1 and Twitterbot/1.0 user agents
+both return HTTP 200, exact fixture title/canonical, one og:image and a fetchable
+local JPEG (image/jpeg and JPEG signature checked). Artifact:
+`/tmp/meme-crawler-results.json`. User-agent simulation does not prove real crawler
+network access, public HTTPS origin, platform caching, card rendering or preview
+dimensions. The test used localhost and local artwork, not production source media.
+
+### Blocked external checks and operator handoff
+
+- **Physical device / screen reader: NOT RUN.** No confirmed attached test device
+  or screen-reader session. Run the three core journeys on an actual mobile device
+  and desktop screen reader; record device/OS/browser, focus visibility, announcements,
+  zoom, touch reachability and screenshots/findings without account information.
+- **Reddit OAuth: NOT RUN.** No verified app origin/provider test session. Use a
+  permitted disposable account on the approved deployed origin: guest Save → OAuth,
+  cancel then retry, confirm exact return and no automatic Save, explicitly Save,
+  verify one favorite, logout/expire and retry. Do not send tokens/cookies/passwords.
+- **Actual social-platform crawlers: NOT RUN.** Use an approved public exact-meme
+  link with real platform inspection tools; verify fetched card image/title and
+  unavailable-link behavior, not merely HTML metadata or spoofed user agents.
+- **Production supply: NOT RUN.** Need confirmed production origin and operator
+  access. In web and worker environments run the documented read-only inventory
+  diagnostic with existing environment variables, then capture redacted outcomes
+  across at least three normal maintenance cycles. Verify scheduler registration,
+  worker execution, OAuth success and shared Redis config separately; matching
+  count samples alone do not prove any of these. Do not purge caches, force fetches,
+  print connection configuration or paste secret-bearing logs.
+
+No connection to an unrelated Reddit API account was initiated: it would not test
+the application's OAuth callback or worker credentials. Local web/Chrome/Redis
+processes are stopped after the pass. No push, deployment or production mutation.
 
 Local temporary artifacts (not committed, may be removed):
 `/tmp/meme-browser-results.json`, `/tmp/meme-browser-viewer-results.json`,
