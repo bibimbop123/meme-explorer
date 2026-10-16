@@ -30,8 +30,14 @@ The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
 merges new unique URLs with retained pool entries, bounded at that target; new
 snapshots win duplicate URLs. Count metadata now reflects unique random-pool
 inventory rather than the sum of overlapping tiers. No cache purge is needed.
-Publication remains multi-key/non-atomic; simultaneous publishers and Redis memory/
-command cost at larger inventory still require monitoring and follow-up.
+Publication now queues prepared JSON, lists, media fields and metadata in one Redis
+MULTI/EXEC, so list clearing/rebuilding is not visible between commands. Empty tiers
+are cleared; missing fallback IDs use stable SHA-256 URL digests. Failed/missing EXEC
+results do not report success. This is not rollback safety: Redis execution-time
+errors can leave partial writes, and a connection loss during EXEC has an ambiguous
+outcome. Separate reader commands can straddle snapshots. Concurrent publishers can
+still overwrite newer inventory with stale snapshots; media hash retention and Redis
+memory/command cost at larger inventory require follow-up. No old IDs are purged.
 
 - Maintenance now follows at most two top/week pages per community, using Reddit's
   validated after cursor and URL deduplication. Default/bootstrap fetching stays
