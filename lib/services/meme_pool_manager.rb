@@ -399,13 +399,18 @@ class MemePoolManager
       memes = test_memes + remaining_memes
 
       # SKIP quality filter on bootstrap for speed (basic validation only)
-      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }
+      validated = memes.select { |m| m["url"] && m["title"] && m["subreddit"] }.uniq { |m| m['url'] }
       stored = store_in_pool(validated)
 
       AppLogger.info("📊 [Bootstrap] Fetched: #{memes.size}, Validated: #{validated.size}, Stored: #{stored}")
 
-      # Bootstrap succeeded - clear any prior rate-limit cooldown
-      RedisService.delete(BOOTSTRAP_COOLDOWN_KEY) if stored > 0
+      # Partial success must not clear a confirmed rate limit. Keep the usable
+      # probe results while spacing out subsequent bootstrap/maintenance jobs.
+      if fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
+        RedisService.set(BOOTSTRAP_COOLDOWN_KEY, 'true', ttl: BOOTSTRAP_COOLDOWN_TTL)
+      elsif stored > 0
+        RedisService.delete(BOOTSTRAP_COOLDOWN_KEY)
+      end
 
       # BUG FIX (Aug 25, 2026, round 6): success used to be defined as
       # `stored > 0` - i.e. it depended on RedisService.set succeeding

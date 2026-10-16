@@ -13,10 +13,10 @@ RSpec.describe 'Stored content rendering boundaries' do
     end
     get '/profile'
     expect(last_response.status).to eq(200)
-    expect(last_response.body).to include('could not load your liked memes', 'Try loading Likes again', '<strong>Unavailable</strong> recent likes')
+    expect(last_response.body).to include('could not load your liked memes', 'Try loading Likes again', '<strong>Unavailable</strong> memes liked')
     expect(last_response.body).not_to include('No liked memes yet', 'private likes failure')
     get '/profile'
-    expect(last_response.body).to include('No liked memes yet', 'recent likes (up to 50)')
+    expect(last_response.body).to include('No liked memes yet', '<strong>0</strong> memes liked')
     expect(last_response.body).not_to include('could not load your liked memes')
   end
 

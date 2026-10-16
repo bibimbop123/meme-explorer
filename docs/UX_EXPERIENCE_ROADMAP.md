@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 995 backend examples, zero failures, seven pending;
-113 frontend tests pass; 73.61% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 1006 backend examples, zero failures, seven pending;
+113 frontend tests pass; 73.74% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -424,7 +424,12 @@ open. Native API resolution is a handoff signal, not proof a friend received a m
 1. Execute [browser acceptance](BROWSER_ACCEPTANCE.md), including auth return,
    two-tab behavior, expired sessions, keyboard focus and Undo failure recovery.
 2. Decide guest device-local persistence before offering reload/offline retention.
-3. Add Saved search and unavailable-media recovery; paginate Likes.
+3. Add unavailable-media recovery. Saved now has account-scoped title/community
+   text search, literal case-insensitive matching, filtered pagination, clear/no-match
+   states and detail-return query context. Browser acceptance remains open.
+   Likes now has 24-item pages,
+   stable timestamp/ID ordering, account-wide totals, validated/clamped page inputs
+   and retryable errors; browser/keyboard acceptance remains open.
 4. Decide whether Undo must preserve ordering and avoid all save engagement effects.
 5. Add collections only after basic retrieval has passed acceptance.
 

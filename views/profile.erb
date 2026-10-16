@@ -11,7 +11,7 @@
     <% end %>
     <hr>
     <p>📌 <strong><%= @saved_load_error ? 'Unavailable' : @saved_count %></strong> memes saved</p>
-    <p>❤️ <strong><%= @liked_load_error ? 'Unavailable' : @liked_count %></strong> recent likes (up to 50)</p>
+    <p>❤️ <strong><%= @liked_load_error ? 'Unavailable' : @liked_count %></strong> memes liked</p>
   </div>
 
   <!-- 🎬 CRITERION COLLECTION: Taste Profile -->
@@ -23,7 +23,7 @@
   
   <% if @liked_load_error %>
     <p role="alert">We could not load your liked memes. Please try again.</p>
-    <p><a href="/profile?saved_page=<%= @saved_page %>#liked-memes">Try loading Likes again</a></p>
+    <p><a href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">Try loading Likes again</a></p>
   <% elsif @liked_memes.empty? %>
     <p style="text-align: center; color: #999;">No liked memes yet.</p>
   <% else %>
@@ -39,18 +39,44 @@
     </div>
   <% end %>
 
+  <% if !@liked_load_error && @liked_pages && @liked_pages > 1 %>
+    <nav aria-label="Liked meme pages" style="display: flex; justify-content: center; gap: 24px; padding: 16px;">
+      <% if @liked_page > 1 %>
+        <a rel="prev" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">← Previous likes</a>
+      <% end %>
+      <span>Likes page <%= @liked_page %> of <%= @liked_pages %></span>
+      <% if @liked_page < @liked_pages %>
+        <a rel="next" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">More likes →</a>
+      <% end %>
+    </nav>
+  <% end %>
+
   <h2 id="saved-memes">My Saved Memes</h2>
+  <form method="get" action="/profile#saved-memes" role="search" aria-label="Search saved memes">
+    <label for="saved-query">Search favorites by title or community</label>
+    <input id="saved-query" name="saved_q" type="search" maxlength="200" value="<%= Rack::Utils.escape_html(@saved_query) %>">
+    <input type="hidden" name="liked_page" value="<%= @liked_page %>">
+    <button type="submit">Search saved</button>
+    <% unless @saved_query.empty? %>
+      <a href="/profile?liked_page=<%= @liked_page %>#saved-memes">Clear search</a>
+    <% end %>
+  </form>
+  <% if !@saved_load_error && !@saved_query.empty? %>
+    <p role="status"><%= @saved_matches %> saved matches</p>
+  <% end %>
   
   <% if @saved_load_error %>
     <p role="alert">We could not load your saved memes. This does not mean your favorites were removed.</p>
-    <p><a href="/profile?saved_page=<%= @saved_page %>#saved-memes">Try loading Saved again</a></p>
+    <p><a href="/profile?saved_page=<%= @saved_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#saved-memes">Try loading Saved again</a></p>
+  <% elsif @saved_memes.empty? && !@saved_query.empty? %>
+    <p>No saved memes match this search. Try another title or community, or clear the search.</p>
   <% elsif @saved_memes.empty? %>
     <p style="text-align: center;">No saved memes yet. Use Save while browsing to keep favorites in your account.</p>
     <p style="text-align: center;"><a href="/random">Find a meme to save</a></p>
   <% else %>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;">
       <% @saved_memes.each do |saved| %>
-        <a id="saved-card-<%= saved['id'].to_i %>" href="/saved/<%= saved['id'].to_i %>?saved_page=<%= @saved_page %>" style="display: block; color: inherit; text-decoration: none; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+        <a id="saved-card-<%= saved['id'].to_i %>" href="/saved/<%= saved['id'].to_i %>?saved_page=<%= @saved_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %>" style="display: block; color: inherit; text-decoration: none; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
           <img src="<%= Rack::Utils.escape_html(MediaUrl.safe(saved["meme_url"]) || "/images/meme-placeholder.svg") %>" alt="<%= Rack::Utils.escape_html(saved["meme_title"].to_s) %>" style="width: 100%; height: 200px; object-fit: cover;">
           <div style="padding: 10px;">
             <p style="margin: 0; font-size: 0.9rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><%= Rack::Utils.escape_html(saved["meme_title"].to_s) %></p>
@@ -65,11 +91,11 @@
   <% if !@saved_load_error && @saved_pages && @saved_pages > 1 %>
     <nav aria-label="Saved meme pages" style="display: flex; justify-content: center; gap: 24px; padding: 16px;">
       <% if @saved_page > 1 %>
-        <a rel="prev" href="/profile?saved_page=<%= @saved_page - 1 %>#saved-memes">← Previous favorites</a>
+        <a rel="prev" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#saved-memes">← Previous favorites</a>
       <% end %>
       <span>Page <%= @saved_page %> of <%= @saved_pages %></span>
       <% if @saved_page < @saved_pages %>
-        <a rel="next" href="/profile?saved_page=<%= @saved_page + 1 %>#saved-memes">More favorites →</a>
+        <a rel="next" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#saved-memes">More favorites →</a>
       <% end %>
     </nav>
   <% end %>

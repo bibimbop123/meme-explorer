@@ -12,6 +12,13 @@ module Routes
         raw_page = params[:saved_page] || '1'
         halt 400, 'Saved page must be a positive integer.' unless raw_page.is_a?(String) && raw_page.match?(/\A[1-9][0-9]{0,8}\z/)
         @saved_page = raw_page.to_i
+        raw_liked_page = params[:liked_page] || '1'
+        halt 400, 'Likes page must be a positive integer.' unless raw_liked_page.is_a?(String) && raw_liked_page.match?(/\A[1-9][0-9]{0,8}\z/)
+        @liked_page = raw_liked_page.to_i
+        @saved_query = params[:saved_q] || ''
+        halt 400, 'Saved search must be text up to 200 characters.' unless @saved_query.is_a?(String) && @saved_query.length <= 200
+        @saved_query = @saved_query.strip
+        @saved_query_suffix = @saved_query.empty? ? '' : "&saved_q=#{Rack::Utils.escape(@saved_query)}"
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -25,11 +32,18 @@ module Routes
           # Get user's saved memes from saved_memes table
           @saved_memes = begin
             @saved_count = UserService.get_saved_memes_count(user_id)
-            @saved_pages = [(@saved_count / 24.0).ceil, 1].max
+            search_sql = @saved_query.empty? ? '' : " AND (POSITION(LOWER(?) IN LOWER(COALESCE(meme_title, ''))) > 0 OR POSITION(LOWER(?) IN LOWER(COALESCE(meme_subreddit, ''))) > 0)"
+            search_args = @saved_query.empty? ? [] : [@saved_query, @saved_query]
+            @saved_matches = if @saved_query.empty?
+              @saved_count
+            else
+              MemeExplorer::App::DB.execute("SELECT COUNT(*) AS count FROM saved_memes WHERE user_id = ?#{search_sql}", [user_id, *search_args]).first['count'].to_i
+            end
+            @saved_pages = [(@saved_matches / 24.0).ceil, 1].max
             @saved_page = [@saved_page, @saved_pages].min
             results = MemeExplorer::App::DB.execute(
-              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC, id DESC LIMIT ? OFFSET ?",
-              [user_id, 24, (@saved_page - 1) * 24]
+              "SELECT id, meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ?#{search_sql} ORDER BY saved_at DESC, id DESC LIMIT ? OFFSET ?",
+              [user_id, *search_args, 24, (@saved_page - 1) * 24]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
@@ -40,9 +54,13 @@ module Routes
           
           # Get user's liked memes from user_liked_memes table (source of truth)
           @liked_memes = begin
+            count_row = MemeExplorer::App::DB.execute('SELECT COUNT(*) AS count FROM user_liked_memes WHERE user_id = ?', [user_id]).first
+            @liked_count = count_row['count'].to_i
+            @liked_pages = [(@liked_count / 24.0).ceil, 1].max
+            @liked_page = [@liked_page, @liked_pages].min
             results = MemeExplorer::App::DB.execute(
-              "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
-              [user_id]
+              "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+              [user_id, 24, (@liked_page - 1) * 24]
             ) || []
             results.map { |row| row.transform_keys(&:to_s) }
           rescue => e
@@ -65,7 +83,6 @@ module Routes
         end
       
         # Count stats (with fallback to engagement service)
-        @liked_count = @liked_memes.size
         
         # Add comprehensive stats for display
         @total_xp = @engagement_stats[:total_xp] || 0
@@ -214,6 +231,10 @@ module Routes
         page = params[:saved_page].to_s
         page = '1' unless page.match?(/\A[1-9][0-9]{0,8}\z/)
         @saved_return_path = "/profile?saved_page=#{page}#saved-card-#{saved_id}"
+        query = params[:saved_q]
+        if query.is_a?(String) && query.length <= 200 && !query.strip.empty?
+          @saved_return_path = "/profile?saved_page=#{page}&saved_q=#{Rack::Utils.escape(query.strip)}#saved-card-#{saved_id}"
+        end
 
         erb :saved_meme
       end

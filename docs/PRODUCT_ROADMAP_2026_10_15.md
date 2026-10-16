@@ -28,6 +28,47 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Saved retrieval search quick win
+
+- Account-scoped, parameterized title/community text matching, case-insensitive
+  and literal (not SQL wildcard or semantic search). Bounded text input, filtered
+  pagination/count, clear/no-match states; account-wide saved total stays unchanged.
+  Query persists through paging, retry and Saved detail return, escaped for URLs/HTML.
+- Four new route examples cover title/community matching and account isolation,
+  literal/injection-like input, detail-return context and malformed query rejection.
+  **12 targeted search/pagination examples pass** (partial coverage exit 2).
+- Full isolated backend: **1006 examples, zero failures, seven pending**, 56.71s;
+  **73.74% coverage (4504/6108)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  syntax/whitespace pass. Browser acceptance and large-account query performance
+  remain unverified. No push/deployment or production inventory claim.
+
+### Likes retrieval quick win
+
+- Replaced the profile's newest-50 Likes cutoff with 24-item pages, stable
+  timestamp/ID ordering and account-wide totals. Page values are validated and
+  clamped; Likes/Saved pagers preserve the other section's page, Likes retry keeps
+  page context, and failed loads remain distinct from empty accounts.
+- Four route regressions cover older likes, account isolation, bad pages and count
+  failure. Updated existing rendering assertions for the new total-count label.
+- Full isolated backend: **1002 examples, zero failures, seven pending**, 54.92s;
+  **73.61% coverage (4487/6096)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  syntax/whitespace pass. Browser acceptance remains open; no deployment.
+
+### Bootstrap quick wins and remaining priorities
+
+- Bootstrap now preserves shared cooldown on partial 429 success, even if Redis
+  publication fails, while returning usable content. Probe/full-fetch overlap is
+  deduplicated before publication and response counts. Three regression tests added.
+- Full isolated backend: **998 examples, zero failures, seven pending**, 53.59s;
+  **73.64% coverage (4484/6089)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  Ruby syntax/whitespace pass. No push, deployment or live Reddit calls.
+- Remaining priorities: measured production inventory growth; scheduler/OAuth/shared
+  Redis verification; publication fencing and media hash retention; hosted CI and
+  browser/device/OAuth/crawler acceptance; credential rotation and CSP migration.
+  UX work remains on recently viewed/context recovery, Saved search/unavailable
+  media, Likes pagination, guest persistence decisions, feed steering, search and
+  baseline usability research. Implemented slices are not accepted phases.
+
 ### Scheduled maintenance overlap guard
 
 - Maintenance entry point acquires an ownership-token Redis lease before fetching,

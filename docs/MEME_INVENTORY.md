@@ -56,6 +56,9 @@ do not manually delete a live owner's lease to force inventory expansion.
   sets the existing cooldown even if partial content was stored. Subsequent calls
   on that fetcher make no HTTP requests; later jobs create fresh fetchers after
   normal cooldown checks. Separate workers still need publication coordination.
+- Bootstrap also preserves cooldown after partial 429 success, including failed
+  Redis publication, and deduplicates overlapping probe/fetch URLs before reporting
+  usable inventory. Partial usable content remains available to the current caller.
 - Stale refresh keeps existing items until quality-filtered replacements arrive.
   Only genuinely new URLs retire stale entries, at most one per new unique URL;
   duplicate snapshots update metadata without reducing unique inventory. Empty or
