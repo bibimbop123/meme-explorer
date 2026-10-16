@@ -28,6 +28,22 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Transactional publication — validation not yet green
+
+- Prepare payloads before one MULTI/EXEC on one Redis connection; publish JSON,
+  lists, media and metadata together, clear empty tiers, use stable fallback URL
+  digest IDs, and report zero on unavailable/failed publication. No old IDs purged.
+- **17 targeted publication/inventory examples pass**, including real Redis readers,
+  TTLs and empty-tier clearing (partial coverage exit 2). **113 frontend tests pass**;
+  Ruby syntax/whitespace pass.
+- Full isolated backend: **985 examples, one failure, seven pending**, 54.94s,
+  **73.29% coverage (4453/6076)**, exit 1. Database chaos simulated connection loss
+  escaped get_meme_likes. That file passes alone (three examples, partial coverage
+  exit 2); investigate cache/run-order behavior before claiming a green full suite.
+- Redis runtime command errors do not roll back; EXEC disconnects have ambiguous
+  outcomes. Concurrent stale publishers, multi-command reader consistency and media
+  hash retention remain open. No live Reddit, production growth claim or deployment.
+
 ### Non-destructive stale inventory refresh
 
 - Removed pre-fetch stale deletion. Existing inventory remains available during

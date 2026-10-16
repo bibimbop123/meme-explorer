@@ -8,6 +8,7 @@ require_relative 'reddit_fetcher_service'
 # require_relative 'quality_pipeline_service'  # Removed during Elon audit - file not found
 require_relative 'redis_service'
 require 'yaml'
+require 'digest'
 
 class MemePoolManager
   TARGET_POOL_SIZE = 5000
@@ -736,48 +737,43 @@ end
         categorized[pool] = pool_memes.uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
       end
       
-      total_stored = 0
-      categorized.each do |pool_name, pool_memes|
-        next if pool_memes.empty?
-        
-        # DUAL FORMAT: Store in BOTH JSON and Lists
-        
-        # Format 1: JSON blob (for legacy DiversityEngine v1 code)
-        json_key = "meme_pool:#{pool_name}"
-        RedisService.set(json_key, pool_memes.to_json, ttl: 21600) # 6 hours
-        
-        # Format 2: Redis Lists (for new architecture)
-        list_key = "meme_pool:#{pool_name}_ids"
-        RedisService.delete(list_key)  # Clear old
-        
-        pool_memes.each do |meme|
-          # Generate consistent ID
-          meme_id = meme['id'] || "#{meme['subreddit']}_#{meme['url'].hash.abs}"
-          meme['id'] = meme_id
-          
-          # Store full meme data in hash
-          RedisService.hset("meme:data", meme_id, meme.to_json)
-          
-          # Add ID to list
-          RedisService.rpush(list_key, meme_id)
-        end
-        
-        RedisService.expire(list_key, 21600)  # 6 hour TTL
-        
-        AppLogger.info("   ✅ Stored #{pool_memes.size} memes in '#{pool_name}' pool (JSON + Lists)")
-        total_stored += pool_memes.size
-      end
-      
-      # Update metadata with extended TTL
-      unique_count = categorized[:random].size
-      RedisService.set("meme_pool:count", unique_count, ttl: 21600)
-      RedisService.set("meme_pool:initialized", "true", ttl: 21600)
-      RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 21600)
-      
-      # Store complete pool for legacy code (backward compatibility)
+      # Prepare all payloads before opening the transaction. Stable fallback IDs
+      # avoid duplicating media hash fields across Ruby processes/restarts.
       all_memes = categorized.values.flatten.uniq { |m| m['url'] }
-      RedisService.set("meme_pool", all_memes.to_json, ttl: 21600)
-      
+      all_memes.each do |meme|
+        meme['id'] ||= Digest::SHA256.hexdigest(meme.fetch('url'))
+      end
+      media = all_memes.map { |meme| [meme['id'], meme.to_json] }.to_h
+      payloads = categorized.map do |pool_name, pool_memes|
+        ["meme_pool:#{pool_name}", pool_memes.to_json,
+         "meme_pool:#{pool_name}_ids", pool_memes.map { |meme| meme.fetch('id') }]
+      end
+      unique_count = categorized.fetch(:random).size
+      complete_pool = all_memes.to_json
+      refreshed_at = Time.now.to_i
+
+      # One connection/EXEC prevents readers seeing lists cleared and only partly
+      # rebuilt. Redis transactions do not roll back runtime command errors.
+      published = RedisService.with_redis do |redis|
+        redis.multi do |transaction|
+          media.each { |id, json| transaction.hset('meme:data', id, json) }
+          payloads.each do |json_key, json, list_key, ids|
+            transaction.setex(json_key, 21600, json)
+            transaction.del(list_key)
+            unless ids.empty?
+              transaction.rpush(list_key, ids)
+              transaction.expire(list_key, 21600)
+            end
+          end
+          transaction.setex('meme_pool', 21600, complete_pool)
+          transaction.setex('meme_pool:count', 21600, unique_count)
+          transaction.setex('meme_pool:initialized', 21600, 'true')
+          transaction.setex('meme_pool:last_refresh', 21600, refreshed_at)
+        end
+      end
+      return 0 unless published.is_a?(Array) && !published.empty? &&
+                      published.none? { |reply| reply.is_a?(Exception) }
+
       unique_count
     rescue => e
       log_error("Store in pool error", e)
