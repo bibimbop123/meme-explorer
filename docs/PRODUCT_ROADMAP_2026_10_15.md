@@ -173,6 +173,190 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Bounded snapshot chunk scheduler
+
+- Unused advance_with_budget: two chunks maximum, 100ms soft monotonic check before
+  additional chunk; no interruption of issuance or lost returned credential.
+  Three mocked clock/issuance tests. Not hard HTTP/Redis/mutex deadline or measured
+  production latency; repeated invocations still require request-level orchestration.
+- Full backend **1185 examples, zero failures, seven pending**, 65.89s;
+  **75.58% (4948/6547)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  20 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; hard deadline/replay/migration/capacity/privacy gates remain open.
+
+### Aggregate snapshot media-budget tests
+
+- Two regressions verify cross-candidate byte/node limits, exact boundaries and
+  duplicate accounting, rejecting overflow before issuance. No implementation change.
+- Full backend **1182 examples, zero failures, seven pending**, 66.00s;
+  **75.54% (4938/6537)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  17 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; renderer/replay/migration/capacity/privacy gates remain open.
+
+### Snapshot to existing JSON-builder contract test
+
+- Real issuance/builder regression checks gallery/video, dimensions, attribution
+  and speculative non-marking. Not browser/live-media acceptance. Routes unchanged.
+- Full backend **1180 examples, zero failures, seven pending**, 65.65s;
+  **75.54% (4938/6537)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  15 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Renderer/replay/migration/capacity/privacy gates remain open.
+
+### Bounded immutable media metadata preservation
+
+- Snapshot copies allowlisted gallery/video/dimensions/source fields recursively,
+  excludes credentials/viewer state, rejects invalid/deep/oversized structures.
+  Separate provisional 1 MiB string/20000-node payload bounds; no media safety claim.
+- Two regressions. Full backend **1179 examples, zero failures, seven pending**,
+  66.66s; **75.45% (4932/6537)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**; 14 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Routes unchanged; renderer/replay/migration/capacity/privacy gates remain.
+
+### Parsed expired credential authorization regression
+
+- Real Redis/DB case verifies syntactically valid expired envelope rejected before
+  transaction, preserving successor lease and empty history/counters. Simulated
+  Redis deadline, not wall-clock expiry acceptance. Routes unchanged.
+- Full backend **1177 examples, zero failures, seven pending**, 66.11s;
+  **75.32% (4902/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  29 targeted coordinator/envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Parsed v2 envelope to real ACK coordinator coverage
+
+- Two DB/Redis regressions verify strict parsed envelope ACK/duplicate behavior,
+  server attribution and cross-session rejection. Routes still unchanged.
+- Full backend **1176 examples, zero failures, seven pending**, 66.16s;
+  **75.37% (4905/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  28 targeted coordinator/envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Strict ACK JSON duplicate-key rejection
+
+- Raw reader uses installed JSON allow_duplicate_key:false; repeated/escaped/nested
+  duplicates rejected. One matrix regression. Failed custom object approaches removed;
+  parsed Hash alone cannot detect prior duplicate collapse. No routes changed.
+- Final backend **1174 examples, zero failures, seven pending**, 66.04s;
+  **75.37% (4905/6508)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  nine targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Migration/replay/capacity/privacy gates remain open.
+
+### Unused bounded ACK JSON body reader
+
+- Envelope reader adds 1 KiB cap (1025-byte sentinel), bounded nesting and malformed/
+  unreadable rejection. Caller still owns content type/rewind; no route integration.
+  Three regressions. Full backend **1173 examples, zero failures, seven pending**,
+  65.56s; **75.40% (4907/6508)** coverage, gates pass, exit 0; **121 frontend tests
+  pass**; eight targeted envelope cases pass (partial coverage exit 2), syntax/
+  whitespace pass. Migration/replay/capacity/privacy gates remain open.
+
+### Validated ACK envelope value ownership
+
+- Legacy/v2 parsed envelopes now freeze copied ID/token strings and result, not
+  caller data. One mutation regression; no route connection or authorization change.
+- Full backend **1170 examples, zero failures, seven pending**, 66.07s;
+  **75.34% (4898/6501)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  five targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Migration/replay/capacity/privacy gates remain open.
+
+### Unused ACK envelope classification prerequisite
+
+- Added parsed-JSON validator for legacy or complete v2 envelopes, no fallback when
+  any new field appears, and no propagation of client attribution. Not authorization
+  or route migration. Four regressions.
+- Full backend **1169 examples, zero failures, seven pending**, 65.55s;
+  **75.34% (4898/6501)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  four targeted envelope cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; migration/replay/capacity/privacy gates remain open.
+
+### Proposed selection/ACK HTTP and retry mapping
+
+- Inspected current fetchMeme/Next and visibility/ACK loops. Migration proposal now
+  distinguishes selection outcomes before media validation, suppresses capacity/
+  contention retry storms, specifies ACK terminal/retryable mapping and same-token
+  retry bounds. Calls out qualified-vs-confirmed state gap after exhausted retries.
+- Proposal only, not approved behavior or new evidence. Documentation checks pass;
+  last code validation remains 1165 backend examples, zero failures, seven pending;
+  75.30% coverage/gates pass, 121 frontend tests pass. No JS/routes/config changed.
+
+### Replay and migration contract proposal
+
+- Added FEED_MIGRATION_CONTRACT.md: proposed default-off selection switch with
+  independent dual-protocol ACK/rollback support; no invalid-token fallback; immutable
+  full-media mapping; replay admission prerequisites and client/acceptance matrix.
+  Inventory generation, request budget, HTTP mapping and wait UX remain review items.
+- Documentation-only; no new test or production evidence. Last validated code remains
+  1165 backend examples, zero failures, seven pending; 75.30% (4886/6489), gates pass;
+  121 frontend tests pass. No routes/configuration changed; no rollout approval.
+
+### Real multi-chunk snapshot conflict aggregation
+
+- Real Redis/PostgreSQL regression retains prefix conflict after lease expiry,
+  preserves history and verifies a fresh pass rechecks newly eligible content.
+  Snapshot completion remains observation, not global exhaustion/replay proof.
+- Full backend **1165 examples, zero failures, seven pending**, 65.77s;
+  **75.30% (4886/6489)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  12 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Explicit process-local snapshot cancellation
+
+- cancel drops incomplete snapshot refs under advance mutex, without Redis calls.
+  Does not revoke completed issuance or interrupt in-flight network work. Two mocked
+  lifecycle/concurrency regressions. Routes remain unchanged.
+- Full backend **1164 examples, zero failures, seven pending**, 65.16s;
+  **75.28% (4885/6489)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  11 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Terminal snapshot reference release
+
+- Invalid/terminal/exception traversals drop internal candidates and identity refs;
+  returned issued candidate survives. GC eligibility only, not RSS/secure erasure.
+  One retention regression; real lifecycle remains green. Routes unchanged.
+- Full backend **1162 examples, zero failures, seven pending**, 65.36s;
+  **75.30% (4881/6482)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  nine targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Snapshot aggregate copied metadata bound
+
+- Added provisional 1 MiB copied-string budget, separate from 5000 input cap; rejects
+  before issuance, clears partial snapshot on overflow; duplicates counted once.
+  One boundary/multientry regression. Not heap/RSS capacity approval.
+- Full backend **1161 examples, zero failures, seven pending**, 65.12s;
+  **75.27% (4872/6473)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  eight targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Real server-owned snapshot lifecycle
+
+- Unmocked Redis/PostgreSQL test verifies copied metadata, speculative non-marking,
+  ACK/duplicate counter dedupe and later snapshot completion. No route/browser claim.
+- Full backend **1160 examples, zero failures, seven pending**, 64.91s;
+  **75.21% (4863/6466)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  seven targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
+### Snapshot unexpected-exception closure
+
+- Unexpected traversal StandardError closes the object and returns unavailable
+  without private details; no implicit repeated partial work or rollback claim.
+  One mocked fault regression. No routes changed.
+- Full backend **1159 examples, zero failures, seven pending**, 65.34s;
+  **75.21% (4863/6466)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  six targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Replay/migration/capacity/privacy gates remain open.
+
+### Shared snapshot advance concurrency regression
+
+- Two synchronized callers, one process-local traversal, exactly one mocked issuance;
+  results issued/closed. No cross-process or production concurrency claim.
+- Full backend **1158 examples, zero failures, seven pending**, 67.69s;
+  **75.20% (4861/6464)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  five targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
 ### Unused server-owned single-pass snapshot traversal
 
 - FeedTraversal copies/deduplicates bounded URL/title/subreddit snapshot, retains

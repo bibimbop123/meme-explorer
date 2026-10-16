@@ -1,6 +1,8 @@
 require_relative '../spec_helper'
 require_relative '../../lib/services/feed_acknowledgement_service'
 require_relative '../../lib/services/feed_reservation_service'
+require_relative '../../lib/services/feed_acknowledgement_envelope'
+require 'stringio'
 require 'timeout'
 
 RSpec.describe MemeExplorer::FeedAcknowledgementService do
@@ -36,6 +38,52 @@ RSpec.describe MemeExplorer::FeedAcknowledgementService do
     expect(DB.get_first_value('SELECT views FROM meme_stats WHERE url = ?', [content]).to_i).to eq(1)
     expect(DB.get_first_value('SELECT SUM(shown_count) FROM user_meme_exposure').to_i).to eq(1)
     expect(DB.get_first_value("SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view'").to_i).to eq(1)
+  end
+
+  it 'acknowledges a strictly parsed v2 envelope without trusting body attribution' do
+    body = JSON.generate('impression_protocol' => 2, 'impression_id' => impression,
+      'ack_token' => token, 'url' => '/forged.jpg', 'title' => 'Forged', 'user_id' => 999)
+    envelope = MemeExplorer::FeedAcknowledgementEnvelope.read(StringIO.new(body))
+    expect(envelope[:status]).to eq(:versioned)
+    args = { impression_id: envelope[:impression_id] }
+    expect(described_class.acknowledge(identity, envelope[:token], **args)).to eq(status: :acknowledged, recorded: true)
+    expect(described_class.acknowledge(identity, envelope[:token], **args)).to eq(status: :acknowledged, recorded: false)
+    row = DB.execute('SELECT url, title, views FROM meme_stats').first
+    expect(row).to include('url' => content, 'title' => 'Issued title')
+    expect(row['views'].to_i).to eq(1)
+    expect(DB.get_first_value('SELECT COUNT(*) FROM user_meme_exposure').to_i).to eq(0)
+  end
+
+  it 'rejects a syntactically valid parsed credential presented in a different session' do
+    body = JSON.generate('impression_protocol' => 2, 'impression_id' => impression, 'ack_token' => token)
+    envelope = MemeExplorer::FeedAcknowledgementEnvelope.read(StringIO.new(body))
+    expect(envelope[:status]).to eq(:versioned)
+    expect(described_class.acknowledge(SecureRandom.hex(32), envelope[:token],
+      impression_id: envelope[:impression_id])).to eq(status: :invalid)
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+    expect(store.history(identity)).to eq(status: :available, entries: [])
+    expect(acknowledge).to eq(status: :acknowledged, recorded: true)
+  end
+
+  it 'rejects an expired parsed credential without touching a successor lease or database' do
+    leases = MemeExplorer::FeedReservationService
+    original = leases.acquire(identity, content)
+    allow(self).to receive(:issued_reservation_token).and_return(original[:token])
+    body = JSON.generate('impression_protocol' => 2, 'impression_id' => impression, 'ack_token' => token)
+    envelope = MemeExplorer::FeedAcknowledgementEnvelope.read(StringIO.new(body))
+    leases.release(identity, content, original[:token])
+    successor = leases.acquire(identity, content)
+    RedisService.with_redis do |r|
+      r.zadd(store.send(:keys, identity).first, 0, Digest::SHA256.hexdigest(token))
+    end
+    expect(envelope[:status]).to eq(:versioned)
+    expect(DB).not_to receive(:transaction)
+    expect(described_class.acknowledge(identity, envelope[:token],
+      impression_id: envelope[:impression_id])).to eq(status: :invalid)
+    expect(leases.validate(identity, content, successor[:token])).to eq(status: :active)
+    expect(store.history(identity)).to eq(status: :available, entries: [])
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_stats').to_i).to eq(0)
   end
 
   it 'restores lost history from a completed credential without renewing its deadline or counters' do
