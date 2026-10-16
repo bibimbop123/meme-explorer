@@ -70,11 +70,19 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1164 backend examples, zero failures, seven pending;
-75.28% (4885/6489), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1165 backend examples, zero failures, seven pending;
+75.30% (4886/6489), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Real snapshot conflict aggregation: Redis/PostgreSQL regression holds a prefix
+lease, acknowledges remaining candidates, preserves conflict across chunk boundary
+even after simulated lease expiry, then verifies a fresh pass rechecks/issues that
+now-eligible prefix item. Snapshot completion is observational, not replay/global
+exhaustion proof. Full backend 1165 examples, zero failures, seven pending, 65.77s;
+75.30% (4886/6489), gates pass, exit 0; 12 targeted snapshot cases pass (partial
+coverage exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
 
 Process-local snapshot cancellation: cancel serializes with advance, closes an
 incomplete pass and releases copied refs without Redis calls. Repeated cancellation

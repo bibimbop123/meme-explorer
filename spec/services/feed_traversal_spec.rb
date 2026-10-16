@@ -61,6 +61,31 @@ RSpec.describe MemeExplorer::FeedTraversal do
     expect(traversal.advance).to eq(status: :snapshot_complete, reserved: true, empty: false)
   end
 
+  it 'preserves real prefix contention across chunks even if that lease expires before completion' do
+    leases = MemeExplorer::FeedReservationService
+    pool = 101.times.map { |i| { url: "/real-conflict-snapshot-#{i}.jpg" } }
+    lease = leases.acquire(identity, pool.first[:url])
+    expect(lease[:status]).to eq(:reserved)
+    pool.drop(1).each do |meme|
+      issued = issuer.issue(identity, meme[:url])
+      expect(MemeExplorer::FeedAcknowledgementService.acknowledge(identity, issued[:token],
+        impression_id: issued[:impression_id])[:status]).to eq(:acknowledged)
+    end
+    original = store.history(identity)
+    traversal = described_class.new(pool, identity)
+    expect(traversal.advance).to eq(status: :traversal_incomplete, reserved: true)
+    RedisService.with_redis do |r|
+      r.zadd(leases.send(:keys, identity).first, 0, Digest::SHA256.hexdigest(pool.first[:url]))
+    end
+    expect(traversal.advance).to eq(status: :snapshot_complete, reserved: true, empty: false)
+    expect(store.history(identity)).to eq(original)
+    expect(DB.get_first_value('SELECT SUM(views) FROM meme_stats').to_i).to eq(100)
+    # A fresh pass must recheck the earlier conflict, not reuse completion as proof.
+    fresh = described_class.new(pool, identity).advance
+    expect(fresh[:status]).to eq(:issued)
+    expect(fresh[:meme]['url']).to eq(pool.first[:url])
+  end
+
   it 'validates the entire bounded snapshot before any issuance' do
     expect(issuer).not_to receive(:issue)
     [nil, Array.new(described_class::MAX_CANDIDATES + 1), [{ url: '/valid.jpg' }, {}],

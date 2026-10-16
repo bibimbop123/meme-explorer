@@ -173,6 +173,16 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Real multi-chunk snapshot conflict aggregation
+
+- Real Redis/PostgreSQL regression retains prefix conflict after lease expiry,
+  preserves history and verifies a fresh pass rechecks newly eligible content.
+  Snapshot completion remains observation, not global exhaustion/replay proof.
+- Full backend **1165 examples, zero failures, seven pending**, 65.77s;
+  **75.30% (4886/6489)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  12 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; replay/migration/capacity/privacy gates remain open.
+
 ### Explicit process-local snapshot cancellation
 
 - cancel drops incomplete snapshot refs under advance mutex, without Redis calls.
