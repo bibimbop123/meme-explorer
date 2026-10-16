@@ -2,6 +2,7 @@ require_relative '../spec_helper'
 
 RSpec.describe 'Detailed health diagnostics' do
   before do
+    set_session(user_id: create_test_user('health-admin@example.com', 'SecurePass123!', true))
     allow(REDIS_POOL).to receive(:with).and_wrap_original do |original, &block|
       original.call do |connection|
         allow(connection).to receive(:info).and_return({
@@ -11,6 +12,23 @@ RSpec.describe 'Detailed health diagnostics' do
         block.call(connection)
       end
     end
+  end
+
+  it 'requires authentication without exposing operational metrics' do
+    set_session({})
+    get '/health/detailed', {}, 'HTTP_ACCEPT' => 'application/json'
+    expect(last_response.status).to eq(401)
+    expect(last_response.body).not_to include('used_memory_mb', 'resources')
+    expect(last_response.headers['cache-control']).to include('no-store')
+  end
+
+  it 'rejects authenticated nonadministrators before running diagnostics' do
+    set_session(user_id: create_test_user('health-member@example.com'))
+    allow(DB).to receive(:execute).and_call_original
+    expect(DB).not_to receive(:execute).with('SELECT 1')
+    get '/health/detailed', {}, 'HTTP_ACCEPT' => 'application/json'
+    expect(last_response.status).to eq(403)
+    expect(last_response.body).not_to include('used_memory_mb', 'resources')
   end
 
   it 'reports database timing, Redis memory and resource measurements' do

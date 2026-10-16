@@ -470,6 +470,8 @@ use Rack::Protection, except: :session_hijacking
 - Sidekiq status
 
 **Detailed** (`/health/detailed`):
+- Administrator session required; responses are private/no-store. Use public
+  `/health/ready` or `/health/live` for unauthenticated infrastructure probes.
 - Connection pool utilization
 - Memory usage
 - Thread count

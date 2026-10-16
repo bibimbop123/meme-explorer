@@ -28,6 +28,17 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Detailed health access restricted
+
+- /health/detailed now requires administrator session and emits private/no-store
+  headers, preventing unauthenticated operational resource/queue disclosure. Public
+  basic/readiness/liveness endpoints unchanged; monitoring clients using detailed
+  endpoint must migrate to public probes or authenticated admin access.
+- Anonymous/nonadmin/admin and degraded paths tested: **14 targeted examples pass**.
+  Full isolated backend **943 examples, zero failures, seven pending**, 53.25s;
+  **72.00% coverage (4335/6021)**, both gates pass, **exit 0**. **113 frontend tests
+  pass**, Ruby/OpenAPI YAML/whitespace pass. No production/deployment changes.
+
 ### Startup logging full verification
 
 - Full isolated backend **941 examples, zero failures, seven pending**, 53.85s;

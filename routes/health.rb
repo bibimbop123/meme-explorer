@@ -210,6 +210,8 @@ module Routes
     # Detailed health check - for monitoring systems
     app.get '/health/detailed' do
       content_type :json
+      headers 'Cache-Control' => 'no-store, private'
+      require_admin!
       
       health_data = {
         status: 'healthy',
