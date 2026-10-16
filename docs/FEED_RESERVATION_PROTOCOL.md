@@ -74,11 +74,18 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1187 backend examples, zero failures, seven pending;
-75.55% (4946/6547), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1188 backend examples, zero failures, seven pending;
+75.55% (4947/6548), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+ACK authenticated identity preflight: coordinator validates current_user_id using
+shared issuance-context rules before lookup/transaction; no numeric/string coercion.
+One malformed-ID matrix regression, existing account-switch attribution unchanged.
+Full backend 1188 examples, zero failures, seven pending, 66.37s; 75.55%
+(4947/6548), gates pass, exit 0; 21 targeted coordinator cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
 
 Runner boundary tests: exact soft-time equality stops additional scheduling;
 capacity/outage results terminate without further issuance, repeated run is closed.

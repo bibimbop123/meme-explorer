@@ -13,6 +13,7 @@ module MemeExplorer
       valid_id = ->(value) { value.is_a?(String) && value.match?(/\A[a-f0-9]{64}\z/) }
       return { status: :invalid } unless valid_id.call(impression_id) &&
         (reservation_token.nil? || valid_id.call(reservation_token))
+      return { status: :invalid } unless FeedAcknowledgementStore.valid_issuance_context?(user_id: current_user_id)
       return { status: :unavailable, stage: :database } if Thread.current[:db_connection]
 
       binding = FeedAcknowledgementStore.lookup(session_id, token, impression_id: impression_id)

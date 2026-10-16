@@ -173,6 +173,15 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### ACK authenticated-user input preflight
+
+- Coordinator rejects malformed current_user_id before credential lookup/DB work,
+  sharing issuance validator. One malformed-ID matrix regression; routes unchanged.
+- Full backend **1188 examples, zero failures, seven pending**, 66.37s;
+  **75.55% (4947/6548)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  21 targeted coordinator cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Migration/replay/capacity/privacy gates remain open.
+
 ### Chunk runner boundary and terminal-outcome tests
 
 - Two deterministic regressions cover exact soft-time boundary and no repeated
