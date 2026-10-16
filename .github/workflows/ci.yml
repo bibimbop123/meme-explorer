@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'checkpoint/**' ]
   pull_request:
     branches: [ main, develop ]
 

@@ -726,9 +726,10 @@ test('rendering Next and restored memes updates or clears exact share identity',
   const saved = { document: globalThis.document, window: globalThis.window };
   const display = { dataset: {}, classList: { add() {}, remove() {} } };
   const share = { dataset: { sharePath: `/meme/${'a'.repeat(64)}` } };
+  const signIn = { hidden: false };
   globalThis.window = { matchMedia: () => ({ matches: true }) };
   globalThis.document = {
-    querySelector: selector => selector === '#meme-display' ? display : selector === '#viewer-share-data' ? share : null,
+    querySelector: selector => selector === '#meme-display' ? display : selector === '#viewer-share-data' ? share : selector === '#save-sign-in' ? signIn : null,
     getElementById: () => null
   };
   const nav = navigation();
@@ -741,6 +742,7 @@ test('rendering Next and restored memes updates or clears exact share identity',
     const next = { url: '/next.jpg', share_path: `/meme/${'b'.repeat(64)}` };
     assert.equal(await nav.renderMeme(next, true, 1), true);
     assert.equal(share.dataset.sharePath, next.share_path);
+    assert.equal(signIn.hidden, true);
     const restored = { url: '/initial.jpg', share_path: `/meme/${'a'.repeat(64)}` };
     assert.equal(await nav.renderMeme(restored, false, 1), true);
     assert.equal(share.dataset.sharePath, restored.share_path);

@@ -1,6 +1,14 @@
 <div id="initial-meme-data" hidden data-meme="<%= Rack::Utils.escape_html((@meme || {}).merge('url' => (@meme && (@meme['url'] || @meme['file'])), 'impression_id' => @impression_id, 'likes' => @likes, 'liked' => !!@liked, 'saved' => !!@saved).to_json) %>"></div>
 <div id="viewer-share-data" hidden data-share-path="<%= Rack::Utils.escape_html(@share_path.to_s) %>"></div>
 <div class="page-wrapper simplified-mode">
+  <% if @permalink_page && params[:save_after_login] == '1' && logged_in? %>
+    <p role="status">You are signed in. Press Save to keep this meme in your account.</p>
+  <% end %>
+  <section id="save-sign-in" hidden aria-label="Save to your account" style="max-width: 700px; margin: 16px auto; padding: 16px;">
+    <p>This meme has not been saved. Sign in to keep favorites across devices, then return and press Save again.</p>
+    <a href="/login">Sign in to save favorites</a>
+    <p>Before leaving, use Share to keep an exact link to this meme if available.</p>
+  </section>
   <section id="manual-share" hidden aria-label="Copy exact meme link" style="max-width: 700px; margin: 16px auto; padding: 16px;">
     <label for="manual-share-url">Exact link to the meme you chose to share</label>
     <p id="manual-share-help">Automatic sharing is unavailable. Select this link and copy it using your device's copy command.</p>

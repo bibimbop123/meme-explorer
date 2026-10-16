@@ -46,4 +46,5 @@ Sidekiq.configure_client do |config|
   }
 end
 
-puts "✅ Sidekiq configured (Redis: #{ENV['REDIS_URL'] || 'redis://localhost:6379/0'})"
+# Connection URLs can contain passwords. Never print them, even at startup.
+puts '✅ Sidekiq configured (Redis connection details omitted)'

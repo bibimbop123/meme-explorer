@@ -28,6 +28,190 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Checkpoint branch CI eligibility
+
+- Enabled checkpoint/** push triggers and manual workflow_dispatch, preserving
+  main/develop PR triggers. Allows hosted validation before merge/deployment.
+- Local workflow YAML/trigger validation passes. Hosted run results unavailable
+  through current tooling; no push, dispatch, merge or deployment performed.
+
+### Account cache fix full verification
+
+- Full isolated backend **945 examples, zero failures, seven pending**, 53.3s;
+  **71.97% coverage (4335/6023)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, Ruby syntax/whitespace pass. Profile/Saved no-store behavior is
+  covered for authorized pages, missing records and authentication redirects.
+  Hosted CI and real browser cache/history acceptance remain open; no deployment.
+
+### Account page cache boundaries
+
+- Committed detailed-health access restriction as 0b5d649. Profile and Saved detail
+  now explicitly emit private/no-store before authorization, including redirects
+  and missing records. This discourages storage, not guaranteed browser-history
+  erasure or removal of previously cached content.
+- **18 targeted security/profile examples pass**, partial coverage exit 2;
+  Ruby syntax/whitespace pass. Full suite not rerun; last full 943 examples,
+  zero failures, seven pending, 72.00%, exit 0. No JS/build or deployment.
+
+### Detailed health access restricted
+
+- /health/detailed now requires administrator session and emits private/no-store
+  headers, preventing unauthenticated operational resource/queue disclosure. Public
+  basic/readiness/liveness endpoints unchanged; monitoring clients using detailed
+  endpoint must migrate to public probes or authenticated admin access.
+- Anonymous/nonadmin/admin and degraded paths tested: **14 targeted examples pass**.
+  Full isolated backend **943 examples, zero failures, seven pending**, 53.25s;
+  **72.00% coverage (4335/6021)**, both gates pass, **exit 0**. **113 frontend tests
+  pass**, Ruby/OpenAPI YAML/whitespace pass. No production/deployment changes.
+
+### Startup logging full verification
+
+- Full isolated backend **941 examples, zero failures, seven pending**, 53.85s;
+  **71.96% coverage (4331/6019)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, syntax/whitespace pass. Log omission does not replace operator
+  credential rotation or historical log review. No deployment performed.
+
+### Redis startup credential leak closed
+
+- Removed raw REDIS_URL interpolation from application Sidekiq startup message;
+  output now omits connection details entirely. Connection settings unchanged.
+- Startup-output regression **1 example passes**, partial coverage exit 2;
+  Ruby syntax/whitespace pass. Full suite not rerun. This does not rotate exposed
+  credentials or erase existing logs; operators must still rotate database/Redis
+  secrets and review log access. Third-party logging review remains separate.
+
+### Push hardening full regression
+
+- Full isolated backend **940 examples, zero failures, seven pending**, 56.29s;
+  **71.96% coverage (4331/6019)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, syntax/static mirror/whitespace pass. Push functionality is NOT
+  accepted: schema reconciliation and delivery remain open. No deployment.
+
+### Push configuration and truthful confirmation
+
+- Missing/blank VAPID key now suppresses push prompts/registration entirely.
+  Permission grant alone no longer claims notifications enabled: confirmation
+  requires HTTP/application persistence success and says only subscription saved.
+- **113 frontend tests pass**, build/static mirror/whitespace pass. Backend not
+  changed/run this slice. Conflicting push schemas and absent delivery service
+  still block functional push; no schema migration/provider requests performed.
+
+### Push input/error boundary hardening
+
+- Found conflicting endpoint/key versus subscription_data push schemas; no schema
+  migration performed. Existing endpoint now rejects malformed/non-HTTPS/credentialed
+  subscriptions and invalid key shapes before storage. Persistence errors return
+  generic 503; logs omit raw exception/endpoint details. This does NOT repair storage.
+- **3 targeted route examples pass**, partial coverage exit 2; Ruby/whitespace pass.
+  Full suite not rerun. Push schema reconciliation, provider delivery and browser
+  consent remain open; no external push requests or production changes.
+
+### Reviewed Vite security upgrade
+
+- Upgraded existing Vite dependency from 5.x to **6.4.4** after checking Node 18/
+  20/22 engine support and plugin-free config. Locked install, production build
+  and bundle syntax pass; **npm audit: zero vulnerabilities**, superseding the
+  prior remaining-advisory note. CJS API deprecation warning remains.
+- **110 frontend tests pass**. Full isolated backend **937 examples, zero failures,
+  seven pending**, 56.63s; **71.81% coverage (4316/6010)**, gates pass, **exit 0**.
+  Live browser acceptance and hosted CI remain separate; no deployment performed.
+
+### Dependency audit quick win
+
+- npm audit identified source-map-js indexed-source-map denial of service plus
+  Vite/esbuild development-server advisories. Updated only compatible transitive
+  source-map-js **1.2.1 → 1.2.2**; package.json/framework version unchanged.
+- **110 frontend tests pass**, production build succeeds with unchanged bundle,
+  whitespace passes. npm audit now reports **2 vulnerabilities (1 moderate, 1 high)**;
+  remediation requires reviewed Vite major upgrade, not automatic --force.
+  No backend changes/run or deployment. Avoid exposing development servers.
+
+### Browser acceptance handoff
+
+- Added BROWSER_ACCEPTANCE.md with explicit NOT EXECUTED status, environment/
+  evidence requirements and pass criteria for navigation, media recovery, sharing,
+  guest authentication return and Saved Undo/context. Linked deployment guide.
+  Documentation only; no live browser/provider tests claimed or production actions.
+
+### Guest recovery messaging resets after catalog failure
+
+- Sign-in prompt now resets its recovery promise on every unauthorized Save:
+  a later failed catalog lookup cannot retain an earlier successful-return claim.
+  Added sequential success/failure frontend regression. **110 frontend tests pass**,
+  build/module parity/bundle syntax/whitespace pass. No backend changes/run;
+  last full remains 937 examples, zero failures, seven pending, 71.78%, exit 0.
+  Actual browser/provider acceptance remains open.
+
+### Authentication recovery failure boundaries: full verification
+
+- Added expired OAuth-state and unavailable-catalog/malformed-payload regressions:
+  no token exchange on expiry, no false recovery promise, stale pending context
+  cleared when a new guest request cannot register recovery.
+- Full isolated backend **937 examples, zero failures, seven pending**, 56.91s;
+  **71.78% coverage (4314/6010)**, both gates pass, **exit 0**. **109 frontend
+  tests pass**, syntax/module parity/whitespace pass. Actual provider/browser
+  acceptance remains open; no deployment performed.
+
+### Reddit OAuth pending-meme continuation
+
+- Successful OAuth retains only bounded pending ID context before session clearing/
+  renewal, then returns to fixed local permalink for explicit Save. Invalid state
+  never exchanges tokens and retains pending context for retry. Removed unused full
+  old-session snapshot. OAuth provider/token operations stubbed in route tests.
+- **18 targeted auth examples pass**, partial coverage exit 2; Ruby syntax/whitespace
+  pass. Full backend not rerun; last full 933 examples, 71.23%, exit 0. Real provider/
+  browser acceptance remains open; no deployment.
+
+### Pending-save authentication regression verification
+
+- Added signup/session-state discard, failed-login retry, expired context and
+  missing/removed catalog regressions. Context is not a silent save promise;
+  post-login explicit Save and existing account authorization remain required.
+- Full isolated backend **933 examples, zero failures, seven pending**, 56.23s;
+  **71.23% coverage (4281/6010)**, both gates pass, **exit 0**. **109 frontend tests
+  pass**, Ruby/viewer ERB, module parity and whitespace pass. OAuth/browser flow
+  acceptance remains open; no deployment performed.
+
+### Pending exact-meme recovery through email authentication
+
+- Guest Save records one existing catalog ID with 30-minute expiry in session.
+  Email login/signup captures only this bounded context before clearing/renewing
+  session and returns a fixed local permalink. User explicitly presses Save after
+  login; no silent save/auth-side mutation. Invalid/missing catalog context degrades
+  to ordinary sign-in. OAuth continuation and automatic save remain open.
+- Initial targeted auth/profile **28 examples pass** (partial coverage exit 2),
+  **109 frontend tests pass**, build/mirror/whitespace pass. Full suite not rerun.
+
+### Guest Save navigation race and accumulated regression
+
+- Late unauthorized Save no longer prompts for old content after navigation;
+  successful navigation hides the prior sign-in panel. Added deferred response and
+  panel-reset regressions. Pending-save login persistence remains open.
+- **109 frontend tests pass**, build and module parity pass. Full isolated backend
+  rerun after build completed: **927 examples, zero failures, seven pending**,
+  53.54s; **71.05% coverage (4259/5994)**, both gates pass, **exit 0**.
+  Initial overlapping build/test run failed the boot-time bundle fingerprint test;
+  do not rebuild assets during a running Ruby process/test suite. No deployment.
+
+### Guest Save account-value prompt
+
+- Unauthorized Save rolls back optimistic state and reveals a keyboard-focused
+  sign-in action explaining cross-device favorites and explicitly stating the meme
+  is not saved. Suggests keeping an exact Share link before leaving. No implicit
+  pending-save persistence or session-auth changes; automatic login recovery stays open.
+- **108 frontend tests pass**, build, touched module parity, viewer ERB/whitespace
+  pass. Backend not changed/run; last full 925 examples, 71.21%, exit 0.
+
+### Saved retry idempotency
+
+- Existing favorites now return successful unchanged saves before repeating
+  preference/activity/reward effects. Conflict-safe INSERT RETURNING also suppresses
+  side effects when another request won the insertion race. Remove/re-save cycles
+  still count as new saves; durable undo semantics remain separate.
+- **35 targeted service/profile examples pass**, partial coverage exit 2;
+  **107 frontend tests pass**, Ruby syntax/whitespace pass. Full suite not rerun;
+  last full 925 examples, zero failures, seven pending, 71.21%, exit 0.
+
 ### Duplicate-selection full regression
 
 - Full isolated backend after random no-store/client duplicate guard: **925 examples,

@@ -207,7 +207,8 @@ export class MemeInteractions {
       const endpoint = wasSaved ? '/api/unsave-meme' : '/api/save-meme';
       const body = wasSaved 
         ? { url: memeUrl }
-        : { url: memeUrl, title: memeTitle, subreddit: memeSubreddit };
+        : { url: memeUrl, title: memeTitle, subreddit: memeSubreddit,
+            content_id: document.querySelector?.('#viewer-share-data')?.dataset.sharePath?.match(/^\/meme\/([a-f0-9]{64})$/)?.[1] };
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -225,6 +226,21 @@ export class MemeInteractions {
         this.showToast(wasSaved ? 'Removed from saved' : '🔖 Saved to profile!', 'success');
       } else {
         if (this.getCurrentMemeUrl() === memeUrl) this.updateSaveButton(wasSaved, false);
+        if (response.status === 401) {
+          if (this.getCurrentMemeUrl() !== memeUrl) return;
+          const data = await response.json();
+          const panel = document.querySelector('#save-sign-in');
+          if (panel && this.getCurrentMemeUrl() === memeUrl) {
+            const message = panel.querySelector?.('p');
+            if (message) message.textContent = data.pending_save === true
+              ? 'Not saved yet. Sign in to return to this meme, then press Save to keep it across devices.'
+              : 'Not saved. Automatic return to this meme is unavailable. Use Share to keep its exact link before signing in, if available.';
+            panel.hidden = false;
+            panel.querySelector?.('a')?.focus();
+          }
+          this.showToast('Not saved. Sign in to keep favorites across devices.', 'info');
+          return;
+        }
         const error = await response.json();
         console.error('[MemeInteractions] Save failed:', error);
         this.showToast(error.error || 'Error saving meme', 'error');

@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 925 backend examples, zero failures, seven pending;
-107 frontend tests pass; 71.21% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 945 backend examples, zero failures, seven pending;
+113 frontend tests pass; 71.97% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -403,6 +403,23 @@ denial, unavailable native share, cancellation, removed content and malformed ID
 open. Native API resolution is a handoff signal, not proof a friend received a message.
 
 ## Phase 3 — Saving means “you won't lose this”
+
+Reddit OAuth now shares the bounded pending-meme return behavior after validated
+state and session rotation. Earlier OAuth-continuation open notes are superseded
+for server implementation, not actual provider/browser acceptance.
+
+Guest Save can now retain a single expiring catalog ID through email login/signup
+session rotation and return to the exact meme for explicit Save confirmation.
+This supersedes earlier email-return limitations, not guest persistence or OAuth
+continuation. Missing/removed catalog content is not silently replaced.
+
+Guest Save now offers sign-in with explicit not-saved/account-scope messaging and
+an exact-link preservation suggestion. It does not promise persistence through
+login; secure pending-save recovery remains open.
+
+Retrying an already-persisted save no longer repeats preference/reward/activity
+side effects; insertion conflicts are successful unchanged saves. This supports
+reliable retries, but pending-save login recovery remains unimplemented.
 
 Saved detail removal now stays in place and offers Undo until leaving the page.
 Undo restores title/community through the existing save endpoint; failures retain
