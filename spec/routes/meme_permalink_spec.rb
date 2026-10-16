@@ -2,6 +2,15 @@ require_relative '../spec_helper'
 require_relative '../../lib/services/meme_identity_service'
 
 RSpec.describe 'Public exact-meme recipient pages' do
+  it 'retains crosspost origin when a registered image is opened by a recipient' do
+    id = MemeIdentityService.register({ 'url' => 'https://i.redd.it/crosspost-recipient.jpg',
+      'title' => 'Shared image', 'subreddit' => 'funny', 'is_crosspost' => true, 'original_subreddit' => 'original<community>' })
+    get "/meme/#{id}"
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('crosspost-badge', 'from r/original&lt;community&gt;')
+    expect(last_response.body).not_to include('from r/original<community>')
+  end
+
   it 'shows content and a discovery link without ad slots even when ads are enabled' do
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with('DISABLE_ADS').and_return('false')

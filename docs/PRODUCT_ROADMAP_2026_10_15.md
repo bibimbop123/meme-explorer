@@ -28,6 +28,30 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Crosspost permalink attribution and GIF preservation
+
+- Resolver retains GIF media type and deepest resolved parent community through
+  nested crossposts. New catalog snapshots retain escaped-on-render crosspost
+  origin fields; existing immutable snapshots remain unchanged.
+- Targeted resolver/permalink/identity **24 examples pass**, partial coverage exit
+  2; Ruby syntax/whitespace pass. Full suite not rerun; last full 921 examples,
+  zero failures, seven pending, 71.16%, exit 0. Live browser/media checks stay open.
+
+### Website-link and crosspost image resolution
+
+- Added shared metadata-only resolver for validated direct raster/Imgur, galleries,
+  website previews and bounded crosspost-parent traversal. Primary and cache HTTP
+  fetchers now resolve media instead of selecting webpage URLs or blanket-rejecting
+  crossposts/link domains. Outer title/community and quality filters retained;
+  parent community marked separately. Hosted-video handling remains separate.
+- Full isolated backend **921 examples, zero failures, seven pending**, 48.21s;
+  **71.16% coverage (4262/5989)**, gates pass, **exit 0**. Additional primary-fetcher
+  attribution regression subsequently passes (resolver **4 examples**); **102
+  frontend tests pass**, Ruby syntax/whitespace pass. No JS change/build required.
+- No website scraping, cache purge or immutable catalog rewrite. Existing pool
+  records require normal refresh; remote hotlink availability and browser/crawler
+  checks remain open. Crossposted videos are outside this image-focused slice.
+
 ### Saved removal Undo
 
 - Successful removal stays on detail with Undo; Back remains available. Restore

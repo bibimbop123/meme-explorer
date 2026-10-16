@@ -7,13 +7,14 @@ require 'net/http'
 require 'uri'
 require 'securerandom'
 require_relative '../security/media_url'
+require_relative 'reddit_media_resolver'
 
 class ApiCacheService
   CACHE_TTL = 3600  # Increased to 1 hour to reduce API calls
   LOCK_TTL = 180    # Covers both 60-second fetch phases plus processing margin
   FETCH_TIMEOUT = 60
   INVALIDATION_BATCH_SIZE = 200
-  
+
   # QUALITY FILTERS - Higher quality memes only
   MIN_UPVOTES = 50
   MIN_UPVOTE_RATIO = 0.7
@@ -61,9 +62,9 @@ class ApiCacheService
     # Generic cache methods for testing
     def set(key, data, ttl: CACHE_TTL)
       return false if data.nil?
-      
+
       cache_key = "cache:#{key}"
-      
+
       if redis
         begin
           if ttl
@@ -76,7 +77,7 @@ class ApiCacheService
           # Fall through to memory cache
         end
       end
-      
+
       # Memory cache fallback
       memory_lock.synchronize do
         memory_cache[cache_key] = data
@@ -87,7 +88,7 @@ class ApiCacheService
 
     def get(key)
       cache_key = "cache:#{key}"
-      
+
       begin
         if redis
           cached = redis.get(cache_key)
@@ -101,7 +102,7 @@ class ApiCacheService
       rescue => e
         # Fall through to memory cache on other errors
       end
-      
+
       # Memory cache fallback
       memory_lock.synchronize do
         expire_memory_entry(cache_key)
@@ -111,7 +112,7 @@ class ApiCacheService
 
     def delete(key)
       cache_key = "cache:#{key}"
-      
+
       if redis
         begin
           redis.del(cache_key)
@@ -119,7 +120,7 @@ class ApiCacheService
           # Continue to memory
         end
       end
-      
+
       memory_lock.synchronize do
         memory_cache.delete(cache_key)
         @@memory_expirations.delete(cache_key)
@@ -129,7 +130,7 @@ class ApiCacheService
 
     def exists?(key)
       cache_key = "cache:#{key}"
-      
+
       if redis
         begin
           return redis.exists?(cache_key)
@@ -137,7 +138,7 @@ class ApiCacheService
           # Fall through
         end
       end
-      
+
       memory_lock.synchronize do
         expire_memory_entry(cache_key)
         memory_cache.key?(cache_key)
@@ -146,7 +147,7 @@ class ApiCacheService
 
     def increment(key, by: 1)
       cache_key = "cache:#{key}"
-      
+
       if redis
         begin
           return redis.incrby(cache_key, by)
@@ -154,7 +155,7 @@ class ApiCacheService
           # Fall through
         end
       end
-      
+
       memory_lock.synchronize do
         expire_memory_entry(cache_key)
         memory_cache[cache_key] ||= 0
@@ -166,7 +167,7 @@ class ApiCacheService
     def clear_pattern(pattern)
       count = 0
       cache_pattern = "cache:#{pattern}"
-      
+
       if redis
         begin
           redis.scan_each(match: cache_pattern).each_slice(INVALIDATION_BATCH_SIZE) do |keys|
@@ -177,7 +178,7 @@ class ApiCacheService
           # Fall through
         end
       end
-      
+
       memory_lock.synchronize do
         keys_to_delete = memory_cache.keys.select { |key| File.fnmatch?(cache_pattern, key.to_s) }
         count = [count, keys_to_delete.size].max
@@ -202,7 +203,7 @@ class ApiCacheService
       # Try to get from cache first
       cached = get(key)
       return cached if cached
-      
+
       # Execute block and cache result
       result = block.call
       set(key, result, ttl: ttl) if result
@@ -470,9 +471,9 @@ class ApiCacheService
         begin
           # Fetch only from HOT to reduce API calls
           url = "https://oauth.reddit.com/r/#{subreddit}/hot?limit=#{limit}"
-          
+
           rate_limit_delay  # Enforce rate limiting
-          
+
           response = HTTParty.get(
             url,
             headers: {
@@ -481,7 +482,7 @@ class ApiCacheService
             },
             timeout: 15
           )
-          
+
           if response.code == 429
             # Rate limited - back off
             retry_after = response.headers['retry-after']&.to_i || 60
@@ -489,51 +490,46 @@ class ApiCacheService
             sleep(retry_after)
             next
           end
-          
+
               if response.success?
                   (response.parsed_response.dig('data', 'children') || []).each do |post|
                     post_data = post['data']
-                    
-                    # CROSSPOST FILTER: Skip all crosspost variations
-                    next if post_data['is_crosspost'] == true
-                    next if post_data['crosspost_parent'].present?
-                    next if post_data['crosspost_parent_list']&.any?
-                    next if post_data['num_crossposts'].to_i > 0
-                    
-                    # LINK POST FILTER: Skip text/self posts
-                    next if post_data['is_self'] == true
-                    
-                    # LINK POST FILTER: Only accept image/video content
-                    # EMBEDDED POST FILTER: Exclude rich:video (YouTube, Twitter embeds, etc.)
-                    post_hint = post_data['post_hint']
-                    next unless ['image', 'hosted:video'].include?(post_hint)
-                    
-                    # LINK POST FILTER: Verify domain is a media host
-                    domain = post_data['domain']
-                    trusted_domains = ['i.redd.it', 'i.imgur.com', 'imgur.com', 'gfycat.com', 'v.redd.it', 'redgifs.com']
-                    next unless trusted_domains.any? { |d| domain&.include?(d) }
-                    
+
+                    # Resolve link/crosspost images before applying existing quality filters.
+
+                    resolved = RedditMediaResolver.resolve(post_data)
+
+                    unless post_data['is_video'] && post_data.dig('media', 'reddit_video')
+
+                      next unless resolved
+
+                    end
+
+                    next if post_data['is_self']
+
+                    post_data = post_data.merge(resolved) if resolved
+
                     # Quality filtering
                     upvotes = post_data['ups'] || 0
                     next if upvotes < MIN_UPVOTES
-                    
+
                     upvote_ratio = post_data['upvote_ratio'] || 0
                     next if upvote_ratio < MIN_UPVOTE_RATIO
-                    
+
                     num_comments = post_data['num_comments'] || 0
                     next if num_comments < MIN_COMMENTS
 
               # Check if gallery post first
               is_gallery = post_data['is_gallery'] == true
               gallery_images = nil
-              
+
               if is_gallery
-                gallery_images = extract_gallery_images(post_data)
+                gallery_images = post_data['gallery_images'] || extract_gallery_images(post_data)
               end
 
               # Support videos (reddit hosted only)
               is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
-              
+
               image_url = if is_reddit_video
                             post_data.dig('media', 'reddit_video', 'fallback_url')
                           elsif gallery_images && gallery_images.any?
@@ -541,7 +537,7 @@ class ApiCacheService
                           else
                             extract_image_url(post_data)
                           end
-                          
+
               next unless image_url
 
               meme_data = {
@@ -561,6 +557,7 @@ class ApiCacheService
                 meme_data['gallery_images'] = gallery_images
               end
 
+              meme_data.merge!(resolved) if resolved
               memes << meme_data
             end
           end
@@ -582,7 +579,7 @@ class ApiCacheService
       subreddits.each do |subreddit|
         retries = 0
         success = false
-        
+
         while !success && retries <= MAX_RETRIES
           begin
             # Fetch only from HOT to reduce API calls
@@ -621,47 +618,42 @@ class ApiCacheService
               data = JSON.parse(response.body)
               (data.dig('data', 'children') || []).each do |post|
                 post_data = post['data']
-                
-                # CROSSPOST FILTER: Skip all crosspost variations
-                next if post_data['is_crosspost'] == true
-                next if post_data['crosspost_parent'].present?
-                next if post_data['crosspost_parent_list']&.any?
-                next if post_data['num_crossposts'].to_i > 0
-                
-                # LINK POST FILTER: Skip text/self posts
-                next if post_data['is_self'] == true
-                
-                # LINK POST FILTER: Only accept image/video content
-                # EMBEDDED POST FILTER: Exclude rich:video (YouTube, Twitter embeds, etc.)
-                post_hint = post_data['post_hint']
-                next unless ['image', 'hosted:video'].include?(post_hint)
-                
-                # LINK POST FILTER: Verify domain is a media host
-                domain = post_data['domain']
-                trusted_domains = ['i.redd.it', 'i.imgur.com', 'imgur.com', 'gfycat.com', 'v.redd.it', 'redgifs.com']
-                next unless trusted_domains.any? { |d| domain&.include?(d) }
-                
+
+                # Resolve link/crosspost images before applying existing quality filters.
+
+                resolved = RedditMediaResolver.resolve(post_data)
+
+                unless post_data['is_video'] && post_data.dig('media', 'reddit_video')
+
+                  next unless resolved
+
+                end
+
+                next if post_data['is_self']
+
+                post_data = post_data.merge(resolved) if resolved
+
                 # Quality filtering
                 upvotes = post_data['ups'] || 0
                 next if upvotes < MIN_UPVOTES
-                
+
                 upvote_ratio = post_data['upvote_ratio'] || 0
                 next if upvote_ratio < MIN_UPVOTE_RATIO
-                
+
                 num_comments = post_data['num_comments'] || 0
                 next if num_comments < MIN_COMMENTS
 
                 # Check if gallery post first
                 is_gallery = post_data['is_gallery'] == true
                 gallery_images = nil
-                
+
                 if is_gallery
-                  gallery_images = extract_gallery_images(post_data)
+                  gallery_images = post_data['gallery_images'] || extract_gallery_images(post_data)
                 end
 
                 # Support reddit videos
                 is_reddit_video = post_data['is_video'] && post_data.dig('media', 'reddit_video')
-                
+
                 image_url = if is_reddit_video
                               post_data.dig('media', 'reddit_video', 'fallback_url')
                             elsif gallery_images && gallery_images.any?
@@ -669,7 +661,7 @@ class ApiCacheService
                             else
                               extract_image_url(post_data)
                             end
-                            
+
                 next unless image_url
 
                 meme_data = {
@@ -689,7 +681,8 @@ class ApiCacheService
                   meme_data['gallery_images'] = gallery_images
                 end
 
-                memes << meme_data
+                meme_data.merge!(resolved) if resolved
+              memes << meme_data
               end
               success = true
             else
@@ -708,16 +701,16 @@ class ApiCacheService
       # Try direct image URL
       if post_data['url']
         url = post_data['url']
-        
+
         # CRITICAL: Reject subreddit URLs
         return nil if url.match?(/^\/r\/[^\/]+\/?$/)
         return nil if url.match?(/reddit\.com\/r\/[^\/]+\/?$/)
-        
+
         # Accept only actual image URLs
         if url.match?(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
           return url
         end
-        
+
         # Accept known image hosting domains
         if url.match?(/^https?:\/\/(i\.redd\.it|i\.imgur\.com|preview\.redd\.it)/i)
           return url
@@ -784,30 +777,30 @@ class ApiCacheService
       validated = memes.select do |m|
         next false unless m.is_a?(Hash)
         url = m['url'].to_s.strip
-        
+
         # Must have valid URL
         next false unless MediaUrl.safe(url) && url.match?(/^https?:\/\//)
-        
+
         # CRITICAL: Reject subreddit paths
         next false if url.match?(/^\/r\/[^\/]+\/?$/)
         next false if url.match?(/reddit\.com\/r\/[^\/]+\/?$/)
         next false if url.include?('/r/') && url.include?('/comments/')
-        
+
         # Must be actual media URL
         is_media = url.match?(/\.(jpg|jpeg|png|gif|webp|mp4|webm)(\?|$)/i) ||
                    %w[i.redd.it i.imgur.com preview.redd.it v.redd.it].include?(URI.parse(url).host)
         next false unless is_media
-        
+
         # Must have minimum quality metrics
         next false unless m['likes'].to_i >= MIN_UPVOTES
         next false unless m['upvote_ratio'].to_f >= MIN_UPVOTE_RATIO
-        
+
         true
       end
-      
+
       # Sort by quality score
       sorted = validated.sort_by { |m| -(m['quality_score'] || 0) }
-      
+
       # Return top 200 highest quality memes
       sorted.first(200)
     end

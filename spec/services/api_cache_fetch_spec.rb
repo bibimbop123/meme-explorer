@@ -28,15 +28,25 @@ RSpec.describe 'API cache HTTP fetching' do
         service.send("fetch_reddit_memes_#{strategy}", *args)
       end
 
-      it 'accepts quality media and excludes crossposts, self posts and low-quality content' do
-        rejected = [{ 'is_crosspost' => true }, { 'crosspost_parent' => 'parent' },
-          { 'crosspost_parent_list' => [{}] }, { 'num_crossposts' => 1 }, { 'is_self' => true },
-          { 'post_hint' => 'rich:video' }, { 'domain' => 'example.com' }, { 'ups' => 1 },
+      it 'accepts quality media and excludes self posts and low-quality content' do
+        rejected = [{ 'is_self' => true },
+          { 'post_hint' => 'rich:video' }, { 'ups' => 1 },
           { 'upvote_ratio' => 0.1 }, { 'num_comments' => 0 }].map { |overrides| post.merge(overrides) }
         stub_request(:get, endpoint).to_return(status: 200, body: listing([post] + rejected), headers: { 'Content-Type' => 'application/json' })
         result = fetch(strategy)
         expect(result.size).to eq(1)
         expect(result.first).to include('title' => 'Quality meme', 'likes' => 200, 'is_video' => false)
+      end
+
+      it 'resolves website previews and crossposted parent images without selecting HTML URLs' do
+        link = post.merge('url' => 'https://example.com/article', 'domain' => 'example.com', 'post_hint' => 'link',
+          'preview' => { 'images' => [{ 'source' => { 'url' => 'https://preview.redd.it/article.jpg?a=1&amp;b=2' } }] })
+        crosspost = post.merge('url' => 'https://reddit.com/r/other/comments/abc', 'post_hint' => 'link',
+          'crosspost_parent_list' => [{ 'url' => 'https://i.redd.it/parent.jpg', 'subreddit' => 'original' }])
+        stub_request(:get, endpoint).to_return(status: 200, body: listing([link, crosspost]), headers: { 'Content-Type' => 'application/json' })
+        result = fetch(strategy)
+        expect(result.map { |m| m['url'] }).to eq(['https://preview.redd.it/article.jpg?a=1&b=2', 'https://i.redd.it/parent.jpg'])
+        expect(result.last).to include('is_crosspost' => true, 'original_subreddit' => 'original', 'subreddit' => 'funny')
       end
 
       it 'retains hosted video and gallery media metadata' do

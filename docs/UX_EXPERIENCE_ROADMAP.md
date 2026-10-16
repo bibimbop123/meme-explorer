@@ -22,8 +22,8 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 915 backend examples, zero failures, seven pending;
-102 frontend tests pass; 71.53% backend coverage passes both overall 70% and per-file
+Latest full-suite engineering evidence: 921 backend examples, zero failures, seven pending;
+102 frontend tests pass; 71.16% backend coverage passes both overall 70% and per-file
 30% gates. Full backend command exits 0 using isolated project-local dependencies
 without RUBYLIB (see RUBY_ENVIRONMENT.md). Shared RVM gems remain contaminated;
 second fresh dependency-directory reproduction passes on the same machine.
@@ -249,6 +249,15 @@ Test iOS Safari, Android Chrome and desktop, including 320px width and zoom.
 no exact repeats before eligible pool exhaustion, no competing gesture actions.
 
 ## Phase 2 — Share the exact moment
+
+New permalink snapshots retain crosspost origin; nested parents preserve the
+deepest resolved community and direct GIFs retain animation type. Targeted route
+checks verify escaped origin rendering. Existing snapshots are not rewritten.
+
+Website-link previews and crossposted parent images/galleries now resolve through
+shared validated metadata selection in both fetchers, retaining outer attribution.
+No arbitrary site scraping or immutable catalog rewriting; existing pools need
+normal refresh. Crossposted videos and remote availability remain separate work.
 
 Direct media extraction now rejects unsafe primary/preview candidates and tolerates
 malformed gallery shapes with safe preview fallback. Targeted media regressions

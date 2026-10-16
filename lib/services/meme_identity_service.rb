@@ -11,7 +11,7 @@ class MemeIdentityService
     url = MediaUrl.safe(meme['url'] || meme['file'])
     return nil unless url
     id = Digest::SHA256.hexdigest("meme-url-v1:#{url}")
-    snapshot = meme.slice('title', 'subreddit', 'permalink', 'media_type', 'width', 'height', 'is_gallery', 'gallery_images').merge('url' => url)
+    snapshot = meme.slice('title', 'subreddit', 'permalink', 'media_type', 'width', 'height', 'is_gallery', 'gallery_images', 'is_crosspost', 'original_subreddit').merge('url' => url)
     # Bound persisted untrusted payloads; rendering must still validate/escape.
     payload = JSON.generate(snapshot)
     return nil if payload.bytesize > 131_072

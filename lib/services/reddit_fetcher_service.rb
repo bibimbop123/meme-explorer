@@ -7,6 +7,7 @@ require 'net/http'
 require 'uri'
 require 'json'
 require_relative '../helpers/media_dimensions'
+require_relative 'reddit_media_resolver'
 
 class RedditFetcherService
   USER_AGENTS = [
@@ -123,10 +124,13 @@ class RedditFetcherService
       post_data = post["data"]
       next unless post_data
       next if post_data["is_self"] # Skip text posts
+      resolved = RedditMediaResolver.resolve(post_data)
+      next unless resolved
+      post_data = post_data.merge(resolved)
       
       # Handle gallery posts
       is_gallery = post_data["is_gallery"] == true
-      gallery_images = extract_gallery_images(post_data) if is_gallery
+      gallery_images = post_data['gallery_images'] if is_gallery
       
       # Skip videos unless they're galleries
       next if post_data["is_video"] && !is_gallery
@@ -148,6 +152,7 @@ class RedditFetcherService
         "likes" => post_data["ups"] || 0,
         "permalink" => post_data["permalink"]
       }
+      meme.merge!(resolved)
       dimensions = if gallery_images && gallery_images.any?
                      MediaDimensions.for(gallery_images.first)
                    else
