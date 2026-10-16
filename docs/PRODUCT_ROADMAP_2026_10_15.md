@@ -28,6 +28,26 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Reviewed Vite security upgrade
+
+- Upgraded existing Vite dependency from 5.x to **6.4.4** after checking Node 18/
+  20/22 engine support and plugin-free config. Locked install, production build
+  and bundle syntax pass; **npm audit: zero vulnerabilities**, superseding the
+  prior remaining-advisory note. CJS API deprecation warning remains.
+- **110 frontend tests pass**. Full isolated backend **937 examples, zero failures,
+  seven pending**, 56.63s; **71.81% coverage (4316/6010)**, gates pass, **exit 0**.
+  Live browser acceptance and hosted CI remain separate; no deployment performed.
+
+### Dependency audit quick win
+
+- npm audit identified source-map-js indexed-source-map denial of service plus
+  Vite/esbuild development-server advisories. Updated only compatible transitive
+  source-map-js **1.2.1 → 1.2.2**; package.json/framework version unchanged.
+- **110 frontend tests pass**, production build succeeds with unchanged bundle,
+  whitespace passes. npm audit now reports **2 vulnerabilities (1 moderate, 1 high)**;
+  remediation requires reviewed Vite major upgrade, not automatic --force.
+  No backend changes/run or deployment. Avoid exposing development servers.
+
 ### Browser acceptance handoff
 
 - Added BROWSER_ACCEPTANCE.md with explicit NOT EXECUTED status, environment/
