@@ -33,8 +33,15 @@ with generic text and omit exception/connection details.
 
 1. Confirm a live Sidekiq worker consumes default jobs and the maintenance schedule
    actually runs. Web startup saying 'pool ready' does not prove maintenance runs.
+   Local regression now exercises the server startup callback loading sidekiq.yml,
+   assigns its schedule and requests scheduler reload; all four configured worker
+   classes/queues are checked. This is mocked scheduler wiring, not live cron firing.
 2. Check maintenance logs: current pool count, fetched count, filtered count, stored
    count, errors and cooldowns. Compare distinct media URLs, not requested limits.
+   Maintenance success now requires positive stored/replaced evidence and no handled
+   error. Zero-publication/no-replacement runs are unsuccessful no-ops, not proof of
+   growth; worker behavior remains non-retrying for these returned outcomes. A
+   positive stored count can still be overlapping snapshots, not new unique supply.
 3. Verify OAuth succeeds; unauthenticated Reddit access may be heavily rate-limited.
 4. Confirm the web and worker share the intended Redis database/configuration.
 5. Wait for normal maintenance and observe unique inventory growth. Do not purge
@@ -51,6 +58,13 @@ absence of a concurrent overwrite. Compare subsequent observed pool counts befor
 claiming growth; ambiguous EXEC disconnects and partial runtime errors remain open.
 
 ## Remaining supply constraints
+
+`[PoolManager] Candidate filter outcome` reports input_count, basic_rejected,
+optional_rejected, accepted_count, pipeline_enabled and evaluation_failed. These
+count candidate records, not unique art/URLs. Evaluation failures report zero
+accepted and unknown (null) optional rejection count; exception text and candidate
+content are omitted. Empty input produces no filter event. Pair with batch unique
+counts to separate structural rejection, optional evaluation and overlap.
 
 Maintenance quality evaluation errors now reject new candidates rather than
 returning the unfiltered batch; existing inventory is retained. Mandatory maintenance

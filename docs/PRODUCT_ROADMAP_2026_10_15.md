@@ -33,8 +33,8 @@ not measured satisfaction, a security certification or production acceptance.
 
 Local fixtures reused artwork across URLs. They establish navigation behavior, not
 visual diversity, humor quality or production freshness. Do not equate a 5,000
-target, URL count or test count with a better feed. Latest validation: 1,036 backend
-examples, zero failures, seven pending; 74.04% coverage, gates pass, backend exit 0;
+target, URL count or test count with a better feed. Latest validation: 1,044 backend
+examples, zero failures, seven pending; 74.09% coverage, gates pass, backend exit 0;
 119 frontend tests pass. The score table retains its original assessment basis.
 Browser evidence: BROWSER_ACCEPTANCE_2026_10_16.md.
 
@@ -159,6 +159,10 @@ expired leases and media-hash retention remain reliability work before larger lo
 
 ### Next concrete deliverables
 
+Release preparation packet: [controlled release](CONTROLLED_RELEASE_2026_10_16.md),
+pinned to application candidate 67661da. Approval/hosted CI/operator/device gates
+remain open; preparation is not authorization to push or deploy.
+
 1. **Engineering/operator:** reviewed checkpoint + CI and credential-rotation evidence;
    normal-maintenance samples and dated retained-inventory observations.
 2. **Product/design:** feed audit and user-observation brief with ranked failures.
@@ -168,6 +172,63 @@ expired leases and media-hash retention remain reliability work before larger lo
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Security remediation batch 1
+
+- Conservative isolated patch updates: rack 3.2.7, rack-session 2.1.2, bcrypt 3.1.22,
+  concurrent-ruby 1.3.8. Exactly four lockfile entries changed; constraints unchanged.
+  Repeat audit clears those gem families but still exits 1 for eight others; release
+  blocked. CI audit invocation fix and advisory queue documented separately.
+- Native/Ruby and CSRF checks, Vite build and **119 frontend tests pass**. Full
+  backend: **1044 examples, zero failures, seven pending**, 56.06s; **74.12% coverage
+  (4571/6167)**, gates pass, exit 0. No provider/production acceptance or hosted green
+  audit claimed. Candidate must be repinned; no push, deployment or score increase.
+
+### Controlled-release verification and parallel audit preparation
+
+- Fresh GitHub full-SHA lookup for 67661da finds run 38951948445: test job succeeds,
+  security job fails at Run security audit. Release is blocked; do not waive the gate.
+  Failure details/remediation remain follow-up; no run triggered or deployment made.
+- Public recipient still lacks canonical/og:url/og:image. Isolated Ruby/native and
+  Blueprint checks pass; live environment/deployed SHA remain unverified.
+- Release packet updated; empty feed-audit CSV prepared. No feed observations,
+  participant recruitment/scheduling or research results are claimed. Redesign,
+  collections and elaborate ranking remain deferred.
+
+### Truthful maintenance outcome reporting
+
+- Maintain_pool no longer returns unconditional success after handled fetch errors,
+  zero publication or zero stale replacements. Success requires positive stored/
+  replaced evidence and no error; returned no-ops remain non-retrying in the worker.
+  Finish log is neutral rather than a success-marked claim. Publication is not proof
+  of unique growth, and stored overlapping snapshots remain distinct from additions.
+- Four regressions cover handled error, zero publication and zero/positive stale
+  replacement. Full backend: **1044 examples, zero failures, seven pending**, 58.28s;
+  **74.09% coverage (4569/6167)**, gates pass, exit 0. **119 frontend tests pass**;
+  ten targeted lease/outcome examples pass (partial coverage exit 2), syntax/whitespace
+  pass. No production changes, deployment or quality-score increase.
+
+### Maintenance scheduler startup contract
+
+- Existing server startup wiring inspected; no application wiring defect found.
+  Two regressions execute captured startup callback, verify schedule assignment/
+  reload and five-minute default-queue maintenance entry, and check all configured
+  worker classes implement perform on declared queues. Scheduler itself mocked;
+  no cron jobs executed, Reddit fetched or production schedule verified.
+- Full backend: **1040 examples, zero failures, seven pending**, 57.29s;
+  **74.05% coverage (4564/6163)**, gates pass, exit 0. **119 frontend tests pass**;
+  two targeted examples pass (partial coverage exit 2), syntax/whitespace pass.
+  No app behavior change, production execution, deployment or quality-score increase.
+
+### Aggregate candidate rejection diagnostics
+
+- Filter logs distinguish basic and optional rejection from accepted records and
+  failed evaluation. No candidate/exception contents in this event; failed evaluation
+  reports zero accepted and unknown optional rejection. Counts are records, not art.
+- Two diagnostics regressions added. Full backend: **1038 examples, zero failures,
+  seven pending**, 58.09s; **74.02% coverage (4562/6163)**, gates pass, exit 0.
+  **119 frontend tests pass**; 12 targeted examples pass (partial coverage exit 2),
+  syntax/whitespace pass. No production requests, deployment or score increase.
 
 ### Mandatory basic checks before optional quality evaluation
 

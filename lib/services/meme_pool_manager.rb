@@ -173,7 +173,7 @@ class MemePoolManager
 
       current_size = get_pool_size
       
-      if current_size < MIN_POOL_SIZE
+      outcome = if current_size < MIN_POOL_SIZE
         AppLogger.warn("⚠️  [PoolManager] Pool below minimum (#{current_size} < #{MIN_POOL_SIZE})")
         fetch_batch(size: 1000, priority: :high)
       elsif current_size < TARGET_POOL_SIZE
@@ -186,8 +186,12 @@ class MemePoolManager
       end
       
       final_size = get_pool_size
-      AppLogger.info("✅ [PoolManager] Maintenance complete: #{final_size} memes in pool")
-      { success: true, pool_size: final_size }
+      AppLogger.info("[PoolManager] Maintenance finished: #{final_size} memes in pool")
+      published = outcome[:stored].to_i > 0 || outcome[:replaced].to_i > 0
+      success = published && !outcome[:error]
+      result = { success: !!success, pool_size: final_size }
+      result[:error] = outcome[:error] || 'No inventory publication or replacement confirmed' unless success
+      result
     rescue => e
       log_error("Pool maintenance error", e)
       { success: false, error: e.message }
@@ -672,15 +676,26 @@ class MemePoolManager
     def quality_filter(memes)
       return [] if memes.empty?
       candidates = memes.select { |meme| basic_candidate_valid?(meme) }
+      pipeline_enabled = !!defined?(QualityPipelineService)
       
-      if defined?(QualityPipelineService)
+      accepted = if pipeline_enabled
         candidates.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
         # Structural/rendering validation only, not moderation or humor scoring.
         candidates
       end
+      AppLogger.info('[PoolManager] Candidate filter outcome',
+        input_count: memes.size, basic_rejected: memes.size - candidates.size,
+        optional_rejected: candidates.size - accepted.size, accepted_count: accepted.size,
+        pipeline_enabled: pipeline_enabled, evaluation_failed: false)
+      accepted
     rescue => e
-      log_error("Quality filter error", e)
+      # Evaluation exceptions may contain candidate URLs/content. Log aggregate
+      # failure only; accepted_count is zero even if earlier candidates passed.
+      AppLogger.warn('[PoolManager] Candidate filter outcome',
+        input_count: memes.size, basic_rejected: candidates ? memes.size - candidates.size : nil,
+        optional_rejected: nil, accepted_count: 0,
+        pipeline_enabled: !!defined?(QualityPipelineService), evaluation_failed: true)
       # An evaluation failure is not approval. Reject this new batch; callers
       # retain the working pool when no candidates pass. Do not claim moderation
       # or humor/readability guarantees from the basic metadata fallback above.

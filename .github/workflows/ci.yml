@@ -128,7 +128,9 @@ jobs:
         bundler-cache: true
 
     - name: Install bundler-audit
-      run: gem install bundler-audit
+      run: gem install bundler-audit -v 0.9.3 --no-document
 
     - name: Run security audit
-      run: bundle audit check --update
+      # Installed as a standalone CI tool, not a dependency in Gemfile.lock.
+      # Bundler-scoped invocation cannot load a gem absent from the bundle.
+      run: bundler-audit check --update

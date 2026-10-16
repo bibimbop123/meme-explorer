@@ -20,6 +20,24 @@ RSpec.describe 'Pool quality evaluation failure' do
     expect(MemePoolManager.send(:quality_filter, [candidate])).to eq([])
   end
 
+  it 'reports aggregate rejection stages without logging candidate or exception content' do
+    rejected = candidate.merge('url' => '/rejected.jpg')
+    allow(QualityPipelineService).to receive(:passes_all_gates?).with(candidate).and_return(true)
+    allow(QualityPipelineService).to receive(:passes_all_gates?).with(rejected).and_return(false)
+    expect(AppLogger).to receive(:info).with('[PoolManager] Candidate filter outcome',
+      input_count: 3, basic_rejected: 1, optional_rejected: 1, accepted_count: 1,
+      pipeline_enabled: true, evaluation_failed: false)
+    expect(MemePoolManager.send(:quality_filter, [nil, candidate, rejected])).to eq([candidate])
+  end
+
+  it 'reports zero accepted and unknown optional rejection count on evaluation failure' do
+    allow(QualityPipelineService).to receive(:passes_all_gates?).and_raise('private candidate contents')
+    expect(AppLogger).to receive(:warn).with('[PoolManager] Candidate filter outcome',
+      input_count: 2, basic_rejected: 1, optional_rejected: nil, accepted_count: 0,
+      pipeline_enabled: true, evaluation_failed: true)
+    expect(MemePoolManager.send(:quality_filter, [nil, candidate])).to eq([])
+  end
+
   it 'discards partial approvals if evaluation fails later in the batch' do
     calls = 0
     allow(QualityPipelineService).to receive(:passes_all_gates?) do
