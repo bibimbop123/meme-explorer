@@ -4,6 +4,13 @@ Status: proposed UX execution plan. Nothing below is marked shipped by this docu
 
 ## Current priorities — October 16, 2026
 
+**Observed production sharing blocker:** the confirmed public origin serves exact
+content but sampled recipient responses omit canonical/og:url/og:image. See
+[public production evidence](PRODUCTION_ACCEPTANCE_2026_10_16.md). Operator must
+inspect PUBLIC_ORIGIN and deployed version; missing/invalid configuration is a
+hypothesis, not a confirmed diagnosis. Fix through a separately approved change,
+then retest public metadata and actual platform previews before sharing sign-off.
+
 Provisional assessment: **website 75/100; meme experience 45/100**. These are
 editorial planning scores, not measured user satisfaction or production acceptance.
 See the [scoring rubric and delivery order](PRODUCT_ROADMAP_2026_10_15.md#current-assessment-and-next-delivery-order--october-16-2026).

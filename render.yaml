@@ -9,6 +9,12 @@ services:
     envVars:
       - key: RACK_ENV
         value: production
+      # Required for trusted canonical/social URLs on exact-meme pages.
+      # Supply the approved HTTPS origin only (no path/query/fragment).
+      # Existing dashboard settings must be verified separately; editing this
+      # blueprint does not repair the running service until explicitly applied.
+      - key: PUBLIC_ORIGIN
+        sync: false
       - key: NODE_VERSION
         value: "22"
       # NOTE (Aug 25, 2026): Do NOT hardcode PORT here. Render auto-injects

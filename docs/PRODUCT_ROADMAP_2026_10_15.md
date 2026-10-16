@@ -168,6 +168,45 @@ expired leases and media-hash retention remain reliability work before larger lo
 
 ## Execution log — Gate A, first implementation slice
 
+### Confirmed public origin: sharing metadata blocker
+
+- Repository follow-up: Render web Blueprint explicitly declares operator-supplied
+  PUBLIC_ORIGIN (sync: false). This is unapplied configuration, not a live repair;
+  dashboard inspection, approved application and public retest remain necessary.
+
+- Read-only GET verification on user-confirmed https://meme-explorer.onrender.com:
+  home/login/robots/sitemap available; exact content returns 200. OAuth entry 302
+  points to Reddit with state and correct HTTPS callback; no authorization attempted.
+- **FAIL:** sampled exact recipient head omits canonical, og:url and og:image for
+  normal/Facebook/Twitter-style user agents. Consistent with missing/invalid deployed
+  PUBLIC_ORIGIN, not confirmed without operator config inspection. Prioritize that
+  investigation before claiming social-preview readiness; never trust untrusted Host.
+- See PRODUCTION_ACCEPTANCE_2026_10_16.md for evidence and operator steps. No config
+  changes, deployment or private infrastructure access. Production supply and real
+  OAuth/device/screen-reader/crawler acceptance remain open; scores unchanged.
+
+### Accessibility and crawler verification scope
+
+- Four local Chrome structural accessibility assertions pass (named core controls,
+  visible button naming, reduced-motion preference detection and retained Next focus).
+  No runtime exceptions. Not screen-reader/WCAG, contrast or full motion acceptance.
+- Local facebookexternalhit/Twitterbot-style HTTP requests return exact server-side
+  metadata and one fetchable JPEG preview; not real public-platform crawler rendering.
+  Vite build passes; no app code changes. Evidence and blocked external handoff in
+  BROWSER_ACCEPTANCE_2026_10_16.md.
+- Physical devices, actual screen reader/Reddit OAuth, real platform preview and
+  production supply remain NOT RUN pending verified origin/device/operator access.
+  No unrelated Reddit API connection, deployment, push or production mutation.
+
+### Saved media network-interception browser acceptance
+
+- Four local Chrome assertions PASS: image failure before deferred recovery script,
+  late-initialization recovery UI, duplicate Retry blocked while request pending,
+  and successful original-source retry fulfilled with a local JPEG. Two image
+  requests total: initial failure plus one explicit retry. No runtime exceptions.
+- Vite build passes. Evidence/limits in BROWSER_ACCEPTANCE_2026_10_16.md; no app
+  code changes, remote origin recovery guarantee, score increase or deployment.
+
 ### Saved Undo/reload defect fixed
 
 - Final review isolates history-update exceptions from mutation success: a persisted
