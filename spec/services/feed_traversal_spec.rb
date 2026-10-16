@@ -308,4 +308,22 @@ RSpec.describe MemeExplorer::FeedTraversal do
     expect(traversal.advance_with_budget).to include(status: :issued, token: 'keep-credential')
     expect(traversal.advance).to eq(status: :closed)
   end
+
+  it 'stops scheduling at the exact monotonic budget boundary' do
+    traversal = described_class.new(101.times.map { |i| { url: "/exact-time-#{i}.jpg" } }, identity)
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC)
+      .and_return(0.0, described_class::RUN_BUDGET_SECONDS)
+    expect(issuer).to receive(:issue).exactly(100).times.and_return(status: :already_acknowledged)
+    expect(traversal.advance_with_budget).to eq(status: :traversal_incomplete, reserved: false)
+  end
+
+  it 'returns terminal capacity and outage outcomes without scheduling another chunk' do
+    [:unavailable, :limit_reached, :receipt_limit_reached].each do |status|
+      traversal = described_class.new([{ url: '/terminal-run.jpg' }], identity)
+      allow(issuer).to receive(:issue).and_return(status: status, stage: :credential)
+      expect(traversal.advance_with_budget).to eq(status: status, stage: :credential)
+      expect(traversal.advance_with_budget).to eq(status: :closed)
+    end
+    expect(issuer).to have_received(:issue).exactly(3).times
+  end
 end

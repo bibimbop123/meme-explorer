@@ -173,6 +173,15 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Chunk runner boundary and terminal-outcome tests
+
+- Two deterministic regressions cover exact soft-time boundary and no repeated
+  scheduling after capacity/outage. No implementation change or hard latency claim.
+- Full backend **1187 examples, zero failures, seven pending**, 65.73s;
+  **75.55% (4946/6547)** coverage, gates pass, exit 0; **121 frontend tests pass**;
+  22 targeted snapshot cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Routes unchanged; hard deadline/replay/migration/capacity/privacy gates remain open.
+
 ### Bounded snapshot chunk scheduler
 
 - Unused advance_with_budget: two chunks maximum, 100ms soft monotonic check before

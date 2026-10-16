@@ -74,11 +74,18 @@ Before a coordinated migration patch:
    exact sharing/Saved/auth recovery. Production acceptance/security/exact-SHA CI
    and deployment authorization remain independent blockers.
 
-Latest validated code: 1185 backend examples, zero failures, seven pending;
-75.58% (4948/6547), gates pass, exit 0; 121 frontend tests pass. No route,
+Latest validated code: 1187 backend examples, zero failures, seven pending;
+75.55% (4946/6547), gates pass, exit 0; 121 frontend tests pass. No route,
 configuration or production changes.
 
 ## Checkpoint evidence (newest first)
+
+Runner boundary tests: exact soft-time equality stops additional scheduling;
+capacity/outage results terminate without further issuance, repeated run is closed.
+Two deterministic mocked regressions; no implementation change or hard latency
+claim. Full backend 1187 examples, zero failures, seven pending, 65.73s; 75.55%
+(4946/6547), gates pass, exit 0; 22 targeted snapshot cases pass (partial coverage
+exit 2); 121 frontend tests pass; syntax/whitespace pass. Routes unchanged.
 
 Unused advance_with_budget runner schedules at most two chunks per invocation,
 checking 100ms monotonic soft budget before another chunk. Retains incomplete state;
