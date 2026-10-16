@@ -39,6 +39,15 @@ outcome. Separate reader commands can straddle snapshots. Concurrent publishers 
 still overwrite newer inventory with stale snapshots; media hash retention and Redis
 memory/command cost at larger inventory require follow-up. No old IDs are purged.
 
+Scheduled maintenance now takes an ownership-token Redis lease before fetching.
+Duplicate jobs (or jobs unable to acquire Redis) skip; cooldown is checked again
+after acquisition and the lease is released on success, failure and early return.
+The lease expires after two hours to cover long sequential fetch batches; a killed
+worker can therefore delay maintenance until expiry. Release cannot delete a
+successor's lease. This is not publication fencing: bootstrap/other writers and a
+job running past lease expiry can still race. Monitor job duration and lock TTL;
+do not manually delete a live owner's lease to force inventory expansion.
+
 - Maintenance now follows at most two top/week pages per community, using Reddit's
   validated after cursor and URL deduplication. Default/bootstrap fetching stays
   single-page. Missing/repeated cursors or HTTP errors stop pagination. Each run
