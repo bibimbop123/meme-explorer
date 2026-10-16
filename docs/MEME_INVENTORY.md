@@ -52,6 +52,13 @@ claiming growth; ambiguous EXEC disconnects and partial runtime errors remain op
 
 ## Remaining supply constraints
 
+Maintenance quality evaluation errors now reject new candidates rather than
+returning the unfiltered batch; existing inventory is retained. The optional
+pipeline's absence checks hash shape, browser-safe URL and nonblank title/community
+text; bootstrap has separate basic validation. Existing retained content is not
+purged. “Validated” does not certify availability, moderation, readability or humor. Use
+FEED_EXPERIENCE_AUDIT.md for the planned real-feed/user evaluation; none performed.
+
 The hidden 300-item tier cap is now replaced by TARGET_POOL_SIZE. Maintenance
 merges new unique URLs with retained pool entries, bounded at that target; new
 snapshots win duplicate URLs. Count metadata now reflects unique random-pool

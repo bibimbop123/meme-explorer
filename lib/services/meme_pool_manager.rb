@@ -7,6 +7,7 @@ require_relative 'reddit_fetcher_service'
 # require_relative 'turbocharged_reddit_fetcher'  # Deleted during service cleanup - use reddit_fetcher_service instead
 # require_relative 'quality_pipeline_service'  # Removed during Elon audit - file not found
 require_relative 'redis_service'
+require_relative '../security/media_url'
 require 'yaml'
 require 'digest'
 
@@ -662,14 +663,18 @@ class MemePoolManager
       if defined?(QualityPipelineService)
         memes.select { |meme| QualityPipelineService.passes_all_gates?(meme) }
       else
-        # Basic filtering if pipeline not available
+        # Structural/rendering validation only, not moderation or humor scoring.
         memes.select do |meme|
-          meme["url"] && meme["title"] && meme["subreddit"]
+          meme.is_a?(Hash) && MediaUrl.safe(meme['url']) &&
+            %w[title subreddit].all? { |key| meme[key].is_a?(String) && !meme[key].strip.empty? }
         end
       end
     rescue => e
       log_error("Quality filter error", e)
-      memes # Return unfiltered on error
+      # An evaluation failure is not approval. Reject this new batch; callers
+      # retain the working pool when no candidates pass. Do not claim moderation
+      # or humor/readability guarantees from the basic metadata fallback above.
+      []
     end
     
 # Categorize memes by their subreddit tier - FIXED July 13: NOW CREATES ALL 5 POOLS

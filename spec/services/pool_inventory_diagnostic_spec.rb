@@ -1,7 +1,27 @@
 require_relative '../spec_helper'
 require_relative '../../scripts/check_pool_inventory'
+require 'open3'
+require 'rbconfig'
 
 RSpec.describe PoolInventoryDiagnostic do
+  it 'fails without configuration using only a generic diagnostic' do
+    stdout, stderr, status = Open3.capture3({ 'REDIS_URL' => nil }, RbConfig.ruby,
+      File.expand_path('../../scripts/check_pool_inventory.rb', __dir__))
+    expect(status.exitstatus).to eq(1)
+    expect(stdout).to eq('')
+    expect(stderr).to eq("Inventory diagnostic failed. Check REDIS_URL, Redis access and pool key types; connection details omitted.\n")
+  end
+
+  it 'does not expose credentials or connection details for invalid configuration' do
+    stdout, stderr, status = Open3.capture3(
+      { 'REDIS_URL' => 'invalid-scheme://diagnostic-user:synthetic-sensitive-value@invalid.example:1234/0' },
+      RbConfig.ruby, File.expand_path('../../scripts/check_pool_inventory.rb', __dir__))
+    expect(status.exitstatus).to eq(1)
+    expect(stdout).to eq('')
+    expect(stderr).to include('connection details omitted')
+    expect(stderr).not_to include('diagnostic-user', 'synthetic-sensitive-value', 'invalid.example', 'invalid-scheme', 'backtrace')
+  end
+
   it 'reads only fixed metadata keys without retrieving payloads or lock owners' do
     redis = double
     expect(redis).to receive(:get).with('meme_pool:count').and_return('167')
