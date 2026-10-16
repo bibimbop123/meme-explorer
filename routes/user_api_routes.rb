@@ -98,7 +98,7 @@ module Routes
         { reward: reward }.to_json
       rescue => e
         AppLogger.error("❌ Surprise reward check error: #{e.message}")
-        halt 500, { error: e.message }.to_json
+        halt 503, { error: 'Rewards are temporarily unavailable' }.to_json
       end
     end
 
@@ -112,7 +112,7 @@ module Routes
         { boosts: boosts }.to_json
       rescue => e
         AppLogger.error("❌ Active boosts error: #{e.message}")
-        halt 500, { error: e.message }.to_json
+        halt 503, { error: 'Boosts are temporarily unavailable' }.to_json
       end
     end
 

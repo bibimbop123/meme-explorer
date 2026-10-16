@@ -28,6 +28,211 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Coverage gates pass: personality behavior and dead utility cleanup
+
+- Added personality message/context/boundary tests. Removed shadowed UtilityRoutes
+  /random.json and unused legacy search helper after confirming earlier route
+  ownership and no callers. Retained/tested utility ads declaration registration;
+  actual SEO ads endpoint regression now explicitly configures its environment.
+  Other Memes/RandomMeme random JSON and SEO/utility ads duplicates remain follow-up.
+- Final full backend **912 examples, zero failures, seven pending**, 46.96s;
+  **71.38% coverage (4244/5946)**, **exit 0**, both 70% overall and 30% per-file
+  gates pass without threshold/exclusion changes. Gain includes justified dead-code
+  removal, not just new covered lines. **95 frontend tests pass**, syntax/whitespace
+  pass. Native workaround, crawler/browser checks and deployment gates stay open.
+
+### Coverage workstream: existing reward-read boundaries
+
+- Added authenticated/unauthenticated reward reads, one-time pending reward
+  consumption, account-scoped boost service lookup and sanitized service failure
+  tests. Reward/boost errors now use generic 503 responses. No new reward features.
+- Full backend **907 examples, zero failures, seven pending**, 47.41s;
+  **70.02% overall coverage (4214/6018)** clears 70%, but command remains exit 2:
+  personality_content.rb **27.90%** and utility_routes.rb **7.69%** fail 30% floor.
+  **95 frontend tests pass**, Ruby syntax/whitespace pass. Thresholds unchanged.
+- Push route/schema mismatch and dead duplicate utility handlers need explicit
+  follow-up; do not mock success to conceal schema or reachability problems.
+
+### Coverage workstream: profiler contracts
+
+- Added six deterministic profiler tests for timing aggregation/slow warnings,
+  failure propagation without false metrics, query/HTTP result preservation,
+  summary ordering/reset and memory measurement fallback. No code change needed.
+- Targeted **6 examples pass**. Full backend **903 examples, zero failures, seven
+  pending**, 46.5s; **69.86% coverage (4204/6018)**, enforced exit 2 below 70%.
+  **95 frontend tests pass**, test syntax/whitespace pass. Thresholds unchanged;
+  utility/user API routes and personality content still need per-file floor work.
+
+### Coverage workstream: personalization mutation boundaries
+
+- Added six route examples for malformed/nonstring/oversized subscription input,
+  persistence success/failure, authenticated saved removal, payload validation and
+  real cross-account removal isolation. Fixed nonexistent user_saved_memes delete
+  target to saved_memes, JSON/type failures and persistence failures returning 200.
+- Targeted **6 examples pass**. Full backend **897 examples, zero failures, seven
+  pending**, 46.58s; **69.26% coverage (4168/6018)**, enforced exit 2 below 70%.
+  **95 frontend tests pass**, Ruby syntax/whitespace pass. Subscription persistence
+  success is mocked; schema/integration validation remains open. Thresholds unchanged.
+
+### Coverage workstream: bulk query construction and failures
+
+- Added six query-helper tests for week/limit parameter order, account-scoped
+  saved binds, bulk preference grouping, batching and read/write failure behavior.
+  Fixed reversed leaderboard parameters and batch values misaligned when hash key
+  order differs. Mocked construction checks do not prove every legacy SQL query's
+  production-schema compatibility; that remains separate validation.
+- Targeted **6 examples pass**. Full backend **891 examples, zero failures, seven
+  pending**, 45.54s; **68.93% coverage (4145/6013)**, enforced exit 2 below 70%.
+  **95 frontend tests pass**, Ruby syntax/whitespace pass. Thresholds unchanged.
+
+### Coverage workstream: HTTP cache policy and validators
+
+- Added seven caching tests. Fixed private cache_page emitting shared lifetime,
+  nonmatching ETag being overridden by modification dates, and subsecond timestamp
+  comparisons inconsistent with HTTP-date precision. Cache/no-store/API/asset
+  headers and malformed/older date handling are exercised.
+- Targeted caching **7 examples pass**. Full backend including prior lock tests:
+  **885 examples, zero failures, seven pending**, 45.84s; **68.45% coverage
+  (4116/6013)**, enforced exit 2 below 70%. **95 frontend tests pass**, syntax/
+  whitespace pass. Thresholds/exclusions unchanged; per-file gaps remain.
+
+### Coverage workstream: distributed-lock contracts
+
+- Added seven lock-helper examples for atomic acquisition/token release, denial,
+  work/release failures, retry limits/early success and disabled Redis. Existing
+  implementation passes; targeted DistributedLock coverage **100%**, above 30% floor.
+- Targeted **7 examples pass**, partial overall coverage **21.76%**, enforced exit
+  2 below 70%. Separate real-Redis RedisService ownership/concurrency script:
+  **11 checks pass** on disposable Redis DB 15. **95 frontend tests pass**, test
+  syntax/whitespace pass. No implementation changes or build required.
+- Full backend not rerun; last full remains 871 examples, zero failures, seven
+  pending, **67.60%**. Thresholds/exclusions unchanged; other floor gaps stay open.
+
+### Coverage workstream: per-file floor and safe video helper
+
+- Reviewed nine files below the 30% floor. Added MemeHelpers rendering/type/path/
+  history/placeholder tests. Fixed direct URL/poster HTML interpolation, removed
+  autoplay and fabricated MP4 MIME claim from its video renderer.
+- Targeted helper/rendering **14 examples pass**. Full backend **871 examples,
+  zero failures, seven pending**, 45.1s; **67.60% coverage (4065/6013)**, enforced
+  exit 2 below 70%. MemeHelpers increased to **38.79%**, above per-file floor.
+  **95 frontend tests pass**, Ruby syntax/whitespace pass. Thresholds unchanged;
+  other below-floor files still require work. No asset changes or deployment.
+
+### Coverage workstream: API cache HTTP paths
+
+- Added ten stubbed HTTP examples across OAuth/static fetching: quality/crosspost/
+  self/domain filters, hosted video/gallery metadata, malformed JSON, rate limits,
+  non-success and network failures. Explicit service requires remove new specs'
+  suite-load-order dependency. No application change required in this slice.
+- Targeted HTTP **10 examples pass**. Full backend **866 examples, zero failures,
+  seven pending**, 45.34s; **66.97% coverage (4024/6009)**, enforced exit 2 below
+  70%. **95 frontend tests pass**, test syntax/whitespace pass. Network stubbed;
+  thresholds/exclusions unchanged. Separate 30% per-file gate still applies.
+
+### Coverage workstream: API cache backup semantics
+
+- Added six tests for Redis write/read outages retaining memory backup, corrupt or
+  wrong-shaped Redis payload fallback, total misses, empty-refresh preservation,
+  refresh-age expiry boundary and quality-sorted 200-item publication limits.
+  Existing cache behavior passes; no application change required.
+- Full backend **856 examples, zero failures, seven pending**, 45.22s;
+  **64.72% coverage (3889/6009)**, enforced exit 2 below 70%. **95 frontend
+  tests pass**, test syntax/whitespace pass. Thresholds/exclusions unchanged.
+
+### Coverage workstream: navigation exposure and recovery boundaries
+
+- Added six helper examples for exponential exposure expiry, anonymous viewers,
+  absent/malformed/outage exposure data, skipping previous/broken content, bounded
+  selection attempts and loading/media fallback semantics. No policy changes needed.
+- Targeted navigation **6 examples pass**. Full backend including prior direct
+  extraction hardening: **850 examples, zero failures, seven pending**, 45.48s;
+  **64.44% coverage (3872/6009)**, enforced exit 2 below 70%. **95 frontend tests
+  pass**, test syntax/whitespace pass. Thresholds/exclusions unchanged.
+
+### Coverage workstream: direct image extraction boundaries
+
+- Direct extraction now validates primary URLs, shape-checks gallery metadata and
+  reuses validated preview extraction. Malformed gallery data can fall back safely;
+  credentialed/control-character direct URLs and executable previews are rejected.
+- Targeted extraction/fetch/rendering **21 examples pass**, partial coverage
+  **24.83%**, enforced exit 2 below 70%; **95 frontend tests pass**, Ruby syntax
+  and whitespace pass. Full backend not rerun; last full measurement remains
+  **63.67%**, 842 examples, zero failures, seven pending. Thresholds unchanged.
+
+### Coverage workstream: Reddit helper retry termination
+
+- Added stubbed HTTP tests for enriched image posts/exclusions, successful retry,
+  bounded JSON/network failures, continuing to another community and Imgur mapping.
+  First success-path test exposed an infinite retry loop: break exited the HTTP
+  block, not its surrounding while. Explicit success state now terminates retries.
+- Targeted helpers **10 examples pass** after fix. Full backend **842 examples,
+  zero failures, seven pending**, 45.45s; **63.67% coverage (3823/6004)**,
+  enforced exit 2 below 70%. **95 frontend tests pass**, Ruby syntax/whitespace
+  pass. HTTP requests stubbed; no production services or threshold changes.
+
+### Coverage workstream: media preview boundaries
+
+- Added helper regressions for preview ordering/entity decoding/deduplication,
+  malformed metadata, unsafe candidates, thumbnail sentinels, query-aware media
+  types and category fallback selection. Preview extraction now shape-checks
+  nested values and validates URLs instead of raising or emitting executable URLs.
+- Targeted helper/rendering **14 examples pass**. Full backend **837 examples,
+  zero failures, seven pending**, 45.49s; **62.86% coverage (3773/6002)**,
+  enforced exit 2 below 70%. **95 frontend tests pass**, Ruby syntax/whitespace
+  pass. Network fetching unchanged; thresholds/exclusions unchanged. No deployment.
+
+### Coverage workstream: refresh source failures
+
+- Added nine deterministic source tests for OAuth success/fallback, static failure,
+  community configuration failure, categorized/array/empty local files and malformed
+  or unreadable local sources. Network/file dependencies are isolated. Fixed local
+  scalar/non-hash entries passing through as memes and breaking refresh publication.
+- Initial eight source tests plus existing worker tests: **18 examples pass**;
+  final malformed-data regression included in full backend: **832 examples, zero
+  failures, seven pending**, 45.03s; **62.45% coverage (3749/6003)**, enforced
+  exit 2 below 70%. **95 frontend tests pass**, Ruby syntax/whitespace pass.
+- Thresholds/exclusions unchanged; no asset changes or production rollout.
+
+### Coverage workstream: cache-refresh publication and retry behavior
+
+- Added deterministic worker tests verifying blacklist/validation filtering,
+  deduplication, local-only fallback, lock contention, missing cache and publication
+  errors propagating for Sidekiq retry without a false completion timestamp.
+  Existing implementation passes; no worker change required.
+- Targeted worker **10 examples pass**. Full backend **823 examples, zero failures,
+  seven pending**, 45.25s; **62.11% coverage (3728/6002)**, enforced exit 2 below
+  70%. **95 frontend tests pass**, test syntax/whitespace pass. No asset changes.
+- Thresholds/exclusions unchanged. OAuth/static fetching and local-file failure
+  branches remain additional worker coverage opportunities; release gates stay open.
+
+### Coverage workstream: detailed diagnostics and error boundaries
+
+- Added detailed-health success/database-outage/Redis-outage tests. Fixed a call
+  to nonexistent RedisService.client by using the existing REDIS_POOL. Health
+  responses now use stable component failure messages instead of raw exceptions;
+  /health also strips Redis stats' raw error field. Endpoint access policy unchanged.
+- Targeted health **18 examples pass**. Full backend **818 examples, zero failures,
+  seven pending**, 44.88s; **61.48% coverage (3690/6002)**, enforced exit 2 below
+  70%. **95 frontend tests pass**, Ruby syntax/whitespace pass. No asset changes.
+- Detailed endpoint operational-information exposure/access policy and remaining
+  failure branches stay open. Thresholds/exclusions unchanged; no deployment.
+
+### Coverage workstream: operational failure paths
+
+- Checkpointed validated Saved changes as d1cdd51. Reviewed coverage by missed
+  lines and per-file floor; retained all thresholds/exclusions. Large gaps include
+  API caching, navigation/media helpers and operational routes/workers.
+- Added six health failure/readiness regressions. Fixed empty-pool warning masking
+  database/Redis outages, unhealthy cache/pool checks not degrading HTTP status,
+  readiness ignoring the serving pool, incorrect sqlite3 label and raw database
+  exception exposure on /health. Detailed diagnostics exposure remains separate.
+- Targeted health **15 examples pass**. Full backend **815 examples, zero failures,
+  seven pending**, 45.31s; **60.78% coverage (3648/6002)**, enforced exit 2 below
+  70%. **95 frontend tests pass**, Ruby syntax/whitespace pass. No asset changes.
+- Coverage gate is still unmet; continue risk-focused tests, including the separate
+  30% per-file floor. No production rollout or threshold reduction performed.
+
 ### Phase 3: Saved boundaries and full regression
 
 - Added cross-account count/result/detail isolation and failed-total-query retry

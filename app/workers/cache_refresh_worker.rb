@@ -139,11 +139,12 @@ class CacheRefreshWorker
   
   def load_local_memes
     yaml_data = YAML.load_file("data/memes.yml", aliases: true)
-    if yaml_data.is_a?(Hash)
+    entries = if yaml_data.is_a?(Hash)
       yaml_data.values.flatten.compact
     else
-      yaml_data || []
+      yaml_data.is_a?(Array) ? yaml_data : []
     end
+    entries.select { |entry| entry.is_a?(Hash) }
   rescue => e
     AppLogger.info("❌ Failed to load local memes: #{e.message}")
     []

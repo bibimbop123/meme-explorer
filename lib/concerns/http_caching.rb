@@ -37,14 +37,14 @@ module HTTPCaching
     
     # Check if client has newer version
     if_modified_since = request.env['HTTP_IF_MODIFIED_SINCE']
-    if if_modified_since
+    if if_modified_since && !request.env['HTTP_IF_NONE_MATCH']
       client_time = begin
         Time.httpdate(if_modified_since)
       rescue ArgumentError => e
         AppLogger.warn("set_last_modified: invalid If-Modified-Since header", error: e.message, value: if_modified_since)
         nil
       end
-      if client_time && client_time >= time
+      if client_time && client_time.to_i >= time.to_i
         halt 304 # Not Modified
       end
     end
@@ -54,7 +54,7 @@ module HTTPCaching
   # @param duration [Integer] Cache duration in seconds
   # @param type [Symbol] Cache type
   def cache_page(duration: 3600, type: :public)
-    set_cache_headers(type: type, max_age: duration, s_maxage: duration * 2)
+    set_cache_headers(type: type, max_age: duration, s_maxage: type == :public ? duration * 2 : nil)
   end
   
   # Cache API response

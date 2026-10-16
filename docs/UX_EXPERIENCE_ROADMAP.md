@@ -22,10 +22,15 @@ visible Next, AJAX/history ordering guards, page-local Like/Save restoration,
 impression acknowledgments, gallery event ownership, menu/theme fixes, search form
 and validation feedback, and real-session interaction regressions.
 
-Latest full-suite engineering evidence: 809 backend examples, zero failures, seven pending;
-95 frontend tests pass; 60.47% backend coverage remains below the required 70%.
+Latest full-suite engineering evidence: 912 backend examples, zero failures, seven pending;
+95 frontend tests pass; 71.38% backend coverage passes both overall 70% and per-file
+30% gates. Full backend command exits 0 using the temporary native-gem workaround.
 Native dependencies still use a temporary local workaround. No production rollout
 or fresh score is implied. See the engineering execution log for current evidence.
+
+Subsequent lock-helper contract tests pass with 100% targeted file coverage;
+11 isolated real-Redis service ownership checks pass. Full-suite coverage above
+remains the last full measurement, not the smaller targeted-run percentage.
 
 ## Three journeys that determine priorities
 
@@ -242,6 +247,10 @@ Test iOS Safari, Android Chrome and desktop, including 320px width and zoom.
 no exact repeats before eligible pool exhaustion, no competing gesture actions.
 
 ## Phase 2 — Share the exact moment
+
+Direct media extraction now rejects unsafe primary/preview candidates and tolerates
+malformed gallery shapes with safe preview fallback. Targeted media regressions
+pass; remote media availability and crawler acceptance remain separate checks.
 
 Ad-policy boundary regressions cover invalid recipient links and ordinary desktop
 browsing, confirming the exclusion is scoped. Full backend after content-first
