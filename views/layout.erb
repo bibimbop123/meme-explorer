@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="csrf-token" content="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
-  <script src="/js/csrf.js"></script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/csrf.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= @meme_unavailable ? 'Meme unavailable | Meme Explorer' : (@permalink_page ? Rack::Utils.escape_html("#{@meme['title'].to_s[0, 180]} | Meme Explorer") : 'Meme Explorer 😎 - Best Memes from Reddit') %></title>
   
@@ -93,7 +93,7 @@
       }
     }
   </style>
-  <script src="/js/dark-mode.js"></script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/dark-mode.js"></script>
 <link rel="stylesheet" href="/css/navigation.css">
 
 <!-- Phase 2: Global Error Handler -->
@@ -105,7 +105,7 @@
      loaded - every uncaught error and rejection was logged/reported to
      Sentry twice. Removed the duplicate import from public/js/main.js so
      this is the single source of truth.) -->
-<script src="/js/error-handler.js"></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/error-handler.js"></script>
     
     
       
@@ -238,7 +238,7 @@
   </style>
 
   <!-- ================= SESSION DATA & GAMIFICATION ================= -->
-  <script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %>>
     // Session interaction state is managed by the navigation modules.
     
     // Level-up celebration with screen shake and confetti
@@ -297,7 +297,7 @@
   
   
   
-  <script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %>>
     // Sound toggle functionality
     const soundToggle = document.getElementById('soundToggle');
     if (soundToggle) {
@@ -344,23 +344,23 @@
        network (confirmed via .env.example and CSP's
        lib/middleware/security_headers.rb, which documents Monetag/
        PropellerAds domains, not AdSense, as the real ad traffic). -->
-  <script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %>>
     // Ad configuration from environment (feed-position placeholders only -
     // see note above; real ad revenue comes from cookie-consent.js's
     // Monetag tag, loaded independently of this).
     window.AD_FREQUENCY = <%= ENV['AD_FREQUENCY'] || 12 %>;
   </script>
-  <script src="/js/ad-manager.js"></script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/ad-manager.js"></script>
   
   <!-- ================= PUSH NOTIFICATIONS (Priority 1) ================= -->
   <% if logged_in? %>
-  <script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %>>
     window.PUSH_NOTIFICATIONS_CONFIG = {
       enabled: true,
       vapidPublicKey: <%= (ENV["VAPID_PUBLIC_KEY"] || "").to_json %>
     };
   </script>
-  <script src="/js/push-notifications.js" defer></script>
+  <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/push-notifications.js" defer></script>
   <% end %>
   
   <!-- Content Feedback System (Chunk 4) -->
@@ -370,12 +370,12 @@
   
   
 <!-- Phase 2: Lazy Loading -->
-<script src="/js/ad-lazy-load.js" defer></script>
-<script src="/js/image-lazy-load.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/ad-lazy-load.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/image-lazy-load.js" defer></script>
 <!-- Phase 3 Chunk 2: Core Web Vitals Tracking -->
-<script src="/js/web-vitals.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/web-vitals.js" defer></script>
 <!-- Phase 3 Chunk 3: Enhanced Lazy Loading -->
-<script src="/js/enhanced-lazy-load.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/enhanced-lazy-load.js" defer></script>
 
 <!-- Week 1: Performance & Mobile Optimizations -->
 
@@ -383,14 +383,14 @@
 <!-- Week 2: UI Simplification -->
 
 
-<script src="/js/progressive-disclosure.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/progressive-disclosure.js" defer></script>
 
 
 <!-- 🎹 Week 2.2: Enhanced Keyboard Navigation (j/k/l/s/?/Esc) -->
-<script src="/js/modules/keyboard-navigation.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/modules/keyboard-navigation.js" defer></script>
 
 <!-- 📱 Week 2.3: Mobile Swipe Gestures (swipe left/right to navigate) -->
-<script src="/js/modules/mobile-swipe.js" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/modules/mobile-swipe.js" defer></script>
 
 <!-- Week 6: UX Enhancements - Dark Mode, PWA, Video Player -->
 
@@ -400,10 +400,10 @@
 
 
 <!-- Media Performance Monitoring -->
-<script src="/js/media-performance.js"></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/media-performance.js"></script>
 
 <!-- 🚀 Vite Bundle: 105 files → 1 bundle (63KB/18KB gzipped) [70→72/100] -->
-<script src="<%= Rack::Utils.escape_html(viewer_bundle_path) %>" defer></script>
+<script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="<%= Rack::Utils.escape_html(viewer_bundle_path) %>" defer></script>
 
   </body>
 </html>

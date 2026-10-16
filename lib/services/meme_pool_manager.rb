@@ -489,7 +489,10 @@ class MemePoolManager
       AppLogger.info("✅ [PoolManager] #{validated_memes.size} memes passed quality filter")
       
       # Store in pool
-      stored_count = store_in_pool(validated_memes)
+      # Keep usable inventory across small maintenance batches. New snapshots win
+      # URL collisions; bounded retention avoids unbounded Redis growth.
+      inventory = (validated_memes + get_current_pool).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
+      stored_count = validated_memes.empty? ? 0 : store_in_pool(inventory)
       AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
 
       if stored_count > 0
@@ -586,13 +589,17 @@ class MemePoolManager
     # tier fetches in one batch (see fetch_batch) can share a single OAuth
     # token instead of each tier independently authenticating with Reddit.
     def fetch_from_tier(tier, count, fetcher: nil)
+      return [] if count <= 0
       AppLogger.info("  📍 [PoolManager] Fetching #{count} memes from #{tier}")
       
       subreddits = load_tier_subreddits(tier)
       return [] if subreddits.empty?
+      # Budget against actual requested communities, not the entire tier before
+      # RedditFetcherService's OAuth cap silently samples it. Rotate each batch.
+      subreddits = subreddits.uniq.sample([subreddits.uniq.size, 25].min)
       
       # Calculate memes per subreddit
-      memes_per_sub = [count / subreddits.size, 1].max
+      memes_per_sub = [[(count.to_f / subreddits.size).ceil, 1].max, 100].min
       
       # Use Reddit Fetcher Service
       fetcher ||= create_fetcher
@@ -714,7 +721,7 @@ end
       
       # Deduplicate and limit each pool
       categorized.each do |pool, pool_memes|
-        categorized[pool] = pool_memes.uniq { |m| m['url'] }.take(300)
+        categorized[pool] = pool_memes.uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
       end
       
       total_stored = 0
@@ -750,7 +757,8 @@ end
       end
       
       # Update metadata with extended TTL
-      RedisService.set("meme_pool:count", total_stored, ttl: 21600)
+      unique_count = categorized[:random].size
+      RedisService.set("meme_pool:count", unique_count, ttl: 21600)
       RedisService.set("meme_pool:initialized", "true", ttl: 21600)
       RedisService.set("meme_pool:last_refresh", Time.now.to_i, ttl: 21600)
       
@@ -758,7 +766,7 @@ end
       all_memes = categorized.values.flatten.uniq { |m| m['url'] }
       RedisService.set("meme_pool", all_memes.to_json, ttl: 21600)
       
-      total_stored
+      unique_count
     rescue => e
       log_error("Store in pool error", e)
       0

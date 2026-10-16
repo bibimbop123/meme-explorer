@@ -28,6 +28,44 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Inventory and opt-in CSP accumulated regression
+
+- Full isolated backend **953 examples, zero failures, seven pending**, 53.44s;
+  **72.48% coverage (4373/6033)**, both gates pass, **exit 0**. **113 frontend
+  tests pass**, whitespace pass. Covers fetch budget/retention/count changes and
+  default-disabled CSP report-only scaffolding. No real inventory increase measured;
+  publication atomicity and source pagination remain next inventory priorities.
+
+### Inventory priority: hidden cap and replacement corrected
+
+- Found 300-item cap on every tier including random/everything, replacement-only
+  maintenance and overlapping-tier summed count. Pools now retain up to 5,000 unique
+  URLs, merge fetched/retained content per maintenance batch and report unique
+  random-pool count. New snapshots win collisions. No production purge/API calls.
+- **26 targeted pool examples pass**, partial coverage exit 2; whitespace pass.
+  Full suite not rerun. Multi-key publication/concurrent publisher consistency,
+  memory/command volume and top/week overlap remain explicit follow-ups.
+
+### Inventory priority: background fetch budget correction
+
+- Investigated 167-item pool versus 5,000 target: small bootstrap, maintenance
+  dependency and top/week overlap constrain supply. Fixed maintenance dividing
+  budgets across whole tiers before fetcher silently caps communities: select at
+  most 25 unique communities first, ceil budget, cap listing at 100, rotate batches.
+- **24 targeted pool examples pass**, partial coverage exit 2; Ruby/whitespace pass.
+  No production API calls/pool purge. See MEME_INVENTORY.md for worker/OAuth/Redis
+  checks and remaining pagination/supply constraints. Inventory growth not claimed.
+
+### Opt-in nonce CSP report-only scaffolding
+
+- Added CSP_REPORT_ONLY=true middleware flag: per-request nonce before rendering,
+  additional report-only script/attribute/object/base policy and private/no-store.
+  Layout script tags receive nonce; enforced policy unchanged. Disabled by default.
+  No strict-dynamic ad trust or report collector; other templates/handlers stay open.
+- **3 focused middleware/layout examples pass** (partial coverage exit 2),
+  **113 frontend tests pass**, Ruby/layout ERB/whitespace pass. Full suite not rerun.
+  See CSP_ROLLOUT.md for staging checks, privacy limitations and rollback.
+
 ### Checkpoint branch CI eligibility
 
 - Enabled checkpoint/** push triggers and manual workflow_dispatch, preserving
@@ -1785,6 +1823,12 @@ a ticket closed. A critical security failure blocks release regardless of total.
 repeatable verification, operational maturity, and no unresolved critical risks.
 
 ## Gate A — Earn trust: target 70/100
+
+**Current gate status:** local Ruby isolation, full regression/coverage, CSRF and
+ownership-lock contracts have implementation evidence in the execution log. Gate A
+is still **not accepted**: hosted CI, private secret rotation/assessment, CSP work
+and real browser journeys remain open. Checkboxes below are end-to-end acceptance
+requirements, not a claim that their implementation has never started.
 
 **Planning window:** weeks 1–2, subject to the backend failure inventory.
 **Accountability:** engineering lead; owner handles credential rotation.
