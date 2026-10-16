@@ -31,6 +31,10 @@ RSpec.describe 'Database Chaos Tests', type: :chaos do
     end
 
     it 'handles a raised database error gracefully' do
+      # A warm likes cache otherwise masks the database failure under test.
+      allow(RedisService).to receive(:fetch).and_wrap_original do |original, key, **options, &fallback|
+        key.start_with?('meme:likes:') ? fallback.call : original.call(key, **options, &fallback)
+      end
       allow(DB).to receive(:execute).and_raise(PG::ConnectionBad, 'simulated connection loss')
 
       get '/'

@@ -15,6 +15,10 @@ class MemePoolManager
   MIN_POOL_SIZE = 1000
   BOOTSTRAP_COOLDOWN_KEY = "meme_pool:bootstrap_cooldown"
   BOOTSTRAP_COOLDOWN_TTL = 300 # 5 minutes - avoid hammering Reddit while rate-limited
+  MAINTENANCE_LOCK_KEY = 'lock:meme_pool:maintenance'
+  # A full batch can issue 250 sequential requests, each with a 15s timeout.
+  # Bound the lease, but leave room for fetch throttling and publication.
+  MAINTENANCE_LOCK_TTL = 7200
   BOOTSTRAP_LOCK_KEY = "lock:meme_pool:bootstrap"
 
   # BUG FIX (Aug 25, 2026, round 6): The entire pool architecture above
@@ -156,6 +160,16 @@ class MemePoolManager
         return { success: false, error: "Cooling down after recent rate limit", pool_size: get_pool_size }
       end
 
+      maintenance_token = RedisService.acquire_lock(MAINTENANCE_LOCK_KEY, ttl: MAINTENANCE_LOCK_TTL)
+      unless maintenance_token
+        return { success: false, error: 'Maintenance already running or Redis unavailable', pool_size: get_pool_size }
+      end
+
+      # Cooldown may have been set while this job was acquiring the lease.
+      if RedisService.get(BOOTSTRAP_COOLDOWN_KEY)
+        return { success: false, error: 'Cooling down after recent rate limit', pool_size: get_pool_size }
+      end
+
       current_size = get_pool_size
       
       if current_size < MIN_POOL_SIZE
@@ -176,6 +190,8 @@ class MemePoolManager
     rescue => e
       log_error("Pool maintenance error", e)
       { success: false, error: e.message }
+    ensure
+      RedisService.release_lock(MAINTENANCE_LOCK_KEY, maintenance_token) if maintenance_token
     end
     
     # Get current pool (main entry point for app.rb)

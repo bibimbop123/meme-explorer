@@ -28,6 +28,33 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Scheduled maintenance overlap guard
+
+- Maintenance entry point acquires an ownership-token Redis lease before fetching,
+  skips duplicate jobs/Redis-unavailable acquisition, rechecks cooldown, and releases
+  on success, unexpected failure and early return. Two-hour expiry accommodates
+  long sequential batches; killed workers may delay maintenance until lease expiry.
+- Six real-Redis regression examples cover contention, release paths, cooldown
+  checks and successor ownership. **12 targeted lease/publication examples pass**
+  (partial coverage exit 2). Full isolated backend: **995 examples, zero failures,
+  seven pending**, 53.1s; **73.61% coverage (4480/6086)**, gates pass, **exit 0**.
+  **113 frontend tests pass**; Ruby syntax/whitespace pass.
+- Not publication fencing: bootstrap/other writers and expiry overruns remain
+  possible races. No live Reddit calls, production inventory claim or deployment.
+
+### Database-outage recovery and publication revalidation
+
+- Likes lookup now returns zero on PostgreSQL/pool failures without caching the
+  outage fallback. Cached likes remain available, and later queries recover.
+  Chaos test explicitly bypasses the likes cache so warm-cache state cannot mask
+  the simulated database outage. Four focused helper regression examples added.
+- **13 targeted helper/chaos/publication examples pass** (partial coverage exit 2).
+  Full isolated backend: **989 examples, zero failures, seven pending**, 54.11s;
+  **73.30% coverage (4455/6078)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  Ruby syntax/whitespace pass. Supersedes the failed publication validation below.
+- Transaction execution-time rollback, concurrent stale publishers and media hash
+  retention remain open. No live Reddit calls, deployment or production growth claim.
+
 ### Transactional publication — validation not yet green
 
 - Prepare payloads before one MULTI/EXEC on one Redis connection; publish JSON,

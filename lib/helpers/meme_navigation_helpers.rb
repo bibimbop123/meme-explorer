@@ -286,6 +286,11 @@ def get_meme_likes(url)
     row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
     row ? (row["likes"] || row[:likes] || row.values.first).to_i : 0
   end
+rescue PG::Error, ConnectionPool::TimeoutError => e
+  # Keep viewing available during DB outages. Rescue outside fetch so this
+  # temporary fallback is not cached as a real zero-like database result.
+  AppLogger.warn('Meme likes unavailable', error: e.class.name)
+  0
 end
 
 # Toggle like for meme (only count once per session)
