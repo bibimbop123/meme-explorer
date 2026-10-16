@@ -479,8 +479,10 @@ class MemePoolManager
 
       fetcher = create_fetcher
 
-      all_memes = tier_counts.flat_map do |tier, count|
-        fetch_from_tier(tier, count, fetcher: fetcher)
+      all_memes = []
+      tier_counts.each do |tier, count|
+        all_memes.concat(fetch_from_tier(tier, count, fetcher: fetcher))
+        break if fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
       end
       AppLogger.info("📦 [PoolManager] Fetched #{all_memes.size} memes total")
       
@@ -495,7 +497,9 @@ class MemePoolManager
       stored_count = validated_memes.empty? ? 0 : store_in_pool(inventory)
       AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
 
-      if stored_count > 0
+      if fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
+        RedisService.set(BOOTSTRAP_COOLDOWN_KEY, 'true', ttl: BOOTSTRAP_COOLDOWN_TTL)
+      elsif stored_count > 0
         # Successful fetch - clear any prior rate-limit cooldown
         RedisService.delete(BOOTSTRAP_COOLDOWN_KEY)
       elsif all_memes.empty?
@@ -603,7 +607,7 @@ class MemePoolManager
       
       # Use Reddit Fetcher Service
       fetcher ||= create_fetcher
-      memes = fetcher.fetch_memes(subreddits, limit: memes_per_sub)
+      memes = fetcher.fetch_memes(subreddits, limit: memes_per_sub, pages: 2)
       
       AppLogger.info("  ✅ [PoolManager] Got #{memes.size} memes from #{tier}")
       memes

@@ -33,8 +33,19 @@ inventory rather than the sum of overlapping tiers. No cache purge is needed.
 Publication remains multi-key/non-atomic; simultaneous publishers and Redis memory/
 command cost at larger inventory still require monitoring and follow-up.
 
-- Fetcher requests top/week first pages: repeated maintenance overlaps heavily.
-  Cursor-based pagination or bounded hot/new/top rotation needs a separate design.
+- Maintenance now follows at most two top/week pages per community, using Reddit's
+  validated after cursor and URL deduplication. Default/bootstrap fetching stays
+  single-page. Missing/repeated cursors or HTTP errors stop pagination. Each run
+  still starts at page one; cross-run cursor persistence/source rotation stay open.
+- A 429 marks the shared fetcher rate-limited, stops later maintenance tiers and
+  sets the existing cooldown even if partial content was stored. Subsequent calls
+  on that fetcher make no HTTP requests; later jobs create fresh fetchers after
+  normal cooldown checks. Separate workers still need publication coordination.
+- Stale refresh still removes old items before fetching replacements. This can
+  shrink usable inventory on fetch failure and needs a non-destructive replacement
+  design separately from bounded pagination.
+- Two-page expansion can double request count and job duration; monitor worker
+  backlog, rate limits and lease duration before enabling large production batches.
 - Source posts may be videos, removed, malformed, unsafe, duplicates or fail quality
   checks. Requesting 100 posts does not yield 100 usable images.
 - URL identity does not deduplicate identical art across different CDN URLs.

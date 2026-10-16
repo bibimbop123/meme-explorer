@@ -28,6 +28,47 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Pagination/cooldown checkpoint validation
+
+- Added OAuth/static tests preserving first-page results on second-page timeout,
+  HTTP 503 and malformed JSON. Scheduled maintenance's entry-point cooldown check
+  verified by code inspection; actual scheduler execution remains unverified.
+- Full isolated backend: **971 examples, zero failures, seven pending**, 53.2s;
+  **72.84% coverage (4417/6064)**, coverage gates pass, **exit 0**. **113 frontend
+  tests pass**; syntax/whitespace pass. No push/deployment or live Reddit calls.
+- Separate follow-up: stale refresh currently removes old inventory before fetching
+  replacements; preserve working content on failed replacement. Multi-key publication
+  atomicity and overlapping workers also remain open before scaling production.
+
+### Maintenance rate-limit propagation
+
+- Shared fetcher now retains 429 state for its lifetime; later calls decline HTTP.
+  Manager stops later tiers and sets cooldown even when partial inventory publishes,
+  rather than clearing it on partial success. Prior propagation-open notes superseded.
+- **35 targeted pagination/inventory/manager examples pass**, partial coverage exit
+  2; Ruby syntax/whitespace pass. Full suite not rerun; last full 964 examples,
+  zero failures, seven pending, 72.71%, exit 0. No production requests/deployment.
+
+### Pagination safety full verification
+
+- Added malformed/missing cursor and second-page 429 tests for OAuth/static paths.
+  Rate limiting now stops the entire fetcher's community batch while retaining
+  prior results, rather than requesting remaining communities. Manager's later
+  tier calls still need shared rate-limit propagation as separate follow-up.
+- **22 targeted examples pass**; full isolated backend **964 examples, zero failures,
+  seven pending**, 53.16s; **72.71% coverage (4401/6053)**, gates pass, **exit 0**.
+  **113 frontend tests pass**, Ruby/whitespace pass. No live Reddit calls/deployment.
+
+### Inventory expansion: bounded second listing page
+
+- Added optional pages argument capped at two for OAuth/static Reddit fetching;
+  maintenance opts in, bootstrap/default stays one page. Follows validated Reddit
+  after cursor, stops on missing/repeated cursors/errors and deduplicates URLs.
+- **35 targeted fetcher/pool examples pass**, partial coverage exit 2; Ruby syntax/
+  whitespace pass. Full suite not rerun; last full 953 examples, 72.48%, exit 0.
+  No live Reddit requests or production inventory gain claimed. Cross-run cursor
+  persistence, rate-limit/worker duration and publication concurrency remain open.
+
 ### Inventory and opt-in CSP accumulated regression
 
 - Full isolated backend **953 examples, zero failures, seven pending**, 53.44s;

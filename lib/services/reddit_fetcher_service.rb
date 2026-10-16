@@ -15,29 +15,31 @@ class RedditFetcherService
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   ].freeze
-  
+
   DEFAULT_TIMEOUT = 15
   DEFAULT_LIMIT = 50
   THROTTLE_DELAY = 1.0 # seconds between requests
-  
+
   def initialize(auth_strategy: :oauth, access_token: nil)
     @auth_strategy = auth_strategy
     @access_token = access_token
   end
-  
+
   # Main entry point - fetches memes using appropriate strategy
   # PHASE 1 OPTIMIZATION: Doubled subreddit sampling for 5x variety increase
-  def fetch_memes(subreddits, limit: DEFAULT_LIMIT)
+  def fetch_memes(subreddits, limit: DEFAULT_LIMIT, pages: 1)
+    return [] if rate_limited?
+    @page_limit = [[pages.to_i, 1].max, 2].min
     # PHASE 1: Doubled from 12→25 (OAuth) and 25→50 (Static)
     # Target: 2,000+ meme pool (up from 500)
     max_subreddits = @auth_strategy == :oauth ? 25 : 50
     subreddits = Array(subreddits).sample(max_subreddits) if subreddits&.size.to_i > max_subreddits
-    
+
     case @auth_strategy
     when :oauth
-      fetch_with_oauth(subreddits, limit)
+      fetch_with_oauth(subreddits, limit).uniq { |m| m["url"] }
     when :static
-      fetch_static(subreddits, limit)
+      fetch_static(subreddits, limit).uniq { |m| m["url"] }
     else
       raise ArgumentError, "Unknown auth strategy: #{@auth_strategy}"
     end
@@ -45,81 +47,113 @@ class RedditFetcherService
     log_error("Fetch memes failed", e)
     []
   end
-  
+
+  def rate_limited?
+    @rate_limited == true
+  end
+
   private
-  
+
   # OAuth-authenticated fetch (preferred, higher rate limits)
   def fetch_with_oauth(subreddits, limit)
     return [] unless @access_token
-    
+
     memes = []
-    
+
     subreddits.each do |subreddit|
-      begin
-        url = "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}"
-        
-        response = HTTParty.get(url,
-          headers: {
-            "Authorization" => "Bearer #{@access_token}",
-            "User-Agent" => "MemeExplorer/1.0"
-          },
-          timeout: DEFAULT_TIMEOUT
-        )
-        
-        if response.success?
-          memes.concat(parse_reddit_response(response.parsed_response))
-        else
-          log_error("OAuth fetch failed for r/#{subreddit}", "Status: #{response.code}")
+      after = nil
+      (@page_limit || 1).times do
+        begin
+          url = "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}"
+
+          url += "&after=#{URI.encode_www_form_component(after)}" if after
+          response = HTTParty.get(url,
+            headers: {
+              "Authorization" => "Bearer #{@access_token}",
+              "User-Agent" => "MemeExplorer/1.0"
+            },
+            timeout: DEFAULT_TIMEOUT
+          )
+
+          if response.code.to_i == 429
+            @rate_limited = true
+            return memes
+          end
+          if response.success?
+            data = response.parsed_response
+            memes.concat(parse_reddit_response(data))
+            next_after = data.dig("data", "after")
+          else
+            log_error("OAuth fetch failed for r/#{subreddit}", "Status: #{response.code}")
+            break
+          end
+
+          sleep THROTTLE_DELAY
+          break unless next_after.is_a?(String) && next_after.match?(/\At3_[A-Za-z0-9]+\z/) && next_after != after
+          after = next_after
+        rescue => e
+          log_error("OAuth fetch error for r/#{subreddit}", e)
+          break
         end
-        
-        sleep THROTTLE_DELAY
-      rescue => e
-        log_error("OAuth fetch error for r/#{subreddit}", e)
       end
     end
-    
+
     memes
   end
-  
+
   # Static/unauthenticated fetch (fallback, lower rate limits)
   def fetch_static(subreddits, limit)
     memes = []
-    
+
     subreddits.each do |subreddit|
-      begin
-        url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
-        uri = URI(url)
-        
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, 
-                                   read_timeout: DEFAULT_TIMEOUT, 
-                                   open_timeout: DEFAULT_TIMEOUT) do |http|
-          request = Net::HTTP::Get.new(uri.request_uri)
-          request["User-Agent"] = USER_AGENTS.sample
-          request["Accept"] = "application/json"
-          http.request(request)
+      after = nil
+      (@page_limit || 1).times do
+        begin
+          url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
+          url += "&after=#{URI.encode_www_form_component(after)}" if after
+          uri = URI(url)
+
+          response = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
+                                     read_timeout: DEFAULT_TIMEOUT,
+                                     open_timeout: DEFAULT_TIMEOUT) do |http|
+            request = Net::HTTP::Get.new(uri.request_uri)
+            request["User-Agent"] = USER_AGENTS.sample
+            request["Accept"] = "application/json"
+            http.request(request)
+          end
+
+          if response.code.to_i == 429
+            @rate_limited = true
+            return memes
+          end
+          if response.code == "200"
+            data = JSON.parse(response.body)
+            memes.concat(parse_reddit_response(data))
+            next_after = data.dig("data", "after")
+          else
+            break
+          end
+
+          sleep THROTTLE_DELAY / 2 # Faster throttle for static
+          break unless next_after.is_a?(String) && next_after.match?(/\At3_[A-Za-z0-9]+\z/) && next_after != after
+          after = next_after
+        rescue => e
+          log_error("Static fetch error for r/#{subreddit}", e)
+          break
         end
-        
-        if response.code == "200"
-          data = JSON.parse(response.body)
-          memes.concat(parse_reddit_response(data))
-        end
-        
-        sleep THROTTLE_DELAY / 2 # Faster throttle for static
-      rescue => e
-        log_error("Static fetch error for r/#{subreddit}", e)
       end
     end
-    
+
     memes
   end
-  
+
   # Parse Reddit API response into meme objects
   def parse_reddit_response(data)
     return [] unless data.is_a?(Hash) && data["data"]
-    
+
     children = data.dig("data", "children") || []
     memes = []
-    
+
     children.each do |post|
       post_data = post["data"]
       next unless post_data
@@ -127,23 +161,23 @@ class RedditFetcherService
       resolved = RedditMediaResolver.resolve(post_data)
       next unless resolved
       post_data = post_data.merge(resolved)
-      
+
       # Handle gallery posts
       is_gallery = post_data["is_gallery"] == true
       gallery_images = post_data['gallery_images'] if is_gallery
-      
+
       # Skip videos unless they're galleries
       next if post_data["is_video"] && !is_gallery
-      
+
       # Get image URL
       image_url = if gallery_images && gallery_images.any?
                     gallery_images.first["url"]
                   else
                     post_data["url"]
                   end
-      
+
       next unless image_url
-      
+
       # Build meme object
       meme = {
         "title" => post_data["title"],
@@ -159,45 +193,45 @@ class RedditFetcherService
                      matching_preview_dimensions(post_data, image_url)
                    end
       dimensions.each { |key, value| meme[key.to_s] = value }
-      
+
       # Add gallery data if present
       if is_gallery && gallery_images && gallery_images.any?
         meme["is_gallery"] = true
         meme["gallery_images"] = gallery_images
       end
-      
+
       memes << meme
     end
-    
+
     memes
   end
-  
+
   # Extract gallery images from Reddit post data
   def extract_gallery_images(post_data)
-    return nil unless post_data["is_gallery"] && 
-                      post_data["gallery_data"] && 
+    return nil unless post_data["is_gallery"] &&
+                      post_data["gallery_data"] &&
                       post_data["media_metadata"]
-    
+
     gallery_items = post_data["gallery_data"]["items"] || []
     media_metadata = post_data["media_metadata"] || {}
-    
+
     images = []
     gallery_items.each do |item|
       media_id = item["media_id"]
       next unless media_id
-      
+
       media_info = media_metadata[media_id]
       next unless media_info
-      
+
       # Get highest quality image
-      image_url = media_info.dig("s", "u") || 
-                  media_info.dig("s", "gif") || 
+      image_url = media_info.dig("s", "u") ||
+                  media_info.dig("s", "gif") ||
                   media_info.dig("s", "mp4")
       next unless image_url
-      
+
       # Clean up URL encoding
       image_url = image_url.gsub('&amp;', '&')
-      
+
       images << {
         "url" => image_url,
         "caption" => item["caption"] || "",
@@ -205,7 +239,7 @@ class RedditFetcherService
         **MediaDimensions.for('width' => media_info.dig('s', 'x'), 'height' => media_info.dig('s', 'y')).transform_keys(&:to_s)
       }
     end
-    
+
     images.any? ? images : nil
   end
 
@@ -220,12 +254,12 @@ class RedditFetcherService
     end
     {}
   end
-  
+
   # Centralized error logging
   def log_error(context, error)
     message = error.is_a?(String) ? error : error.message
     AppLogger.warn("⚠️  [RedditFetcher] #{context}: #{message}")
-    
+
     # Send to Sentry if available
     if defined?(Sentry) && error.is_a?(Exception)
       Sentry.capture_exception(error, extra: { context: context })
