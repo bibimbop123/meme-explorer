@@ -41,9 +41,11 @@ command cost at larger inventory still require monitoring and follow-up.
   sets the existing cooldown even if partial content was stored. Subsequent calls
   on that fetcher make no HTTP requests; later jobs create fresh fetchers after
   normal cooldown checks. Separate workers still need publication coordination.
-- Stale refresh still removes old items before fetching replacements. This can
-  shrink usable inventory on fetch failure and needs a non-destructive replacement
-  design separately from bounded pagination.
+- Stale refresh keeps existing items until quality-filtered replacements arrive.
+  Only genuinely new URLs retire stale entries, at most one per new unique URL;
+  duplicate snapshots update metadata without reducing unique inventory. Empty or
+  rejected batches do not publish. Redis write failures/overlapping publishers
+  remain subject to the multi-key/non-atomic publication limitation above.
 - Two-page expansion can double request count and job duration; monitor worker
   backlog, rate limits and lease duration before enabling large production batches.
 - Source posts may be videos, removed, malformed, unsafe, duplicates or fail quality

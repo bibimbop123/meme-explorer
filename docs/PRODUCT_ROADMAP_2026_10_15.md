@@ -28,6 +28,21 @@ to this document's security, test and operational release gates.
 
 ## First principles
 
+### Non-destructive stale inventory refresh
+
+- Removed pre-fetch stale deletion. Existing inventory remains available during
+  fetching; only validated, genuinely new URLs displace stale entries, bounded
+  one-for-one. Duplicate snapshots do not count as replacements. Empty/rejected
+  results do not publish, failed publication reports zero replacements, and a zero
+  rounded refresh budget skips fetching. Prior stale-deletion follow-up superseded.
+- Eight regression examples cover empty/rejected supply, duplicates, partial supply,
+  refreshed stale snapshots, write failure reporting, zero budget and fetch errors.
+- Full isolated backend: **979 examples, zero failures, seven pending**, 53.61s;
+  **73.05% coverage (4435/6071)**, gates pass, **exit 0**. **113 frontend tests pass**;
+  Ruby syntax/whitespace pass. No live Reddit calls, push or deployment.
+- Redis publication is still multi-key/non-atomic: partial writes and concurrent
+  publishers remain open. No production inventory increase is claimed.
+
 ### Pagination/cooldown checkpoint validation
 
 - Added OAuth/static tests preserving first-page results on second-page timeout,

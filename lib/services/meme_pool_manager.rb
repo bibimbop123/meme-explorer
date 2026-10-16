@@ -469,7 +469,7 @@ class MemePoolManager
     #
     # Fix: create ONE shared fetcher (one OAuth token) and reuse it
     # sequentially across tiers, matching bootstrap_pool's approach.
-    def fetch_batch(size:, priority: :normal)
+    def fetch_batch(size:, priority: :normal, replacement_urls: [])
       AppLogger.info("📥 [PoolManager] Fetching batch of #{size} memes (priority: #{priority})")
       
       # Calculate tier distribution
@@ -493,7 +493,14 @@ class MemePoolManager
       # Store in pool
       # Keep usable inventory across small maintenance batches. New snapshots win
       # URL collisions; bounded retention avoids unbounded Redis growth.
-      inventory = (validated_memes + get_current_pool).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
+      current_pool = get_current_pool
+      current_urls = current_pool.map { |m| m['url'] }
+      new_urls = validated_memes.map { |m| m['url'] }.uniq - current_urls
+      # Retire at most one existing entry per genuinely new usable URL. A
+      # duplicate snapshot refresh must not shrink inventory.
+      retired_urls = ((replacement_urls & current_urls) - validated_memes.map { |m| m['url'] }).take(new_urls.size)
+      retained = current_pool.reject { |m| retired_urls.include?(m['url']) }
+      inventory = (validated_memes + retained).uniq { |m| m['url'] }.take(TARGET_POOL_SIZE)
       stored_count = validated_memes.empty? ? 0 : store_in_pool(inventory)
       AppLogger.info("💾 [PoolManager] Stored #{stored_count} memes in pool")
 
@@ -509,7 +516,8 @@ class MemePoolManager
         RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
       end
       
-      { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count }
+      { fetched: all_memes.size, validated: validated_memes.size, stored: stored_count,
+        replaced: stored_count > 0 ? retired_urls.size : 0 }
     rescue => e
       log_error("Fetch batch error", e)
       { fetched: 0, validated: 0, stored: 0, error: e.message }
@@ -525,13 +533,13 @@ class MemePoolManager
       # Find oldest memes
       stale_urls = find_stale_memes(current_pool, stale_count)
       
-      # Remove stale memes
-      remove_from_pool(stale_urls)
-      
-      # Fetch fresh replacements
-      fetch_batch(size: stale_count)
-      
-      { replaced: stale_count }
+      return { replaced: 0 } if stale_count <= 0
+
+      # Keep working inventory until validated, unique replacements exist.
+      result = fetch_batch(size: stale_count, replacement_urls: stale_urls)
+      { replaced: result.fetch(:replaced, 0) }.tap do |response|
+        response[:error] = result[:error] if result[:error]
+      end
     rescue => e
       log_error("Replace stale error", e)
       { replaced: 0, error: e.message }
