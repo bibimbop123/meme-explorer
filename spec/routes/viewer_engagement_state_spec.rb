@@ -24,6 +24,7 @@ RSpec.describe 'Viewer initial engagement state' do
     expect(timing).not_to include(url, meme['title'])
     expect(JSON.parse(last_response.body)).to include('url' => url, 'likes' => 7)
     expect(last_response.headers['cache-control']).to include('no-store')
+    expect(last_response.headers['x-likes-lookup']).to match(/\A(cache_hit|database_fallback)\z/)
   end
 
   it 'attributes a delayed likes lookup to its sub-stage and preparation parent' do
@@ -40,6 +41,39 @@ RSpec.describe 'Viewer initial engagement state' do
     expect(timings.fetch('likes_lookup')).to be >= 15.0
     expect(timings.fetch('response_prepare')).to be >= timings.fetch('likes_lookup')
     expect(JSON.parse(last_response.body)['likes']).to eq(7)
+  end
+
+  it 'reports fallback then cache hit on consecutive requests without carrying state over' do
+    key = "meme:likes:#{url}"
+    RedisService.with_redis { |redis| redis.del(key) }
+    begin
+      get '/random.json'
+      expect(last_response.status).to eq(200)
+      expect(last_response.headers['x-likes-lookup']).to eq('database_fallback')
+      get '/random.json'
+      expect(last_response.status).to eq(200)
+      expect(last_response.headers['x-likes-lookup']).to eq('cache_hit')
+      expect(JSON.parse(last_response.body)['likes']).to eq(7)
+    ensure
+      RedisService.with_redis { |redis| redis.del(key) }
+    end
+  end
+
+  it 'reports unavailable while keeping the feed usable on a likes database failure' do
+    allow(RedisService).to receive(:fetch).with("meme:likes:#{url}", ttl: 300).and_yield
+    allow(DB).to receive(:execute).and_call_original
+    allow(DB).to receive(:execute).with('SELECT likes FROM meme_stats WHERE url = ?', [url]).and_raise(PG::ConnectionBad)
+    get '/random.json'
+    expect(last_response.status).to eq(200)
+    expect(last_response.headers['x-likes-lookup']).to eq('unavailable')
+    expect(JSON.parse(last_response.body)).to include('url' => url, 'likes' => 0)
+  end
+
+  it 'uses unknown rather than guessing when a replacement lookup provides no diagnostic' do
+    allow_any_instance_of(MemeExplorer::App).to receive(:get_meme_likes).and_return(7)
+    get '/random.json'
+    expect(last_response.status).to eq(200)
+    expect(last_response.headers['x-likes-lookup']).to eq('unknown')
   end
 
   ['/random.json', '/similar.json?subreddit=funny'].each do |path|

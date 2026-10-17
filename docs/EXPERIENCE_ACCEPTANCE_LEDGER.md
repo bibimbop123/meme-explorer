@@ -125,6 +125,37 @@ are not user research.
 
 ## Next intervention decision
 
+### Pipeline rollout and likes-cache follow-up
+
+Operator reports deploying `5dd473a`. One public response returned history_write
+57.54ms and response_prepare 175.00ms, versus earlier single samples of 235.43ms
+and 355.88ms; likes_lookup was 116.94ms. This is encouraging, not a controlled
+comparison or percentile. HTTP 200, no-store/private and expected fields passed.
+
+Likes lookup already uses a 300-second cache: GET, database fallback on miss,
+SETEX for a successful result. Cold versus warm status was not measured in that
+production response. Added real-Redis tests confirming successful zero and
+nonzero values survive a second read without another DB query and retain expiry.
+No runtime/cache policy change. Full isolated run: 1,221 examples, zero failures,
+seven pending, 76.13% coverage, exit 0. Production cold/warm attribution remains
+open; do not lengthen TTL or cache outage fallbacks to chase a single sample.
+
+Local attribution follow-up adds X-Likes-Lookup on successful random.json:
+cache_hit, database_fallback, unavailable, not_requested or unknown (allowlisted).
+The helper records whether its existing fallback ran; no extra cache read/write
+or database query is introduced. database_fallback includes a cache miss or Redis
+unavailability and does not distinguish them. The value is request-instance state,
+captured immediately after lookup, and contains no URL, key or account identifier.
+Pair it with likes_lookup duration during ordinary browsing after approved rollout;
+do not interpret a slow cache_hit alone as database latency.
+
+Attribution acceptance: consecutive real-Redis route requests report database
+fallback then cache hit; a likes DB failure keeps HTTP 200/zero fallback with
+unavailable attribution; replacement helpers without diagnostic state report
+unknown. Final isolated run: 1,224 examples, zero failures, seven pending,
+76.20% coverage, exit 0. No frontend changes in this slice. Still uncommitted and
+not deployed; no new production sample collected.
+
 ### Operator-reported follow-up rollout and timing sample
 
 Operator subsequently reports deploying `f796705`. One fresh public response
