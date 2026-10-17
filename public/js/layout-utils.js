@@ -16,12 +16,31 @@ function initNavigationDisclosure() {
   if (!toggle || !menu || toggle.dataset.disclosureReady) return;
   toggle.dataset.disclosureReady = 'true';
   const setOpen = open => {
+    if (open) {
+      const header = toggle.closest?.('.main-nav');
+      const bottom = header?.getBoundingClientRect().bottom;
+      if (Number.isFinite(bottom)) {
+        const top = Math.max(8, Math.min(bottom + 8, window.innerHeight - 64));
+        menu.style.top = `${top}px`;
+        menu.style.maxHeight = `${Math.max(48, window.innerHeight - top - 8)}px`;
+      }
+    }
     menu.hidden = !open;
     menu.classList.toggle('active', open);
     toggle.setAttribute('aria-expanded', String(open));
   };
   setOpen(false);
   toggle.addEventListener('click', () => setOpen(menu.hidden));
+  if (typeof window !== 'undefined') {
+    const closeForLayoutChange = () => {
+      if (menu.hidden) return;
+      const focusedInside = menu.contains(document.activeElement);
+      setOpen(false);
+      if (focusedInside) toggle.focus({ preventScroll: true });
+    };
+    window.addEventListener('resize', closeForLayoutChange);
+    window.addEventListener('scroll', closeForLayoutChange, { passive: true });
+  }
   document.addEventListener('click', event => {
     if (!toggle.contains(event.target) && !menu.contains(event.target)) setOpen(false);
   });

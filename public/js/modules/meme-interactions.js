@@ -233,7 +233,7 @@ export class MemeInteractions {
           if (panel && this.getCurrentMemeUrl() === memeUrl) {
             const message = panel.querySelector?.('p');
             if (message) message.textContent = data.pending_save === true
-              ? 'Not saved yet. Sign in to return to this meme, then press Save to keep it across devices.'
+              ? 'Not saved yet. Sign in to finish saving this meme to your favorites.'
               : 'Not saved. Automatic return to this meme is unavailable. Use Share to keep its exact link before signing in, if available.';
             panel.hidden = false;
             panel.querySelector?.('a')?.focus();

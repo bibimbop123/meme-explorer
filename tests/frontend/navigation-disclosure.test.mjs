@@ -5,18 +5,21 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../../public/js/layout-utils.js', import.meta.url), 'utf8');
 
-function setup() {
+function setup({ bottom = 140 } = {}) {
   const listeners = {};
   const clicks = {};
+  const windowListeners = {};
   let focused = false;
   const toggle = {
     dataset: {}, contains: target => target === toggle,
+    closest: () => ({ getBoundingClientRect: () => ({ bottom }) }),
     setAttribute(key, value) { this[key] = value; },
     addEventListener: (name, callback) => { clicks[name] = callback; },
     focus: () => { focused = true; }
   };
-  const menu = { hidden: true, classList: { toggle() {} }, contains: target => target === menu };
+  const menu = { style: {}, hidden: true, classList: { toggle() {} }, contains: target => target === menu };
   const context = {
+    window: { innerHeight: 812, addEventListener: (name, handler) => { windowListeners[name] = handler; } },
     document: {
       readyState: 'loading',
       getElementById: id => id === 'menuToggle' ? toggle : menu,
@@ -25,7 +28,7 @@ function setup() {
   };
   vm.runInNewContext(source, context);
   context.module.exports.initNavigationDisclosure();
-  return { toggle, menu, listeners, clicks, focused: () => focused, initialize: context.module.exports.initNavigationDisclosure };
+  return { toggle, menu, listeners, clicks, windowListeners, document: context.document, focused: () => focused, initialize: context.module.exports.initNavigationDisclosure };
 }
 
 test('navigation disclosure synchronizes visibility and expanded state', () => {
@@ -67,4 +70,18 @@ test('reinitialization does not replace or duplicate toggle handlers', () => {
   const handler = app.clicks.click;
   app.initialize();
   assert.equal(app.clicks.click, handler);
+});
+
+test('menu follows wrapped header and closes safely when layout changes', () => {
+  const app = setup();
+  app.clicks.click();
+  assert.equal(app.menu.style.top, '148px');
+  assert.equal(app.menu.style.maxHeight, '656px');
+  app.document.activeElement = app.menu;
+  app.windowListeners.resize();
+  assert.equal(app.menu.hidden, true);
+  assert.equal(app.focused(), true);
+  app.clicks.click();
+  app.windowListeners.scroll();
+  assert.equal(app.menu.hidden, true);
 });

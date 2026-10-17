@@ -1,18 +1,12 @@
 <!-- Meme Controls Partial -->
-<button type="button" class="control-btn prev-button" id="prev-btn" data-action="prev-meme" title="Previous meme (Left arrow outside galleries)" disabled>
-  ← Previous
-</button>
-<button type="button" class="control-btn next-button" id="next-btn" data-action="next-meme" title="Next meme (Space or Right arrow)">
-  Next meme →
-</button>
 <button type="button" class="control-btn" id="like-btn" title="Like this meme" aria-label="Like this meme" aria-pressed="<%= @liked ? 'true' : 'false' %>" data-liked="<%= @liked ? 'true' : 'false' %>">
   <span aria-hidden="true">❤️</span> Like
   <span class="control-count" id="like-count"><%= @likes %></span>
 </button>
 
-<button type="button" class="control-btn" id="save-btn" title="Save to profile" aria-label="Save this meme" aria-pressed="<%= @saved ? 'true' : 'false' %>" data-saved="<%= @saved ? 'true' : 'false' %>">
+<button type="button" class="control-btn" id="save-btn" title="Save to favorites" aria-label="Save this meme to favorites" aria-pressed="<%= @saved ? 'true' : 'false' %>" data-saved="<%= @saved ? 'true' : 'false' %>">
   🔖
-  <span class="control-count">Save</span>
+  <span class="control-count">Save to favorites</span>
 </button>
 
 <button type="button" class="control-btn" id="share-btn" title="Share" aria-label="Share this meme">
@@ -22,5 +16,5 @@
 
 <button type="button" class="control-btn" id="download-btn" title="Download meme" aria-label="Download this meme">
   ⬇️
-  <span class="control-count">Save to device</span>
+  <span class="control-count">Download</span>
 </button>

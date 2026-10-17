@@ -5,6 +5,7 @@
   <div class="nav-items">
     <a href="/random" class="<%= 'active' if request.path == '/random' %>">Random</a>
     <a href="/trending" class="<%= 'active' if request.path.start_with?('/trending') %>">Trending</a>
+    <a href="/search" class="<%= 'active' if request.path == '/search' %>">Search</a>
     <button id="darkModeToggle" title="Toggle theme" aria-label="Toggle dark mode">🌙</button>
     
     <% if logged_in? %>
@@ -19,7 +20,13 @@
 
 <!-- Hidden hamburger menu for secondary items -->
 <div id="hamburgerMenu" class="hamburger-menu" hidden>
-  <a href="/search">Search memes</a>
+  <% if logged_in? %>
+    <a href="/profile">Profile and favorites</a>
+  <% else %>
+    <a href="/login">Sign in</a>
+  <% end %>
+  <button type="button" id="notification-settings" hidden>Enable notifications</button>
+  <p id="notification-status" role="status" aria-live="polite" hidden></p>
   <% if admin? %>
     <a href="/metrics">📊 Metrics</a>
   <% end %>

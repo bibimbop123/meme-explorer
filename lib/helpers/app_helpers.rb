@@ -52,7 +52,7 @@ module AppHelpers
   def generate_curation_signal(meme)
     # refined_curation_signal removed - return simple default signal
     # Default curation signal
-    { type: 'default', icon: '✨', message: 'Curated for you' }
+    { type: 'default', icon: '✨', message: 'From the community feed' }
   end
   
   # Wrapper for rendering taste profile (used in views/profile.erb)

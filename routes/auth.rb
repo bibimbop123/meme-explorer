@@ -126,7 +126,7 @@ class AuthRoutes
               session_regenerated: true
             )
             
-            redirect pending_save_target(pending_save) || '/profile', 302
+            redirect complete_pending_save(pending_save) || '/profile', 302
             
           rescue => e
             AppLogger.error("Reddit OAuth callback error",
@@ -228,7 +228,7 @@ class AuthRoutes
                 ip: request.ip
               )
               
-              target = pending_save_target(pending_save)
+              target = complete_pending_save(pending_save)
               return { success: true, redirect: target || '/profile' }.to_json
             else
               # ✅ SECURITY FIX: Record failed login attempt
@@ -337,7 +337,7 @@ class AuthRoutes
               ip: request.ip
             )
             
-            return { success: true, redirect: pending_save_target(pending_save) || '/profile' }.to_json
+            return { success: true, redirect: complete_pending_save(pending_save) || '/profile' }.to_json
 
           rescue Validators::ValidationError => e
             return { success: false, error: e.message }.to_json

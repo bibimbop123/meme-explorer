@@ -27,6 +27,29 @@ module AuthHelpers
     "/meme/#{pending['id']}?save_after_login=1"
   end
 
+  # Called only after successful authentication and session rotation. Resolve
+  # the server-held identity again; never save from redirect/query parameters.
+  def complete_pending_save(pending)
+    return nil unless current_user_id
+    target = pending_save_target(pending)
+    return nil unless target
+    meme = MemeIdentityService.find(pending['id'])
+    return target unless meme
+
+    result = EngagementService.track_save(
+      user_id: current_user_id, meme_url: meme['url'],
+      title: meme['title'], subreddit: meme['subreddit'],
+      saved_now: true, session: session, db: ::DB
+    )
+    AppLogger.warn('Post-login save not confirmed') unless result[:success]
+    target
+  rescue => e
+    # Login remains successful; the destination offers a manual retry and
+    # reports the actual persisted saved state instead of claiming success.
+    AppLogger.warn('Post-login save unavailable', error: e.class.name)
+    target
+  end
+
   # Returns the current user's DB record (memoized per request).
   # Returns nil if not logged in or user not found.
   def current_user

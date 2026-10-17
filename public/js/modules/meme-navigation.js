@@ -65,8 +65,10 @@ export class MemeNavigation {
   }
 
   bindRecentMemes() {
+    this.restoreRecentMemes();
     document.querySelector('#clear-recent-memes')?.addEventListener('click', () => {
       this.recentMemes = [];
+      this.persistRecentMemes();
       this.renderRecentMemes();
     });
     document.querySelector('#recent-meme-list')?.addEventListener('click', event => {
@@ -126,9 +128,51 @@ export class MemeNavigation {
     });
   }
 
+  recentSnapshot(meme) {
+    if (!meme || typeof meme.url !== 'string' || meme.url.length > 4096 ||
+        !/^(https?:\/\/|\/(?!\/))/.test(meme.url) ||
+        typeof meme.share_path !== 'string' || !/^\/meme\/[a-f0-9]{64}$/.test(meme.share_path)) return null;
+    const snapshot = {};
+    // Only list labels and exact navigation identity are needed on refresh.
+    // Never persist media snapshots, ACK tokens or account-specific state.
+    for (const key of ['url', 'title', 'share_path']) {
+      if (typeof meme[key] === 'string') snapshot[key] = meme[key].slice(0, 4096);
+    }
+    // A gallery without its bounded media snapshot must not masquerade as a single image.
+    if (meme.is_gallery || meme.gallery_images?.length) return null;
+    return snapshot;
+  }
+
+  persistRecentMemes() {
+    try {
+      const items = (this.recentMemes || []).map(meme => this.recentSnapshot(meme)).filter(Boolean).slice(0, 20);
+      const data = JSON.stringify({ version: 1, items });
+      if (data.length <= 131072) window.sessionStorage.setItem('meme-explorer:recent:v1', data);
+      else window.sessionStorage.removeItem('meme-explorer:recent:v1');
+    } catch (_) { /* Storage is optional, including in private browsing. */ }
+  }
+
+  restoreRecentMemes() {
+    try {
+      const raw = window.sessionStorage.getItem('meme-explorer:recent:v1');
+      if (!raw || raw.length > 131072) return;
+      const saved = JSON.parse(raw);
+      if (!saved || saved.version !== 1 || !Array.isArray(saved.items)) return;
+      const seen = new Set();
+      this.recentMemes = saved.items.slice(0, 20).map(meme => this.recentSnapshot(meme)).filter(meme => {
+        if (!meme || seen.has(meme.url)) return false;
+        seen.add(meme.url);
+        meme.restoredFromStorage = true;
+        return true;
+      });
+      this.renderRecentMemes();
+    } catch (_) { /* Malformed or unavailable storage must not block navigation. */ }
+  }
+
   rememberRecentMeme(meme) {
     if (!meme || typeof meme.url !== 'string' || !meme.url) return;
     this.recentMemes = [{ ...meme }, ...(this.recentMemes || []).filter(item => item.url !== meme.url)].slice(0, 20);
+    this.persistRecentMemes();
     this.renderRecentMemes();
   }
 
@@ -154,6 +198,16 @@ export class MemeNavigation {
   async openRecentMeme(index) {
     if (this.loading || !Number.isInteger(index) || !this.recentMemes?.[index]) return;
     const selected = this.recentMemes[index];
+    if (selected.restoredFromStorage) {
+      // Re-resolve content and current account state, rather than presenting
+      // stale saved/liked defaults from a previous authenticated session.
+      if (/^\/meme\/[a-f0-9]{64}$/.test(selected.share_path || '')) {
+        window.location.assign(selected.share_path);
+      } else {
+        this.showError('This history entry cannot be reopened. Choose another meme.');
+      }
+      return;
+    }
     const meme = { ...selected, ...(this.interactionStates?.get(selected.url) || {}) };
     const version = this.beginNavigation();
     try {
@@ -836,6 +890,8 @@ export class MemeNavigation {
    * Show loading state with spinner
    */
   showLoadingState() {
+    const status = document.getElementById('viewer-status');
+    if (status) status.textContent = 'Loading meme…';
     const display = document.querySelector('#meme-display');
     if (display) {
       display.classList.add('loading');
@@ -843,7 +899,7 @@ export class MemeNavigation {
     }
 
     // Disable controls while loading
-    const controls = document.querySelectorAll('.meme-controls button');
+    const controls = document.querySelectorAll('.meme-controls button, .viewer-navigation button');
     controls.forEach(btn => btn.disabled = true);
   }
 
@@ -851,6 +907,9 @@ export class MemeNavigation {
    * Hide loading state
    */
   hideLoadingState() {
+    const status = document.getElementById('viewer-status');
+    // Do not erase a newer content announcement or leave a stale loading one.
+    if (status?.textContent === 'Loading meme…') status.textContent = '';
     const display = document.querySelector('#meme-display');
     if (display) {
       display.classList.remove('loading');
@@ -858,7 +917,7 @@ export class MemeNavigation {
     }
 
     // Re-enable controls
-    const controls = document.querySelectorAll('.meme-controls button');
+    const controls = document.querySelectorAll('.meme-controls button, .viewer-navigation button');
     controls.forEach(btn => btn.disabled = false);
     this.updatePreviousAvailability();
   }
