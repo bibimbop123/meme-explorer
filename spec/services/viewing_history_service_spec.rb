@@ -6,6 +6,29 @@ RSpec.describe MemeExplorer::ViewingHistoryService do
 
   after { described_class.clear_history(visitor) }
 
+  it 'batches ordered history writes without depending on command replies' do
+    redis = double('Redis connection')
+    pipeline = double('Redis pipeline')
+    allow(RedisService).to receive(:with_redis).and_yield(redis)
+    allow(Time).to receive(:now).and_return(Time.at(1_800_000_000))
+    key = "viewing_history:#{visitor}"
+    expect(redis).to receive(:pipelined).once.and_yield(pipeline)
+    expect(pipeline).to receive(:zremrangebyscore).with(key, '-inf', 1_800_000_000.0 - described_class::HISTORY_TTL).ordered
+    expect(pipeline).to receive(:zadd).with(key, 1_800_000_000.0, 'batched').ordered
+    expect(pipeline).to receive(:zremrangebyrank).with(key, 0, -(described_class::MAX_HISTORY_SIZE + 1)).ordered
+    expect(pipeline).to receive(:expire).with(key, described_class::HISTORY_TTL).ordered
+    described_class.mark_seen(visitor, 'batched')
+    allow(redis).to receive(:del) # after-hook cleanup uses the same stubbed connection
+  end
+
+  it 'fails soft when the pipeline raises' do
+    redis = double('Redis connection')
+    allow(RedisService).to receive(:with_redis).and_yield(redis)
+    allow(redis).to receive(:pipelined).and_raise(Redis::CannotConnectError)
+    allow(redis).to receive(:del)
+    expect { described_class.mark_seen(visitor, 'offline') }.not_to raise_error
+  end
+
   it 'persists seen identifiers and supports membership, count, and clear' do
     described_class.mark_seen(visitor, 'first')
     described_class.mark_seen(visitor, 'second')
@@ -42,6 +65,22 @@ RSpec.describe MemeExplorer::ViewingHistoryService do
     expect(described_class.get_seen_memes(visitor)).to eq(['recent'])
     described_class.mark_seen(visitor, 'new')
     expect(described_class.get_seen_memes(visitor)).to eq(%w[recent new])
+  end
+
+  it 'prunes expired scores and renews expiry during the write pipeline itself' do
+    key = "viewing_history:#{visitor}"
+    now = Time.now.to_f
+    RedisService.with_redis do |redis|
+      redis.zadd(key, now - described_class::HISTORY_TTL - 10, 'expired')
+      redis.zadd(key, now - 10, 'recent')
+      redis.expire(key, 60)
+    end
+    described_class.mark_seen(visitor, 'new')
+    # Read directly: get_seen_memes also prunes and would mask a broken write.
+    RedisService.with_redis do |redis|
+      expect(redis.zrange(key, 0, -1)).to eq(%w[recent new])
+      expect(redis.ttl(key)).to be_between(described_class::HISTORY_TTL - 5, described_class::HISTORY_TTL)
+    end
   end
 
   it 'returns safe empty values during Redis unavailability' do

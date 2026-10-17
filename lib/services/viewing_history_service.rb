@@ -20,14 +20,15 @@ module MemeExplorer
         RedisService.with_redis do |redis|
           # Add to sorted set with timestamp score
           now = Time.now.to_f
-          redis.zremrangebyscore(key, '-inf', now - HISTORY_TTL)
-          redis.zadd(key, now, meme_identifier)
-          
-          # Keep only last MAX_HISTORY_SIZE memes
-          redis.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
-          
-          # Set expiry
-          redis.expire(key, HISTORY_TTL)
+          # Commands have no reply dependencies. Preserve their order while
+          # avoiding four sequential network waits. This is not a transaction;
+          # concurrent-writer and selection-time history semantics are unchanged.
+          redis.pipelined do |pipeline|
+            pipeline.zremrangebyscore(key, '-inf', now - HISTORY_TTL)
+            pipeline.zadd(key, now, meme_identifier)
+            pipeline.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
+            pipeline.expire(key, HISTORY_TTL)
+          end
           
           AppLogger.debug("📝 Marked meme as seen: #{meme_identifier} for #{visitor_id}")
         end
