@@ -127,6 +127,34 @@ are not user research.
 
 ### Pipeline rollout and likes-cache follow-up
 
+After operator-reported `28b8c6e` deployment, five sequential public random.json
+requests in one guest cookie session, spaced two seconds apart, all returned 200,
+expected identity fields and database_fallback. Sample ranges/medians (ms):
+
+| Measurement | Min | Median | Max |
+| --- | ---: | ---: | ---: |
+| Client request elapsed | 1253.38 | 1394.64 | 1416.74 |
+| response_prepare | 169.11 | 171.11 | 177.49 |
+| history_write | 55.68 | 56.40 | 58.36 |
+| likes_lookup | 112.31 | 112.98 | 120.08 |
+| impression_issue | 1.92 | 2.47 | 9.21 |
+
+No warm hit occurred, so cache-hit versus fallback latency is unmeasured. Requests
+selected content and issued pending impressions but did not ACK visible views;
+this is not an ordinary-user content audit or media-ready measurement. Client
+elapsed includes transport/client overhead; unmeasured time cannot all be assigned
+to application code. Investigate existing pool/selection measurements and
+session/middleware/network costs before prioritizing another likes optimization.
+Five observations do not establish field p95 or controlled before/after benefit.
+
+Local follow-up adds route_total (handler entry through JSON serialization) and
+selection_pipeline (the existing benchmark call, including its Redis recording).
+They add monotonic clock reads only. route_total excludes before/after filters,
+outer middleware/session persistence and transport. selection_pipeline includes
+pool lookup, selection, nested instrumentation and their telemetry writes, not
+just algorithm CPU. Parent and child durations overlap; never sum all stages.
+Use these to locate the remaining gap before proposing another optimization.
+
 Operator reports deploying `5dd473a`. One public response returned history_write
 57.54ms and response_prepare 175.00ms, versus earlier single samples of 235.43ms
 and 355.88ms; likes_lookup was 116.94ms. This is encouraging, not a controlled
