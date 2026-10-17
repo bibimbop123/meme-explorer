@@ -18,6 +18,8 @@
 # calls it, it doesn't belong in this file.
 
 features:
+  feed:
+    legacy_pending_store: false # Requires explicit staging/canary approval.
   # Core features (always on, not actually flag-gated anywhere - kept
   # here as documentation of what exists, not as a real on/off switch)
   core:
@@ -27,7 +29,7 @@ features:
     dark_mode: true
     search: true
 
-  # Only flag genuinely checked at runtime today:
+  # Navigation flag (in addition to the feed issuance flag above):
   # views/partials/_simplified_nav.erb gates the leaderboard nav link on
   # this exact key (FeatureFlags.enabled?('gamification.features.leaderboards')).
   gamification:
