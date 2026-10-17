@@ -125,6 +125,27 @@ are not user research.
 
 ## Next intervention decision
 
+### Selection pipeline follow-up
+
+After operator-reported `9b0311a` deployment, one public response reported
+route_total 965.95ms, selection_pipeline 778.80ms, response_prepare 182.86ms,
+history_write 59.06ms, likes_lookup 123.31ms and database_fallback; HTTP 200 and
+expected fields. Selection was roughly 81% of handler duration in this sample,
+not a field percentile or algorithm-only CPU cost.
+
+Local review found history retrieval prunes then reads in two sequential Redis
+calls. Follow-up pipelines those commands in order and returns the resolved read
+result. It changes neither history TTL/bounds nor selection-time commit policy;
+it is not a transaction or ACK/session concurrency fix. Existing duplicate route
+marking and benchmark telemetry remain unchanged. Expected benefit is one fewer
+sequential network wait per history read, not a measured production speedup.
+
+History-read pipeline validation: 1,226 backend examples, zero failures, seven
+pending; 76.23% coverage, gates passed, exit 0. Ordered/resolved-result and
+failure-path tests passed alongside existing real-Redis pruning, recency,
+deduplication, capacity and expiry coverage. Disposable Redis stopped; syntax and
+whitespace checks passed. Three-file slice remains local and uncommitted.
+
 ### Pipeline rollout and likes-cache follow-up
 
 After operator-reported `28b8c6e` deployment, five sequential public random.json

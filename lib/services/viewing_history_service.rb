@@ -44,8 +44,13 @@ module MemeExplorer
         
         seen = RedisService.with_redis do |redis|
           # Get all seen memes (returns array of strings)
-          redis.zremrangebyscore(key, '-inf', Time.now.to_f - HISTORY_TTL)
-          redis.zrange(key, 0, -1)
+          # Read after pruning on the same connection, without a separate wait
+          # per command. Read the resolved pipeline result, not a Redis future.
+          results = redis.pipelined do |pipeline|
+            pipeline.zremrangebyscore(key, '-inf', Time.now.to_f - HISTORY_TTL)
+            pipeline.zrange(key, 0, -1)
+          end
+          results.last
         end
         
         seen ||= []

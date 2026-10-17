@@ -29,6 +29,25 @@ RSpec.describe MemeExplorer::ViewingHistoryService do
     expect { described_class.mark_seen(visitor, 'offline') }.not_to raise_error
   end
 
+  it 'pipelines pruning before reading and returns the resolved ordered entries' do
+    redis = double('Redis connection', del: 0)
+    pipeline = double('Redis pipeline')
+    allow(RedisService).to receive(:with_redis).and_yield(redis)
+    allow(Time).to receive(:now).and_return(Time.at(1_800_000_000))
+    key = "viewing_history:#{visitor}"
+    expect(redis).to receive(:pipelined).once.and_yield(pipeline).and_return([2, %w[oldest newest]])
+    expect(pipeline).to receive(:zremrangebyscore).with(key, '-inf', 1_800_000_000.0 - described_class::HISTORY_TTL).ordered
+    expect(pipeline).to receive(:zrange).with(key, 0, -1).ordered
+    expect(described_class.get_seen_memes(visitor)).to eq(%w[oldest newest])
+  end
+
+  it 'returns empty history when the read pipeline fails' do
+    redis = double('Redis connection', del: 0)
+    allow(RedisService).to receive(:with_redis).and_yield(redis)
+    allow(redis).to receive(:pipelined).and_raise(Redis::CannotConnectError)
+    expect(described_class.get_seen_memes(visitor)).to eq([])
+  end
+
   it 'persists seen identifiers and supports membership, count, and clear' do
     described_class.mark_seen(visitor, 'first')
     described_class.mark_seen(visitor, 'second')
