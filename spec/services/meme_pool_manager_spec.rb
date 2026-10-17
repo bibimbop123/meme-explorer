@@ -75,6 +75,15 @@ RSpec.describe MemePoolManager do
       expect(result[:memes].size).to eq(2)
     end
 
+    it 'serves a populated pool with one read and no request-time replenishment' do
+      pool = [{ 'url' => 'https://i.redd.it/populated.jpg' }]
+      expect(RedisService).to receive(:get).with('meme_pool').once.and_return(pool)
+      expect(RedisService).not_to receive(:acquire_lock)
+      expect(described_class).not_to receive(:create_fetcher)
+      expect(described_class).not_to receive(:fetch_batch)
+      expect(described_class.get_pool).to include(success: true, memes: pool, pool_size: 1)
+    end
+
     it 'returns a fast, non-blocking fallback when the pool is empty and cooling down' do
       allow(described_class).to receive(:get_current_pool).and_return([])
       allow(RedisService).to receive(:get).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY).and_return('true')

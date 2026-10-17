@@ -358,7 +358,7 @@ module Routes
         memes = nil
         pool_lookup_ms = selection_work_ms = 0.0
         selection_pipeline_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        @meme = SelectionBenchmark.measure do
+        @meme = SelectionBenchmark.measure(batch: true) do
           # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
           memes = SelectionBenchmark.measure(stage: :pool_lookup) do
             pool_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)

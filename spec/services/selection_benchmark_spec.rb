@@ -3,6 +3,73 @@ require_relative '../spec_helper'
 require_relative '../../lib/services/selection_benchmark'
 
 RSpec.describe SelectionBenchmark do
+  describe 'batched recording' do
+    it 'flushes nested stage samples in one pipeline and returns the result' do
+      redis = double('redis')
+      pipeline = double('pipeline')
+      allow(RedisService).to receive(:with_redis).and_yield(redis)
+      expect(redis).to receive(:pipelined).once.and_yield(pipeline)
+      [:pool_lookup, :selection, :total].each do |stage|
+        expect(pipeline).to receive(:rpush).with("#{described_class::REDIS_KEY_PREFIX}:#{stage}", kind_of(Numeric)).ordered
+        expect(pipeline).to receive(:ltrim).with("#{described_class::REDIS_KEY_PREFIX}:#{stage}", -described_class::MAX_SAMPLES, -1).ordered
+      end
+      result = described_class.measure(batch: true) do
+        described_class.measure(stage: :pool_lookup, batch: true) { :pool }
+        described_class.measure(stage: :selection) { :selected }
+      end
+      expect(result).to eq(:selected)
+      expect(Thread.current[described_class::BATCH_KEY]).to be_nil
+    end
+
+    it 'flushes completed samples on exception and restores standalone behavior' do
+      expect do
+        described_class.batch_records do
+          described_class.record(12, stage: :selection)
+          raise 'selection failed'
+        end
+      end.to raise_error('selection failed')
+      expect(Thread.current[described_class::BATCH_KEY]).to be_nil
+      described_class.record(18, stage: :selection)
+      expect(described_class.stats(stage: :selection)[:count]).to eq(2)
+    end
+
+    it 'does not let telemetry failure change the result or retain batch state' do
+      allow(RedisService).to receive(:with_redis).and_raise(Redis::CannotConnectError)
+      expect(described_class.measure(batch: true) { :selected }).to eq(:selected)
+      expect(Thread.current[described_class::BATCH_KEY]).to be_nil
+    end
+
+    it 'isolates simultaneous thread batches' do
+      ready = Queue.new
+      release = Queue.new
+      workers = 2.times.map do |index|
+        Thread.new do
+          described_class.batch_records do
+            described_class.record(index + 1, stage: :selection)
+            ready << Thread.current[described_class::BATCH_KEY].object_id
+            release.pop
+          end
+          Thread.current[described_class::BATCH_KEY]
+        end
+      end
+      ids = 2.times.map { ready.pop }
+      2.times { release << true }
+      expect(workers.map(&:value)).to eq([nil, nil])
+      expect(ids.uniq.size).to eq(2)
+      expect(described_class.stats(stage: :selection)[:count]).to eq(2)
+    end
+
+    it 'bounds the pending buffer while retaining every sample' do
+      described_class.batch_records do
+        (described_class::MAX_BATCH_SAMPLES + 3).times do
+          described_class.record(1, stage: :selection)
+          expect(Thread.current[described_class::BATCH_KEY].size).to be < described_class::MAX_BATCH_SAMPLES
+        end
+      end
+      expect(described_class.stats(stage: :selection)[:count]).to eq(described_class::MAX_BATCH_SAMPLES + 3)
+    end
+  end
+
   before(:each) do
     RedisService.with_redis do |redis|
       redis.del(
