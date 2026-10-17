@@ -365,20 +365,21 @@ class MemePoolManager
       # for both the probe and the real fetch.
       fetcher = create_fetcher
 
-      # CRITICAL: Fail fast if Reddit is completely rate-limited
-      # Try just 3 subreddits first to check if we're getting 429s
+      # Probe a small batch before committing to a larger cold-start fetch.
       test_subs = load_tier_subreddits(:tier_1).first(3)
       test_memes = fetcher.fetch_memes(test_subs, limit: 5)
 
-      # If we got ZERO memes from 3 attempts, Reddit is rate-limited
-      # Don't waste 25 seconds trying 80 more subreddits
+      # Empty usable output alone cannot diagnose a rate limit (auth, media
+      # eligibility and successful empty listings can all produce zero results).
       if test_memes.empty?
-        AppLogger.warn("⚠️  [Bootstrap] Reddit rate-limited - skipping full bootstrap, using local fallback")
+        confirmed_limit = fetcher.respond_to?(:rate_limited?) && fetcher.rate_limited?
+        error = confirmed_limit ? 'Reddit rate limited (429)' : 'Bootstrap probe returned no usable memes; cause unconfirmed'
+        AppLogger.warn('[Bootstrap] Empty probe; applying protective cooldown', rate_limited: !!confirmed_limit)
         # Set cooldown so subsequent requests don't re-hammer Reddit (and re-request
         # OAuth tokens) until the cooldown expires. Without this, every incoming
         # request independently re-triggers bootstrap_pool, multiplying 429s.
         RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
-        return { success: false, size: 0, memes: [], error: "Reddit rate limited (429)" }
+        return { success: false, size: 0, memes: [], error: error }
       end
 
       AppLogger.info("🚀 [Bootstrap] Reddit responsive - proceeding with quick fetch...")
@@ -544,7 +545,7 @@ class MemePoolManager
       elsif all_memes.empty?
         # Nothing came back from ANY tier - likely rate-limited across the board.
         # Set cooldown so the next scheduled/on-demand attempt doesn't immediately retry.
-        AppLogger.warn("⚠️  [PoolManager] Fetch batch returned 0 memes across all tiers - assuming rate limit")
+        AppLogger.warn("⚠️  [PoolManager] Fetch batch returned 0 memes - applying protective cooldown; cause unconfirmed, inspect provider outcomes")
         RedisService.set(BOOTSTRAP_COOLDOWN_KEY, "true", ttl: BOOTSTRAP_COOLDOWN_TTL)
       end
       
@@ -889,10 +890,16 @@ end
     def find_stale_memes(pool, count)
       return [] if pool.empty?
       
-      # Sort by created_at or fetched_at (oldest first)
+      # Re-fetching a weekly-top post must not rejuvenate its source age.
+      now = Time.now
       sorted = pool.sort_by do |meme|
-        timestamp = meme["fetched_at"] || meme["created_at"] || Time.now.to_s
-        Time.parse(timestamp) rescue Time.now
+        timestamps = %w[created_at fetched_at].filter_map do |field|
+          value = meme[field]
+          next unless value.is_a?(String)
+          parsed = Time.parse(value) rescue nil
+          parsed if parsed && parsed.to_f > 0 && parsed <= now
+        end
+        timestamps.first || now
       end
       
       # Take oldest N memes

@@ -36,11 +36,74 @@ RSpec.describe RedditFetcherService do
         expect(meme).not_to have_key('width')
       end
     end
+
+    it 'preserves original source age and identity rather than declaring fetched posts fresh' do
+      post = { 'url' => 'https://i.redd.it/source.jpg', 'created_utc' => 1_700_000_000,
+               'id' => 'abc123', 'title' => 'Source meme' }
+      expect(parse_post(post)).to include('created_at' => '2023-11-14T22:13:20Z', 'reddit_post_id' => 'abc123')
+    end
+
+    it 'ignores malformed source provenance without losing usable media' do
+      [nil, '1700000000', -1, 0, Float::INFINITY, Float::NAN, Time.now.to_f + 3600].each do |value|
+        meme = parse_post('url' => 'https://i.redd.it/source.jpg', 'created_utc' => value, 'id' => '../bad')
+        expect(meme['url']).to eq('https://i.redd.it/source.jpg')
+        expect(meme).not_to have_key('created_at')
+        expect(meme).not_to have_key('reddit_post_id')
+      end
+    end
   end
 
   describe 'initialization' do
     it 'initializes successfully' do
       expect { described_class.new }.not_to raise_error
+    end
+  end
+
+  describe 'provider diagnostics' do
+    it 'separates authorization failure from confirmed rate limits without logging credentials' do
+      fetcher = described_class.new(auth_strategy: :oauth, access_token: 'private-test-token')
+      stub_request(:get, %r{https://oauth.reddit.com/r/diagnostic/top}).to_return(status: 403)
+      expect(AppLogger).to receive(:info).with('[RedditFetcher] Provider outcomes',
+        requests: 1, successful_listings: 0, auth_failures: 1, rate_limit_responses: 0,
+        other_http_failures: 0, request_errors: 0, missing_token_calls: 0)
+      expect(fetcher.fetch_memes(['diagnostic'])).to eq([])
+      expect(fetcher.rate_limited?).to eq(false)
+    end
+
+    it 'counts real 429 responses and stops before fetching another community' do
+      fetcher = described_class.new(auth_strategy: :oauth, access_token: 'private-test-token')
+      stub_request(:get, %r{https://oauth.reddit.com/r/limited/top}).to_return(status: 429)
+      expect(AppLogger).to receive(:info).with('[RedditFetcher] Provider outcomes',
+        requests: 1, successful_listings: 0, auth_failures: 0, rate_limit_responses: 1,
+        other_http_failures: 0, request_errors: 0, missing_token_calls: 0)
+      expect(fetcher.fetch_memes(['limited', 'must-not-fetch'])).to eq([])
+      expect(fetcher.rate_limited?).to eq(true)
+    end
+
+    it 'reports missing OAuth tokens without a provider request or confirmed rate limit' do
+      [nil, '', ' '].each do |token|
+        fetcher = described_class.new(auth_strategy: :oauth, access_token: token)
+        expect(HTTParty).not_to receive(:get)
+        expect(AppLogger).to receive(:info).with('[RedditFetcher] Provider outcomes',
+          requests: 0, successful_listings: 0, auth_failures: 0, rate_limit_responses: 0,
+          other_http_failures: 0, request_errors: 0, missing_token_calls: 1)
+        expect(fetcher.fetch_memes(['diagnostic'])).to eq([])
+        expect(fetcher.rate_limited?).to eq(false)
+      end
+    end
+
+    it 'distinguishes successful empty listings from network errors' do
+      fetcher = described_class.new(auth_strategy: :oauth, access_token: 'private-test-token')
+      allow(fetcher).to receive(:sleep)
+      stub_request(:get, %r{https://oauth.reddit.com/r/empty/top})
+        .to_return(status: 200, body: JSON.generate('data' => { 'children' => [] }),
+          headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, %r{https://oauth.reddit.com/r/unreachable/top}).to_timeout
+      expect(AppLogger).to receive(:info).with('[RedditFetcher] Provider outcomes',
+        requests: 2, successful_listings: 1, auth_failures: 0, rate_limit_responses: 0,
+        other_http_failures: 0, request_errors: 1, missing_token_calls: 0)
+      expect(fetcher.fetch_memes(['empty', 'unreachable'])).to eq([])
+      expect(fetcher.rate_limited?).to eq(false)
     end
   end
 

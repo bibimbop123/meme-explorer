@@ -20,6 +20,25 @@ RSpec.describe 'Bootstrap inventory and cooldown' do
     expect(MemePoolManager.send(:bootstrap_pool)).to include(success: true, size: 1, memes: [meme])
   end
 
+  it 'does not mislabel an empty usable probe as a confirmed rate limit' do
+    expect(fetcher).to receive(:fetch_memes).once.and_return([])
+    expect(MemePoolManager).not_to receive(:store_in_pool)
+    expect(RedisService).to receive(:set).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY,
+      'true', ttl: MemePoolManager::BOOTSTRAP_COOLDOWN_TTL)
+    expect(MemePoolManager.send(:bootstrap_pool)).to include(success: false, size: 0,
+      error: 'Bootstrap probe returned no usable memes; cause unconfirmed')
+  end
+
+  it 'reports a confirmed probe rate limit while retaining the protective cooldown' do
+    expect(fetcher).to receive(:fetch_memes).once.and_return([])
+    allow(fetcher).to receive(:rate_limited?).and_return(true)
+    expect(MemePoolManager).not_to receive(:store_in_pool)
+    expect(RedisService).to receive(:set).with(MemePoolManager::BOOTSTRAP_COOLDOWN_KEY,
+      'true', ttl: MemePoolManager::BOOTSTRAP_COOLDOWN_TTL)
+    expect(MemePoolManager.send(:bootstrap_pool)).to include(success: false, size: 0,
+      error: 'Reddit rate limited (429)')
+  end
+
   it 'publishes and reports unique probe/fetch URLs rather than overlapping counts' do
     allow(fetcher).to receive(:fetch_memes).and_return([meme], [meme.dup])
     expect(MemePoolManager).to receive(:store_in_pool).with([meme], expected_pool: anything).and_return(1)

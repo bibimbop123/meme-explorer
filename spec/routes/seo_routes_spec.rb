@@ -5,6 +5,23 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'SEO Routes' do
+  it 'serves each advertised app icon with actual matching PNG dimensions' do
+    get '/manifest.json'
+    icons = JSON.parse(last_response.body).fetch('icons')
+    icons.each do |icon|
+      get URI.parse(icon.fetch('src')).path
+      expect(last_response.status).to eq(200)
+      expect(last_response.content_type).to include('image/png')
+      bytes = last_response.body.b
+      expect(bytes.byteslice(0, 8)).to eq("\x89PNG\r\n\x1a\n".b)
+      expect(bytes.byteslice(16, 8).unpack('N2').join('x')).to eq(icon.fetch('sizes'))
+    end
+    get '/images/apple-touch-icon.png'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body.b.byteslice(16, 8).unpack('N2')).to eq([180, 180])
+    get '/opensearch.xml'
+    expect(last_response.body).to include('<Image height="192" width="192" type="image/png">')
+  end
   
   describe 'GET /robots.txt' do
     it 'returns text/plain content type' do

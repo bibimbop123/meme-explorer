@@ -1,5 +1,11 @@
 # Meme inventory: diagnosis and expansion
 
+New user-supplied 23:24 UTC production excerpt repeatedly reports 163 manager-pool
+records. See [experience-first recovery plan](MEME_EXPERIENCE_RECOVERY_PLAN.md) for
+evidence, diagnosis matrix and revised delivery order. Nonempty get_pool does not
+expand on reads; background maintenance must demonstrate retained usable additions.
+No worker/provider root cause can be established from that 33-second excerpt alone.
+
 The 5,000 target is an aspiration, not a fetched-content guarantee. A pool near
 167 can be the deliberately small cold-start bootstrap; maintenance is responsible
 for background growth. Increasing TARGET_POOL_SIZE alone does not add content.
@@ -14,6 +20,31 @@ It retains sequential requests, shared OAuth fetcher, cooldowns and quality filt
 Larger response bodies can increase processing time; monitor duration and rate limits.
 
 ## Operator checks (no secrets in logs)
+
+Optional aggregate content read (explicitly different from metadata-only default):
+`ruby scripts/isolated_bundle.rb exec ruby scripts/check_pool_inventory.rb --content-summary`.
+Use the deployment's bundled Ruby equivalent and environment-supplied Redis URL.
+Reads at most 8 MiB + one sentinel byte from fixed meme_pool key, parses at most
+5000 records/depth 12, emits only record/unique-URL/duplicate/invalid counts and
+source-age buckets. Unknown/future/malformed source dates are not fresh. Counts
+use first occurrence per URL; no availability/art/humor validation, no histories,
+provider calls or writes. Oversized/missing/invalid status is not zero inventory.
+Default command still reads metadata only. No production invocation performed.
+
+Provider snapshots also include missing_token_calls: OAuth calls skipped for
+missing/blank tokens, not HTTP auth failures or confirmed 429. Regression separates
+successful-empty listings from network failures. Counters remain cumulative per
+fetcher instance; no new fetch or credential logging introduced.
+
+New local fetcher diagnostics emit `[RedditFetcher] Provider outcomes`: requests,
+successful_listings (2xx HTTP, not usable-content certification), auth_failures
+(401/403), rate_limit_responses (429), other_http_failures and request_errors
+(request/parse handling). Numeric only. Snapshots are cumulative per fetcher instance,
+which maintenance shares across tiers: use deltas/latest snapshot, do not sum them.
+403 is not proof credentials alone are wrong; provider policy can also deny access.
+Zero-result maintenance retains protective cooldown but no longer asserts a 429
+without evidence. No retry/throttle/request-volume change. Diagnostics must be
+deployed through approved release before production logs can contain them.
 
 With `REDIS_URL` already supplied by the deployment environment, run the read-only
 `scripts/check_pool_inventory.rb` using the application's bundled Ruby. Locally:

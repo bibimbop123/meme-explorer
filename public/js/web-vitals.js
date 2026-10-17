@@ -1,6 +1,7 @@
 /**
  * Core Web Vitals Tracking
- * Tracks LCP, FID, CLS and reports to analytics
+ * Local LCP, FID, CLS diagnostics only. No supported collection endpoint exists.
+ * These legacy diagnostics are not a complete current Core Web Vitals assessment.
  */
 
 (function() {
@@ -20,7 +21,6 @@
           console.warn(`⚠️ LCP: ${vitals.lcp}ms (needs improvement)`);
         }
         
-        sendMetric('lcp', vitals.lcp);
       }).observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (e) {
       console.error('LCP tracking error:', e);
@@ -36,7 +36,6 @@
             console.warn(`⚠️ FID: ${vitals.fid}ms (needs improvement)`);
           }
           
-          sendMetric('fid', vitals.fid);
         });
       }).observe({ type: 'first-input', buffered: true });
     } catch (e) {
@@ -60,10 +59,6 @@
         }
       }).observe({ type: 'layout-shift', buffered: true });
       
-      // Send final CLS on page unload
-      window.addEventListener('beforeunload', () => {
-        sendMetric('cls', vitals.cls);
-      });
     } catch (e) {
       console.error('CLS tracking error:', e);
     }
@@ -71,26 +66,6 @@
     console.log('✅ Core Web Vitals tracking initialized');
   } else {
     console.warn('⚠️ PerformanceObserver not supported');
-  }
-  
-  function sendMetric(metric, value) {
-    if (!value) return;
-    
-    try {
-      fetch('/api/vitals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          metric: metric,
-          value: value,
-          url: window.location.pathname,
-          timestamp: Date.now()
-        }),
-        keepalive: true
-      }).catch(e => console.error('Analytics error:', e));
-    } catch (e) {
-      console.error('Failed to send vital:', e);
-    }
   }
   
   // Export for console access

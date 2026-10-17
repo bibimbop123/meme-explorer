@@ -63,4 +63,22 @@ RSpec.describe 'Non-destructive stale pool refresh' do
     expect(MemePoolManager).not_to receive(:store_in_pool)
     expect(MemePoolManager.send(:replace_stale, percentage: 0.5)).to eq(replaced: 0, error: 'Fetch unavailable')
   end
+
+  it 'retires old source content before newer content even when fetched again recently' do
+    refetched = old.merge('created_at' => '2019-01-01T00:00:00Z', 'fetched_at' => '2026-10-01T00:00:00Z')
+    newer = recent.merge('created_at' => '2025-01-01T00:00:00Z')
+    allow(MemePoolManager).to receive(:get_current_pool).and_return([newer, refetched])
+    allow(MemePoolManager).to receive(:fetch_from_tier).and_return([fresh])
+    expect(MemePoolManager).to receive(:store_in_pool).with([fresh, newer], expected_pool: anything).and_return(2)
+    expect(MemePoolManager.send(:replace_stale, percentage: 0.5)).to eq(replaced: 1)
+  end
+
+  it 'falls back to fetch age for invalid source dates and leaves unknown age last' do
+    invalid = old.merge('created_at' => 'not-a-time')
+    future = recent.merge('created_at' => '2100-01-01T00:00:00Z')
+    unknown = { 'url' => '/unknown.jpg', 'created_at' => [], 'fetched_at' => nil }
+    expect(MemePoolManager.send(:find_stale_memes, [unknown, future, invalid], 3)).to eq([
+      '/old.jpg', '/recent.jpg', '/unknown.jpg'
+    ])
+  end
 end

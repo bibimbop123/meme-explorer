@@ -10,6 +10,14 @@ to this document's security, test and operational release gates.
 
 ## Current assessment and next delivery order — October 16, 2026
 
+**Priority update — production 163-item pool:** user-supplied 23:24 UTC logs show
+nonfallback supply of 163, ~1.13–1.33s random responses and 3/11 rejected impression
+POSTs in a short sample. Follow the [experience-first recovery plan](MEME_EXPERIENCE_RECOVERY_PLAN.md):
+diagnose ordinary replenishment and navigation/ACK friction, improve the existing
+content experience, complete coordinated integration, then test usable novelty and
+one user-led change. This supersedes further standalone-helper expansion as next
+priority. Deployed SHA/root cause remain unverified; scores do not increase.
+
 This section supersedes historical next-step recommendations in the execution log.
 The 56/100 baseline above is a historical repository audit, not directly comparable
 to this new user-experience rubric. Scores are provisional editorial judgments,
@@ -172,6 +180,102 @@ remain open; preparation is not authorization to push or deploy.
    then rerun the same tasks. Reassess scores only with additional dated evidence.
 
 ## Execution log — Gate A, first implementation slice
+
+### Legacy ACK rejection reasons and lost-map regression
+
+- Logs low-cardinality rejection reason only; missing pending entries remain
+  unauthorized even with client URL. Simulated stale map, not actual two-tab proof.
+- Final isolated backend **1205 examples, zero failures, seven pending**, 65.69s;
+  **75.71% (5013/6621)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  nine targeted ACK cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Earlier logger fixture failures corrected; contaminated rerun replaced by fresh
+  disposable-Redis isolated validation. Session-race fix still needs coordinated migration.
+
+### Mixed-record freshness summary correctness
+
+- Explicit per-record URL/age reset, regression for unknown/future dates after fresh
+  content. No production inventory read or ingestion behavior changes.
+- Full backend **1203 examples, zero failures, seven pending**, 65.60s;
+  **75.73% (5009/6614)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  seven targeted diagnostic cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Production bottleneck still requires normal maintenance evidence.
+
+### Opt-in aggregate pool freshness diagnostic
+
+- Existing read-only checker optionally reads bounded pool payload for aggregate
+  unique/duplicate/invalid counts and source-age buckets, no raw content output.
+  Metadata-only default preserved; two new tests; no production invocation.
+- Full backend **1202 examples, zero failures, seven pending**, 65.70s;
+  **75.70% (5007/6614)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  six targeted diagnostic cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Actual 163-item bottleneck still needs normal worker-cycle/operator evidence.
+
+### Bootstrap empty-probe cause correction
+
+- Empty probe reports unconfirmed cause unless real rate-limit flag; cooldown and
+  early stop retained. Two regressions plus corrected legacy confirmed-429 fixture.
+- Final full backend **1200 examples, zero failures, seven pending**, 65.85s;
+  **75.59% (4974/6580)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  11 targeted bootstrap cases pass (partial coverage exit 2), syntax/whitespace pass.
+  No production growth/root-cause claim; operator-cycle evidence remains required.
+
+### Missing-token versus empty-listing provider diagnosis
+
+- Added no-request missing-token counter; tested successful empty listing versus
+  network timeout. No listing-policy/throttle/cooldown change or growth claim.
+- Full backend **1198 examples, zero failures, seven pending**, 66.28s;
+  **75.62% (4974/6578)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  14 targeted fetcher cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Production 163-item bottleneck still requires normal worker evidence.
+
+### Provider failure versus low-yield diagnostics
+
+- Numeric cumulative provider outcomes distinguish auth/429/other HTTP/errors from
+  successful responses. Zero-result maintenance no longer claims confirmed rate
+  limit; protective cooldown remains. No request-volume/policy changes.
+- Full backend **1196 examples, zero failures, seven pending**, 65.96s;
+  **75.61% (4972/6576)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  22 targeted fetcher/stale cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Actual 163-item bottleneck still requires operator-cycle evidence.
+
+### Source-aware stale retirement
+
+- Source created_at now precedes fetched_at for retirement, invalid dates fall back,
+  unknown age last. Two regressions plus existing non-destructive refresh checks.
+  Only target-capacity replacement; not a fix for 163-item expansion shortfall.
+- Full backend **1194 examples, zero failures, seven pending**, 65.57s;
+  **75.58% (4959/6561)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  10 targeted stale-refresh cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Earlier experience fixes committed da6a9db; nothing deployed.
+
+### Source-age preservation for meme freshness
+
+- Fetcher preserves validated source creation time/post ID instead of losing age.
+  Existing freshness boost can use it on newly fetched records. No pool purge,
+  listing-policy change or claim of production novelty improvement.
+- Full backend **1192 examples, zero failures, seven pending**, 65.80s;
+  **75.56% (4954/6556)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  10 targeted fetcher cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Operator replenishment/ACK diagnosis and content/user audit remain priorities.
+
+### Missing favicon/PWA icon repair
+
+- Added original lightweight PNG icons; layout/manifest/OpenSearch reference actual
+  dimensions. Route regression fetches each and verifies PNG signature/dimensions.
+- Full backend **1190 examples, zero failures, seven pending**, 65.89s;
+  **75.51% (4946/6550)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  60 targeted SEO cases pass (partial coverage exit 2), syntax/whitespace pass.
+  No production change; supply/latency/ACK investigations remain priorities.
+
+### Experience-first execution: instrumentation overhead and unsupported telemetry
+
+- Timing append/trim pipelined per stage; local vitals preserved but unsupported
+  /api/vitals path submissions disabled. No claim to fix all production latency or
+  grow the 163-item pool. Operator replenishment/ACK diagnosis remains priority.
+- Build before backend boot; full backend **1189 examples, zero failures, seven
+  pending**, 247.8s; **75.51% (4946/6550)** coverage, gates pass, exit 0;
+  **123 frontend tests pass**, 13 targeted timing cases pass (partial coverage exit 2),
+  syntax/whitespace pass. No deployment or production acceptance claimed.
 
 ### ACK authenticated-user input preflight
 

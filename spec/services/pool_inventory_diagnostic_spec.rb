@@ -42,4 +42,44 @@ RSpec.describe PoolInventoryDiagnostic do
     allow(redis).to receive(:llen).and_return(0)
     expect(described_class.report(redis)).to include(metadata_count: nil, seconds_since_refresh: nil, legacy_pool_ttl: -2)
   end
+
+  it 'summarizes unique source ages without exporting content or treating unknown as fresh' do
+    now = Time.utc(2026, 10, 16).to_i
+    rows = [
+      { 'url' => '/private-one', 'created_at' => Time.at(now - 60).utc.iso8601, 'title' => 'private-title' },
+      { 'url' => '/private-one' },
+      { 'url' => '/private-two', 'created_at' => Time.at(now - 172800).utc.iso8601 },
+      { 'url' => '/private-three', 'created_at' => Time.at(now - 700000).utc.iso8601 },
+      { 'url' => '/private-four', 'created_at' => 'invalid' },
+      { 'url' => '/private-five', 'created_at' => Time.at(now + 60).utc.iso8601 }, nil
+    ]
+    redis = double
+    expect(redis).to receive(:getrange).with('meme_pool', 0, described_class::MAX_PAYLOAD_BYTES).and_return(rows.to_json)
+    report = described_class.content_summary(redis, now: now)
+    expect(report).to include(status: 'available', records: 7, unique_urls: 5, duplicate_urls: 1,
+      invalid_records: 1, source_age_under_day: 1, source_age_one_to_seven_days: 1,
+      source_age_over_seven_days: 1, source_age_unknown: 2)
+    expect(report.to_json).not_to include('/private', 'private-title')
+  end
+
+  it 'rejects absent, malformed and oversized summaries without unbounded payload reads' do
+    redis = double
+    ['', '{', '{}', Array.new(described_class::MAX_RECORDS + 1).to_json].each do |raw|
+      allow(redis).to receive(:getrange).and_return(raw)
+      expect(described_class.content_summary(redis)[:status]).not_to eq('available')
+    end
+    allow(redis).to receive(:getrange).and_return('x' * (described_class::MAX_PAYLOAD_BYTES + 1))
+    expect(described_class.content_summary(redis)).to eq(status: 'oversized')
+  end
+
+  it 'keeps missing source dates unknown immediately after a fresh record' do
+    now = Time.utc(2026, 10, 16).to_i
+    redis = double
+    rows = [{ 'url' => '/fresh', 'created_at' => Time.at(now - 60).utc.iso8601 },
+            { 'url' => '/unknown' }, { 'url' => '/future', 'created_at' => Time.at(now + 60).utc.iso8601 }, nil]
+    allow(redis).to receive(:getrange).and_return(rows.to_json)
+    expect(described_class.content_summary(redis, now: now)).to include(
+      source_age_under_day: 1, source_age_unknown: 2, invalid_records: 1,
+      unique_urls: 3, duplicate_urls: 0)
+  end
 end

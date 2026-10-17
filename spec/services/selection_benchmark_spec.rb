@@ -59,8 +59,19 @@ RSpec.describe SelectionBenchmark do
     end
 
     it 'does not raise when Redis is unavailable' do
-      allow(RedisService).to receive(:rpush).and_raise(Redis::BaseError.new("down"))
+      allow(RedisService).to receive(:with_redis).and_raise(Redis::BaseError.new("down"))
       expect { described_class.record(5.0) }.not_to raise_error
+    end
+
+    it 'appends and trims using one connection and one pipeline' do
+      pipeline = double('pipeline')
+      redis = double('redis')
+      expect(RedisService).to receive(:with_redis).once.and_yield(redis)
+      expect(redis).to receive(:pipelined).once.and_yield(pipeline)
+      key = "#{described_class::REDIS_KEY_PREFIX}:selection"
+      expect(pipeline).to receive(:rpush).with(key, 12.35).ordered
+      expect(pipeline).to receive(:ltrim).with(key, -described_class::MAX_SAMPLES, -1).ordered
+      described_class.record(12.345, stage: :selection)
     end
   end
 

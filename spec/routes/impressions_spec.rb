@@ -32,6 +32,30 @@ RSpec.describe 'Acknowledged AJAX impressions' do
     expect(last_response.status).to eq(404)
   end
 
+  it 'identifies missing pending state after a stale session snapshot without trusting client content' do
+    selected = select_meme
+    session[:pending_impressions] = {} # Model a later response restoring stale state.
+    allow(AppLogger).to receive(:info).and_call_original
+    expect(AppLogger).to receive(:info).with('Impression acknowledgment rejected', reason: 'missing_pending')
+    post '/api/impressions', { impression_id: selected['impression_id'], url: selected['url'] }.to_json,
+      'CONTENT_TYPE' => 'application/json'
+    expect(last_response.status).to eq(404)
+    expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)
+  end
+
+  it 'distinguishes expired pending metadata from malformed IDs without echoing credentials' do
+    selected = select_meme
+    session[:pending_impressions][selected['impression_id']]['expires_at'] = Time.now.to_i - 1
+    allow(AppLogger).to receive(:info).and_call_original
+    expect(AppLogger).to receive(:info).with('Impression acknowledgment rejected', reason: 'expired_pending')
+    acknowledge(selected['impression_id'])
+    expect(last_response.status).to eq(404)
+    expect(AppLogger).to receive(:info).with('Impression acknowledgment rejected', reason: 'malformed_id')
+    acknowledge('not-an-issued-id')
+    expect(last_response.status).to eq(404)
+    expect(last_response.body).not_to include('not-an-issued-id')
+  end
+
   it 'rejects expired IDs and malformed JSON' do
     meme = select_meme
     session[:pending_impressions][meme['impression_id']]['expires_at'] = Time.now.to_i - 1
