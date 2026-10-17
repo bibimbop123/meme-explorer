@@ -383,18 +383,26 @@ module Routes
         
         # ✅ Track in Redis (NOT session)
         meme_identifier = @meme["url"] || @meme["file"]
+        history_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         if meme_identifier
           MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
         end
+        history_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         session[:last_subreddit] = @meme["subreddit"]&.downcase
         
         image_url = @meme["url"] || @meme["file"]
 
+        media_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        media_type = detect_media_type(image_url)
+        media_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        likes = get_meme_likes(image_url)
+        likes_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
         # No more client-side fallback chains - backend validation ensures working images
         response_data = Routes::RandomMeme.build_meme_json(
           @meme,
-          media_type: detect_media_type(image_url),
-          likes: get_meme_likes(image_url)
+          media_type: media_type,
+          likes: likes
         )
 
         content_type :json
@@ -408,6 +416,9 @@ module Routes
         # Excludes middleware/session persistence and media download/render time.
         headers 'Server-Timing' => [
           "response_prepare;dur=#{((response_prepared - post_selection_started) * 1000).round(2)}",
+          "history_write;dur=#{((history_finished - history_started) * 1000).round(2)}",
+          "media_detect;dur=#{((media_finished - media_started) * 1000).round(2)}",
+          "likes_lookup;dur=#{((likes_finished - media_finished) * 1000).round(2)}",
           "impression_issue;dur=#{((impression_finished - response_prepared) * 1000).round(2)}",
           "serialization;dur=#{((serialization_finished - impression_finished) * 1000).round(2)}"
         ].join(', ')
