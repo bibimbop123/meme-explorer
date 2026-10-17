@@ -9,7 +9,8 @@
 # Scheduled jobs configuration
 :schedule:
   cache_preload:
-    cron: '@reboot'  # Run on application startup
+    # One-shot startup delay; the scheduler does not support cron '@reboot'.
+    in: '10s'
     class: CachePreloadWorker
     description: 'Warm cache with memes on startup'
   cache_refresh:

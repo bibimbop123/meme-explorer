@@ -1,7 +1,7 @@
 # Cache Preload Worker
-# Warms MEME_CACHE with memes on application startup (Sidekiq @reboot job).
+# Warms MEME_CACHE with memes on application startup.
 # Referenced by app.rb (triggered via perform_async on boot) and
-# config/sidekiq.yml (scheduled cron: '@reboot'), but was previously missing
+# config/sidekiq.yml (one-shot startup schedule), but was previously missing
 # entirely, so both the direct on-boot trigger and the schedule were dead.
 # Restored/created: August 25, 2026
 #
