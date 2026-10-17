@@ -2,6 +2,8 @@
 
 For current delivery order, dependencies and exit criteria, use the
 [remaining-work execution roadmap](REMAINING_WORK_EXECUTION_ROADMAP.md).
+For the variety/freshness, readability/availability and relevance/user-control
+workstream, use the [content-quality roadmap](MEME_CONTENT_QUALITY_ROADMAP.md).
 
 Status: proposed UX execution plan. Nothing below is marked shipped by this document.
 
