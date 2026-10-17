@@ -28,4 +28,13 @@ RSpec.describe 'Pool batch diagnostics' do
     expect(MemePoolManager.send(:fetch_batch, size: 100)).to include(
       candidate_new_unique: 1, planned_unique: 2, stored: 0, publication_succeeded: false)
   end
+
+  it 'reports zero new supply for duplicate-only candidates without retiring inventory' do
+    allow(MemePoolManager).to receive(:fetch_from_tier).and_return([old, old])
+    expect(MemePoolManager).to receive(:store_in_pool).with([old], expected_pool: [old]).and_return(1)
+    result = MemePoolManager.send(:fetch_batch, size: 100, replacement_urls: [old['url']])
+    expect(result).to include(fetched: 10, validated: 10, fetched_unique: 1,
+      validated_unique: 1, previous_unique: 1, candidate_new_unique: 0,
+      planned_unique: 1, stored: 1, replaced: 0, publication_succeeded: true)
+  end
 end
