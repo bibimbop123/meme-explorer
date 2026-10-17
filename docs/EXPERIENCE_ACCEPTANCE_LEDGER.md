@@ -125,6 +125,28 @@ are not user research.
 
 ## Next intervention decision
 
+### Operator-reported follow-up rollout and timing sample
+
+Operator reports merging/deploying `120b70a`. A public random.json request returned
+200, no-store/private, expected response identity fields, and timings:
+response_prepare 347.03ms, impression_issue 2.62ms, serialization 0.02ms. A fresh
+HTML response showed the searchable community; an earlier request still returned
+old markup. Exact deployed revision/transition cause were not independently
+verified. One sample is not a percentile or stable bottleneck estimate.
+
+Local follow-up adds history_write, media_detect and likes_lookup sub-stages
+inside response_prepare. They overlap the parent duration and must not be added
+to it. No extra network telemetry, history-policy or caching changes are included.
+
+Interpretation after rollout: history_write measures the route's legacy history
+write (currently four sequential Redis commands), media_detect measures local
+type detection, and likes_lookup measures the cache/DB fallback helper. Large
+history time suggests investigating Redis round trips; large likes time suggests
+cache misses/DB/network work. These are hypotheses until sampled. Do not remove
+history writes or change ACK semantics as a performance shortcut. A controlled
+delayed-lookup regression verifies attribution to likes_lookup and its parent;
+it is not a production benchmark.
+
 ### Local post-selection measurement slice
 
 `/random.json` now has local, uncommitted Server-Timing stages: response_prepare

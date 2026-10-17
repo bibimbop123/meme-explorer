@@ -14,10 +14,32 @@ RSpec.describe 'Viewer initial engagement state' do
     get '/random.json'
     expect(last_response.status).to eq(200)
     timing = last_response.headers['server-timing']
-    expect(timing).to match(/\Aresponse_prepare;dur=\d+(?:\.\d+)?, impression_issue;dur=\d+(?:\.\d+)?, serialization;dur=\d+(?:\.\d+)?\z/)
+    durations = timing.split(', ').to_h do |entry|
+      name, value = entry.split(';dur=')
+      expect(value).to match(/\A\d+(?:\.\d+)?\z/)
+      [name, value.to_f]
+    end
+    expect(durations.keys).to eq(%w[response_prepare history_write media_detect likes_lookup impression_issue serialization])
+    expect(durations['response_prepare']).to be >= durations['history_write']
     expect(timing).not_to include(url, meme['title'])
     expect(JSON.parse(last_response.body)).to include('url' => url, 'likes' => 7)
     expect(last_response.headers['cache-control']).to include('no-store')
+  end
+
+  it 'attributes a delayed likes lookup to its sub-stage and preparation parent' do
+    expect_any_instance_of(MemeExplorer::App).to receive(:get_meme_likes).with(url).once do
+      sleep 0.015
+      7
+    end
+    get '/random.json'
+    expect(last_response.status).to eq(200)
+    timings = last_response.headers['server-timing'].split(', ').to_h do |entry|
+      name, duration = entry.split(';dur=')
+      [name, duration.to_f]
+    end
+    expect(timings.fetch('likes_lookup')).to be >= 15.0
+    expect(timings.fetch('response_prepare')).to be >= timings.fetch('likes_lookup')
+    expect(JSON.parse(last_response.body)['likes']).to eq(7)
   end
 
   ['/random.json', '/similar.json?subreddit=funny'].each do |path|
