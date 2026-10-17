@@ -356,10 +356,16 @@ module Routes
         # whether to spend effort on the pool-lookup fallback chain or the
         # selection algorithm itself.
         memes = nil
+        pool_lookup_ms = selection_work_ms = 0.0
         selection_pipeline_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @meme = SelectionBenchmark.measure do
           # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
-          memes = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
+          memes = SelectionBenchmark.measure(stage: :pool_lookup) do
+            pool_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            pool = random_memes_pool
+            pool_lookup_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - pool_started) * 1000
+            pool
+          end
           next nil if memes.empty?
 
           # ROADMAP.md Phase 1: thread the logged-in user's id through so
@@ -369,7 +375,12 @@ module Routes
           # weighting - this is the actual live selection path every
           # subsequent /random.json request hits, unlike the separate,
           # never-called apply_user_preferences path.
-          SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id) }
+          SelectionBenchmark.measure(stage: :selection) do
+            selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id)
+            selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
+            selected
+          end
         end
         selection_pipeline_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
@@ -422,6 +433,8 @@ module Routes
         headers 'Server-Timing' => [
           "route_total;dur=#{((serialization_finished - route_started) * 1000).round(2)}",
           "selection_pipeline;dur=#{((selection_pipeline_finished - selection_pipeline_started) * 1000).round(2)}",
+          "pool_lookup;dur=#{pool_lookup_ms.round(2)}",
+          "selection_work;dur=#{selection_work_ms.round(2)}",
           "response_prepare;dur=#{((response_prepared - post_selection_started) * 1000).round(2)}",
           "history_write;dur=#{((history_finished - history_started) * 1000).round(2)}",
           "media_detect;dur=#{((media_finished - media_started) * 1000).round(2)}",

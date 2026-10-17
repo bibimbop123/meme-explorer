@@ -127,6 +127,19 @@ are not user research.
 
 ### Selection pipeline follow-up
 
+After operator-reported `1838106` deployment, one response returned route_total
+824.18ms, selection_pipeline 654.54ms, response_prepare 167.17ms, history_write
+55.05ms and likes_lookup 111.62ms/database_fallback. All expected fields and 200/
+no-store checks passed. Lower than earlier individual samples, not a controlled
+causal comparison or percentile.
+
+Local timing follow-up exposes pool_lookup and selection_work inside the existing
+benchmark blocks, excluding each block's own subsequent benchmark recording call.
+Pool lookup still includes nested pool-manager instrumentation; selection_work
+includes selector history/preference I/O, not just CPU. Parent-minus-children
+contains outer recording calls and surrounding overhead, not exclusively telemetry.
+No additional Redis writes or selection-policy changes; timings overlap parents.
+
 After operator-reported `9b0311a` deployment, one public response reported
 route_total 965.95ms, selection_pipeline 778.80ms, response_prepare 182.86ms,
 history_write 59.06ms, likes_lookup 123.31ms and database_fallback; HTTP 200 and
