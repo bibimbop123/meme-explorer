@@ -16,6 +16,15 @@ module Routes
     end
 
     def self.registered(app)
+      app.get '/api/admin/legacy-impression-metrics' do
+        content_type :json
+        headers 'Cache-Control' => 'no-store'
+        require_admin!
+        snapshot = LegacyImpressionMetrics.snapshot
+        status 503 unless snapshot[:available]
+        snapshot.merge(scope: 'handler outcomes only; telemetry writes may be lost during Redis outages').to_json
+      end
+
       # Metrics JSON API
       app.get "/metrics.json" do
         require_auth!
