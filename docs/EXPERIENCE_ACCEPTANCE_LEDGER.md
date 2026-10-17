@@ -152,6 +152,20 @@ re-enqueueing anything. Private worker URL/region/credential checks remain open.
 
 ### First operator observations and clipping fix
 
+Follow-up screenshot confirms bottom-caption clipping on Chrome/Mac for a supplied
+exact single-image permalink. Source is 500x524 with a complete bottom caption.
+Static reproduction of that page with current styles showed full aspect at desktop
+and 375/744px frames; exact user-browser cause remains unverified. Public viewer
+CSS bytes still match `8da55b8`. No gallery fix is implied. Found a separate cache
+invalidation gap: viewer CSS used an unversioned URL while the bundle is hashed.
+Local follow-up fingerprints viewer CSS bytes in its stylesheet URL using the
+existing bundle-helper pattern. This makes new CSS URLs change with content;
+does not prove stale CSS caused the screenshot or resolve it without retest.
+142 frontend tests and 1,243 backend examples passed, zero failures, seven pending,
+76.39% coverage, exit 0; whitespace passed. Uncommitted/undeployed. Next: approved
+rollout then inspect original Chrome rendered styles or retest with cache disabled
+if clipping persists; do not mark the original defect fixed on fixture evidence.
+
 User reports four consecutive desktop/returning observations: all loaded;
 items 1–3 were reported readable; item 4 was clipped with no scroll recovery.
 Items 2–4 did not repeat earlier artwork in the batch. URL repetition/source age
