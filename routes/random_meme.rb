@@ -56,11 +56,11 @@ module Routes
 
     def self.registered(app)
       app.helpers do
-        def viewer_engagement_state(url)
+        def viewer_engagement_state(url, likes: nil)
           {
             liked: current_user_id ? EngagementService.user_liked?(user_id: current_user_id, meme_url: url) : (session[:liked_memes] || []).include?(url),
             saved: current_user_id ? EngagementService.user_saved?(user_id: current_user_id, meme_url: url) : false,
-            likes: get_meme_likes(url).to_i
+            likes: (likes.nil? ? get_meme_likes(url) : likes).to_i
           }
         end
 
@@ -75,7 +75,8 @@ module Routes
             'subreddit' => response_data[:subreddit], 'user_id' => current_user_id, 'expires_at' => Time.now.to_i + 1800
           }
           session[:pending_impressions] = pending
-          result = response_data.merge(viewer_engagement_state(response_data[:url])).merge(impression_id: id)
+          # Reuse the server-built response's count instead of fetching it twice.
+          result = response_data.merge(viewer_engagement_state(response_data[:url], likes: response_data[:likes])).merge(impression_id: id)
           begin
             snapshot = @meme.is_a?(Hash) ? @meme.merge('url' => response_data[:url]) : response_data.transform_keys(&:to_s)
             content_id = MemeIdentityService.register(snapshot)
@@ -369,6 +370,7 @@ module Routes
           SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id) }
         end
         AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
+        post_selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
         halt 404, { error: "No memes found" }.to_json if memes.empty?
         
@@ -397,7 +399,19 @@ module Routes
 
         content_type :json
         AppLogger.info("✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}")
-        issue_impression(response_data).to_json
+        response_prepared = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        response_with_impression = issue_impression(response_data)
+        impression_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        json = response_with_impression.to_json
+        serialization_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        # Aggregate timing only: no extra network telemetry calls or identities.
+        # Excludes middleware/session persistence and media download/render time.
+        headers 'Server-Timing' => [
+          "response_prepare;dur=#{((response_prepared - post_selection_started) * 1000).round(2)}",
+          "impression_issue;dur=#{((impression_finished - response_prepared) * 1000).round(2)}",
+          "serialization;dur=#{((serialization_finished - impression_finished) * 1000).round(2)}"
+        ].join(', ')
+        json
       end
     end
   end

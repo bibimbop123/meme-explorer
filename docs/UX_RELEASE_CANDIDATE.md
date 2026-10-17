@@ -1,6 +1,22 @@
 # UX release candidate
 
-Status: local, uncommitted changes; not a deployment confirmation.
+Implementation candidate: `72a8fe4eb3f080b9e2cbf0584aaf791bec84c470`.
+Status: committed locally; assistant has not pushed or deployed this candidate.
+This checklist update is separate from the implementation commit.
+
+## Operator-reported deployment and public smoke check
+
+The operator reports the candidate deployed. An initial public Chrome request
+still returned old markup; a subsequent cache-busting HTTP request returned 200
+with the new viewer navigation, favorites label and notification-status element.
+A fresh Chrome profile then confirmed new navigation, modal semantics, a rendered
+meme image and populated Recently viewed. This confirms candidate UI markers and
+guest initialization, not an independently verified deployed SHA or cause of the
+earlier old response. No production test account, save or OAuth action was used.
+Opening the live feed can invoke its normal prefetch/impression tracking.
+The live page's versioned bundle, viewer-controls stylesheet and keyboard-navigation
+script were fetched separately and matched the bytes in implementation commit
+`72a8fe4`. This verifies those three assets, not the full deployed server revision.
 
 ## Scope
 
@@ -98,15 +114,26 @@ create fake production accounts or enqueue production fetches for this checklist
 
 ## Release and observation
 
-- Review the complete diff, then commit only with operator approval. Push and
-  deployment require separate approval. Record deployed web/worker SHAs.
+- The implementation was committed with operator approval. Push and deployment
+  still require separate approval. Record deployed web/worker SHAs; do not infer
+  deployment from a local commit or a service-live banner.
+- Before staging, confirm its database, Redis and OAuth callback are isolated
+  from production, use disposable accounts, and record the previous web SHA.
+- Release blockers: wrong meme saved/shared, misleading saved confirmation,
+  unusable navigation at zoom/mobile sizes, keyboard focus stranded in hidden
+  UI, or authentication/session-rotation regressions. Stop rollout and preserve
+  evidence if any occurs; passing unit tests does not override browser failures.
+- Record each manual check with candidate SHA, browser/OS, viewport or zoom,
+  observed result and pass/fail. Real Reddit OAuth requires a controlled callback
+  and operator-owned test account; never paste codes, tokens or credentials.
 - Do not clear Redis, delete maintenance leases or enqueue extra supply jobs.
 - After deployment, smoke-test the core browse/save/share journey and monitor
   navigation failures, ACK rejection reasons and maintenance publication outcomes.
 - Observe 5–8 people browsing and recovering favorites; audit 100 selections for
   repeat content, broken media, source age and relevance before rating UX again.
-- If this patch regresses navigation or saving, revert its eventual release
-  commit and rebuild/deploy the previous known-good web version. Preserve data.
+- If this patch regresses navigation or saving, revert implementation commit
+  `72a8fe4` or redeploy the recorded previous known-good web version, with
+  operator approval. Preserve data and rebuild assets for the selected version.
 
 ## Remaining separate work
 
