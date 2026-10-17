@@ -395,7 +395,9 @@ module Routes
         media_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         media_type = detect_media_type(image_url)
         media_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        @likes_lookup_source = nil
         likes = get_meme_likes(image_url)
+        likes_lookup_source = %w[cache_hit database_fallback unavailable not_requested].include?(@likes_lookup_source) ? @likes_lookup_source : 'unknown'
         likes_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
         # No more client-side fallback chains - backend validation ensures working images
@@ -422,6 +424,7 @@ module Routes
           "impression_issue;dur=#{((impression_finished - response_prepared) * 1000).round(2)}",
           "serialization;dur=#{((serialization_finished - impression_finished) * 1000).round(2)}"
         ].join(', ')
+        headers 'X-Likes-Lookup' => likes_lookup_source
         json
       end
     end

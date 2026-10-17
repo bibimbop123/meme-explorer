@@ -278,15 +278,20 @@ end
 
 # Get likes safely - MIGRATED TO RedisService (Phase 3 Week 1)
 def get_meme_likes(url)
+  @likes_lookup_source = 'not_requested'
   return 0 unless url
+  @likes_lookup_source = 'cache_hit'
   
   # Use RedisService.fetch with automatic DB fallback
   RedisService.fetch("meme:likes:#{url}", ttl: 300) do
+    # The fallback also runs when Redis is unavailable; do not call this a miss.
+    @likes_lookup_source = 'database_fallback'
     # Fallback: query database if Redis unavailable or cache miss
     row = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first
     row ? (row["likes"] || row[:likes] || row.values.first).to_i : 0
   end
 rescue PG::Error, ConnectionPool::TimeoutError => e
+  @likes_lookup_source = 'unavailable'
   # Keep viewing available during DB outages. Rescue outside fetch so this
   # temporary fallback is not cached as a real zero-like database result.
   AppLogger.warn('Meme likes unavailable', error: e.class.name)
