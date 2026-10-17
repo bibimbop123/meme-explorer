@@ -149,7 +149,7 @@
      that `git log -p -- views/layout.erb` confirms was linked for most
      of this file's history and dropped at some point. -->
 <link rel="stylesheet" href="/css/ads.css">
-<link rel="stylesheet" href="/css/viewer-controls.css">
+<link rel="stylesheet" href="<%= Rack::Utils.escape_html(viewer_stylesheet_path) %>">
 
 </head>
 <body>

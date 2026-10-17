@@ -16,9 +16,14 @@ require 'digest'
 module AppHelpers
   # Content fingerprint changes only when deployed bundle bytes change.
   VIEWER_BUNDLE_VERSION = Digest::SHA256.file(File.expand_path('../../public/dist/bundle.js', __dir__)).hexdigest[0, 16].freeze
+  VIEWER_STYLESHEET_VERSION = Digest::SHA256.file(File.expand_path('../../public/css/viewer-controls.css', __dir__)).hexdigest[0, 16].freeze
 
   def viewer_bundle_path
     "/dist/bundle.js?v=#{VIEWER_BUNDLE_VERSION}"
+  end
+
+  def viewer_stylesheet_path
+    "/css/viewer-controls.css?v=#{VIEWER_STYLESHEET_VERSION}"
   end
 
   # ====================

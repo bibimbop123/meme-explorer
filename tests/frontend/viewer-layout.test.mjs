@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 
 test('viewer layout overrides load after competing legacy responsive styles', async () => {
   const layout = await readFile(new URL('../../views/layout.erb', import.meta.url), 'utf8');
-  assert.ok(layout.indexOf('/css/viewer-controls.css') > layout.indexOf('/css/mobile-optimizations-v2.css'));
-  assert.ok(layout.indexOf('/css/viewer-controls.css') > layout.indexOf('/css/ads.css'));
+  assert.ok(layout.indexOf('viewer_stylesheet_path') > layout.indexOf('/css/mobile-optimizations-v2.css'));
+  assert.ok(layout.indexOf('viewer_stylesheet_path') > layout.indexOf('/css/ads.css'));
 });
 
 test('mobile viewer CSS accounts for six controls and safe-area padding', async () => {
