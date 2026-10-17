@@ -127,6 +127,50 @@ are not user research.
 
 ### Selection pipeline follow-up
 
+Local telemetry-batching implementation: random.json opts into a bounded
+fiber-local batch around the existing total measurement. Nested completed stage
+samples retain their RPUSH/LTRIM ordering and flush in one pipeline on normal
+completion or exception unwinding; standalone callers still record immediately.
+At 64 pending samples a chunk flush bounds memory. Telemetry errors remain soft
+and batch state clears before final flush. No cache/history/selection policy
+change. Stage timings no longer include the former nested telemetry network waits,
+so historical benchmark distributions straddle a measurement-boundary change.
+selection_pipeline/route_total still include the final flush. Validate runtime
+benefit after approval; the local experiment is not production acceptance.
+Validation: 1,232 backend examples, zero failures, seven pending, 76.28% coverage,
+gates passed, exit 0. Includes nested single-flush ordering, result preservation,
+exception cleanup, soft telemetry failure, bounded buffering and simultaneous
+thread isolation. No frontend changes; disposable test Redis stopped.
+Route-level acceptance additionally confirms one flush containing exactly
+pool_manager_lookup, pool_lookup, selection and total, retained Redis samples,
+unchanged response state and cleared batch storage. Latest full isolated run:
+1,233 examples, zero failures, seven pending; 76.36% coverage, exit 0. Still local,
+uncommitted and undeployed.
+
+Local decoding experiment: 5,000 synthetic records, 1,707,781 JSON bytes, three
+warm-ups and 20 parses on isolated project Ruby produced min/median/max
+2.07/2.62/4.94ms. Excludes real payload shape, network transfer, Redis, concurrent
+load and production hardware. Does not establish production parsing cost, but
+does not support blaming parsing alone for the observed 450.36ms pool lookup.
+
+Static populated-route trace identifies four separate benchmark recording
+pipeline flushes: pool_manager_lookup, pool_lookup, selection and total. Each
+already batches its RPUSH/LTRIM pair but flushes independently. Candidate next
+experiment: request-scoped batched recording with preserved stage samples,
+standalone behavior, nested/exception cleanup and thread isolation. Do not add
+an inventory process cache or remove telemetry on this evidence alone.
+
+After operator-reported `4010046` deployment, one public response reported
+route_total 923.26ms, selection_pipeline 743.36ms, pool_lookup 450.36ms and
+selection_work 119.73ms. The roughly 173ms parent/children difference includes
+outer benchmark recording and surrounding overhead; it is not pure telemetry.
+The populated pool manager path performs one RedisService.get('meme_pool'),
+which decodes the full payload, then returns without expansion. The enclosing
+pool helper also records pool_manager_lookup. No redundant pool read was found
+to remove. A regression now enforces one populated-pool read and no request-time
+fetcher/maintenance lock/batch fetch. No runtime change or process cache added;
+payload transfer/decoding and nested telemetry remain investigation candidates.
+
 After operator-reported `1838106` deployment, one response returned route_total
 824.18ms, selection_pipeline 654.54ms, response_prepare 167.17ms, history_write
 55.05ms and likes_lookup 111.62ms/database_fallback. All expected fields and 200/

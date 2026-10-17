@@ -31,6 +31,23 @@ RSpec.describe 'Viewer initial engagement state' do
     expect(last_response.headers['x-likes-lookup']).to match(/\A(cache_hit|database_fallback)\z/)
   end
 
+  it 'flushes all populated-route benchmark samples together and clears batch state' do
+    batches = []
+    allow(SelectionBenchmark).to receive(:flush_records).and_wrap_original do |original, samples|
+      batches << samples.map(&:dup)
+      original.call(samples)
+    end
+    get '/random.json'
+    expect(last_response.status).to eq(200)
+    expect(batches.size).to eq(1)
+    expect(batches.first.map(&:first)).to eq(%i[pool_manager_lookup pool_lookup selection total])
+    expect(Thread.current[SelectionBenchmark::BATCH_KEY]).to be_nil
+    %i[pool_manager_lookup pool_lookup selection total].each do |stage|
+      expect(SelectionBenchmark.stats(stage: stage)[:count]).to eq(1)
+    end
+    expect(JSON.parse(last_response.body)).to include('url' => url, 'likes' => 7)
+  end
+
   it 'attributes a delayed likes lookup to its sub-stage and preparation parent' do
     expect_any_instance_of(MemeExplorer::App).to receive(:get_meme_likes).with(url).once do
       sleep 0.015

@@ -37,12 +37,15 @@
 class SelectionBenchmark
   REDIS_KEY_PREFIX = "selection_benchmark:latencies_ms"
   MAX_SAMPLES = 500 # rolling window - recent performance, not all-time average
+  MAX_BATCH_SAMPLES = 64
+  BATCH_KEY = :meme_selection_benchmark_batch
 
   class << self
     # Times the given block and records the latency under `stage`.
     # Returns the block's own return value untouched, so this can wrap an
     # existing call without changing its behavior.
-    def measure(stage: :total)
+    def measure(stage: :total, batch: false, &block)
+      return batch_records { measure(stage: stage, &block) } if batch
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = yield
       record((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000, stage: stage)
@@ -52,18 +55,47 @@ class SelectionBenchmark
     # Records a latency sample (milliseconds) into the rolling window for
     # the given stage.
     def record(duration_ms, stage: :total)
-      key = redis_key(stage)
+      sample = [stage, duration_ms.round(2)]
+      if (pending = Thread.current[BATCH_KEY])
+        pending << sample
+        flush_records(pending.shift(pending.size)) if pending.size >= MAX_BATCH_SAMPLES
+      else
+        flush_records([sample])
+      end
+    end
+
+    # Fiber-local on Ruby's Thread storage: no cross-request/thread sharing.
+    # Nested scopes join the owner; completed samples flush even on exceptions.
+    def batch_records
+      return yield if Thread.current[BATCH_KEY]
+
+      pending = []
+      Thread.current[BATCH_KEY] = pending
+      begin
+        yield
+      ensure
+        Thread.current[BATCH_KEY] = nil
+        flush_records(pending)
+      end
+    end
+
+    def flush_records(samples)
+      return if samples.empty?
       # Telemetry must not add two sequential network round trips per stage.
       # Commands remain ordered on one connection; concurrent writers also trim.
       RedisService.with_redis do |redis|
         redis.pipelined do |pipeline|
-          pipeline.rpush(key, duration_ms.round(2))
-          pipeline.ltrim(key, -MAX_SAMPLES, -1)
+          samples.each do |stage, duration_ms|
+            key = redis_key(stage)
+            pipeline.rpush(key, duration_ms)
+            pipeline.ltrim(key, -MAX_SAMPLES, -1)
+          end
         end
       end
     rescue => e
-      AppLogger.warn("⚠️  [SelectionBenchmark] Failed to record latency (stage=#{stage}): #{e.message}") if defined?(AppLogger)
+      AppLogger.warn("⚠️  [SelectionBenchmark] Failed to record latency batch: #{e.class}") if defined?(AppLogger)
     end
+    private :flush_records
 
     # Returns p50/p95/p99 latency (ms) over the current rolling window for
     # the given stage, or nil values if there's no data yet (e.g. fresh
