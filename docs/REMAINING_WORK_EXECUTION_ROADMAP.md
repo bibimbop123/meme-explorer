@@ -146,6 +146,9 @@ preserve data/evidence. No broad rollout merely because unit tests pass.
 
 ## Stage 4 — One reversible quality experiment
 
+Detailed baseline definitions, candidate order and pilot acceptance criteria:
+[meme content-quality roadmap](MEME_CONTENT_QUALITY_ROADMAP.md).
+
 Choose from the stage 1 report: source-age rotation, repeat-artwork handling,
 source/topic controls, or media readability. Do not implement all at once.
 
