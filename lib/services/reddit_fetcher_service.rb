@@ -24,6 +24,9 @@ class RedditFetcherService
   def initialize(auth_strategy: :oauth, access_token: nil)
     @auth_strategy = auth_strategy
     @access_token = access_token
+    @outcomes = { requests: 0, successful_listings: 0, auth_failures: 0,
+                  rate_limit_responses: 0, other_http_failures: 0, request_errors: 0,
+                  missing_token_calls: 0 }
   end
 
   # Main entry point - fetches memes using appropriate strategy
@@ -47,6 +50,8 @@ class RedditFetcherService
   rescue => e
     log_error("Fetch memes failed", e)
     []
+  ensure
+    AppLogger.info('[RedditFetcher] Provider outcomes', **@outcomes) if defined?(AppLogger)
   end
 
   def rate_limited?
@@ -57,7 +62,10 @@ class RedditFetcherService
 
   # OAuth-authenticated fetch (preferred, higher rate limits)
   def fetch_with_oauth(subreddits, limit)
-    return [] unless @access_token
+    unless @access_token.is_a?(String) && !@access_token.strip.empty?
+      @outcomes[:missing_token_calls] += 1
+      return []
+    end
 
     memes = []
 
@@ -68,6 +76,7 @@ class RedditFetcherService
           url = "https://oauth.reddit.com/r/#{subreddit}/top?t=week&limit=#{limit}"
 
           url += "&after=#{URI.encode_www_form_component(after)}" if after
+          @outcomes[:requests] += 1
           response = HTTParty.get(url,
             headers: {
               "Authorization" => "Bearer #{@access_token}",
@@ -76,6 +85,7 @@ class RedditFetcherService
             timeout: DEFAULT_TIMEOUT
           )
 
+          record_response(response.code.to_i)
           if response.code.to_i == 429
             @rate_limited = true
             return memes
@@ -93,6 +103,7 @@ class RedditFetcherService
           break unless next_after.is_a?(String) && next_after.match?(/\At3_[A-Za-z0-9]+\z/) && next_after != after
           after = next_after
         rescue => e
+          @outcomes[:request_errors] += 1
           log_error("OAuth fetch error for r/#{subreddit}", e)
           break
         end
@@ -113,6 +124,7 @@ class RedditFetcherService
           url = "https://www.reddit.com/r/#{subreddit}/top.json?t=week&limit=#{limit}"
           url += "&after=#{URI.encode_www_form_component(after)}" if after
           uri = URI(url)
+          @outcomes[:requests] += 1
 
           response = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
                                      read_timeout: DEFAULT_TIMEOUT,
@@ -123,6 +135,7 @@ class RedditFetcherService
             http.request(request)
           end
 
+          record_response(response.code.to_i)
           if response.code.to_i == 429
             @rate_limited = true
             return memes
@@ -139,6 +152,7 @@ class RedditFetcherService
           break unless next_after.is_a?(String) && next_after.match?(/\At3_[A-Za-z0-9]+\z/) && next_after != after
           after = next_after
         rescue => e
+          @outcomes[:request_errors] += 1
           log_error("Static fetch error for r/#{subreddit}", e)
           break
         end
@@ -149,6 +163,16 @@ class RedditFetcherService
   end
 
   # Parse Reddit API response into meme objects
+  def record_response(code)
+    key = case code
+          when 200..299 then :successful_listings
+          when 401, 403 then :auth_failures
+          when 429 then :rate_limit_responses
+          else :other_http_failures
+          end
+    @outcomes[key] += 1
+  end
+
   def parse_reddit_response(data)
     return [] unless data.is_a?(Hash) && data["data"]
 

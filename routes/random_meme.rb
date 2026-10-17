@@ -142,7 +142,19 @@ module Routes
         id = data['impression_id']
         pending = session[:pending_impressions] || {}
         item = id.is_a?(String) ? pending[id] : nil
-        halt 404, { error: 'Unknown or expired impression' }.to_json unless item && item['expires_at'].to_i >= Time.now.to_i
+        unless item && item['expires_at'].to_i >= Time.now.to_i
+          reason = if !id.is_a?(String) || !id.match?(/\A[a-f0-9]{64}\z/)
+                     'malformed_id'
+                   elsif item
+                     'expired_pending'
+                   else
+                     'missing_pending'
+                   end
+          # Never log supplied IDs, tokens, content or account identity. Missing
+          # pending state alone cannot distinguish eviction/session races/logout.
+          AppLogger.info('Impression acknowledgment rejected', reason: reason)
+          halt 404, { error: 'Unknown or expired impression' }.to_json
+        end
         recorded = false
         begin
           DB.transaction do

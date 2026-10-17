@@ -163,6 +163,81 @@ without worse safety/media/readability rates. No arbitrary count delays UX repai
   gates pass, exit 0; 123 frontend tests pass; 10 targeted fetcher cases pass (partial
   coverage exit 2); syntax/whitespace pass. No JS changed in this slice.
 
+## Fourth local execution slice: source-aware stale replacement
+
+- Earlier experience fixes committed as da6a9db. Stale replacement now prioritizes
+  valid source created_at, then valid fetched_at, with unknown age last. Re-fetching
+  old weekly-top content no longer rejuvenates retirement priority. Existing
+  non-destructive replacement safeguards retained; no inventory purged.
+- This applies to target-capacity stale replacement, NOT the current undersized
+  163-item expansion branch. No production replenishment/root-cause fix claimed.
+- Full backend 1194 examples, zero failures, seven pending, 65.57s; 75.58%
+  (4959/6561), gates pass, exit 0; 123 frontend tests pass; 10 targeted stale-refresh
+  cases pass (partial coverage exit 2); syntax/whitespace pass. No JS changes.
+
+## Fifth local execution slice: provider-yield diagnosis
+
+- Numeric cumulative provider counters distinguish 2xx HTTP, 401/403, real 429,
+  other HTTP and request/parse errors. Use per-instance deltas, not sum across tiers.
+  Empty maintenance still uses protective cooldown but labels cause unconfirmed.
+  No request-volume, policy, safety or provider-throttle changes; no growth claim.
+- Full backend 1196 examples, zero failures, seven pending, 65.96s; 75.61%
+  (4972/6576), gates pass, exit 0; 123 frontend tests pass; 22 targeted fetcher/stale
+  cases pass (partial coverage exit 2); syntax/whitespace pass. Worker evidence
+  remains necessary; no new diagnostics deployed yet.
+
+## Sixth local execution slice: zero-yield distinctions
+
+- Added missing-token call counter (no provider request); tested empty successful
+  listing versus timeout. No changed listing policy, throttle or cooldown; missing
+  token was already unable to fetch, blank tokens now fail early too.
+- Full backend 1198 examples, zero failures, seven pending, 66.28s; 75.62%
+  (4974/6578), gates pass, exit 0; 123 frontend tests pass; 14 targeted fetcher cases
+  pass (partial coverage exit 2); syntax/whitespace pass. Production cause unverified.
+
+## Seventh local execution slice: honest bootstrap diagnosis
+
+- Empty bootstrap probes no longer assert 429 unless fetcher confirms rate limit.
+  Both confirmed/unknown causes retain protective cooldown and early stop; no
+  publication, fetch-volume increase or filter change. Two new regressions; an older
+  test updated to explicitly simulate confirmed 429 after first full run caught it.
+- Final full backend 1200 examples, zero failures, seven pending, 65.85s; 75.59%
+  (4974/6580), gates pass, exit 0; 123 frontend tests pass; 11 targeted bootstrap
+  cases pass (partial coverage exit 2); syntax/whitespace pass. Cause in production
+  remains unconfirmed until operator maintenance/provider evidence is collected.
+
+## Eighth local execution slice: opt-in pool freshness summary
+
+- Read-only diagnostic adds explicit --content-summary, bounded fixed pool read,
+  aggregate unique/duplicate/invalid counts and source-age buckets only. Metadata-only
+  default unchanged; no URLs/titles/session histories exported. No production run.
+- Full backend 1202 examples, zero failures, seven pending, 65.70s; 75.70%
+  (5007/6614), gates pass, exit 0; 123 frontend tests pass; six targeted diagnostic
+  cases pass (partial coverage exit 2); syntax/whitespace pass. Operator can use
+  approved deployment environment to collect actual supply evidence next.
+
+## Ninth local execution slice: mixed-record summary correctness
+
+- Explicit per-record URL/age assignment avoids inherited state across malformed,
+  missing-date or future-date records. Regression puts unknown dates immediately
+  after fresh content. No production reads or inventory behavior changes.
+- Full backend 1203 examples, zero failures, seven pending, 65.60s; 75.73%
+  (5009/6614), gates pass, exit 0; 123 frontend tests pass; seven targeted diagnostic
+  cases pass (partial coverage exit 2); syntax/whitespace pass.
+
+## Tenth local execution slice: ACK rejection evidence
+
+- Legacy ACK 404 now logs only malformed_id/expired_pending/missing_pending, not
+  credentials/content/account data. Stale pending-map test models a lost session
+  update and rejects client URL fallback; not a real multi-tab race reproduction.
+  No ACK authorization/history migration or fix of session overwrites claimed.
+- Initial logger expectations corrected for request-timer messages. Contaminated
+  full rerun failed unrelated benchmark/auth cases; after stopping test processes
+  and restarting disposable Redis, isolated full backend 1205 examples, zero
+  failures, seven pending, 65.69s; 75.71% (5013/6621), gates pass, exit 0.
+  Nine targeted ACK cases pass (partial coverage exit 2); 123 frontend tests pass;
+  syntax/whitespace pass. No production logs collected or deployment performed.
+
 ## Guardrails
 
 No pool purge, parallel fetch storms, disabled cooldowns, target-only increase,

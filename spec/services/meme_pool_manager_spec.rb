@@ -204,9 +204,9 @@ RSpec.describe MemePoolManager do
       described_class.send(:fetch_batch, size: 100)
     end
 
-    it 'sets a rate-limit cooldown and stops early when the probe returns zero memes' do
+    it 'sets a rate-limit cooldown and stops early when the empty probe confirms a rate limit' do
       allow(described_class).to receive(:load_tier_subreddits).and_return(['funny', 'memes', 'dankmemes'])
-      fetcher_double = instance_double(RedditFetcherService)
+      fetcher_double = instance_double(RedditFetcherService, rate_limited?: true)
       allow(fetcher_double).to receive(:fetch_memes).and_return([])
       allow(described_class).to receive(:create_fetcher).and_return(fetcher_double)
 

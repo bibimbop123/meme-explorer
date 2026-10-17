@@ -181,6 +181,73 @@ remain open; preparation is not authorization to push or deploy.
 
 ## Execution log — Gate A, first implementation slice
 
+### Legacy ACK rejection reasons and lost-map regression
+
+- Logs low-cardinality rejection reason only; missing pending entries remain
+  unauthorized even with client URL. Simulated stale map, not actual two-tab proof.
+- Final isolated backend **1205 examples, zero failures, seven pending**, 65.69s;
+  **75.71% (5013/6621)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  nine targeted ACK cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Earlier logger fixture failures corrected; contaminated rerun replaced by fresh
+  disposable-Redis isolated validation. Session-race fix still needs coordinated migration.
+
+### Mixed-record freshness summary correctness
+
+- Explicit per-record URL/age reset, regression for unknown/future dates after fresh
+  content. No production inventory read or ingestion behavior changes.
+- Full backend **1203 examples, zero failures, seven pending**, 65.60s;
+  **75.73% (5009/6614)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  seven targeted diagnostic cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Production bottleneck still requires normal maintenance evidence.
+
+### Opt-in aggregate pool freshness diagnostic
+
+- Existing read-only checker optionally reads bounded pool payload for aggregate
+  unique/duplicate/invalid counts and source-age buckets, no raw content output.
+  Metadata-only default preserved; two new tests; no production invocation.
+- Full backend **1202 examples, zero failures, seven pending**, 65.70s;
+  **75.70% (5007/6614)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  six targeted diagnostic cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Actual 163-item bottleneck still needs normal worker-cycle/operator evidence.
+
+### Bootstrap empty-probe cause correction
+
+- Empty probe reports unconfirmed cause unless real rate-limit flag; cooldown and
+  early stop retained. Two regressions plus corrected legacy confirmed-429 fixture.
+- Final full backend **1200 examples, zero failures, seven pending**, 65.85s;
+  **75.59% (4974/6580)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  11 targeted bootstrap cases pass (partial coverage exit 2), syntax/whitespace pass.
+  No production growth/root-cause claim; operator-cycle evidence remains required.
+
+### Missing-token versus empty-listing provider diagnosis
+
+- Added no-request missing-token counter; tested successful empty listing versus
+  network timeout. No listing-policy/throttle/cooldown change or growth claim.
+- Full backend **1198 examples, zero failures, seven pending**, 66.28s;
+  **75.62% (4974/6578)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  14 targeted fetcher cases pass (partial coverage exit 2), syntax/whitespace pass.
+  Production 163-item bottleneck still requires normal worker evidence.
+
+### Provider failure versus low-yield diagnostics
+
+- Numeric cumulative provider outcomes distinguish auth/429/other HTTP/errors from
+  successful responses. Zero-result maintenance no longer claims confirmed rate
+  limit; protective cooldown remains. No request-volume/policy changes.
+- Full backend **1196 examples, zero failures, seven pending**, 65.96s;
+  **75.61% (4972/6576)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  22 targeted fetcher/stale cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Actual 163-item bottleneck still requires operator-cycle evidence.
+
+### Source-aware stale retirement
+
+- Source created_at now precedes fetched_at for retirement, invalid dates fall back,
+  unknown age last. Two regressions plus existing non-destructive refresh checks.
+  Only target-capacity replacement; not a fix for 163-item expansion shortfall.
+- Full backend **1194 examples, zero failures, seven pending**, 65.57s;
+  **75.58% (4959/6561)** coverage, gates pass, exit 0; **123 frontend tests pass**;
+  10 targeted stale-refresh cases pass (partial coverage exit 2), syntax/whitespace
+  pass. Earlier experience fixes committed da6a9db; nothing deployed.
+
 ### Source-age preservation for meme freshness
 
 - Fetcher preserves validated source creation time/post ID instead of losing age.
