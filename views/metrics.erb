@@ -135,7 +135,8 @@
     <!-- The headline number: this product is a selection engine. Everything
          below this card is secondary to how fast that one decision is made.
          See lib/services/selection_benchmark.rb. -->
-    <h2>⚡ Selection Latency (the one number that matters)</h2>
+    <p style="color:white">Report source: <%= Rack::Utils.escape_html(@source) %>. Rolling windows end at <%= @generated_at %>; chart buckets use UTC and include partial edge buckets. Historical events may not cover the entire lifetime of the service. Likes in rolling windows are like actions, not net likes after unlikes.</p>
+    <h2>⚡ Selection Latency — recent samples, independent of period</h2>
     <div class="metrics">
       <% if @selection_latency && @selection_latency[:count] > 0 %>
         <div class="metric success">
@@ -194,7 +195,7 @@
          functional one." See lib/services/retention_service.rb - this
          is real D1 return-rate computed from meme_activity_log, not a
          placeholder. -->
-    <h2>🔁 Retention (does the loop actually bring people back?)</h2>
+    <h2>🔁 Retention — separate 14-day window, signed-in accounts only</h2>
     <div class="metrics">
       <% if @retention && @retention[:overall_return_rate_pct] %>
         <div class="metric <%= @retention[:overall_return_rate_pct] >= 20 ? 'success' : 'warning' %>">
@@ -212,7 +213,7 @@
         </div>
       <% end %>
       <div class="metric">
-        <h3>Avg Session Length</h3>
+        <h3>Avg active account-day span — not session duration</h3>
         <p><%= @avg_session_length_minutes ? "#{@avg_session_length_minutes} min" : "No data yet" %></p>
       </div>
     </div>
@@ -221,23 +222,24 @@
       <div class="empty-state">
         <p>📭 No data yet for this period. Start browsing memes to generate metrics!</p>
       </div>
-    <% else %>
+    <% end %>
+    <section aria-label="Activity report">
       <div class="metrics">
         <div class="metric primary">
-          <h3>Total Memes</h3>
+          <h3><%= @period == 'all' ? 'Tracked memes — stored totals' : 'Distinct memes with recorded activity' %></h3>
           <p><%= @total_memes %></p>
         </div>
         <div class="metric success">
-          <h3>Total Likes</h3>
+          <h3><%= @period == 'all' ? 'Current stored likes' : 'Like actions in window' %></h3>
           <p><%= @total_likes %></p>
         </div>
         <div class="metric primary">
-          <h3>Total Views</h3>
+          <h3><%= @period == 'all' ? 'Cumulative stored views' : 'Recorded view events in window' %></h3>
           <p><%= @total_views %></p>
         </div>
         <div class="metric success">
-          <h3>Engagement Rate</h3>
-          <p><%= @engagement_rate %>%</p>
+          <h3>Likes / views ratio — not unique-user engagement</h3>
+          <p><%= @engagement_rate.nil? ? 'N/A — no views' : "#{@engagement_rate}%" %></p>
         </div>
         <div class="metric primary">
           <h3>Avg Likes / Meme</h3>
@@ -252,24 +254,37 @@
           <p><%= @total_users %></p>
         </div>
         <div class="metric">
-          <h3>Saved Memes</h3>
+          <h3>Currently saved entries — all time</h3>
           <p><%= @total_saved_memes %></p>
         </div>
         <div class="metric warning">
-          <h3>Memes w/ No Likes</h3>
+          <h3>Stored memes with zero likes — current</h3>
           <p><%= @memes_with_no_likes %></p>
         </div>
         <div class="metric warning">
-          <h3>Memes w/ No Views</h3>
+          <h3>Stored memes with zero views — current</h3>
           <p><%= @memes_with_no_views %></p>
         </div>
       </div>
 
       <% if @chart_dates && @chart_dates.any? %>
-        <h2>📈 Views &amp; Likes Over Time</h2>
+        <h2>📈 Recorded view and like events — <%= @period == 'all' ? 'last 30 days, not all-time totals' : 'selected window' %> (UTC)</h2>
         <div class="chart-container">
-          <canvas id="metricsChart" height="90"></canvas>
+          <p id="metrics-chart-status" role="status">Chart unavailable or still loading. Exact values are available in the data table below.</p>
+          <canvas id="metricsChart" height="90" role="img" aria-label="Recorded views and like actions by UTC time bucket; exact values in the following table"></canvas>
         </div>
+        <details class="table-container" id="metrics-chart-data">
+          <summary>View exact chart data (UTC; partial first and last buckets)</summary>
+          <table>
+            <caption>Recorded event counts, not cumulative stored totals</caption>
+            <thead><tr><th scope="col">UTC bucket</th><th scope="col">View events</th><th scope="col">Like actions</th></tr></thead>
+            <tbody>
+              <% @chart_dates.each_with_index do |bucket, index| %>
+                <tr><th scope="row"><%= Rack::Utils.escape_html(bucket) %></th><td><%= @chart_views[index] %></td><td><%= @chart_likes[index] %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </details>
       <% end %>
 
       <% if @top_memes.any? %>
@@ -282,8 +297,8 @@
             <tbody>
               <% @top_memes.each do |meme| %>
                 <tr>
-                  <td><a href="<%= meme['url'] %>" target="_blank" rel="noopener noreferrer"><%= meme['title'].to_s[0..70] %></a></td>
-                  <td><%= meme['subreddit'] %></td>
+                  <td><%= Rack::Utils.escape_html((meme['title'] || 'Unknown title').to_s[0..70]) %></td>
+                  <td><%= Rack::Utils.escape_html(meme['subreddit'].to_s) %></td>
                   <td><%= meme['likes'] %></td>
                   <td><%= meme['views'] %></td>
                 </tr>
@@ -303,7 +318,7 @@
             <tbody>
               <% @top_subreddits.each do |sub| %>
                 <tr>
-                  <td>r/<%= sub['subreddit'] %></td>
+                  <td>r/<%= Rack::Utils.escape_html(sub['subreddit'].to_s) %></td>
                   <td><%= sub['total_likes'] %></td>
                   <td><%= sub['count'] %></td>
                 </tr>
@@ -312,7 +327,7 @@
           </table>
         </div>
       <% end %>
-    <% end %>
+    </section>
 
     <footer>
       <p>Last updated: <%= Time.now.strftime('%B %d, %Y at %I:%M %p') %></p>
@@ -336,15 +351,15 @@
                 borderColor: '#667eea',
                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0
               },
               {
-                label: 'Likes',
+                label: 'Like actions',
                 data: <%= @chart_likes.to_json %>,
                 borderColor: '#4caf50',
                 backgroundColor: 'rgba(76, 175, 80, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0
               }
             ]
           },
@@ -352,9 +367,10 @@
             responsive: true,
             maintainAspectRatio: true,
             plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true } }
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
           }
         });
+        document.getElementById('metrics-chart-status').hidden = true;
       }
     <% end %>
 
