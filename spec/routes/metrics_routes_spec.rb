@@ -39,6 +39,61 @@ describe "Metrics Routes" do
       get path
     end
 
+    %w[all 30d 7d 24h].each do |period|
+      it "uses the same report for HTML, JSON and CSV for #{period}" do
+        session[:user_id] = @user_id
+        DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 80, 800)",
+          ['/metrics-fixture.jpeg', '<script>private</script>', 'fixture'])
+        %w[view like].each do |event|
+          DB.execute('INSERT INTO meme_activity_log (meme_url, activity_type) VALUES (?, ?)', ['/metrics-fixture.jpeg', event])
+        end
+        get "/metrics.json?period=#{period}"
+        expect(last_response.status).to eq(200)
+        data = JSON.parse(last_response.body)
+        expect(data['total_views']).to eq(period == 'all' ? 800 : 1)
+        expect(data['total_likes']).to eq(period == 'all' ? 80 : 1)
+        get "/metrics/export?period=#{period}"
+        expect(last_response.status).to eq(200)
+        require 'csv'
+        csv = CSV.parse(last_response.body).select { |row| row.size == 2 }.to_h
+        expect(csv['total_views'].to_i).to eq(data['total_views'])
+        get "/metrics?period=#{period}"
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('UTC', '&lt;script&gt;private&lt;/script&gt;')
+        expect(last_response.body).not_to include('<script>private</script>')
+        expect(last_response.body).to include('View exact chart data', 'metrics-chart-status', 'Like actions')
+        table = last_response.body.split('<details class="table-container" id="metrics-chart-data">').last.split('</details>').first
+        values = table.scan(/<td>(\d+)<\/td>/).flatten.map(&:to_i)
+        expect(values.each_slice(2).sum { |views, _| views }).to eq(data['chart_views'].sum)
+        expect(values.each_slice(2).sum { |_, likes| likes }).to eq(data['chart_likes'].sum)
+        expect(last_response.body).to include("class=\"active\">#{ { 'all' => 'All Time', '30d' => 'Last 30 Days', '7d' => 'Last 7 Days', '24h' => 'Last 24 Hours' }.fetch(period)}")
+      end
+    end
+
+    it 'rejects invalid periods on every report endpoint' do
+      session[:user_id] = @user_id
+      %w[/metrics /metrics.json /metrics/export].each do |path|
+        get path, period: 'bogus'
+        expect(last_response.status).to eq(400)
+      end
+    end
+
+    it 'keeps current global snapshots visible when a selected window has no activity' do
+      session[:user_id] = @user_id
+      get '/metrics?period=24h'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('No data yet for this period',
+        'Registered accounts — all time', 'Currently saved entries — all time', 'metricsChart')
+    end
+
+    it 'returns unavailable instead of presenting database failure as zero activity' do
+      session[:user_id] = @user_id
+      allow(MetricsReport).to receive(:build).and_raise(PG::Error)
+      get '/metrics?period=7d'
+      expect(last_response.status).to eq(503)
+      expect(last_response.body).to include('no totals inferred')
+    end
+
     it "renders successfully with no selection latency data yet" do
       RedisService.with_redis do |redis|
         redis.del(
