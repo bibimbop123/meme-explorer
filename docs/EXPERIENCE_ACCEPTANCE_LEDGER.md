@@ -4,8 +4,10 @@
 
 Roadmap: [remaining-work execution](REMAINING_WORK_EXECUTION_ROADMAP.md).
 Stage 0 is in progress; stage 1 collection is prepared, not completed.
-Implementation candidate `72a8fe4`; subsequent searchable-community/unseen-label
-changes are local and uncommitted. Do not attribute local changes to production.
+UX candidate `72a8fe4` and metadata follow-up `120b70a` were committed and
+operator-reported deployed, followed by measured timing/pipeline slices through
+`10795b4`. Public markers support specific features, not independently verified
+full web/worker SHAs. Current documentation updates remain local/uncommitted.
 
 Use this ledger for results, not inferred completion. For each new observation
 record UTC time, environment, actual revision (or unknown), browser/OS, method,
@@ -17,7 +19,7 @@ result, limitation and next action. Never include credentials or account emails.
 | --- | --- | --- |
 | Candidate frontend served | Public HTML markers; bundle, viewer CSS and keyboard JS byte-matched `72a8fe4` | Observed; full server SHA unknown |
 | Web/worker revision and environment alignment | No operator SHA/config attestation recorded | Operator verifies privately |
-| Local build and test gates | Latest full run: 1,215 examples, 0 failures, 7 pending; 76.10% coverage; 141 frontend tests; build passed | Local evidence, not hosted CI |
+| Local build and test gates | Latest full backend run: 1,234 examples, 0 failures, 7 pending; 76.33% coverage; latest frontend 141 tests/build passed | Local evidence, not hosted CI |
 | Guest Next/Previous and help focus | Real local Rack app in Chrome; exact return image and focus restoration passed | Local scripted acceptance |
 | Save -> email login/signup | Actual local forms and full-page exact-meme redirects passed | Local scripted acceptance; disposable users removed |
 | Narrow layout | Chrome fixtures at 320/375px: sticky navigation and menu positioning passed | Fixture, not physical-device acceptance |
@@ -33,6 +35,32 @@ hidden-focus or inaccessible-navigation failure remains. See
 [release checklist](UX_RELEASE_CANDIDATE.md) for task details and rollback rules.
 
 ## Stage 1A: three ordinary supply cycles
+
+### Configuration repair and recovery checkpoint
+
+Operator configuration edits initially left an incomplete REDIS_URL and caused
+startup URI parsing failure. Do not copy credential-bearing exceptions into this
+ledger. Operator was instructed to restore the complete intended Internal URL
+and rotate exposed credentials privately; credential rotation remains unverified.
+
+Subsequent operator read-back: 3,660 unique payload URLs/records, 1,659,064 bytes,
+zero structural invalid/duplicate records, refresh age 49 seconds; age buckets
+442 under one day, 3,125 one-to-seven days, 93 over seven days, zero unknown.
+Lease TTL 7,178 seconds is consistent with recent acquisition, not proof of job
+progress. Sample UTC/SHA were not supplied; this is not a matched cycle outcome.
+
+After the repair, one public random.json response returned 200, no-store/private,
+expected identity fields and integer likes. Timings (ms): route_total 38.50,
+selection_pipeline 31.69, pool_lookup 25.71, selection_work 5.28,
+response_prepare 4.61, history_write 0.73, likes_lookup 3.50/database_fallback,
+impression_issue 1.99, serialization 0.02. Earlier warm PINGs were roughly 57ms;
+post-repair PINGs and exact routing/configuration are not independently verified.
+This is consistent with improved Redis connectivity, not a controlled benchmark,
+field p95, or proof of cause. Pause speculative cache/telemetry optimization.
+
+Next acceptance: verify worker uses the intended complete connection privately;
+observe ordinary maintenance completion and match its logs to a read-back; confirm
+credential rotation; resume content/user audits and manual accessibility checks.
 
 One historical production completion is known: 990 fetched/validated candidates,
 981 unique candidates, 162 previous unique URLs, 885 candidate new unique URLs,
@@ -77,12 +105,48 @@ this read-back to one of the three observed ordinary cycles.
 
 | Cycle | UTC / worker SHA | Outcome and duration | Fetched / validated / candidate new unique | Published / read-back count | Source-age buckets / invalid / duplicates | Skip/error/provider explanation |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Pending | Pending | Pending | Pending | Pending | Pending |
-| 2 | Pending | Pending | Pending | Pending | Pending | Pending |
+| 1 | Completed 2026-10-17 08:54:26 UTC; SHA unknown; enqueue origin not shown | Published, job done; 265.746s | 1,155 / 1,155; 1,134 unique; 0 candidate new unique | 3,660 stored; matching post-job read-back pending | Pending | 212 requests, 209 successful listings, 1 auth failure, 2 other HTTP failures, no 429s; cumulative snapshot |
+| 2 | Started 2026-10-17 08:55:00 UTC via scheduler; SHA unknown | Began tier 1, then deployment banner; terminal outcome unknown | Nominal request 1,340; results pending | Pending | Pending | Deployment may interrupt work; no completion inferred |
 | 3 | Pending | Pending | Pending | Pending | Pending | Pending |
 
 Exit: all three attempts accounted for, publication/read-back distinguished from
 fetch success, and unexplained losses/no-ops assigned a concrete investigation.
+
+Cycle 1 basic filtering rejected zero candidates; optional pipeline was disabled.
+All 1,134 unique fetched URLs overlapped existing inventory: successful fetching
+and republishing did not replenish unseen supply. No humor/moderation quality
+acceptance is implied by “passed quality filter.” Do not sum successive provider
+snapshots or attribute zero yield solely to the three HTTP failures.
+
+Repository supply-policy review: OAuth/static listings both use weekly top;
+pagination restarts with no cursor each fetch and is capped at two pages per
+community. Maintenance samples up to 25 unique configured communities per tier.
+This bounds work but can repeatedly cover existing URLs. One zero-yield cycle
+supports overlap diagnosis, not a claim that the whole provider is exhausted.
+A duplicate-only regression now verifies zero new unique yield, successful
+republishing distinguished from growth, and no retirement of retained inventory.
+
+Proposed experiment, NOT enabled: after the next two ordinary attempts are
+accounted for and source/content review passes, allocate a small explicit share
+(initial candidate: 10%) of the existing listing-request budget to newest posts,
+replacing rather than adding requests. Keep provider/page caps, throttle, auth,
+429 early-stop, cooldown, media/structural checks, publication conflict handling
+and source timestamps unchanged. No extra providers or subreddit expansion.
+Use a default-off configuration with weekly-top-only rollback. Before enabling,
+test OAuth/static URL construction, page cursors, invalid configuration, request
+budget, rate-limit stop and original age preservation; review newest-post media
+availability/readability since recency is not quality. Compare candidate-new
+unique yield and retained publication plus source/topic balance and content audit
+results over a pre-agreed observation window. Stop on quality, request-budget,
+provider-error or publication regressions. Operator approval is required to roll
+out; do not widen the budget to compensate for low yield.
+
+At 08:54:49 UTC the worker reported RTTs 56,912/60,145/56,760/60,573/56,733
+microseconds (~57–61ms). Worker connectivity exists, but low-latency routing is
+not confirmed; web improvement does not establish worker environment parity.
+The 08:55 attempt requests more inventory normally but has no terminal result in
+the excerpt. Observe shutdown/new-worker logs before interpreting its lease or
+re-enqueueing anything. Private worker URL/region/credential checks remain open.
 
 ## Stage 1B: 100-selection content audit
 
@@ -126,6 +190,18 @@ are not user research.
 ## Next intervention decision
 
 ### Selection pipeline follow-up
+
+Operator inventory sample at 2026-10-17 08:34:16 UTC: 3,656 records/unique URLs,
+1,657,625 payload bytes (~1.66 MB decimal), zero structurally invalid records or
+duplicate URLs, refresh age 44 seconds. Source age: 439 under one day, 3,126
+one-to-seven days, 91 over seven days, zero unknown. No maintenance lease or
+cooldown existed at sampling time. Derived pools overlap. This is a non-atomic
+inventory read-back, not a matched maintenance-cycle outcome or media audit.
+The actual payload is similar in byte size to the earlier synthetic parse fixture,
+but that does not establish production decoding time or network throughput.
+Next evidence: privately verify Redis region/internal routing and resource metrics;
+compare a few sequential PING RTTs from the same web shell without printing URLs.
+Do not add a stale process cache or clear inventory on this evidence alone.
 
 After operator-reported `c5cbd6f` rollout, one public response returned route_total
 782.81ms, selection_pipeline 603.09ms, pool_lookup 426.04ms, selection_work

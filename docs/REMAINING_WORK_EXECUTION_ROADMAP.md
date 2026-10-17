@@ -9,6 +9,20 @@ Operator approvals, participant recruitment and external services add elapsed ti
 
 ### Baseline
 
+Latest recovery checkpoint supersedes the old local/deployment status below:
+metadata quick wins were committed as `120b70a` and operator-reported deployed;
+subsequent timing/pipeline slices extend through `10795b4`. Latest local backend
+gate: 1,234 examples, zero failures, seven pending, 76.33% coverage. Following an
+operator Redis-URL repair, inventory read-back retained 3,660 unique URLs and one
+public request measured route_total 38.50ms (previous sample 782.81ms). These are
+individual observations, not field percentiles or verified full deployed SHAs.
+See the [acceptance ledger](EXPERIENCE_ACCEPTANCE_LEDGER.md) for limitations.
+
+**Immediate priority:** stop speculative performance changes. Confirm worker
+connectivity/ordinary completion and exposed-credential rotation privately, then
+finish the content audit, user observation and manual release acceptance. Reopen
+latency optimization only if ordinary usage shows a remaining material problem.
+
 - UX implementation: `72a8fe4`; operator reports deployment. Public HTML markers
   and three frontend assets matched the candidate. Full deployed web/worker SHAs
   still require operator verification.
