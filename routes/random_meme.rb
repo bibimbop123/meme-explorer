@@ -343,6 +343,7 @@ module Routes
       
       # JSON API endpoint for random memes with validation
       app.get "/random.json" do
+        route_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         AppLogger.debug("🔄 [/random.json] Request received")
 
         session_id = feed_session_id
@@ -355,6 +356,7 @@ module Routes
         # whether to spend effort on the pool-lookup fallback chain or the
         # selection algorithm itself.
         memes = nil
+        selection_pipeline_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @meme = SelectionBenchmark.measure do
           # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
           memes = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
@@ -369,6 +371,7 @@ module Routes
           # never-called apply_user_preferences path.
           SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id) }
         end
+        selection_pipeline_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         AppLogger.info("✅ [/random.json] Got #{memes.size} memes from pool")
         post_selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -417,6 +420,8 @@ module Routes
         # Aggregate timing only: no extra network telemetry calls or identities.
         # Excludes middleware/session persistence and media download/render time.
         headers 'Server-Timing' => [
+          "route_total;dur=#{((serialization_finished - route_started) * 1000).round(2)}",
+          "selection_pipeline;dur=#{((selection_pipeline_finished - selection_pipeline_started) * 1000).round(2)}",
           "response_prepare;dur=#{((response_prepared - post_selection_started) * 1000).round(2)}",
           "history_write;dur=#{((history_finished - history_started) * 1000).round(2)}",
           "media_detect;dur=#{((media_finished - media_started) * 1000).round(2)}",

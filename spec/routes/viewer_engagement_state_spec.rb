@@ -19,7 +19,9 @@ RSpec.describe 'Viewer initial engagement state' do
       expect(value).to match(/\A\d+(?:\.\d+)?\z/)
       [name, value.to_f]
     end
-    expect(durations.keys).to eq(%w[response_prepare history_write media_detect likes_lookup impression_issue serialization])
+    expect(durations.keys).to eq(%w[route_total selection_pipeline response_prepare history_write media_detect likes_lookup impression_issue serialization])
+    expect(durations['route_total']).to be >= durations['selection_pipeline']
+    expect(durations['route_total']).to be >= durations['response_prepare']
     expect(durations['response_prepare']).to be >= durations['history_write']
     expect(timing).not_to include(url, meme['title'])
     expect(JSON.parse(last_response.body)).to include('url' => url, 'likes' => 7)
