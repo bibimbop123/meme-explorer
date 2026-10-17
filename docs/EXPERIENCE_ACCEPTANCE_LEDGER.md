@@ -2,6 +2,148 @@
 
 ## Execution state
 
+### ACK concurrency investigation: real middleware reproduction
+
+**Current status (supersedes historical checkpoints below):** local uncommitted
+default-off repair; latest backend 1,273 examples / zero failures / seven pending,
+76.61% coverage, exit 0; frontend 143 passing. Eight real-route overlap schedules,
+both-ID retries, independent-process store capacity, real middleware login/logout,
+mixed rollback credentials, failure/corruption handling and authenticated counters
+have local coverage. Interactive staging browser and operational acceptance are
+NOT complete. See [current acceptance table](LEGACY_ACK_REPAIR_CONTRACT.md#current-acceptance-status)
+for precise limitations. No commit, push, deployment or enablement authorized.
+
+The paragraphs below preserve chronological investigation checkpoints (newest
+first). Earlier counts and “remaining” notes are historical, not current blockers.
+
+Authenticated external-ACK accounting acceptance passes: two issued IDs, each
+retried, produce exactly two impressions/views and two user/session-attributed view
+activity rows; exposure increases exactly twice above selection-time baseline.
+Selection-time behavior remains unchanged. Full backend 1,273 examples, zero
+failures, seven pending, 76.61% coverage, exit 0. Flag off; staging acceptance open.
+
+Actual shipped configuration default-off coverage now passes without flag stubs:
+legacy issuance/ACK works and external issue is not called. Sequential first-request
+coverage verifies legacy issuance before binding stabilization, then external
+issuance with both IDs accepted. Concurrent unbound initialization remains excluded.
+Full backend: 1,272 examples, zero failures, seven pending, 76.61% coverage, exit 0.
+Staging browser/operational acceptance remains outstanding; flag remains false.
+
+Expiry/capacity corruption follow-up: issuance rejects mismatched expiry/payload
+counts before mutation (including partial key loss). New tests verify expired
+payload pruning and earliest-deadline/ID-tie eviction without renewing survivors.
+Not a full audit of equal-cardinality corruption. Full backend 1,270 examples,
+zero failures, seven pending, 76.55% coverage, exit 0. Flag off; staging still open.
+
+Store process-boundary acceptance passes four fresh interpreters with independent
+Redis clients and synchronized issuance (32 issued, exactly 20 retained and
+readable). Real store/Lua, test transport adapter; not multi-process HTTP/pool
+coverage. Full backend: 1,268 examples, zero failures, seven pending, 76.58%
+coverage, exit 0. Interactive staging/operational acceptance remains open. Flag off.
+
+Repeated overlap coverage now passes both deterministic response/session-save
+orders twice per flag state: eight real middleware examples, enabled two-ACK
+success with both retries idempotent and disabled legacy loss retained. Full
+backend 1,267 examples, zero failures, seven pending, 76.58% coverage, exit 0.
+Process-boundary/staging browser evidence remains open. Flag off; no deployment.
+
+Overlap regression strengthened to retry BOTH externally issued IDs (previously
+only one successful ID was retried). First ACKs must report recorded:true; every
+retry recorded:false; enabled total remains two impressions/views. Full backend
+rerun: 1,261 examples, zero failures, seven pending, 76.55% coverage, exit 0;
+frontend 143 passing. Still no repeated/process-boundary or staging browser claim.
+Flag off; no commit/push/deployment.
+
+Nil-ID frontend regression now tests actual navigation module with observer/DOM
+doubles: previous observation stops, media stays unchanged, no ACK or qualification
+is created. Frontend 143 passing. No runtime frontend change. Repair contract now
+includes an unexecuted staging checklist and per-process flag-disable/drain
+procedure. Staging browser evidence and operational budgets remain outstanding;
+no staging or production enablement performed. Latest backend remains 1,261
+examples, zero failures, seven pending (not rerun for frontend/docs-only changes).
+
+Real Redis middleware authentication acceptance now passes actual password login,
+cookie renewal, ACK-binding replacement and POST logout. Pre-login IDs reject
+after login, authenticated IDs reject after logout, and newly bound anonymous IDs
+work. Full backend: 1,261 examples, zero failures, seven pending, 76.58% coverage,
+exit 0. Initial harness failure handling multiple Set-Cookie headers corrected.
+Supersedes older middleware-auth gap notes below; browser/staging acceptance still
+open. No application behavior changed in this follow-up. Flag remains off.
+
+Corruption/provenance acceptance added: malformed/oversized context and metadata
+fail closed, duplicate issuance cannot renew or replace context, and conflicting
+DB URL/session provenance returns unavailable without view mutation. Full backend
+1,260 examples, zero failures, seven pending, 76.60% coverage, exit 0; frontend
+142 passing. Real middleware login/logout rotation and staging/browser acceptance
+remain open. Flag off; no commit, deployment or enablement.
+
+Transition policy explicitly revised with user approval: independent 20-entry
+legacy-session and external-store caps (up to 40 combined), no credential renewal.
+New route acceptance fills both stores, disables issuance, verifies legacy eviction
+and unchanged surviving legacy deadlines, then ACKs all 40 retained credentials
+twice with exactly 40 impressions/views. Full isolated backend run: 1,256 examples,
+zero failures, seven pending, 76.48% coverage, exit 0. This supersedes earlier
+single-capacity blocker notes below. Real auth/browser journeys and remaining
+corruption/provenance coverage still gate enablement; flag remains false.
+
+Repair failure/auth route acceptance now passes six additional cases: no ID on
+failed persistence, lookup outage/retry, DB rollback/retry, changed user binding,
+replaced session and expired external entry. Full isolated run: 1,255 examples,
+zero failures, seven pending; 76.53% coverage, exit 0. Capacity remains unresolved:
+waiting for a session map to empty is insufficient with ongoing issuance and
+flag rollback. Flag stays false; no rollout, commit or deployment performed.
+
+Initial local runtime repair is now integrated, flag feed.legacy_pending_store
+default false. Shared issuance stores new IDs outside whole-session snapshots for
+existing valid ACK bindings; lookup remains compatible with issuance disabled.
+Real Redis-session route test passes both ACKs with repair enabled, retains the
+legacy lost-update reproduction when off, rejects foreign sessions and deduplicates
+retry. Store tests cover user/session isolation, expiry, concurrent external-store
+cap and malformed/wrong-type/unavailable failure. Full run: 1,249 examples, zero
+failures, seven pending, 76.53% coverage, exit 0. Uncommitted/undeployed.
+Not rollout-ready: combined legacy/external capacity, route outages, auth rotation,
+nil-ID client handling and staging acceptance remain open; see repair contract.
+Selection-time history and v2 integration remain unchanged.
+
+Repair design now documented in [legacy ACK repair contract](LEGACY_ACK_REPAIR_CONTRACT.md):
+default-off coordinated issuance/storage/dispatch slice, no v2 history-policy
+change or whole-auth-session merging. Real-route reproduction additionally proves
+foreign-session rejection and surviving-ID idempotent retry without extra views.
+Latest full isolated run: 1,245 examples, zero failures, seven pending, 76.36%
+coverage, exit 0. This remains reproduction/design, not a runtime repair.
+
+Follow-up now runs actual random.json and api/impressions routes inside the real
+Redis session middleware. A seeded existing guest session has stable feed/ACK
+binding and CSRF state. Two feed responses are held before either session commit;
+both issue distinct IDs, but later ACKs produce one 200 and one 404 and exactly
+one DB impression/view. This confirms a real route-level legitimate-ACK loss for
+the forced overlap schedule. No client-content fallback or security bypass used.
+Full run: 1,245 examples, zero failures, seven pending, 76.42% coverage, exit 0.
+The test intentionally expects today's bug; no runtime fix/migration is enabled.
+
+Local integration test now overlaps two requests through the actual
+Rack::Session::Redis middleware against isolated Redis. A queue barrier ensures
+both load the same existing session before either persists its copied pending
+map. Both responses contain their own issued entry, but a subsequent request
+reads only one entry: last whole-session write overwrites the other addition.
+The test uses a small fixture endpoint with issue_impression's read/copy/write
+shape; it does not yet reproduce concurrent full feed routes or a real ACK POST.
+Its one-entry assertion documents today's bug, not desired acceptance behavior.
+
+Full isolated validation: 1,244 backend examples, zero failures, seven pending,
+76.39% coverage, exit 0. Unique session namespace and 60-second expiry bound test
+state; disposable Redis stopped. No production calls, route changes, authorization
+changes or migration enablement. Test and evidence update remain uncommitted.
+
+Next bounded design decision: retain server-issued pending credentials outside
+whole-session snapshots with explicit session/auth binding, original expiry,
+capacity limits and failure semantics, or use the coordinated default-off v2
+integration. Do not repair by trusting client URL/title/user fields, globally
+merging authentication sessions, renewing expired credentials, or removing ACK
+authorization. Require real-route concurrency and wrong-session/retry tests before
+claiming the failure fixed. Prefetch selection-time history remains a separate
+coordinated migration problem.
+
 Roadmap: [remaining-work execution](REMAINING_WORK_EXECUTION_ROADMAP.md).
 Stage 0 is in progress; stage 1 collection is prepared, not completed.
 UX candidate `72a8fe4` and metadata follow-up `120b70a` were committed and

@@ -6,6 +6,7 @@ require_relative '../lib/services/simple_meme_selector'
 require 'digest'
 require_relative '../lib/security/reddit_source'
 require_relative '../lib/services/meme_identity_service'
+require_relative '../lib/services/legacy_impression_store'
 require_relative '../lib/security/public_origin'
 
 module Routes
@@ -66,6 +67,7 @@ module Routes
 
         def issue_impression(response_data)
           feed_session_id
+          stable_binding = LegacyImpressionStore.valid_id?(session[:impression_session_key])
           session[:impression_session_key] ||= SecureRandom.hex(32)
           pending = (session[:pending_impressions] || {}).reject { |_, item| item['expires_at'].to_i < Time.now.to_i }
           pending.shift while pending.size >= 20
@@ -74,7 +76,12 @@ module Routes
             'url' => response_data[:url], 'title' => response_data[:title],
             'subreddit' => response_data[:subreddit], 'user_id' => current_user_id, 'expires_at' => Time.now.to_i + 1800
           }
-          session[:pending_impressions] = pending
+          if stable_binding && FeatureFlags.enabled?('feed.legacy_pending_store')
+            persisted = LegacyImpressionStore.issue(session[:impression_session_key], current_user_id, id, pending[id])
+            id = nil unless persisted
+          else
+            session[:pending_impressions] = pending
+          end
           # Reuse the server-built response's count instead of fetching it twice.
           result = response_data.merge(viewer_engagement_state(response_data[:url], likes: response_data[:likes])).merge(impression_id: id)
           begin
@@ -143,7 +150,16 @@ module Routes
         id = data['impression_id']
         pending = session[:pending_impressions] || {}
         item = id.is_a?(String) ? pending[id] : nil
-        unless item && item['expires_at'].to_i >= Time.now.to_i
+        externally_stored = false
+        unless item
+          lookup = LegacyImpressionStore.lookup(session[:impression_session_key], current_user_id, id)
+          halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json if lookup[:status] == :unavailable
+          if lookup[:status] == :found
+            item = lookup[:item]
+            externally_stored = true
+          end
+        end
+        unless item && (externally_stored || item['expires_at'].to_i >= Time.now.to_i)
           reason = if !id.is_a?(String) || !id.match?(/\A[a-f0-9]{64}\z/)
                      'malformed_id'
                    elsif item
@@ -163,6 +179,10 @@ module Routes
               'INSERT INTO meme_impressions (id, meme_url, session_key) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING id',
               [id, item['url'], session[:impression_session_key]]
             )
+            if externally_stored && inserted.empty?
+              existing = DB.execute('SELECT meme_url, session_key FROM meme_impressions WHERE id = ?', [id]).first
+              raise 'Impression binding mismatch' unless existing && existing['meme_url'] == item['url'] && existing['session_key'] == session[:impression_session_key]
+            end
             unless inserted.empty?
               DB.execute(
                 'INSERT INTO meme_stats (url, title, subreddit, views, likes) VALUES (?, ?, ?, 1, 0) ON CONFLICT(url) DO UPDATE SET views = meme_stats.views + 1, updated_at = CURRENT_TIMESTAMP',

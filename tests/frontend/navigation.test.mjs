@@ -888,6 +888,31 @@ test('impression observation does nothing for speculative or unsupported content
   assert.equal(stopped, 1);
 });
 
+test('nil credential after persistence failure stops old observation without tracking or changing media', () => {
+  const originalObserver = globalThis.IntersectionObserver;
+  const nav = navigation();
+  const meme = { url: '/available.jpg', title: 'Still usable', impression_id: null };
+  const display = {
+    innerHTML: '<img src="/available.jpg">',
+    querySelector() { assert.fail('nil credential must not attach media observation'); }
+  };
+  let stopped = 0;
+  nav.currentMeme = meme;
+  nav.stopImpressionObserver = () => { stopped++; };
+  nav.acknowledgeImpression = () => assert.fail('must not submit an unpersisted credential');
+  nav.rememberRecentMeme = () => assert.fail('must not infer confirmed viewing');
+  globalThis.IntersectionObserver = class {
+    constructor() { assert.fail('must not start a dwell observer without a credential'); }
+  };
+  try {
+    nav.observeImpression(meme, display);
+    assert.equal(stopped, 1);
+    assert.equal(nav.currentMeme, meme);
+    assert.equal(display.innerHTML, '<img src="/available.jpg">');
+    assert.equal(nav.qualifiedImpressions, undefined);
+  } finally { globalThis.IntersectionObserver = originalObserver; }
+});
+
 test('visible usable media acknowledges once after dwell and cleans up observation', async () => {
   const originals = Object.fromEntries(['IntersectionObserver', 'document', 'fetch', 'setTimeout', 'clearTimeout'].map(key => [key, globalThis[key]]));
   let intersection;
