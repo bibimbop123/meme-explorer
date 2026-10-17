@@ -4,7 +4,147 @@
 
 ### ACK concurrency investigation: real middleware reproduction
 
-**Current status (supersedes historical checkpoints below):** local uncommitted
+Uncommitted telemetry review: date buckets now explicitly UTC to avoid cross-host
+timezone splits. Tests cover UTC/local midnight difference and corrupt numeric
+counter reporting unavailable, not zero. Initial cached test-date helper assertion
+fixed; final full backend: 1,282 examples, zero failures, seven pending, 76.73%
+coverage, exit 0. Production untouched; no commit/deploy/enablement this pass.
+
+Telemetry-inclusive local benchmark passed four sequential passes in on/off/off/on
+order using temporary /tmp/meme-ack-telemetry-latency.mjs. Only disposable Redis
+19379 is cleared between passes; dedicated local DB and fixture HTTP wrapper,
+production untouched. Each pass: ten warmups plus 100 measured issuance/ACK/retry
+cycles. Redis counters independently asserted 110 recorded ACKs and 110 duplicates;
+on passes 110 external + one initial legacy issuance, off passes 111 legacy.
+Counts verified directly in Redis, not via HTTP admin endpoint (endpoint access
+and response covered in backend tests). Enabled p95 ms ranges: issue 4.08–5.22,
+ACK 4.41–5.17, retry 3.21–4.34; disabled ranges 4.29–4.53, 4.22–4.46,
+2.97–3.69 respectively. External key memory 6,275 bytes per enabled fixture binding
+(excludes telemetry/session/global overhead). Raw results:
+/tmp/meme-ack-telemetry-latency.log. No pre/post telemetry causal overhead claim:
+earlier run differs in cache/order/time; no load or deployed network simulation.
+Temporary services stopped. Representative deployed budget remains unapproved.
+
+Local uncommitted aggregate telemetry integrated: fixed event labels, daily Redis
+hash/two-day retention, transactional increment+expiry, no credential/content/user
+labels. Shared issuance and ACK dispatch record outcomes; admin-only no-store
+endpoint /api/admin/legacy-impression-metrics returns available/counts or 503/null.
+Concurrent counter, failure/empty distinction, admin access and route event tests
+pass. Initial cleanup-stub failure fixed. Full backend rerun: 1,280 examples,
+zero failures, seven pending, 76.70% coverage, exit 0. Redis outages can lose writes;
+pre-handler failures excluded; no latency dashboard. Added per-outcome Redis write
+requires new overhead measurement before rollout; previous local timings predate
+telemetry. No production changes, deployment, commit or flag enablement.
+
+Local uncommitted diagnostics hardening: failed external persistence warns with
+storage:external only; ACK DB failures log exception class rather than raw message
+that could contain database values. Route tests assert warning shape and simulate
+a sensitive exception message while requiring only PG::Error in ACK error context.
+Full backend rerun: 1,273 examples, zero failures, seven pending, 76.59% coverage,
+exit 0. These are failure diagnostics, not aggregate success/error denominators or
+latency metrics; observability rollout blocker remains. Production untouched.
+
+Current release status: runtime repair committed as 650a4a7, production deployment
+operator-reported, fresh deployed Ruby process confirmed flag false. Later local
+Chrome evidence and this documentation are uncommitted. Local browser smoke, tab
+fetches, login/logout, single-process rollback, transport/lost-response retries and
+preserving Redis restart have passed with the limitations recorded below. Local
+latency sample is not a production budget. Contract current-status table updated;
+proposed operational thresholds are explicitly unapproved. Global YAML flag has
+no built-in cohort rollout, and aggregate nil-ID/ACK observability is incomplete.
+Production enablement remains blocked pending scope, observability and budget
+agreement. No new runtime changes, production requests or enablement this pass.
+
+Local operational sample completed (temporary script /tmp/meme-ack-latency.mjs,
+results /tmp/meme-ack-latency.log): isolated fixture HTTP app and dedicated local
+DB/Redis, sequential loopback requests, flag off then on. Each pass discards ten
+warm-up cycles and measures 100 issue/ACK/retry cycles, asserting first ACK
+recorded:true and retry recorded:false. Off p50/p95 ms: issuance 4.02/8.00,
+ACK 4.08/7.50, retry 2.66/3.94. On p50/p95 ms: issuance 3.25/3.95,
+ACK 3.48/4.90, retry 2.73/3.40. Enabled external store has two keys using
+6,275 bytes total via Redis MEMORY USAGE after capacity saturation. This excludes
+session keys, allocator/global overhead, other bindings and worst-case metadata.
+Single sequential run with off first/on second has warm-cache/order bias; do not
+claim production speedup, load capacity or approved operational budget. Production
+untouched; local Redis stopped afterward. Operational thresholds still require
+operator agreement and representative deployment measurements.
+
+Actual isolated Redis stop/restart browser check passed with important limitation:
+stable-binding external ID selected via browser fetch, disposable Redis shutdown
+SAVE, browser ACK returns HTTP 500 and DB impression count for that ID remains 0.
+Redis restarted from local snapshot (sessions and credentials preserved); after
+32 seconds for availability cache expiry, explicit browser retry returns
+200/recorded:true, next retry recorded:false, one impression total. Total Redis
+outage can fail at session middleware with 500 rather than route-specific 503.
+This is manual retry after recovery, not guaranteed automatic recovery after the
+frontend retry budget; Redis data loss is not covered. Production untouched.
+Temporary services stopped; operational latency/resource budgets remain unmeasured.
+
+Local Chrome lost-response-after-commit acceptance passed: stable-binding external
+credential, actual visible-dwell ACK, DevTools interception at RESPONSE stage.
+First server response is 200/recorded:true and a separate local DB query confirms
+the impression committed BEFORE response is failed as ConnectionReset. Actual
+frontend automatically retries same ID; second server response is
+200/recorded:false, exactly one DB impression remains, further explicit retry also
+deduplicates. Artificial browser response loss, not infrastructure outage. Local
+fixtures/isolated DB and Redis only; production/default flag untouched. Temporary
+services stopped. Operational budgets and live Redis outage recovery remain open.
+
+Local Chrome transport-recovery check passed: reload under persisted binding for
+external issuance, intercept first visible-dwell ACK with DevTools Fetch and fail
+it as InternetDisconnected, then allow the actual frontend's automatic retry.
+Exactly two intercepted attempts carry the same ID; local DB contains exactly one
+impression for that ID, and a subsequent explicit browser retry returns
+200/recorded:false. Real module/dwell/retry path, artificial transport failure;
+not a Redis outage or lost-response-after-commit simulation. Production untouched.
+Live infrastructure outage recovery and operational budgets remain open. Temporary
+services stopped; no runtime code change, committed issuance flag still false.
+
+Local Chrome gallery smoke passed with two local-image slides in the isolated
+fixture wrapper. Both active slides decode; gallery Next/Previous changes active
+slide while preserving the page's impression ID. After visible dwell and slide
+changes, explicit same-ID ACK returns 200/recorded:false (already recorded by
+browser observation). This initial-page gallery check does not exercise AJAX
+gallery replacement or prove external-store issuance: a fresh unbound page may
+use legacy issuance. Prior stable-binding route tests cover external issuance.
+Browser outage recovery and operational budgets remain open. Production/default
+flag untouched; temporary services stopped. No runtime code changes.
+
+Local Chrome rollback acceptance passed: issue an external credential in isolated
+fixture app, stop/restart that app with local-only issuance override false while
+preserving its Redis session and session secret, then ACK old credential (200,
+recorded:true), retry (recorded:false), select/ACK new legacy credential (200,
+recorded:true). Requests originate in existing browser tab through real CSRF fetch
+wrapper. Local override is temporary harness code, not a new runtime env flag.
+Production and committed config untouched. Single local process restart only;
+multi-process rollout/drain remains untested. Galleries, browser outage recovery
+and operational budgets still NOT RUN. Temporary services stopped afterward.
+
+Local Chrome follow-up (same isolated fixture Rack wrapper/database/Redis): two
+tabs with shared session concurrently fetch random.json; distinct non-nil IDs
+both ACK recorded:true, then both retry recorded:false. ACK requests are explicit
+browser fetch calls, not independent dwell observations in each tab, and this
+schedule is not a deterministic middleware barrier. Actual browser login form
+submission redirects to profile; old anonymous ID rejects after login. A new
+authenticated ID succeeds, native CSRF-protected POST logout completes, that ID
+rejects afterward and a fresh anonymous ID succeeds. All assertions passed via
+Chrome DevTools Protocol. Local-only fixture account; no production changes.
+Galleries, browser outage/rollback and operational budgets remain NOT RUN.
+Temporary services stopped; committed issuance flag remains false.
+
+Local browser acceptance (partial, after 650a4a7): actual headless Google Chrome
+against loopback Rack/Puma with real Redis sessions, dedicated local database
+meme_explorer_ack_browser_test and disposable Redis port 19379. Temporary wrapper
+enables repair only in that process, supplies local image fixtures, skips dotenv
+loading and blocks outbound Ruby HTTP; Chrome blocks external HTTP(S). Committed
+flag and production remain unchanged. Fixture image decoded; after scrolling media
+into view, visible dwell plus Next/Previous produced two HTTP 200 ACK responses
+and exactly two local DB impressions/views. Screenshot: /tmp/meme-ack-browser.png.
+No ACK during initial viewport sample. This is a limited browser smoke check,
+not full acceptance: multi-tab, galleries, browser auth, outages/rollback and
+operational budgets remain NOT RUN. Temporary services stopped afterward.
+
+**Historical pre-browser status (superseded by release status above):** local uncommitted
 default-off repair; latest backend 1,273 examples / zero failures / seven pending,
 76.61% coverage, exit 0; frontend 143 passing. Eight real-route overlap schedules,
 both-ID retries, independent-process store capacity, real middleware login/logout,

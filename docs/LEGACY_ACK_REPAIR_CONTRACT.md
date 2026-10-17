@@ -1,7 +1,8 @@
 # Legacy ACK lost-update repair: bounded integration contract
 
-Status: initial runtime implementation local, uncommitted and default-off; NOT
-approved for enablement. The real-route regression covers disabled legacy loss
+Status: implementation committed as 650a4a7; user reports production deployment;
+deployed fresh-process flag check returned false. NOT approved for enablement.
+The real-route regression covers disabled legacy loss
 and enabled two-ACK success. Full acceptance matrix below remains incomplete.
 
 ## Current acceptance status
@@ -9,26 +10,74 @@ and enabled two-ACK success. Full acceptance matrix below remains incomplete.
 This section is authoritative for current status; numbered run results and
 follow-up notes below are historical checkpoints, not additional outstanding work.
 
-Latest backend: 1,273 examples, zero failures, seven pending; 76.61% coverage,
-exit 0. Latest frontend: 143 passing. Code remains local and uncommitted, with
-feed.legacy_pending_store explicitly false. No deployment/enablement is recorded.
+Latest backend: 1,282 examples, zero failures, seven pending; 76.73% coverage,
+exit 0. Latest frontend: 143 passing. Runtime code is committed; subsequent browser
+evidence/documentation updates remain uncommitted. feed.legacy_pending_store is
+explicitly false. Deployment is operator-reported, not full backend-SHA verified.
+Subsequent local uncommitted runtime changes add an external-issuance failure
+warning and replace raw ACK exception messages with class names; tests pass.
+These diagnostics do not supply aggregate rollout metrics.
+
+Local uncommitted aggregate telemetry now records fixed-label daily handler counts
+in Redis with two-day key TTL: legacy/external/unavailable issuance and recorded,
+duplicate, invalid, unavailable, bad-JSON ACKs. Admin-only GET
+/api/admin/legacy-impression-metrics returns counts with no-store, or 503 with
+counts:null when unavailable. Date buckets explicitly use UTC. No identifier or
+content labels. Writes fail soft; Redis outages can lose telemetry, and failures
+before route handling are excluded. This is not a complete HTTP error denominator
+or latency dashboard; old local performance results predate the added Redis write
+per issuance/ACK and must not be used as current overhead evidence.
+Telemetry-inclusive follow-up now measures four local on/off/off/on passes with
+100 post-warmup cycles each: enabled p95 issuance 4.08–5.22 ms, ACK 4.41–5.17 ms,
+retry 3.21–4.34 ms. Direct Redis totals match all 110 cycles per pass including
+warmup. Fixture-only sequential loopback evidence, not deployed budget approval
+or isolated measurement of telemetry overhead; see ledger for raw log path.
 
 | Area | Current evidence | Remaining limitation |
 | --- | --- | --- |
 | Lost-update regression | Eight real-route Redis-session overlap cases: both save orders twice per flag state; enabled both ACKs/retries pass | Threads in one serving process, not multi-process HTTP |
 | Independent store concurrency | Four fresh interpreters, independent Redis clients, 32 issues/20 retained | Test transport adapter, not production pool |
-| Authorization | Foreign session, user change, expiry, actual password login/session renewal and POST logout rejection | Interactive browser/staging journeys not executed |
-| Rollback compatibility | Mixed legacy/external IDs, disabled issuance, retained deadlines and idempotent ACKs | Multi-process config propagation/drain not exercised in staging |
-| Failure handling | Failed issuance, lookup outage and DB rollback/retry; corrupt payload/type and partial-key checks | No live infrastructure fault injection; same-count arbitrary corruption not audited |
+| Authorization | Route/middleware coverage plus local Chrome login form and native POST logout | No deployed staging acceptance |
+| Rollback compatibility | Mixed IDs and local Chrome surviving single-process restart with issuance off | Multi-process config propagation/drain not exercised |
+| Failure handling | Route tests; Chrome disconnect and post-commit response loss; actual local Redis stop/restart | Total Redis outage returns 500 via session middleware; recovery preserves Redis data and uses manual retry; same-count corruption not audited |
 | Capacity/expiry | Approved independent 20+20 transition caps; expiry pruning, earliest deadline/ID-tie eviction, no retry renewal | Capacity eviction can invalidate older IDs; not unlimited retention |
 | User accounting | Exactly-once impressions/views/activity and exposure increments over selection baseline | Selection-time history intentionally unchanged |
 | Default/initialization | Actual YAML default off; sequential unbound legacy then bound external issuance | Concurrent unbound requests explicitly unresolved |
 | Frontend nil ID | Actual module with DOM/observer doubles: no ACK, unchanged media | Not interactive browser evidence |
-| Operations | Staging checklist and disable/drain procedure documented below | Approved budgets, browser evidence and separate canary approval outstanding |
+| Browser | Local fixture image dwell/Next/Back, shared-cookie tab fetches, two-slide gallery smoke | Not all tab ACKs dwell-driven; AJAX gallery replacement untested |
+| Operations | Local 100-cycle per-state latency/memory sample; disable/drain procedure | Representative deployment measurements, approved budgets and separate canary approval outstanding |
 
 Do not keep adding local tests as a substitute for the outstanding staging gate.
 Staging requires operator-approved environment, budgets and enablement; production
-enablement and committing this working tree require separate explicit approval.
+enablement and committing further documentation changes require explicit approval.
+
+## Proposed operational gates (NOT approved or executed)
+
+These are discussion thresholds, not claims derived from the local sample.
+
+- Before enablement, capture comparable deployed baseline and enabled samples
+  for issuance and ACK p95, 5xx rates, Redis used_memory/evictions and nil-ID
+  issuance. Agree on sampling window and traffic volume; no production fault tests.
+- Proposed latency stop threshold: sustained p95 increase greater than both 20%
+  and 25 ms relative to baseline. Compare equivalent routes and traffic; do not
+  substitute the loopback fixture timings for deployed baseline.
+- Stop immediately on unauthorized acceptance, repeat-count increments, new Redis
+  evictions/OOM, or verified loss of a newly issued stable-binding credential
+  within its deadline/capacity. Diagnose expected expiry/eviction separately.
+- Proposed availability threshold: investigate/disable issuance on sustained
+  ACK/issuance 5xx increase of 0.5 percentage points over baseline. A missing
+  denominator or low traffic cannot establish a passing error rate.
+- Reserve Redis headroom based on active binding count and measured payload
+  distribution. Local 6,275-byte fixture key usage is not a worst-case allocation:
+  payloads allow 16 KiB each and independent session keys also consume memory.
+- Current YAML flag is global per process, not a percentage/cohort canary. Do not
+  call an all-process flag flip a limited canary. Define routing/cohort scope or
+  explicitly approve a monitored full enablement before proceeding.
+- Confirm aggregate metrics can actually be observed before accepting these gates.
+  Current implementation does not provide a complete nil-ID/ACK metrics dashboard.
+  Missing observability is an enablement blocker, not an assumed zero-error result.
+- Disable by setting issuance false in every serving process while retaining
+  external lookup and Redis state for the original credential drain window.
 
 ## Runtime behavior and historical validation checkpoints
 

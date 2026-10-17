@@ -92,7 +92,9 @@ RSpec.describe 'Default-off legacy impression repair acceptance' do
   end
 
   it 'keeps media usable but issues no credential when persistence fails' do
+    expect(LegacyImpressionMetrics).to receive(:record).with('issue_unavailable').and_call_original
     allow(LegacyImpressionStore).to receive(:issue).and_return(false)
+    expect(AppLogger).to receive(:warn).with('Legacy impression issuance unavailable', storage: 'external')
     expect(select_id).to be_nil
     expect(JSON.parse(last_response.body)['url']).to eq(url)
     expect(session[:pending_impressions]).to be_nil
@@ -100,6 +102,9 @@ RSpec.describe 'Default-off legacy impression repair acceptance' do
   end
 
   it 'returns unavailable without mutation on lookup failure then permits retry' do
+    expect(LegacyImpressionMetrics).to receive(:record).with('issue_external').and_call_original
+    expect(LegacyImpressionMetrics).to receive(:record).with('ack_unavailable').and_call_original
+    expect(LegacyImpressionMetrics).to receive(:record).with('ack_recorded').and_call_original
     id = select_id
     allow(LegacyImpressionStore).to receive(:lookup).and_return(status: :unavailable)
     acknowledge(id)
@@ -114,7 +119,8 @@ RSpec.describe 'Default-off legacy impression repair acceptance' do
   it 'rolls back database failures and retries the original externally stored credential' do
     id = select_id
     allow(DB).to receive(:execute).and_call_original
-    allow(DB).to receive(:execute).with(/INSERT INTO meme_stats/, anything).and_raise(PG::Error)
+    allow(DB).to receive(:execute).with(/INSERT INTO meme_stats/, anything).and_raise(PG::Error, 'private database payload must not be logged')
+    expect(AppLogger).to receive(:error).with('Impression acknowledgment failed', error: 'PG::Error')
     acknowledge(id)
     expect(last_response.status).to eq(503)
     expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(0)

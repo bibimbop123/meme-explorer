@@ -7,6 +7,7 @@ require 'digest'
 require_relative '../lib/security/reddit_source'
 require_relative '../lib/services/meme_identity_service'
 require_relative '../lib/services/legacy_impression_store'
+require_relative '../lib/services/legacy_impression_metrics'
 require_relative '../lib/security/public_origin'
 
 module Routes
@@ -78,9 +79,12 @@ module Routes
           }
           if stable_binding && FeatureFlags.enabled?('feed.legacy_pending_store')
             persisted = LegacyImpressionStore.issue(session[:impression_session_key], current_user_id, id, pending[id])
+            LegacyImpressionMetrics.record(persisted ? 'issue_external' : 'issue_unavailable')
+            AppLogger.warn('Legacy impression issuance unavailable', storage: 'external') unless persisted
             id = nil unless persisted
           else
             session[:pending_impressions] = pending
+            LegacyImpressionMetrics.record('issue_legacy')
           end
           # Reuse the server-built response's count instead of fetching it twice.
           result = response_data.merge(viewer_engagement_state(response_data[:url], likes: response_data[:likes])).merge(impression_id: id)
@@ -143,8 +147,12 @@ module Routes
         begin
           request.body.rewind
           data = JSON.parse(request.body.read)
-          halt 400, { error: 'JSON object required' }.to_json unless data.is_a?(Hash)
+          unless data.is_a?(Hash)
+            LegacyImpressionMetrics.record('ack_bad_json')
+            halt 400, { error: 'JSON object required' }.to_json
+          end
         rescue JSON::ParserError
+          LegacyImpressionMetrics.record('ack_bad_json')
           halt 400, { error: 'Invalid JSON' }.to_json
         end
         id = data['impression_id']
@@ -153,7 +161,10 @@ module Routes
         externally_stored = false
         unless item
           lookup = LegacyImpressionStore.lookup(session[:impression_session_key], current_user_id, id)
-          halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json if lookup[:status] == :unavailable
+          if lookup[:status] == :unavailable
+            LegacyImpressionMetrics.record('ack_unavailable')
+            halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json
+          end
           if lookup[:status] == :found
             item = lookup[:item]
             externally_stored = true
@@ -170,6 +181,7 @@ module Routes
           # Never log supplied IDs, tokens, content or account identity. Missing
           # pending state alone cannot distinguish eviction/session races/logout.
           AppLogger.info('Impression acknowledgment rejected', reason: reason)
+          LegacyImpressionMetrics.record('ack_invalid')
           halt 404, { error: 'Unknown or expired impression' }.to_json
         end
         recorded = false
@@ -202,9 +214,11 @@ module Routes
             end
           end
         rescue => e
-          AppLogger.error('Impression acknowledgment failed', error: e.message)
+          AppLogger.error('Impression acknowledgment failed', error: e.class.name)
+          LegacyImpressionMetrics.record('ack_unavailable')
           halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json
         end
+        LegacyImpressionMetrics.record(recorded ? 'ack_recorded' : 'ack_duplicate')
         { success: true, recorded: recorded }.to_json
       end
 
