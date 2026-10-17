@@ -56,7 +56,7 @@ RSpec.describe PoolInventoryDiagnostic do
     redis = double
     expect(redis).to receive(:getrange).with('meme_pool', 0, described_class::MAX_PAYLOAD_BYTES).and_return(rows.to_json)
     report = described_class.content_summary(redis, now: now)
-    expect(report).to include(status: 'available', records: 7, unique_urls: 5, duplicate_urls: 1,
+    expect(report).to include(status: 'available', payload_bytes: rows.to_json.bytesize, records: 7, unique_urls: 5, duplicate_urls: 1,
       invalid_records: 1, source_age_under_day: 1, source_age_one_to_seven_days: 1,
       source_age_over_seven_days: 1, source_age_unknown: 2)
     expect(report.to_json).not_to include('/private', 'private-title')
@@ -81,5 +81,15 @@ RSpec.describe PoolInventoryDiagnostic do
     expect(described_class.content_summary(redis, now: now)).to include(
       source_age_under_day: 1, source_age_unknown: 2, invalid_records: 1,
       unique_urls: 3, duplicate_urls: 0)
+  end
+
+  it 'reports byte size rather than character count without another Redis read' do
+    raw = [{ 'url' => '/example', 'title' => '笑' }].to_json
+    redis = double
+    expect(redis).to receive(:getrange).with('meme_pool', 0, described_class::MAX_PAYLOAD_BYTES).once.and_return(raw)
+    report = described_class.content_summary(redis)
+    expect(report[:payload_bytes]).to eq(raw.bytesize)
+    expect(report[:payload_bytes]).to be > raw.length
+    expect(report.to_json).not_to include('/example', '笑')
   end
 end

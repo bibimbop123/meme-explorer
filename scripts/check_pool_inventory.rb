@@ -19,7 +19,7 @@ class PoolInventoryDiagnostic
     records = JSON.parse(raw, max_nesting: 12)
     return { status: 'invalid' } unless records.is_a?(Array) && records.size <= MAX_RECORDS
     urls = Set.new
-    summary = { status: 'available', records: records.size, invalid_records: 0,
+    summary = { status: 'available', payload_bytes: raw.bytesize, records: records.size, invalid_records: 0,
                 duplicate_urls: 0, source_age_under_day: 0, source_age_one_to_seven_days: 0,
                 source_age_over_seven_days: 0, source_age_unknown: 0 }
     records.each do |record|

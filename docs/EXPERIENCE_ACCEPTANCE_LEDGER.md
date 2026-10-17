@@ -127,6 +127,20 @@ are not user research.
 
 ### Selection pipeline follow-up
 
+After operator-reported `c5cbd6f` rollout, one public response returned route_total
+782.81ms, selection_pipeline 603.09ms, pool_lookup 426.04ms, selection_work
+119.15ms, history_write 58.87ms and likes_lookup 117.57ms/database_fallback.
+HTTP 200, no-store/private and expected fields passed. Parent-minus-children was
+about 58ms versus the earlier roughly 173ms, consistent with fewer telemetry
+flushes but not a controlled causal comparison. Nested stage boundaries changed.
+
+Local diagnostic follow-up adds payload_bytes to successful opt-in content_summary
+using the already-read bounded raw string's bytesize. No extra Redis command,
+default metadata change or content identifiers. After approval/deployment, obtain
+one operator read-back with --content-summary to pair payload size and record
+count with pool latency. Inspect Redis region/internal routing and resource
+metrics privately; do not infer network throughput from payload bytes alone.
+
 Local telemetry-batching implementation: random.json opts into a bounded
 fiber-local batch around the existing total measurement. Nested completed stage
 samples retain their RPUSH/LTRIM ordering and flush in one pipeline on normal
