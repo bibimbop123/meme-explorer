@@ -841,7 +841,7 @@ export class MemeNavigation {
       </div>
       ${meme.total_unseen ? `
         <div class="memes-remaining">
-          <small>${this.escapeHtml(meme.total_unseen)} fresh memes remaining</small>
+          <small>${this.escapeHtml(meme.total_unseen)} unseen memes remaining</small>
         </div>
       ` : ''}
     `;

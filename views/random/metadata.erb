@@ -11,7 +11,7 @@
   <% rarity_data = calculate_rarity(@meme) %>
   
   <div class="refined-collection-badge">
-    <%= collection_name %>
+    <span class="meme-subreddit"><a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(@meme['subreddit'].to_s)) %>" title="Search this community"><%= Rack::Utils.escape_html(collection_name.to_s) %></a></span>
     <% if rarity_data[:label] != 'Common' %>
       <span class="rarity-indicator rarity-<%= rarity_data[:label].downcase %>">
         <%= rarity_data[:icon] %> <%= rarity_data[:label] %>

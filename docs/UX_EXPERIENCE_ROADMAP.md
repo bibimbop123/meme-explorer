@@ -1,6 +1,33 @@
 # Meme Explorer experience roadmap
 
+For current delivery order, dependencies and exit criteria, use the
+[remaining-work execution roadmap](REMAINING_WORK_EXECUTION_ROADMAP.md).
+
 Status: proposed UX execution plan. Nothing below is marked shipped by this document.
+
+## Latest execution checkpoint
+
+Implementation `72a8fe4` covers sticky navigation, visible Search, exact-meme
+save completion through authentication, bounded tab history and accessibility/
+notification improvements. Operator reports deployment; public HTML and three
+frontend assets matched candidate markers/bytes. See
+[release evidence and remaining checks](UX_RELEASE_CANDIDATE.md).
+
+Local follow-up quick wins (not yet committed/deployed): make the initial
+community badge searchable, matching AJAX metadata, and describe remaining
+inventory as unseen rather than claiming it is fresh.
+
+Remaining priorities, not completed by the UX patch:
+
+1. Manual screen-reader/true zoom and controlled real-OAuth acceptance.
+2. Observe three ordinary maintenance cycles; audit 100 selections for age,
+   readability, failed media and repeat artwork, not just unique URL count.
+3. Observe 5–8 target users and choose one improvement from actual friction.
+4. Reproduce real ACK/session concurrency failures and finish coordinated,
+   default-off feed reservation/traversal integration with release gates.
+5. Profile post-selection latency and measure usable-media readiness.
+6. Password recovery requires secure delivery/token infrastructure; security,
+   credential rotation and exact-SHA hosted CI acceptance remain separate gates.
 
 ## Current priorities — October 16, 2026
 

@@ -2,6 +2,19 @@ require_relative '../spec_helper'
 require 'erb'
 
 RSpec.describe 'Viewer control semantics' do
+  it 'escapes and encodes the initial community discovery link' do
+    context = Object.new
+    context.instance_variable_set(:@meme, { 'title' => 'Example', 'subreddit' => 'cats & dogs' })
+    context.define_singleton_method(:collection_name_for_subreddit) { |_| '<Cats & dogs>' }
+    context.define_singleton_method(:calculate_rarity) { |_| { label: 'Common' } }
+    context.define_singleton_method(:generate_curation_signal) { |_| { type: 'default', icon: '', message: 'Community feed' } }
+    context.instance_variable_set(:@reddit_path, nil)
+    template = File.read(File.expand_path('../../views/random/metadata.erb', __dir__))
+    html = ERB.new(template).result(context.instance_eval { binding })
+    expect(html).to include('class="meme-subreddit"', '/search?q=cats+%26+dogs', '&lt;Cats &amp; dogs&gt;')
+    expect(html).not_to include('<Cats & dogs>')
+  end
+
   def controls(liked:, saved:)
     @liked = liked
     @saved = saved
