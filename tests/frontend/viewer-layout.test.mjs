@@ -30,3 +30,13 @@ test('viewer images use natural aspect and uncapped height while video remains b
   const video = css.match(/\.simplified-mode #meme-display video \{([^}]+)\}/)[1];
   assert.match(video, /max-height: 75vh !important/);
 });
+
+test('AJAX image wrappers grow with media rather than clipping absolute images in square slots', async () => {
+  const css = await readFile(new URL('../../public/css/viewer-controls.css', import.meta.url), 'utf8');
+  const wrapper = css.match(/\.simplified-mode #meme-display \.meme-image-container \{([^}]+)\}/)[1];
+  assert.match(wrapper, /aspect-ratio: auto !important/);
+  assert.match(wrapper, /height: auto !important/);
+  assert.match(wrapper, /min-height: 0 !important/);
+  assert.match(wrapper, /overflow: visible !important/);
+  assert.match(css, /\.simplified-mode #meme-display \.meme-image-container img \{\s*position: static !important;/);
+});

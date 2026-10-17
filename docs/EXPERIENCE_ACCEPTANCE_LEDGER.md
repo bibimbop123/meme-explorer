@@ -150,6 +150,28 @@ re-enqueueing anything. Private worker URL/region/credential checks remain open.
 
 ## Stage 1B: 100-selection content audit
 
+### First operator observations and clipping fix
+
+User reports four consecutive desktop/returning observations: all loaded;
+items 1–3 were reported readable; item 4 was clipped with no scroll recovery.
+Items 2–4 did not repeat earlier artwork in the batch. URL repetition/source age
+were not verified. Item 3 was subjectively unfunny/confusing; item 4 worthwhile
+despite clipping. These are user-reported observations, not independent image
+reviews. Do not generalize humor quality or repetition from four items.
+
+Local Chrome reproduction found AJAX .meme-image-container inherited a square,
+overflow-hidden wrapper and absolutely positioned image from legacy CLS CSS.
+Natural-height viewer overrides left a 1,800px image inside a 600px clipping
+wrapper. Scoped fix restores normal-flow image positioning and natural wrapper
+height/overflow. After fix desktop fixture image/wrapper heights both 1,800px;
+fluid 320/375px frame fixtures both expanded wrapper to full rendered image
+height, no clipping. Original item 4 was not available to reproduce directly;
+gallery/video and already-cropped source files are not established fixed.
+
+142 frontend tests passed including the new wrapper regression; whitespace
+checks passed. No JS/build artifact change or backend code change. Local and
+uncommitted; production and the original reported meme still require retesting.
+
 Collect ordinary browsing with consent where appropriate, not a scripted fetch
 storm. Keep content examples private if needed; do not export session histories.
 Use local audit row numbers, not user identifiers. A requested/prefetched meme

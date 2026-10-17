@@ -121,6 +121,19 @@
   object-fit: contain;
 }
 
+/* AJAX images must size their wrapper, not overflow an absolute square slot. */
+.simplified-mode #meme-display .meme-image-container {
+  aspect-ratio: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.simplified-mode #meme-display .meme-image-container img {
+  position: static !important;
+}
+
 .simplified-mode #meme-display video {
   display: block;
   max-width: 100% !important;
