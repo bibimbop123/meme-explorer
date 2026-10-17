@@ -1,11 +1,15 @@
 <div id="initial-meme-data" hidden data-meme="<%= Rack::Utils.escape_html((@meme || {}).merge('url' => (@meme && (@meme['url'] || @meme['file'])), 'impression_id' => @impression_id, 'likes' => @likes, 'liked' => !!@liked, 'saved' => !!@saved).to_json) %>"></div>
 <div id="viewer-share-data" hidden data-share-path="<%= Rack::Utils.escape_html(@share_path.to_s) %>"></div>
 <div class="page-wrapper simplified-mode">
+  <nav class="viewer-navigation" aria-label="Meme navigation">
+    <button type="button" class="control-btn prev-button" id="prev-btn" data-action="prev-meme" title="Previous meme (Left arrow outside galleries)" disabled>← Previous</button>
+    <button type="button" class="control-btn next-button" id="next-btn" data-action="next-meme" title="Next meme (Space or Right arrow)">Next meme →</button>
+  </nav>
   <% if @permalink_page && params[:save_after_login] == '1' && logged_in? %>
-    <p role="status">You are signed in. Press Save to keep this meme in your account.</p>
+    <p role="status"><%= @saved ? 'Saved to your favorites.' : 'You are signed in, but this meme has not been saved. Press Save to favorites to try again.' %></p>
   <% end %>
   <section id="save-sign-in" hidden aria-label="Save to your account" style="max-width: 700px; margin: 16px auto; padding: 16px;">
-    <p>This meme has not been saved. Sign in to keep favorites across devices, then return and press Save again.</p>
+    <p>This meme has not been saved. Sign in to finish saving it to your favorites.</p>
     <a href="/login">Sign in to save favorites</a>
     <p>Before leaving, use Share to keep an exact link to this meme if available.</p>
   </section>
@@ -62,7 +66,7 @@
      lib/helpers/ad_helpers.rb but never actually called anywhere. -->
 <details id="recently-viewed" style="max-width: 800px; margin: 24px auto; padding: 16px;">
   <summary>Recently viewed</summary>
-  <p>Up to 20 memes from this page session. Refreshing clears this list.</p>
+  <p>Up to 20 recently viewed memes. Images and videos with exact links survive refreshes in this tab when browser storage is available; reopening them loads their current page. Other entries, including galleries, remain page-only. Clear the list on shared devices.</p>
   <button type="button" id="clear-recent-memes">Clear list</button>
   <div id="recent-meme-list"><p>No viewed memes yet.</p></div>
 </details>

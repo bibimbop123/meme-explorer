@@ -54,6 +54,29 @@
      */
     setupEventListeners() {
       document.addEventListener('keydown', (e) => {
+        if (this.state.helpModalVisible) {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            this.closeModals();
+          } else if (e.key === 'Tab') {
+            const modal = document.getElementById('keyboard-shortcuts-modal');
+            const controls = Array.from(modal.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]'))
+              .filter(control => !control.disabled && !control.hidden && control.getAttribute?.('aria-hidden') !== 'true');
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (!controls.includes(document.activeElement)) {
+              e.preventDefault();
+              (e.shiftKey ? last : first)?.focus();
+            } else if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last?.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first?.focus();
+            }
+          }
+          return;
+        }
         if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
         if (e.target.closest?.('input, textarea, select, button, a, [contenteditable]')) return;
         // Don't capture keys when typing in inputs
@@ -177,7 +200,7 @@
      */
     shareMeme() {
       console.log('📤 Share meme (Shift+S)');
-      const shareButton = document.querySelector('[data-action="share"], .share-button, button[onclick*="share"]');
+      const shareButton = document.querySelector('#share-btn, [data-action="share"], .share-button, button[onclick*="share"]');
       if (shareButton) {
         shareButton.click();
         this.showFeedback('Share opened');
@@ -197,9 +220,11 @@
       this.state.helpModalVisible = true;
       const modal = document.getElementById('keyboard-shortcuts-modal');
       if (modal) {
+        this.previousFocus = document.activeElement;
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('modal-open');
+        modal.querySelector('.modal-close')?.focus();
       }
     },
 
@@ -208,12 +233,14 @@
      */
     closeModals() {
       console.log('❌ Close modals (Esc)');
+      const restoreFocus = this.state.helpModalVisible;
       const modal = document.getElementById('keyboard-shortcuts-modal');
       if (modal) {
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-open');
         this.state.helpModalVisible = false;
+        if (restoreFocus) this.previousFocus?.focus();
       }
       
       // Close any other modals
@@ -271,16 +298,17 @@
       modal.id = 'keyboard-shortcuts-modal';
       modal.className = 'modal';
       modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
       modal.setAttribute('aria-labelledby', 'shortcuts-title');
       modal.setAttribute('aria-hidden', 'true');
       modal.style.display = 'none';
 
       modal.innerHTML = `
-        <div class="modal-overlay" onclick="document.getElementById('keyboard-shortcuts-modal').style.display='none'"></div>
+        <div class="modal-overlay"></div>
         <div class="modal-content" style="max-width: 500px;">
           <div class="modal-header">
             <h2 id="shortcuts-title">⌨️ Keyboard Shortcuts</h2>
-            <button class="modal-close" onclick="document.getElementById('keyboard-shortcuts-modal').style.display='none'" aria-label="Close">×</button>
+            <button type="button" class="modal-close" aria-label="Close">×</button>
           </div>
           <div class="modal-body">
             <div class="shortcuts-grid">

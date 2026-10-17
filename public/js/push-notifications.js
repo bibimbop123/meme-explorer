@@ -16,49 +16,30 @@
   if (!config.enabled) return;
   if (typeof config.vapidPublicKey !== 'string' || !config.vapidPublicKey.trim()) return;
 
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
     console.log('⚠️ Push notifications not supported');
     return;
   }
 
-  // Check if user already granted permission
-  if (Notification.permission === 'granted') {
-    registerPushNotifications();
-  } else if (Notification.permission !== 'denied') {
-    // Show friendly prompt after user is engaged (3 seconds delay)
-    setTimeout(showPushPrompt, 3000);
+  const settingsAction = document.getElementById('notification-settings');
+  if (settingsAction) {
+    settingsAction.addEventListener('click', () => window.enablePushNotifications());
   }
 
-  function showPushPrompt() {
-    const banner = document.createElement('div');
-    banner.id = 'push-prompt-banner';
-    banner.innerHTML = `
-      <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  color: white; padding: 16px 24px; border-radius: 12px;
-                  box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10000;
-                  max-width: 400px; text-align: center; animation: push-notif-slide-up 0.5s ease-out;">
-        <p style="margin: 0 0 12px 0; font-weight: 600;">🔥 Never lose your streak!</p>
-        <p style="margin: 0 0 16px 0; font-size: 0.9rem; opacity: 0.9;">
-          Get reminded when your streak is about to break
-        </p>
-        <div style="display: flex; gap: 12px; justify-content: center;">
-          <button onclick="window.enablePushNotifications()"
-                  style="background: white; color: #667eea; border: none;
-                         padding: 10px 20px; border-radius: 8px; font-weight: 600;
-                         cursor: pointer; transition: transform 0.2s;">
-            Enable Notifications ✨
-          </button>
-          <button onclick="window.closePushPrompt()"
-                  style="background: rgba(255,255,255,0.2); color: white;
-                         border: none; padding: 10px 20px; border-radius: 8px;
-                         cursor: pointer; transition: transform 0.2s;">
-            Maybe Later
-          </button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(banner);
+  // Check if user already granted permission
+  if (Notification.permission === 'granted') {
+    registerPushNotifications().then(saved => {
+      if (!saved) {
+        if (settingsAction) settingsAction.hidden = false;
+        reportStatus('Your notification subscription could not be saved. Use Enable notifications to retry.');
+      }
+    });
+  } else if (Notification.permission !== 'denied') {
+    // Permission is requested only from an explicit settings action.
+    const settings = document.getElementById('notification-settings');
+    if (settings) {
+      settings.hidden = false;
+    }
   }
 
   window.closePushPrompt = function () {
@@ -66,16 +47,44 @@
     if (banner) banner.remove();
   };
 
+  let enabling = false;
+  function reportStatus(message) {
+    const status = document.getElementById('notification-status');
+    if (status) {
+      status.hidden = false;
+      status.textContent = message;
+    }
+  }
+
   window.enablePushNotifications = async function () {
+    if (enabling) return;
+    enabling = true;
+    const settings = document.getElementById('notification-settings');
+    if (settings) settings.disabled = true;
     try {
+      reportStatus('Waiting for notification permission…');
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         window.closePushPrompt();
         const saved = await registerPushNotifications();
-        if (saved) showSuccessMessage('Notification subscription saved.');
+        if (saved) {
+          reportStatus('Notification subscription saved.');
+          if (settings) settings.hidden = true;
+          showSuccessMessage('Notification subscription saved.');
+        } else {
+          reportStatus('Permission granted, but the subscription could not be saved. Try Enable notifications again.');
+        }
+      } else if (permission === 'denied') {
+        reportStatus('Notifications are blocked. You can change permission in your browser’s site settings.');
+      } else {
+        reportStatus('Notifications were not enabled. You can try again whenever you choose.');
       }
     } catch (error) {
       console.error('❌ Push notification error:', error);
+      reportStatus('Notifications could not be enabled. Please try again.');
+    } finally {
+      enabling = false;
+      if (settings) settings.disabled = false;
     }
   };
 

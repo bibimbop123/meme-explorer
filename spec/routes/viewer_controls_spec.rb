@@ -11,8 +11,8 @@ RSpec.describe 'Viewer control semantics' do
 
   it 'renders explicit button types and stable accessible names' do
     html = controls(liked: false, saved: false)
-    expect(html.scan('<button type="button"').length).to eq(6)
-    expect(html).to include('aria-label="Like this meme"', 'aria-label="Save this meme"',
+    expect(html.scan('<button type="button"').length).to eq(4)
+    expect(html).to include('aria-label="Like this meme"', 'aria-label="Save this meme to favorites"',
       'aria-label="Share this meme"', 'aria-label="Download this meme"')
     expect(html).to include('</span> Like')
   end
@@ -20,7 +20,8 @@ RSpec.describe 'Viewer control semantics' do
   it 'reflects initial toggle state and keeps Previous unavailable on first entry' do
     html = controls(liked: true, saved: true)
     expect(html.scan('aria-pressed="true"').length).to eq(2)
-    expect(html).to match(/id="prev-btn"[^>]*disabled/)
+    viewer = File.read(File.expand_path('../../views/random.erb', __dir__))
+    expect(viewer).to match(/id="prev-btn"[^>]*disabled/)
     expect(controls(liked: false, saved: false).scan('aria-pressed="false"').length).to eq(2)
   end
 end

@@ -232,11 +232,11 @@ test('guest Save resets recovery promises when a later catalog lookup fails', as
   Object.assign(interactions, { getCurrentMemeUrl: () => '/guest.jpg', createRipple() {}, triggerHaptic() {}, updateSaveButton() {}, showToast() {} });
   try {
     await interactions.handleSave({});
-    assert.match(message.textContent, /Sign in to return to this meme/);
+    assert.match(message.textContent, /Sign in to finish saving this meme/);
     pending = false;
     await interactions.handleSave({});
     assert.match(message.textContent, /Automatic return to this meme is unavailable/);
-    assert.doesNotMatch(message.textContent, /Sign in to return to this meme/);
+    assert.doesNotMatch(message.textContent, /Sign in to finish saving this meme/);
   } finally { Object.assign(globalThis, original); }
 });
 

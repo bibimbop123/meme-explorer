@@ -1,6 +1,29 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Pending save login recovery' do
+  it 'keeps login successful and offers manual retry when saving fails' do
+    create_test_user('pending-failure@example.com', 'SecurePass123!')
+    id = MemeIdentityService.register({ 'url' => 'https://i.redd.it/save-failure.jpg' })
+    session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 60 }
+    allow(EngagementService).to receive(:track_save).and_raise(PG::ConnectionBad)
+    post '/login', { email: 'pending-failure@example.com', password: 'SecurePass123!' }
+    expect(JSON.parse(last_response.body)).to include('success' => true, 'redirect' => "/meme/#{id}?save_after_login=1")
+    expect(session[:user_id]).not_to be_nil
+    expect(session[:pending_save]).to be_nil
+  end
+
+  it 'does not save content removed after the original intent' do
+    user_id = create_test_user('pending-removed@example.com', 'SecurePass123!')
+    url = 'https://i.redd.it/removed-after-intent.jpg'
+    id = MemeIdentityService.register({ 'url' => url })
+    session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 60 }
+    DB.execute('UPDATE meme_catalog SET removed_at = CURRENT_TIMESTAMP WHERE id = ?', [id])
+    expect(EngagementService).not_to receive(:track_save)
+    post '/login', { email: 'pending-removed@example.com', password: 'SecurePass123!' }
+    expect(JSON.parse(last_response.body)['success']).to eq(true)
+    expect(UserService.is_meme_saved?(user_id, url)).to be_nil
+  end
+
   it 'rejects expired OAuth state without authenticating or losing pending context' do
     pending = { 'id' => 'a' * 64, 'expires_at' => Time.now.to_i + 60 }
     session[:pending_save] = pending
@@ -27,7 +50,9 @@ RSpec.describe 'Pending save login recovery' do
 
   it 'returns validated Reddit OAuth to pending content while rotating session state' do
     user_id = create_test_user('pending-oauth@example.com')
-    session[:pending_save] = { 'id' => 'e' * 64, 'expires_at' => Time.now.to_i + 60 }
+    url = 'https://i.redd.it/oauth-pending.jpg'
+    id = MemeIdentityService.register({ 'url' => url, 'title' => 'OAuth favorite' })
+    session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 60 }
     session[:oauth_state] = 'expected-state'
     session[:oauth_state_timestamp] = Time.now.to_i
     session[:discard_me] = true
@@ -36,7 +61,8 @@ RSpec.describe 'Pending save login recovery' do
     allow(UserService).to receive(:create_or_find_from_reddit).and_return(user_id)
     get '/auth/reddit/callback', code: 'test-code', state: 'expected-state'
     expect(last_response.status).to eq(302)
-    expect(last_response.headers['location']).to end_with("/meme/#{'e' * 64}?save_after_login=1")
+    expect(last_response.headers['location']).to end_with("/meme/#{id}?save_after_login=1")
+    expect(UserService.is_meme_saved?(user_id, url)).not_to be_nil
     expect(session[:user_id].to_i).to eq(user_id.to_i)
     expect(session[:discard_me]).to be_nil
     expect(session[:pending_save]).to be_nil
@@ -67,10 +93,13 @@ RSpec.describe 'Pending save login recovery' do
   it 'returns signup to pending content without copying unrelated session state' do
     redis = MemeExplorer::App.settings.redis
     redis.del('signup_attempts:127.0.0.1') if redis
-    session[:pending_save] = { 'id' => 'b' * 64, 'expires_at' => Time.now.to_i + 60 }
+    url = 'https://i.redd.it/signup-pending.jpg'
+    id = MemeIdentityService.register({ 'url' => url, 'title' => 'Signup favorite' })
+    session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 60 }
     session[:untrusted_old_state] = 'discard'
     post '/signup', { email: 'pending-signup@example.com', password: 'SecurePass123!', password_confirm: 'SecurePass123!' }
-    expect(JSON.parse(last_response.body)).to include('success' => true, 'redirect' => "/meme/#{'b' * 64}?save_after_login=1")
+    expect(JSON.parse(last_response.body)).to include('success' => true, 'redirect' => "/meme/#{id}?save_after_login=1")
+    expect(UserService.is_meme_saved?(session[:user_id], url)).not_to be_nil
     expect(session[:untrusted_old_state]).to be_nil
     expect(session[:pending_save]).to be_nil
   end
@@ -88,11 +117,12 @@ RSpec.describe 'Pending save login recovery' do
   it 'falls back to profile after expired pending context' do
     create_test_user('pending-expired@example.com', 'SecurePass123!')
     session[:pending_save] = { 'id' => 'd' * 64, 'expires_at' => 0 }
+    expect(EngagementService).not_to receive(:track_save)
     post '/login', { email: 'pending-expired@example.com', password: 'SecurePass123!' }
     expect(JSON.parse(last_response.body)['redirect']).to eq('/profile')
   end
 
-  it 'returns email login to the selected meme without automatically saving it' do
+  it 'finishes saving the exact selected meme after email login' do
     user_id = create_test_user('pending-save@example.com', 'SecurePass123!')
     id = MemeIdentityService.register({ 'url' => 'https://i.redd.it/pending.jpg', 'title' => 'Pending' })
     post '/api/save-meme', { content_id: id }.to_json, 'CONTENT_TYPE' => 'application/json'
@@ -100,7 +130,7 @@ RSpec.describe 'Pending save login recovery' do
     expect(JSON.parse(last_response.body)['pending_save']).to eq(true)
     post '/login', { email: 'pending-save@example.com', password: 'SecurePass123!' }
     expect(JSON.parse(last_response.body)).to include('success' => true, 'redirect' => "/meme/#{id}?save_after_login=1")
-    expect(UserService.is_meme_saved?(user_id, 'https://i.redd.it/pending.jpg')).to be_nil
+    expect(UserService.is_meme_saved?(user_id, 'https://i.redd.it/pending.jpg')).not_to be_nil
     expect(session[:pending_save]).to be_nil
   end
 
@@ -108,5 +138,23 @@ RSpec.describe 'Pending save login recovery' do
     helper = Object.new.extend(AuthHelpers)
     expect(helper.pending_save_target({ 'id' => '//evil.example', 'expires_at' => Time.now.to_i + 60 })).to be_nil
     expect(helper.pending_save_target({ 'id' => 'a' * 64, 'expires_at' => 0 })).to be_nil
+  end
+
+  it 'never completes a save without an authenticated session' do
+    helper = Object.new.extend(AuthHelpers)
+    allow(helper).to receive(:current_user_id).and_return(nil)
+    expect(MemeIdentityService).not_to receive(:find)
+    expect(helper.complete_pending_save({ 'id' => 'a' * 64, 'expires_at' => Time.now.to_i + 60 })).to be_nil
+  end
+
+  it 'does not duplicate an already saved favorite after authentication' do
+    user_id = create_test_user('pending-duplicate@example.com', 'SecurePass123!')
+    url = 'https://i.redd.it/already-saved.jpg'
+    id = MemeIdentityService.register({ 'url' => url, 'title' => 'Already saved' })
+    UserService.save_meme(user_id, url, 'Already saved', 'test')
+    session[:pending_save] = { 'id' => id, 'expires_at' => Time.now.to_i + 60 }
+    post '/login', { email: 'pending-duplicate@example.com', password: 'SecurePass123!' }
+    expect(JSON.parse(last_response.body)['success']).to eq(true)
+    expect(DB.get_first_value('SELECT COUNT(*) FROM saved_memes WHERE user_id = ? AND meme_url = ?', [user_id, url]).to_i).to eq(1)
   end
 end

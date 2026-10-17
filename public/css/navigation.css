@@ -60,8 +60,12 @@ nav.main-nav button:hover {
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 99;
+  z-index: 120;
   min-width: 200px;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .hamburger-menu.active {
@@ -94,6 +98,17 @@ nav.main-nav button:focus-visible,
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+  nav.main-nav {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  nav.main-nav .nav-items {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
   .hamburger {
     display: block;
   }
