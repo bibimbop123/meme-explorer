@@ -127,6 +127,25 @@ are not user research.
 
 ### Operator-reported follow-up rollout and timing sample
 
+Operator subsequently reports deploying `f796705`. One fresh public response
+contained all sub-stages: response_prepare 355.88ms, history_write 235.43ms,
+media_detect 0.03ms, likes_lookup 119.80ms, impression_issue 2.46ms,
+serialization 0.02ms; HTTP 200, no-store/private and expected identity fields.
+This is one observation, not p50/p95 or a measured before/after comparison.
+
+Local follow-up pipelines the four history-write commands in existing order,
+preserving pruning, deduplication, bounds and TTL with no reply dependencies.
+Pipelining reduces sequential network waits; it is not a transaction and does not
+fix ACK/session races or change selection-time history semantics. No production
+improvement is claimed until ordinary-session timings are compared after approval.
+
+Pipeline follow-up validation: 1,219 backend examples, zero failures, seven pending;
+76.18% coverage, gates passed, exit 0. Added ordered-command/failure tests and a
+real-Redis regression that directly reads the sorted set after mark_seen, proving
+write-time expired-score pruning and renewal of a short TTL without allowing the
+read helper's pruning to mask errors. Existing deduplication and capacity tests
+also passed. Disposable Redis stopped. Implementation remains uncommitted.
+
 Operator reports merging/deploying `120b70a`. A public random.json request returned
 200, no-store/private, expected response identity fields, and timings:
 response_prepare 347.03ms, impression_issue 2.62ms, serialization 0.02ms. A fresh
