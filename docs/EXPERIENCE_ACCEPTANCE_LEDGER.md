@@ -2,6 +2,36 @@
 
 ## Execution state
 
+### Tweet browser button-to-card acceptance
+
+Extended account-free Chrome suite to **168 passing checks**. At 320/375/1280px,
+actual Tweet listener resolves displayed initial/Next identity and readable title,
+uses safe popup features, refuses missing exact link, and fetched exact recipient
+HTML advertises summary_large_image/exact URL/current artwork. window.open captured
+locally; no X navigation/publication or actual X-rendered preview claimed.
+155 frontend tests/syntax/diff pass. No backend rerun for test/docs additions;
+last full run 1,333/zero failures/seven pending. Production PUBLIC_ORIGIN issue
+remains unresolved, no production configuration/deployment/commit changes.
+Temporary fixture Chrome/server/Redis stopped. See TWEET_SHARING_ACCEPTANCE.md.
+
+### Exact Tweet identity and encoding repair
+
+Replaced stale page-load title/URL and double-encoded inline handlers in share bar.
+Click-time stable identity/current title, single URLSearchParams encoding, no
+homepage fallback/hashtag; DOM listeners for Tweet/WhatsApp/Copy. Cards without
+explicit exact path do not advertise misleading links. Video thumbnail preserved
+in new catalog snapshots for validated poster image preview; no old-row backfill.
+
+Validation: **155 frontend tests**, build/syntax/diff pass; full backend **1,333
+examples / zero failures / seven pending, 77.72% coverage (5,321/6,846), exit 0**,
+74.67s. Tests include actual listener identity after change and Twitterbot server
+metadata plus video poster. No Chrome popup/live tweet publication test performed.
+Public exact recipient probe HTTP 200 but only summary card, missing social URL/
+image: consistent with PUBLIC_ORIGIN config blocker. Operator must verify approved
+origin and redeploy; X preview ultimately platform-controlled. See
+TWEET_SHARING_ACCEPTANCE.md. No production configuration change, deploy or commit.
+Disposable Redis stopped after tests. No guarantee of cached card refresh by X.
+
 ### Private-artifact cleanup commit — operator requested
 
 Removed .env.production, meme_explorer.db and dump.rdb from the repository index,
