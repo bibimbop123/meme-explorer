@@ -31,23 +31,25 @@ class SearchService
       rescue
         []
       end
-      cache_results = (cache_results + api_results).uniq { |m| m["url"] }
+      cache_results = (cache_results + api_results).uniq { |m| m['url'] || m['file'] }
     end
     
-    # Tier 3: Fall back to DB + YAML if still empty
-    if cache_results.empty?
+    # Supplement sparse results without discarding existing cache/provider matches.
+    if cache_results.size < 3
       db_results = begin
         # Literal substring semantics, matching String#include? in other tiers.
         literal_query = query_lower.gsub(/[!%_]/) { |character| "!#{character}" }
         DB.execute(
-          "SELECT * FROM meme_stats WHERE title ILIKE ? ESCAPE '!'",
-          ["%#{literal_query}%"]
+          "SELECT * FROM meme_stats WHERE title ILIKE ? ESCAPE '!' OR subreddit ILIKE ? ESCAPE '!'",
+          ["%#{literal_query}%", "%#{literal_query}%"]
         ).map { |r| r.transform_keys(&:to_s) }
       rescue
         []
       end
-      yaml_results = flatten_memes.select { |m| m["title"]&.downcase&.include?(query_lower) }
-      cache_results = (db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
+      yaml_results = flatten_memes.select do |m|
+        m['title']&.downcase&.include?(query_lower) || m['subreddit']&.downcase&.include?(query_lower)
+      end
+      cache_results = (cache_results + db_results + yaml_results).uniq { |m| m["url"] || m["file"] }
     end
     
     # Rank results

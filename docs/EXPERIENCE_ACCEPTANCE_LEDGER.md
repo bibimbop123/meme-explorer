@@ -2,6 +2,66 @@
 
 ## Execution state
 
+### Immediate priorities checkpoint — 2026-10-17
+
+Requested execution: validated pending community/sparse Search slice and endpoint
+regressions; added CI tracked-bundle reproducibility gate and consolidated operator/
+research handoff. No invented research observations, hosted success or deployment.
+Full backend **1,331 examples / zero failures / seven pending, 77.71% coverage
+(5,319/6,845), exit 0**, 74.15s. **153 frontend tests**, transport suite, Vite build,
+fresh dependency audit zero findings, YAML parsing/diff checks pass. Build leaves
+tracked public/dist unchanged locally. Hosted Linux reproducibility still requires
+actual CI execution. Disposable Redis stopped after validation; commit requested
+as current priority. No push/deploy/credential rotation/feed flag changes or score
+increase. See PRIORITY_RELEASE_HANDOFF.md for remaining owner-dependent gates.
+
+### Sparse Search endpoint integration — 2026-10-17
+
+Three new real-service route examples seed one cache match plus one community-only
+DB match with provider empty. HTML includes both and supplemented exact-detail link
+opens correct catalog meme with search-return context. `/search` JSON negotiation
+and `/api/search.json` both return two distinct media URLs and correct total.
+No product change required; route/service integration, not live provider/browser
+evidence. No search result-order or broader relevance claim.
+
+Full backend **1,331 examples / zero failures / seven pending, 77.68% coverage
+(5,317/6,845), exit 0**, 73.81s. **153 frontend tests pass**, syntax/diff pass.
+No browser rerun for route test additions. Community/sparse fallback implementation
+and subsequent tests remain uncommitted; no push/deploy/feed changes or score bump.
+Disposable Redis stopped after validation. Content/user baseline remains open.
+
+### Sparse Search supplementation and local identity — 2026-10-17
+
+Search previously skipped DB/YAML with one/two cache/provider matches and merged
+local file-only entries under nil URL, collapsing distinct media. Now supplements
+when fewer than three matches remain, preserving existing results and deduplicating
+by URL-or-file. Existing ranking and >=3-cache fast path/provider request count stay
+unchanged. Sparse requests add local DB/YAML work; no production latency improvement
+or fully exhaustive search guarantee. Three new regressions cover supplementation,
+distinct local identities and dependency-free >=3-cache fast path.
+
+Full backend **1,328 examples / zero failures / seven pending, 77.68% coverage
+(5,317/6,845), exit 0**, 73.82s. **153 frontend tests pass**, syntax/diff pass.
+No browser rerun for backend matching slice; no live provider/content/user study.
+Uncommitted together with prior community-fallback fix; no push/deploy/feed/ranking
+changes or score increase. Disposable Redis stopped after validation.
+
+### Cold-cache community Search consistency — 2026-10-17
+
+DB/YAML fallback previously matched titles only while cache/provider matched titles
+or community. Fallback now includes case-insensitive community substrings; SQL
+parameters retain literal !/%/_ escaping. Ranking and fallback trigger unchanged.
+Three regressions cover community-only cold-cache results, literal wildcard/escape
+characters and combined local/DB media deduplication. Provider supply stubbed empty;
+no live API calls or content/relevance improvement inferred.
+
+Full backend **1,325 examples / zero failures / seven pending, 77.71% coverage
+(5,319/6,845), exit 0**, 74.3s. **153 frontend tests pass**, Ruby syntax/diff pass.
+No browser rerun for backend matching change. This does not make fallback sources
+exhaustive when cache has matches or fix provider availability reporting. Changes
+uncommitted; no push/deploy/feed/ranking changes or score increase. Disposable Redis
+stopped after validation; actual content/user research remains required.
+
 ### Search/cache follow-up commit validation — 2026-10-17
 
 Final sequential gates before requested commit: **156 account-free Chrome checks**,

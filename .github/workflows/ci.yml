@@ -61,6 +61,7 @@ jobs:
         npm ci
         npm test
         npm run build
+        git diff --exit-code -- public/dist
 
     - name: Validate CSRF middleware contract
       run: bundle exec ruby tests/csrf_protection_test.rb
