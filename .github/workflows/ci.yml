@@ -47,6 +47,11 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
+    - name: Reject tracked private artifacts
+      run: |
+        ruby tests/tracked_artifacts_test.rb
+        ruby scripts/check_tracked_artifacts.rb
+
     - name: Verify Ruby and native dependencies
       run: bundle exec ruby scripts/check_ruby_environment.rb
 

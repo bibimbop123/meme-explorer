@@ -2,6 +2,37 @@
 
 ## Execution state
 
+### Private-artifact cleanup commit — operator requested
+
+Removed .env.production, meme_explorer.db and dump.rdb from the repository index,
+preserving local copies. Expanded ignore rules and added filename-only guard/tests
+in CI. Policy tests, index guard, YAML parsing and diff checks pass. No credential
+values or database records included in reports. This removes current tracking only:
+prior Git history remains, and credential rotation is NOT performed. Provider owners
+must revoke/replace any live exposed credentials, update deployment secrets and
+verify affected integrations; session-secret rotation can invalidate sessions.
+Hosted CI for earlier candidate 276e914 completed successfully; that does not
+validate this new cleanup commit. No push/deploy/history rewrite authorized here.
+
+### Operator-reported deployment and public smoke — 2026-10-17
+
+Operator reports deployed. Read-only public checks: `/search` with browser Accept
+header returns HTTP 200 text/html and contains labeled Search form/focusable main;
+`/health` returns HTTP 200, status ok, database/Redis/cache/meme_pool healthy.
+These markers do not establish exact deployed web/worker revisions or full UX,
+shutdown/drain, security or content acceptance. No production account/mutation,
+provider refresh or fault injection performed.
+
+GitHub Actions run 39086297764 targets exact candidate 276e9147502db36489043a742ede428355f6cfda:
+security job success; overall/test job still in progress at last API check. Not
+marked green. Local artifact hardening is NOT part of that commit/deployment:
+untracking .env.production, meme_explorer.db and dump.rdb preserves local files;
+filename guard/tests/CI/ignore changes remain uncommitted. Guard detected Redis
+dump as a third tracked artifact; all three now absent from local index, not Git
+history. Filename policy, YAML parsing and 153 frontend tests pass. Credential
+rotation and prior-history handling remain owner-dependent; no secret values or
+database records published. Deployment does not revoke exposed credentials.
+
 ### Immediate priorities checkpoint — 2026-10-17
 
 Requested execution: validated pending community/sparse Search slice and endpoint

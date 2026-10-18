@@ -4,6 +4,8 @@
 .env.*.local
 .env.production
 .env.backup
+.env.*
+!.env.example
 
 # Session secrets (development/test)
 .session_secret
@@ -43,6 +45,16 @@ Thumbs.db
 *.sqlite3
 meme_explorer.db
 *.sqlite
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+dump.rdb
 
 # Logs
 log/
