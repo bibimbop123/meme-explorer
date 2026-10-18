@@ -1,5 +1,28 @@
 # Exact-meme Tweet audit and acceptance
 
+## Actual-image sharing (device share sheet / download fallback)
+
+Added Share image beside explicitly labeled Tweet link. First click fetches selected
+image as a File, second click opens native file sharing under fresh user activation.
+Choose X if installed/available; target apps determine attachment handling. Actual
+File plus exact-link text handed to share sheet, not an automatic post or guaranteed
+X attachment. Native cancellation is not success. Unsupported/failed sharing offers
+explicit selected-image download and text/link composer with manual-attachment help.
+
+Active gallery image selected; videos/posters not substituted. Preparation verifies
+current identity before offering share; another click after navigation re-resolves
+media. Raster MIME allowlist, nonempty <=10 MiB file; no SVG/HTML as shared image.
+Remote fetch uses existing same-origin download proxy, now HTTPS/standard-port/
+no-credentials only and redirects disabled. Allowlist unchanged; upstream download
+still buffers response (no new streaming byte cap or MIME sniffing claim).
+
+Validation: 158 Node frontend tests, build/syntax/diff pass; full backend 1,335
+examples, zero failures, seven pending. Tests cover active image selection, disallowed
+sources, MIME rejection, actual File payload/two-click flow and cancellation;
+proxy tests cover unsafe schemes/credentials/ports and redirect refusal. No real
+device/X share-sheet acceptance performed. Manual mobile test and deployment remain
+required. Existing Tweet Chrome checks predate this new image action.
+
 ## Root causes and implementation
 
 1. Old share bar captured document title/homepage URL when mounted, not current

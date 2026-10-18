@@ -51,7 +51,7 @@ test('real Tweet button listener uses latest meme without inline handlers or sta
   try {
     initializeShareButtons();
     path = `/meme/${'c'.repeat(64)}`; title = 'New 😎 meme';
-    await buttons.find(button => button.textContent === 'Tweet').click();
+    await buttons.find(button => button.textContent === 'Tweet link').click();
     assert.equal(new URL(opened).searchParams.get('url'), `https://memes.example${path}`);
     assert.equal(new URL(opened).searchParams.get('text'), title);
     assert.ok(!source.includes('onclick='));

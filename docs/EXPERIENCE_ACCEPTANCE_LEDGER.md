@@ -2,6 +2,21 @@
 
 ## Execution state
 
+### Actual image sharing option 1 implementation
+
+Share image prepares active image File then opens native file share on second click
+to preserve transient user activation. Tweet renamed Tweet link; explicit download/
+manual attach fallback, cancellation/no-X-attachment claims honest. Active gallery
+image supported, video poster not substituted. MIME/10 MiB client validation;
+existing proxy now rejects non-HTTPS/credentials/nonstandard ports and redirects.
+No upstream streaming cap or content sniffing added. No new dependency/X API/posting.
+
+158 frontend tests, build/syntax/diff pass. Full backend **1,335 examples / zero
+failures / seven pending, 77.70% coverage (5,319/6,846), exit 0**, 73.37s. Real
+device/X native attachment acceptance still required; Chrome suite not rerun this
+slice. Uncommitted, no deploy/config change. Temporary Redis stopped. See
+TWEET_SHARING_ACCEPTANCE.md for limits and production origin/card blocker.
+
 ### Tweet browser button-to-card acceptance
 
 Extended account-free Chrome suite to **168 passing checks**. At 320/375/1280px,
