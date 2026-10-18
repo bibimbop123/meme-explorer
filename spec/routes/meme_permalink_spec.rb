@@ -2,6 +2,27 @@ require_relative '../spec_helper'
 require_relative '../../lib/services/meme_identity_service'
 
 RSpec.describe 'Public exact-meme recipient pages' do
+  it 'serves exact large-image metadata to Twitterbot without a sender session' do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('PUBLIC_ORIGIN').and_return('https://memes.example')
+    id = MemeIdentityService.register({ 'url' => 'https://i.redd.it/tweet-exact.jpg', 'title' => 'Exact tweet meme 😎' })
+    set_session({})
+    get "/meme/#{id}", {}, { 'HTTP_USER_AGENT' => 'Twitterbot/1.0' }
+    expect(last_response.status).to eq(200)
+    head = last_response.body.split('</head>').first
+    expect(head).to include('name="twitter:card" content="summary_large_image"',
+      'name="twitter:image" content="https://i.redd.it/tweet-exact.jpg"',
+      "name=\"twitter:url\" content=\"https://memes.example/meme/#{id}\"", 'Exact tweet meme 😎')
+  end
+
+  it 'uses the exact video thumbnail as preview rather than advertising video as an image' do
+    id = MemeIdentityService.register({ 'url' => 'https://v.redd.it/tweet-video.mp4', 'media_type' => 'video',
+      'thumbnail_url' => 'https://i.redd.it/tweet-poster.jpg', 'title' => 'Video poster' })
+    get "/meme/#{id}"
+    head = last_response.body.split('</head>').first
+    expect(head).to include('name="twitter:card" content="summary_large_image"', 'name="twitter:image" content="https://i.redd.it/tweet-poster.jpg"')
+    expect(head).not_to include('name="twitter:image" content="https://v.redd.it/tweet-video.mp4"')
+  end
   it 'retains crosspost origin when a registered image is opened by a recipient' do
     id = MemeIdentityService.register({ 'url' => 'https://i.redd.it/crosspost-recipient.jpg',
       'title' => 'Shared image', 'subreddit' => 'funny', 'is_crosspost' => true, 'original_subreddit' => 'original<community>' })

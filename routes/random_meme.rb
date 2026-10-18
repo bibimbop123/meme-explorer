@@ -136,6 +136,7 @@ module Routes
         first_image = images.first if images.is_a?(Array)
         candidate = @meme['is_gallery'] ? (first_image['url'] if first_image.is_a?(Hash)) : @image_src
         @social_image = MediaUrl.social_image(candidate, origin: origin) if origin
+        @social_image ||= MediaUrl.social_image(@meme['thumbnail_url'], origin: origin) if origin
         engagement = viewer_engagement_state(@meme['url'])
         @likes, @liked, @saved = engagement.values_at(:likes, :liked, :saved)
         @impression_id = issue_impression(url: @meme['url'], title: @meme['title'], subreddit: @meme['subreddit'])[:impression_id]
