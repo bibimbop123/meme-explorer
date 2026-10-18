@@ -15,6 +15,20 @@ require_relative '../spec_helper'
 # than leave permanently-red placeholder debt with zero test value.
 RSpec.describe 'Routes: memes' do
   describe 'GET /download' do
+    it 'rejects insecure, credentialed and nonstandard-port sources without fetching' do
+      expect(HTTParty).not_to receive(:get)
+      ['http://i.redd.it/a.jpg', 'https://user:pass@i.redd.it/a.jpg', 'https://i.redd.it:8443/a.jpg'].each do |url|
+        get '/download', url: url
+        expect(last_response.status).to eq(403)
+      end
+    end
+
+    it 'does not follow redirects from an allowed image host' do
+      stub_request(:get, 'https://i.redd.it/redirect.jpg').to_return(status: 302, headers: { 'Location' => 'http://127.0.0.1/private' })
+      get '/download', url: 'https://i.redd.it/redirect.jpg'
+      expect(last_response.status).to eq(502)
+      expect(a_request(:get, 'http://127.0.0.1/private')).not_to have_been_made
+    end
     it 'returns 400 when no url is given' do
       get '/download'
       expect(last_response.status).to eq(400)

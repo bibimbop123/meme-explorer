@@ -38,13 +38,13 @@ module Routes
             halt 400, "Invalid url"
           end
 
-          unless uri.is_a?(URI::HTTP) && DOWNLOAD_ALLOWED_HOSTS.include?(uri.host)
+          unless uri.is_a?(URI::HTTPS) && DOWNLOAD_ALLOWED_HOSTS.include?(uri.host) && !uri.userinfo && uri.port == 443
             AppLogger.warn("⚠️  [Download] Rejected disallowed host: #{uri.host.inspect}")
             halt 403, "That host isn't supported for download"
           end
 
           begin
-            response = HTTParty.get(uri.to_s, timeout: 10)
+            response = HTTParty.get(uri.to_s, timeout: 10, follow_redirects: false)
           rescue => e
             AppLogger.error("❌ [Download] Fetch failed: #{e.class}: #{e.message}")
             halt 502, "Could not fetch the file"
