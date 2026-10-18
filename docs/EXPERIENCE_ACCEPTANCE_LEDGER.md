@@ -2,6 +2,129 @@
 
 ## Execution state
 
+### Consolidated sharing final local checkpoint
+
+Accumulated uncommitted panel/desktop clipboard/fallback/reset/resource changes
+validated together. **165 frontend tests**, tracked-artifact policy/guard, production
+build, JS syntax/diff pass. Full backend **1,335 examples / zero failures / seven
+pending, 77.72% coverage (5,321/6,846), exit 0**, 77.34s. Bundle 60.98 kB/17.34 kB
+gzip; build warning remains Vite CJS API deprecation. Prior 182 clipboard/browser
+checks predate final async/resource guards; not presented as fresh candidate-wide
+browser acceptance. No commit/deploy/score increase; temporary Redis stopped.
+Next is commit/operator-approved release and SHARING_RELEASE_CHECKLIST.md manual
+acceptance, then intended-user/content baseline. Do not substitute more fixture
+counts for X/native target support, user clarity or recommendation relevance.
+
+### Clipboard conversion resource bounds
+
+Non-PNG clipboard conversion rejects decoded images exceeding 8192px per dimension
+or 16 million pixels before canvas allocation. Does not bound decoder allocation,
+native PNG clipboard processing, network response buffering or mobile file sharing.
+No silent downscale; existing download fallback preserves original artwork. Two
+regressions verify oversized rejection before canvas and bitmap.close on canvas
+failure. **165 frontend tests**, build/syntax/diff pass. No backend/browser rerun
+for bounded frontend slice; earlier clipboard/browser evidence remains narrower.
+Uncommitted, no deploy/score change. Real native handoff/user study still open.
+
+### Async clipboard guard regressions
+
+Two direct Node regressions cover clipboard permission denial before later fetch
+failure (no unhandled rejection) and late copy success after displayed-image change
+(no stale success announcement, button re-enabled). **163 frontend tests pass**;
+bundle rebuild/syntax/diff pass. Test/docs-only additions, no backend/browser rerun;
+latest full backend 1,335/zero failures/seven pending. No real X/native handoff
+acceptance, deployment/commit/score change. Manual sharing checklist remains NOT RUN.
+
+### Sharing release-readiness regression and handoff
+
+Reviewed async desktop copy: late result no longer updates status for a different
+active media/exact identity. Image promise rejection explicitly observed if clipboard
+permission rejects before image preparation settles. Added manual sharing release
+checklist, NOT RUN: desktop X draft paste/download, native mobile target/cancel,
+gallery/slow/failure scenarios, zoom/focus, no publication needed. No real-user
+results or platform acceptance inferred. Research remains a separate required gate.
+
+Final **161 frontend tests**, build/syntax/diff pass; full backend **1,335 examples,
+zero failures, seven pending, 77.70% coverage (5,319/6,846), exit 0**, 73.03s.
+Previous 182 browser checks predate these small async guards; not rerun this slice.
+No commit/deploy/config/score change. Temporary Redis stopped after validation.
+See SHARING_RELEASE_CHECKLIST.md and TWEET_SHARING_ACCEPTANCE.md.
+
+### Desktop local receiving-composer paste acceptance
+
+Extended opt-in clipboard suite to **182 passing browser checks**: Copy image
+produces decodable PNG, then keyboard Paste command delivers nonempty image/png
+File to temporary local contenteditable receiver. Receiver prevents insertion,
+records type/size and is removed. No X/browser-account navigation or publication,
+no claim X accepts identical handling. **161 frontend tests**, syntax/diff pass.
+Tests/docs-only slice; no backend rerun. Clipboard option can alter OS clipboard
+on some hosts; disposable profile only. Uncommitted, no deploy/score change;
+temporary Chrome/server/Redis stopped. Next sharing gate is real X/mobile manual
+handoff, plus intended-user evaluation rather than more local fixture counts.
+
+### Desktop actual clipboard readback acceptance
+
+Opt-in browser clipboard permission scoped to local fixture; actual Copy image
+listener activated by Enter, real clipboard readback decoded as PNG with displayed
+image dimensions. **181 browser checks pass** with BROWSER_CLIPBOARD_TEST=true
+(default 180); **161 frontend tests**, syntax/diff pass. First run clipboard passed
+but later Escape failed after clipboard focus movement; explicit panel refocus
+corrected harness sequence, no product change. Not live X paste or physical-device
+acceptance. Tests/docs-only slice; no backend rerun. Warn opt-in may replace OS
+clipboard on some hosts. Uncommitted, no deployment/score change; temporary
+Chrome/server/Redis stopped. Native device sharing/user study remain open.
+
+### Sharing reset browser acceptance
+
+Account-free Chrome suite **180 checks pass**, including real gallery DOM observer
+reset. With native sharing disabled in the test page, fallback link targets active
+first image; slide change removes stale links/status; rebuilding targets selected
+second image. **161 frontend tests**, syntax/diff pass. No new implementation fix
+or backend rerun this slice. Test stubs capability, not OS download/X attachment.
+Existing panel/reset changes remain uncommitted. No deploy/score change; temporary
+services stopped. Next gates are real-device/native clipboard handoff and intended
+user/content baseline, not more assertion count as a proxy for product quality.
+
+### Sharing state reset on displayed-media change
+
+Viewer-scoped observer compares exact identity/active-image source after media DOM
+changes. Prepared File, stale download/composer guidance and status reset when
+identity changes; revision guard ignores older pending preparation/native-share
+completion and does not disable a newer operation. No document-wide observer or
+backend change. Added controlled pending-download/navigation Node regression.
+**161 frontend tests pass**, bundle build/syntax/diff pass. Browser suite not rerun
+for this follow-up; prior 177 checks predate observer reset. Real X clipboard paste,
+native device sharing and user study remain open. Uncommitted, no deploy/score claim.
+
+### Direct desktop image fallback and panel layout
+
+Added direct Download image to consolidated panel, preserving active-image click
+identity and using existing local/proxy paths. Clear guidance differentiates images
+from link-only composers; clipboard failure points directly to download. Panel
+border-box sizing/wrapping keeps disclosure within 320/375/1280px. Browser asserts
+panel bounds, direct action and help: **177 account-free checks pass**. **160
+frontend tests**, build/syntax/diff pass. Frontend-only; backend not rerun. No OS
+save/live X paste/device share acceptance claimed. Uncommitted, no deploy/score
+change; temporary Chrome/server/Redis stopped. Next gate is intended-user sharing
+task evaluation plus manual device/browser clipboard acceptance.
+
+### Consolidated sharing and desktop copy implementation
+
+Primary Share opens native details panel rather than competing native-link flow;
+image/file share, Copy image for X, WhatsApp/Tweet link and exact copy grouped.
+Escape/Close restore trigger focus; nonmodal disclosure retains native keyboard
+semantics. Added clipboard PNG promise path to preserve click activation, canvas
+conversion with bitmap cleanup and still-frame warning for animation. Unsupported
+copy directs to existing download/manual attach, no automatic X upload claim.
+
+160 frontend tests/build/syntax/diff pass; 174 account-free Chrome checks pass,
+including primary Share opening/focus and Escape restoration at three widths.
+No live X paste/native-device acceptance, no new backend run for frontend-only
+changes. Existing fallback link behavior retained if panel missing. Not full action
+redesign; Download stays visible. Uncommitted, no deployment/config/score change.
+Temporary Chrome/server/Redis stopped after validation. Research and manual gates
+remain open; no fabricated user study or credential rotation claim.
+
 ### Actual image sharing option 1 implementation
 
 Share image prepares active image File then opens native file share on second click

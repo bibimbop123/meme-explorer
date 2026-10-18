@@ -1,4 +1,25 @@
 /* Loaded after legacy responsive rules. Keep overrides scoped to the viewer. */
+.meme-share-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 800px;
+  margin: 16px auto;
+  padding: 16px;
+  border: 1px solid #737373;
+  border-radius: 12px;
+  background: #fff;
+  color: #222;
+  overflow-wrap: anywhere;
+}
+.meme-share-panel summary { cursor: pointer; padding: 8px; }
+.meme-share-panel .share-bar { display: flex; flex-wrap: wrap; gap: 12px; }
+.meme-share-panel button, .meme-share-panel a { min-height: 44px; padding: 12px; }
+.meme-share-panel [role="status"] { flex-basis: 100%; }
+.meme-share-panel .share-guidance { flex-basis: 100%; line-height: 1.6; }
+.meme-share-panel button { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
+.meme-share-panel :focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+[data-theme="dark"] .meme-share-panel { background: #1e1e1e; color: #f5f5f5; }
+[data-theme="dark"] .meme-share-panel a { color: #a8c7fa; }
 .gallery-dot {
   box-sizing: content-box;
   border: 0;

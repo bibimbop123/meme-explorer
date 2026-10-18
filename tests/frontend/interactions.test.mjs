@@ -5,6 +5,18 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../../public/js/modules/meme-interactions.js', import.meta.url), 'utf8');
 const { MemeInteractions } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
+test('primary Share opens the consolidated panel instead of opening a second native flow', async () => {
+  const original = globalThis.document;
+  let focused = false;
+  let scrolled = false;
+  const panel = { tagName: 'DETAILS', open: false, scrollIntoView() { scrolled = true; }, querySelector: () => ({ focus() { focused = true; } }) };
+  globalThis.document = { getElementById: () => panel };
+  try {
+    await Object.create(MemeInteractions.prototype).handleShare();
+    assert.ok(panel.open && focused && scrolled);
+  } finally { globalThis.document = original; }
+});
+
 test('like sends explicit intended state instead of a retry-unsafe toggle', async () => {
   const original = { document: globalThis.document, fetch: globalThis.fetch };
   const button = { classList: { contains: () => false, add() {}, remove() {} } };
