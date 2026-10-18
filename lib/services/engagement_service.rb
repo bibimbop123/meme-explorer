@@ -30,6 +30,7 @@ class EngagementService
         db.execute('SELECT 1')
         outcome = result
       end
+      RedisService.delete("meme:likes:#{meme_url}") if outcome[:success] && !outcome[:unchanged]
       outcome
     rescue StandardError => e
       AppLogger.warn('Like transition unavailable', error: e.class.name)

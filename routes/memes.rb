@@ -104,6 +104,7 @@ module Routes
             liked_now ? session[:liked_memes] << url : session[:liked_memes].delete(url)
             
             likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
+            RedisService.delete("meme:likes:#{url}")
             return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
           end
 

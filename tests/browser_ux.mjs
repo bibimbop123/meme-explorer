@@ -324,6 +324,11 @@ try {
     await evaluate(`document.querySelector('#like-btn').click()`);
     await wait(`!document.querySelector('#like-btn').classList.contains('btn-processing') && document.querySelector('#like-btn').getAttribute('aria-pressed')==='true'`);
     check('signed-in button confirms like and count',await evaluate(`Number(document.querySelector('#like-count').textContent)===${baseline+1}`));
+    const exactPath=await evaluate(`document.querySelector('#viewer-share-data').dataset.sharePath`);
+    assert.match(exactPath,/^\/meme\/[a-f0-9]{64}$/);
+    await send('Page.navigate',{url:`${origin}${exactPath}`});
+    await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!window.mobileSwipe`);
+    check('exact-link reload preserves signed-in like and media identity',await evaluate(`document.querySelector('#meme-display').dataset.memeUrl===${JSON.stringify(identity)} && document.querySelector('#like-btn').getAttribute('aria-pressed')==='true' && Number(document.querySelector('#like-count').textContent)===${baseline+1}`));
     await send('Page.navigate',{url:`${origin}/random`});
     await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!window.mobileSwipe`);
     // Return via the exact catalog link rather than assuming random reload selects

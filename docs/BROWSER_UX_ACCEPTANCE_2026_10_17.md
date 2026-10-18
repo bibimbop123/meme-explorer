@@ -2,6 +2,16 @@
 
 ## Result
 
+### Exact-link count recovery: 139 opt-in checks
+
+Exact permalink reload reproduced stale cached count with correct liked state.
+Committed signed-in/guest mutations now invalidate `meme:likes` cache. New browser
+check verifies media identity, pressed state and count after exact reload; **139
+checks pass** with disposable account (default remains 132). Added backend cache
+regression. Invalidation is best-effort, not protection against every refill race.
+One rerun failed earlier skip timing; subsequent complete run passed. No claim of
+flakiness elimination. Full backend 1,314/zero failures/seven pending; Node 153 pass.
+
 ### Signed-in browser continuity: 138 checks with opt-in account
 
 Complete script passes **138 checks** when server and Node both receive matching

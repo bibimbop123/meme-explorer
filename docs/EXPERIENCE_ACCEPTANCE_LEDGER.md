@@ -2,6 +2,28 @@
 
 ## Execution state
 
+### Commit checkpoint and exact-link count recovery — 2026-10-17
+
+Accumulated batch committed as **69be9b5** after 1,313 backend examples/zero
+failures/seven pending (77.65%), 153 frontend tests, transport/build and fresh
+dependency audit zero findings. Targeted credential-pattern scan passed; hook's
+broad password/secret/api_key word warning reviewed (test/docs contain those words).
+No environment/database files staged; this is not full history secret clearance.
+
+Continued browser exact-link check reproduced stale count despite persisted liked
+state: five-minute `meme:likes` cache wasn't invalidated. Added invalidation after
+committed signed-in transition and guest mutation. Route regression primes cache,
+likes then unlikes, verifying fresh counts. Opt-in browser suite **139 checks pass**,
+including exact identity/liked/count after full exact-link reload. One earlier rerun
+hit skip timing failure; next complete run passed; not a new confirmed product bug.
+
+Final backend **1,314 examples / zero failures / seven pending, 77.62% coverage
+(5,305/6,835), exit 0**, 71.96s. 153 frontend tests pass; diff/syntax checks pass.
+Invalidation is best-effort; Redis outages and concurrent stale refill remain limits.
+No distributed-cache linearizability or realtime multi-user count guarantee. No
+push/deploy/feed changes or score increase. Separate follow-up commit; fixture
+account removed and temporary services stopped afterward.
+
 ### Signed-in browser like continuity — 2026-10-17
 
 Opt-in random disposable account adds six checks: browser-fetch signup with real

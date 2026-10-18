@@ -1,6 +1,22 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Like preference signal integrity' do
+  it 'invalidates a cached count after a signed-in transition' do
+    set_session(user_id: create_test_user('like-cache@example.test'))
+    url = 'https://example.com/like-cache.jpg'
+    DB.execute('INSERT INTO meme_stats (url, likes) VALUES (?, 0)', [url])
+    helper = Object.new.extend(MemeNavigationHelpers)
+    expect(helper.get_meme_likes(url)).to eq(0)
+    post '/like', { url: url, liked: true }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+    expect(last_response.status).to eq(200)
+    expect(helper.get_meme_likes(url)).to eq(1)
+    post '/like', { url: url, liked: false }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+    expect(last_response.status).to eq(200)
+    expect(helper.get_meme_likes(url)).to eq(0)
+  ensure
+    RedisService.delete("meme:likes:#{url}") if url
+  end
+
   it 'accepts explicit desired state retries and rejects nonboolean states' do
     set_session(user_id: create_test_user('desired-like@example.test'))
     url = 'https://example.com/desired-like.jpg'
