@@ -49,6 +49,22 @@ endpoint = lambda do |env|
   when '/inspect'
     return_value = session[:hidden_feed_communities].inspect
     next [200, { 'content-type' => 'text/plain' }, [return_value]]
+  when '/revoke'
+    DiscoveryPreferencesStore.revoke(session[:feed_session_id])
+    session.clear
+    session.options[:drop] = true
+  when '/late-preference'
+    old_identity = session[:feed_session_id]
+    check('late request loaded established identity before revocation') { old_identity == identity }
+    check('overlapping revocation completes') { request.post('/revoke', 'HTTP_COOKIE' => cookie).status == 200 }
+    rejected = false
+    begin
+      DiscoveryPreferencesStore.call(old_identity, action: 'hide', community: 'dogs')
+    rescue DiscoveryPreferencesStore::Revoked
+      rejected = true
+    end
+    check('old in-flight request cannot recreate preferences after revocation') { rejected }
+    session[:selection_marker] = 'late after logout'
   end
   [200, { 'content-type' => 'text/plain' }, ['ok']]
 end
@@ -68,6 +84,12 @@ begin
   end
   check('separate preference state survives late whole-session commit') do
     DiscoveryPreferencesStore.call(identity).values_at('hidden', 'revision') == [['cats'], 1]
+  end
+  check('late preference request completes its middleware commit') do
+    request.post('/late-preference', 'HTTP_COOKIE' => cookie).status == 200
+  end
+  check('revocation marker survives late whole-session commit without preference contents') do
+    JSON.parse(client.get("discovery:preferences:v1:#{identity}")) == { 'revoked' => true }
   end
   puts 'Legacy overwrite reproduced; atomic store isolation verified. Other consistency gates remain open.'
 ensure

@@ -365,7 +365,7 @@ class AuthRoutes
             # Cleanup is independent of the rollout flag. An unavailable store
             # must never prevent auth session destruction; fixed TTL is fallback.
             begin
-              DiscoveryPreferencesStore.delete(session[:feed_session_id])
+              DiscoveryPreferencesStore.revoke(session[:feed_session_id])
             rescue DiscoveryPreferencesStore::Unavailable
               AppLogger.warn('Discovery preference cleanup unavailable during logout')
             end

@@ -37,13 +37,14 @@ RSpec.describe 'Session discovery controls' do
     post '/logout'
     expect(last_response.status).to eq(303)
     expect(session[:feed_session_id]).to be_nil
-    expect(DiscoveryPreferencesStore.call(identity)['hidden']).to eq([])
+    expect { DiscoveryPreferencesStore.call(identity) }.to raise_error(DiscoveryPreferencesStore::Revoked)
+    REDIS_POOL.with { |redis| redis.del("discovery:preferences:v1:#{identity}") }
   end
 
   it 'still clears authentication state if discovery cleanup is unavailable' do
     preference('hide', 'cats')
     identity = session[:feed_session_id]
-    allow(DiscoveryPreferencesStore).to receive(:delete).and_raise(DiscoveryPreferencesStore::Unavailable)
+    allow(DiscoveryPreferencesStore).to receive(:revoke).and_raise(DiscoveryPreferencesStore::Unavailable)
     post '/logout'
     expect(last_response.status).to eq(303)
     expect(session[:feed_session_id]).to be_nil

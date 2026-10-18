@@ -2,6 +2,49 @@
 
 ## Execution state
 
+### Revocation ordering under stale session commit
+
+Real Redis session interleaving harness **13 checks pass**: old loaded request
+cannot mutate after revocation; marker survives stale snapshot commit. Existing
+legacy-overwrite/atomic-isolation checks retained. Not full auth middleware or
+already-computed display acceptance. Syntax/diff pass, no full-suite rerun for
+tests/docs-only update. Temporary Redis stopped. Follow-up uncommitted/default-off.
+
+### Discovery logout revocation marker
+
+Logout replaces preference contents with bounded 30-day marker atomically; later
+read/Hide/Restore/Undo/Reset reject old identity and do not extend marker TTL.
+Outage cleanup best effort; already computed response display not prevented.
+**1,359 backend examples, zero failures, seven pending, 77.98% coverage**, syntax/
+diff pass. No Chrome rerun. Follow-up uncommitted/default-off/undeployed. Temporary
+Redis stopped.
+
+### Real-session discovery auth lifecycle
+
+Extended Redis-backed auth integration verifies browsing identity/preference
+continuity through login, preference deletion at logout and distinct new browsing
+identity afterward, while retaining ACK auth-binding checks. **1,358 examples,
+zero failures, seven pending, 77.98% coverage**, syntax/diff pass. Sequential only,
+not logout concurrency acceptance. No browser rerun. Follow-up uncommitted;
+default-off/undeployed. Temporary Redis stopped.
+
+### Browsing identity boundary regression
+
+Expanded real-session test for distinct browser sessions and non-exposure of raw
+Rack identity; existing browsing identity preserved without deriving over it.
+**1,358 examples, zero failures, seven pending, 77.95% coverage**, syntax/diff pass.
+No runtime changes/browser rerun in this follow-up. Temporary Redis stopped.
+Identity-helper follow-up remains uncommitted; candidate default-off/undeployed.
+
+### Established-session browsing identity initialization
+
+Missing identity derives from Rack private session ID; existing identities remain
+unchanged, random fallback outside Rack. Real Redis middleware overlap regression
+passes: both loaded snapshots initialize same browsing namespace. **1,357 backend
+examples, zero failures, seven pending, 77.98% coverage**, syntax/diff pass. No-cookie
+parallel first visits and logout revocation not solved. No browser rerun; default-
+off unchanged. Follow-up changes uncommitted/undeployed. Temporary Redis stopped.
+
 ### Atomic store survives late session commit
 
 Extended deterministic real-middleware harness: **eight checks pass**, legacy

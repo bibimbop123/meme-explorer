@@ -17,7 +17,7 @@ RSpec.describe 'Legacy ACK authentication rotation with Redis sessions' do
         state[:impression_session_key] ||= SecureRandom.hex(32)
         bindings << [state[:impression_session_key], state[:user_id]]
         next [200, { 'content-type' => 'application/json' },
-          [JSON.generate(csrf: state['csrf'], binding: state[:impression_session_key], user_id: state[:user_id])]]
+          [JSON.generate(csrf: state['csrf'], binding: state[:impression_session_key], user_id: state[:user_id], browsing: state[:feed_session_id])]]
       end
       MemeExplorer::App.call(env)
     end
@@ -46,6 +46,9 @@ RSpec.describe 'Legacy ACK authentication rotation with Redis sessions' do
 
     anonymous = state.call
     anonymous_id = select_id.call
+    browsing_identity = state.call.fetch('browsing')
+    expect(browsing_identity).to match(/\A[a-f0-9]{64}\z/)
+    DiscoveryPreferencesStore.call(browsing_identity, action: 'hide', community: 'other_community')
     anonymous_cookie = cookie
     login = request.call(:post, '/login', 'HTTP_X_CSRF_TOKEN' => anonymous.fetch('csrf'),
       params: { email: 'ack-rotation@example.test', password: 'password123' })
@@ -54,20 +57,25 @@ RSpec.describe 'Legacy ACK authentication rotation with Redis sessions' do
     authenticated = state.call
     expect(authenticated['user_id']).to eq(user_id)
     expect(authenticated['binding']).not_to eq(anonymous['binding'])
+    expect(authenticated['browsing']).to eq(browsing_identity)
+    expect(DiscoveryPreferencesStore.call(browsing_identity)['hidden']).to eq(['other_community'])
     expect(ack.call(anonymous_id, authenticated.fetch('csrf')).status).to eq(404)
     authenticated_id = select_id.call
     expect(ack.call(authenticated_id, authenticated.fetch('csrf')).status).to eq(200)
 
     logout = request.call(:post, '/logout', 'HTTP_X_CSRF_TOKEN' => authenticated.fetch('csrf'))
     expect(logout.status).to eq(303)
+    expect { DiscoveryPreferencesStore.call(browsing_identity) }.to raise_error(DiscoveryPreferencesStore::Revoked)
     logged_out = state.call
     expect(logged_out['user_id']).to be_nil
     expect(logged_out['binding']).not_to eq(authenticated['binding'])
     expect(ack.call(authenticated_id, logged_out.fetch('csrf')).status).to eq(404)
     expect(ack.call(anonymous_id, logged_out.fetch('csrf')).status).to eq(404)
     expect(ack.call(select_id.call, logged_out.fetch('csrf')).status).to eq(200)
+    expect(state.call.fetch('browsing')).not_to eq(browsing_identity)
     expect(DB.get_first_value('SELECT COUNT(*) FROM meme_impressions').to_i).to eq(2)
   ensure
+    DiscoveryPreferencesStore.delete(browsing_identity) if browsing_identity
     bindings&.uniq&.each do |binding, identity|
       RedisService.with_redis { |redis| redis.del(*LegacyImpressionStore.keys(binding, identity)) }
     end

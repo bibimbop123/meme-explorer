@@ -2,6 +2,46 @@
 
 ## Implemented contract
 
+Revocation ordering acceptance: deterministic standalone real Redis-session
+harness now passes **13 checks**, including an old loaded request attempting Hide
+after overlapping revocation, then committing its stale whole-session snapshot.
+Mutation is rejected and marker remains without preference contents. This tests
+store revocation ordering, not auth-session resurrection safety or retraction of
+already computed media responses. Tests/docs-only follow-up; full suites not rerun.
+
+Logout revocation update: successful cleanup atomically replaces preferences with
+a 30-day revoked marker under the same Redis key. Later reads/mutations reject
+that identity without extending expiry; community list and Undo contents removed.
+This prevents late preference mutation from recreating state after successful
+revocation. Logout still succeeds if Redis unavailable, so outage cleanup remains
+best effort. Already computed responses cannot be retracted. Full backend **1,359
+examples, zero failures, seven pending, 77.98% coverage**; syntax/diff pass. No
+Chrome rerun. Historical deletion/no-revocation notes below are superseded by this
+entry. Follow-up remains uncommitted, feature default-off/undeployed.
+
+Auth lifecycle integration: extended existing real Redis login/logout journey
+verifies anonymous browsing identity and preferences survive login rotation,
+logout deletes the preference record, and subsequent selection starts a distinct
+browsing identity. Existing ACK auth-binding rejection still passes. **1,358
+backend examples, zero failures, seven pending; 77.98% coverage**. This sequential
+journey does not establish in-flight logout revocation or two-tab guarantees.
+
+Identity boundary coverage expanded: independent Redis sessions derive distinct
+browsing IDs; returned IDs differ from raw private Rack IDs and session-cookie
+values; existing valid browsing ID is preserved without consulting a rotated Rack
+ID. Full backend **1,358 examples, zero failures, seven pending, 77.95% coverage**.
+No runtime changes in this follow-up, no browser rerun. This is identity isolation
+coverage, not a privacy audit or complete logout/first-visit concurrency guarantee.
+
+Established-session initialization update: missing browsing identity now derives
+from Rack's server-side private session ID with a versioned SHA-256 namespace.
+Existing identities remain unchanged, login continuity remains preserved, and
+non-Rack test contexts retain random fallback. Deterministic overlapping-request
+integration test verifies matching identities and persistence. **1,357 backend
+examples, zero failures, seven pending; 77.98% coverage**. This does not unify
+independent no-cookie first visits or revoke in-flight logout writes. No Chrome
+rerun in this slice; default-off remains.
+
 Atomic isolation regression: standalone real Redis session interleaving now has
 **eight passing checks**, reproducing legacy session-field overwrite while proving
 the separate store retains Hide and its revision after the late whole-session

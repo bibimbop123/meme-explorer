@@ -11,13 +11,23 @@
 #   logged_in?                     # Returns true/false
 #   current_user_id                # Returns integer user id or nil
 
+require 'digest'
+
 module AuthHelpers
   # Browsing continuity, not authentication or cross-device identity. Never use
   # an IP address or user-supplied query parameter as the history namespace.
   def feed_session_id
     existing = session[:feed_session_id]
     return existing if existing.is_a?(String) && existing.match?(/\A[a-f0-9]{64}\z/)
-    session[:feed_session_id] = SecureRandom.hex(32)
+    # Concurrent requests for an established Rack session must initialize the
+    # same namespace even before either whole-session snapshot is committed.
+    # Use only Rack's server-side private ID, never a raw cookie/query value.
+    rack_id = session.respond_to?(:id) ? session.id : nil
+    session[:feed_session_id] = if rack_id.respond_to?(:private_id)
+      Digest::SHA256.hexdigest("meme-explorer:browsing:v1:#{rack_id.private_id}")
+    else
+      SecureRandom.hex(32)
+    end
   end
 
   def pending_save_target(pending)

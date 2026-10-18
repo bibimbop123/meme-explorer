@@ -5,6 +5,7 @@ require 'json'
 # Independent of Rack's whole-session snapshots. No account or media data.
 class DiscoveryPreferencesStore
   class Unavailable < StandardError; end
+  class Revoked < Unavailable; end
   TTL = 2_592_000
 
   def self.delete(identity)
@@ -15,10 +16,23 @@ class DiscoveryPreferencesStore
     raise Unavailable, "Discovery preferences unavailable (#{e.class})"
   end
 
+  def self.revoke(identity)
+    return unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
+
+    # Same key as mutations: SET and Lua scripts serialize in Redis. Keep the
+    # marker for the maximum session lifetime, not just a guessed request timeout.
+    REDIS_POOL.with do |redis|
+      redis.set("discovery:preferences:v1:#{identity}", JSON.generate(revoked: true), ex: TTL)
+    end
+  rescue StandardError => e
+    raise Unavailable, "Discovery preferences unavailable (#{e.class})"
+  end
+
   SCRIPT = <<~LUA.freeze
     local raw = redis.call('GET', KEYS[1])
     local state = {hidden = {}, revision = 0}
     if raw then state = cjson.decode(raw) end
+    if state.revoked then return 'revoked' end
     local action, name = ARGV[1], ARGV[2]
     if action == 'read' then return cjson.encode(state) end
     local found = false
@@ -67,6 +81,7 @@ class DiscoveryPreferencesStore
       raise Unavailable, "Discovery preferences unavailable (#{e.class})"
     end
     return :cap if result == 'cap'
+    raise Revoked, 'Discovery session ended. Reload to start a new session.' if result == 'revoked'
 
     state = JSON.parse(result)
     # Redis Lua encodes an empty table as {}, not [].

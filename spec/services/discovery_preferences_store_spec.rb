@@ -12,6 +12,17 @@ RSpec.describe DiscoveryPreferencesStore do
     expect(REDIS_POOL.with { |redis| redis.exists?(key) }).to be false
   end
 
+  it 'revokes state atomically and rejects late reads and writes without extending marker expiry' do
+    described_class.call(identity, action: 'hide', community: 'cats')
+    described_class.revoke(identity)
+    REDIS_POOL.with { |redis| redis.expire(key, 120) }
+    %w[read hide restore undo reset].each do |action|
+      expect { described_class.call(identity, action: action, community: 'dogs') }.to raise_error(described_class::Revoked)
+    end
+    expect(JSON.parse(REDIS_POOL.with { |redis| redis.get(key) })).to eq('revoked' => true)
+    expect(REDIS_POOL.with { |redis| redis.ttl(key) }).to be_between(1, 120)
+  end
+
   it 'keeps Undo on duplicate Hide and clears it when its target is restored' do
     described_class.call(identity, action: 'hide', community: 'CATS')
     described_class.call(identity, action: 'hide', community: 'dogs')
