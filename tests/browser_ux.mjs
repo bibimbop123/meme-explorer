@@ -86,6 +86,30 @@ try {
     await send('Page.navigate', { url: `${origin}/random` });
     await wait(`document.querySelector('#meme-image')?.naturalWidth > 0 && !!window.mobileSwipe`);
     await wait(`!!document.querySelector('.share-bar .twitter')`);
+    await evaluate(`document.querySelector('#share-btn').click()`);
+    check(`${width}px: primary Share opens consolidated panel with focus`, await evaluate(`document.querySelector('#meme-share-panel').open && document.activeElement.tagName==='SUMMARY'`));
+    check(`${width}px: sharing panel fits width and offers direct image download`, await evaluate(`(() => {const panel=document.querySelector('#meme-share-panel');const r=panel.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1 && !!panel.querySelector('.download-image') && panel.textContent.includes('do not attach an image');})()`));
+    if (width === 1280 && process.env.BROWSER_CLIPBOARD_TEST === 'true') {
+      // Opt-in only: clipboard testing may replace the OS clipboard on some hosts.
+      await send('Browser.grantPermissions', { origin, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+      await send('Page.bringToFront');
+      await evaluate(`document.querySelector('.copy-image').focus()`);
+      await key('Enter');
+      await wait(`!document.querySelector('.copy-image').disabled && document.querySelector('#meme-share-panel [role="status"]').textContent.includes('Selected image copied')`);
+      check('desktop clipboard contains a decodable actual PNG image', await evaluate(`(async()=>{const items=await navigator.clipboard.read();const item=items.find(item=>item.types.includes('image/png'));if(!item)return false;const blob=await item.getType('image/png');const bitmap=await createImageBitmap(blob);const image=document.querySelector('#meme-image');const valid=blob.size>0 && bitmap.width===image.naturalWidth && bitmap.height===image.naturalHeight;bitmap.close();return valid;})()`));
+      await evaluate(`(() => {const composer=document.createElement('div');composer.id='clipboard-test-composer';composer.contentEditable='true';composer.setAttribute('aria-label','Local clipboard acceptance composer');composer.addEventListener('paste',event=>{event.preventDefault();window.clipboardPasteFiles=Array.from(event.clipboardData.files).map(file=>({type:file.type,size:file.size}));});document.body.appendChild(composer);composer.focus();})()`);
+      await send('Input.dispatchKeyEvent', {type:'keyDown',key:'v',code:'KeyV',modifiers:4,commands:['Paste']});
+      await send('Input.dispatchKeyEvent', {type:'keyUp',key:'v',code:'KeyV',modifiers:4});
+      await wait(`Array.isArray(window.clipboardPasteFiles)`);
+      check('desktop keyboard paste delivers an image file to a local composer',await evaluate(`window.clipboardPasteFiles.some(file=>file.type==='image/png' && file.size>0)`));
+      await evaluate(`document.querySelector('#clipboard-test-composer').remove()`);
+      // The browser clipboard permission/read may move focus; resume the panel
+      // keyboard journey explicitly rather than testing Escape on the page body.
+      await evaluate(`document.querySelector('#meme-share-panel summary').focus()`);
+    }
+    await key('Escape');
+    check(`${width}px: sharing Escape closes and restores trigger focus`, await evaluate(`!document.querySelector('#meme-share-panel').open && document.activeElement.id==='share-btn'`));
+    await evaluate(`document.querySelector('#share-btn').click()`);
     await evaluate(`window.tweetAcceptance=[];window.open=(url,target,features)=>{window.tweetAcceptance.push({url,target,features});return null;}`);
     const firstSharePath = await evaluate(`document.querySelector('#viewer-share-data').dataset.sharePath`);
     await evaluate(`document.querySelector('.share-bar .twitter').click()`);
@@ -177,7 +201,14 @@ try {
   await send('Page.navigate', { url: `${origin}/random?fixture_media=gallery` });
   await wait(`document.querySelector('.gallery-carousel')?.dataset.carouselReady === 'true' && document.querySelector('.gallery-slide.active img')?.naturalWidth > 0 && !!window.mobileSwipe`);
   identity = await evaluate(`document.querySelector('#meme-display').dataset.memeUrl`);
+  await evaluate(`Object.defineProperty(navigator,'share',{configurable:true,value:undefined});Object.defineProperty(navigator,'canShare',{configurable:true,value:undefined});document.querySelector('#share-btn').click();document.querySelector('.share-image').click()`);
+  check('gallery fallback download targets the active first image', await evaluate(`(() => {const link=Array.from(document.querySelectorAll('#meme-share-panel a')).find(a=>a.textContent==='Download selected image');return link && link.href===document.querySelector('.gallery-slide.active img').src && !link.parentElement.hidden;})()`));
   await evaluate(`document.querySelector('.gallery-next').click()`);
+  await wait(`!Array.from(document.querySelectorAll('#meme-share-panel a')).some(a=>a.textContent==='Download selected image')`);
+  check('gallery slide change clears old sharing fallback links', await evaluate(`document.querySelector('.share-image').textContent==='Share image' && document.querySelector('#meme-share-panel [role="status"]').textContent===''`));
+  await evaluate(`document.querySelector('.share-image').click()`);
+  check('gallery sharing fallback rebuilds for the current selected slide', await evaluate(`(() => {const link=Array.from(document.querySelectorAll('#meme-share-panel a')).find(a=>a.textContent==='Download selected image');return link && link.href===document.querySelector('.gallery-slide.active img').src && !link.parentElement.hidden;})()`));
+  await evaluate(`document.querySelector('#meme-share-panel').open=false`);
   check('server gallery Next changes slide exactly once', await evaluate(`document.querySelector('.gallery-slide.active').dataset.index === '1'`));
   const galleryTree = await send('Accessibility.getFullAXTree');
   check('server gallery exposes only current image to accessibility tree', galleryTree.nodes.filter(node => !node.ignored && node.role?.value === 'image' && node.name?.value?.includes('Browser gallery fixture')).length === 1);

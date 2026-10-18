@@ -258,6 +258,13 @@ export class MemeInteractions {
   }
   
   async handleShare() {
+    const panel = document.getElementById?.('meme-share-panel');
+    if (panel?.tagName === 'DETAILS') {
+      panel.open = true;
+      panel.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      panel.querySelector('summary')?.focus();
+      return;
+    }
     if (this.isSharing) return;
     this.isSharing = true;
     this.triggerHaptic('medium');

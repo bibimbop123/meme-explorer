@@ -1,5 +1,58 @@
 # Exact-meme Tweet audit and acceptance
 
+## Consolidated sharing panel and desktop image clipboard
+
+Local receiving-composer follow-up: opt-in clipboard suite **182 checks passes**.
+After actual PNG copy/readback, CDP keyboard Paste command delivers nonempty
+image/png File in paste event to a temporary local contenteditable composer;
+receiver records MIME/size and suppresses insertion, then is removed. This is
+native clipboard-to-page evidence, not X composer or OS/manual acceptance. 161
+frontend tests/syntax/diff pass. No product code changed in this slice.
+
+Real Chrome clipboard follow-up: opt-in `BROWSER_CLIPBOARD_TEST=true` grants
+clipboard read/write only to local fixture origin and activates Copy image with
+Enter. Readback yields nonempty decodable PNG matching displayed natural dimensions.
+Complete suite **181 checks passes** with option (default remains 180). Clipboard
+permission/readback moved focus in first run; test refocuses summary before Escape
+journey. No product change needed. 161 frontend tests/syntax/diff pass.
+Run only in disposable browser context: clipboard test can replace system clipboard
+on some hosts. No live X paste, Safari/Firefox or mobile native share acceptance.
+
+Browser reset follow-up: complete account-free suite 180 checks passes, with native
+sharing disabled locally to exercise gallery fallback links. Old slide links/status
+are removed after slide change; retry resolves the active image. 161 frontend tests
+pass. This updates prior observer-only evidence; not actual OS/X acceptance.
+
+Latest reset hardening clears prepared-image state and old fallback links when
+viewer identity/active gallery media changes. Pending old preparation/native-share
+results cannot restore stale UI. 161 frontend tests/build pass; observer reset has
+Node regression, not fresh physical-device/browser handoff acceptance.
+
+Follow-up: direct Download image action now available without first trying native
+sharing. Panel guidance distinguishes image handoff from link-only composers.
+Border-box sizing/wrapping verified at 320/375/1280px; 177 account-free Chrome
+checks and 160 frontend tests pass. Build regenerated. Download confirmation says
+requested, not completed; target is resolved on click. No real X paste/attachment
+or OS file-save acceptance claimed. Latest changes frontend-only, backend not rerun.
+
+Primary Share now opens one native details disclosure containing image share,
+Copy image for X, WhatsApp link, Tweet link and exact-link copy. Summary is
+keyboard-operable; Escape/Close restore primary trigger focus. It is a nonmodal
+disclosure, not a focus-trapped dialog. Existing Download control remains for
+compatibility; this is not a complete viewer action redesign.
+
+Desktop copy initiates clipboard.write with promised PNG bytes during gesture,
+converting non-PNG raster files through canvas. Animated inputs copy one still
+frame, disclosed in confirmation. Unsupported/denied clipboard directs to image
+download/manual attachment; no automatic X post/attachment promise. Native image
+sharing retains prepare→second-click flow and active-gallery selection.
+
+Validation: 160 frontend tests, production build and syntax/diff checks pass;
+174 account-free Chrome checks include primary opening/focus and Escape restoration
+at three widths plus prior exact Tweet identity/card checks. Clipboard write API
+unit-tested, not live X paste or real-device share-sheet acceptance. Product changes
+frontend-only this slice; backend suite not rerun. Local fixture services stopped.
+
 ## Actual-image sharing (device share sheet / download fallback)
 
 Added Share image beside explicitly labeled Tweet link. First click fetches selected
