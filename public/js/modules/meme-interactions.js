@@ -148,7 +148,7 @@ export class MemeInteractions {
       const response = await fetch('/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: memeUrl })
+        body: JSON.stringify({ url: memeUrl, liked: !wasLiked })
       });
       
       if (response.ok) {

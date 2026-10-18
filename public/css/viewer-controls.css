@@ -1,4 +1,33 @@
 /* Loaded after legacy responsive rules. Keep overrides scoped to the viewer. */
+.gallery-dot {
+  box-sizing: content-box;
+  border: 0;
+  padding: 0;
+  margin: 12px;
+  position: relative;
+}
+
+/* Preserve the small visual dot while giving touch a 44px target. */
+.gallery-dot::after {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.gallery-carousel button:focus-visible,
+.meme-gallery button:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-slide { transition: none !important; }
+}
+
 /* Unlike hidden, clip does not create a scrolling ancestor for sticky controls. */
 @supports (overflow: clip) {
   html, body {

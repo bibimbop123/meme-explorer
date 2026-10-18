@@ -5,7 +5,7 @@ ruby "3.2.1"
 # Core web stack
 gem "sinatra", "~> 4.0"
 gem "sinatra-contrib", "~> 4.0" # includes sinatra/reloader
-gem "puma", "~> 6.0"
+gem "puma", "~> 7.2.1"
 gem "rackup", "~> 2.1"
 gem "activesupport", "~> 7.1"
 

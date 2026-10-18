@@ -14,5 +14,6 @@ RSpec.describe 'Initial gallery controller ownership' do
     expect(last_response.body.scan("const galleries = document.querySelectorAll('.gallery-carousel')").length).to eq(1)
     expect(last_response.body).to include('gallery.dataset.carouselReady')
     expect(last_response.body).to include('Gallery ownership', 'data-recoverable-media')
+    expect(last_response.body).to include('data-index="1" hidden', 'aria-label="Show image 2 of 2"', 'aria-pressed="false"', 'aria-atomic="true"')
   end
 end

@@ -341,6 +341,11 @@ test('media failure creates one recovery notice and successful load clears it', 
     assert.equal(message.textContent, 'Still not loading. Try again or choose another meme.');
     assert.equal(media.dataset.mediaFailed, 'true');
     assert.ok(notice.innerHTML.includes('Try again'));
+    // A nested source error belongs to the recoverable video, not the source.
+    media.tagName = 'VIDEO';
+    handlers.error({ target: { tagName: 'SOURCE', parentElement: media } });
+    assert.equal(notice, first);
+    assert.equal(media.dataset.mediaFailed, 'true');
     handlers.load({ target: media });
     assert.equal(removed, true);
     assert.equal(media.dataset.mediaFailed, undefined);
@@ -650,10 +655,10 @@ test('AJAX gallery swipe owns horizontal gestures and ignores vertical scrolling
     nav.bindGalleryControls();
     const target = { closest: selector => selector === '.meme-gallery' ? {} : null };
     handlers.touchstart({ target, touches: [{ clientX: 100, clientY: 0 }] });
-    handlers.touchend({ changedTouches: [{ clientX: 20, clientY: 10 }] });
+    handlers.touchend({ touches: [], changedTouches: [{ clientX: 20, clientY: 10 }] });
     assert.equal(next, 1);
     handlers.touchstart({ target, touches: [{ clientX: 100, clientY: 0 }] });
-    handlers.touchend({ changedTouches: [{ clientX: 20, clientY: 150 }] });
+    handlers.touchend({ touches: [], changedTouches: [{ clientX: 20, clientY: 150 }] });
     assert.equal(next, 1);
   } finally { globalThis.document = original; }
 });

@@ -18,7 +18,7 @@ might claim.
 - **User Profiles** - `/profile`, saved memes, engagement tracking
 - **Leaderboard** - `/leaderboard` and `/api/leaderboard`
 - **Gallery View** - Multi-image Reddit gallery rendering
-- **Personalization** - `/taste-evolution` and saved-meme collections
+- **Personalization** - Signed-in subreddit preferences from likes/saves; favorites at `/profile` (`/saved` redirects there). The unsupported `/taste-evolution` dashboard is retired.
 - **Blog** - `/blog` (original content pages)
 
 ### Background Jobs (Sidekiq)
@@ -72,6 +72,8 @@ Visit `http://localhost:8080` to explore memes!
 
 ## 📖 Documentation
 
+- **[Product improvement roadmap](docs/PRODUCT_IMPROVEMENT_ROADMAP.md)** - Current
+  66 → 90 scorecard, acceptance gates and evidence-led delivery sequence
 - **[Roadmap](ROADMAP.md)** - Strategic prioritization: why reliability and
   personalization of the core `/random` loop outrank new features right now
 - **[Architecture Overview](ARCHITECTURE.md)** - System design and patterns
@@ -96,12 +98,11 @@ Visit `http://localhost:8080` to explore memes!
 - **CSS:** Custom responsive design
 - **JavaScript:** Vanilla JS with modern features
 
-**Important:** `render.yaml`'s `buildCommand` is just `bundle install` - there
-is no CI/deploy step that runs `npm run build`. `public/dist/` is committed
-to git and IS the deploy artifact, not disposable build output. If you
-change anything under `public/js/`, you must run `npm run build` locally
-and commit the resulting `public/dist/bundle.js` before deploying, or
-production will keep serving the old bundle.
+**Asset delivery:** `render.yaml`'s web build runs `bundle install && npm ci
+--include=dev && npm run build`; CI also tests and builds the frontend.
+`public/dist/` remains committed, so rebuild locally and include any resulting
+bundle changes with source changes. Verify the running service uses the blueprint's
+build command: dashboard configuration and older deployment paths may differ.
 
 ### DevOps
 - **Hosting:** Render.com / Heroku
@@ -133,7 +134,8 @@ POST /login                - Sign in
 GET  /profile             - Current user profile
 POST /api/save-meme       - Save meme to collection
 POST /api/unsave-meme     - Remove meme from collection
-GET  /taste-evolution     - Personalization insights
+GET  /saved               - Redirect to profile and favorites
+GET  /taste-evolution     - Retired insights page (410 after authentication)
 ```
 
 ### Admin Routes

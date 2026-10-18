@@ -39,9 +39,38 @@ class ContentAuditSummary
       source_age: %w[under_day one_to_seven_days over_seven_days unknown].to_h { |age| [age, visible.count { |r| r['source_age'] == age }] },
       sample_mix: %w[guest returning].to_h { |kind| [kind, visible.count { |r| r['session'] == kind }] },
       device_mix: %w[mobile desktop].to_h { |kind| [kind, visible.count { |r| r['device'] == kind }] },
+      collection_checks: collection_checks(visible),
       note: 'Human audit aggregates, not representative population estimates. Unknowns remain in visible denominators. No humor, artwork detection or media health is inferred.'
     }
   end
+
+  def self.collection_checks(visible)
+    cells = %w[guest returning].flat_map do |session|
+      %w[mobile desktop].map do |device|
+        { session: session, device: device,
+          count: visible.count { |row| row['session'] == session && row['device'] == device } }
+      end
+    end
+    unknowns = %w[available readable repeated_url repeated_artwork source_age].to_h do |field|
+      [field, visible.count { |row| row[field] == 'unknown' }]
+    end
+    warnings = []
+    warnings << 'Fewer than 100 visible observations.' if visible.size < 100
+    warnings << 'One or more guest/returning × mobile/desktop cells have no visible observations.' if cells.any? { |cell| cell[:count].zero? }
+    warnings << 'Some judgments are unknown; do not treat missing judgments as positive or negative evidence.' if unknowns.values.any?(&:positive?)
+    {
+      session_device_cells: cells,
+      unknown_judgments: unknowns,
+      warnings: warnings,
+      requires_manual_review: [
+        'Sampling windows and revision', 'Reviewer agreement',
+        'User tasks and subjective worth', 'Ordinary supply cycles',
+        'Safety findings and experiment decision'
+      ],
+      note: 'Collection checks only. Nonempty cells do not establish balanced or representative sampling. No automated research acceptance or quality score.'
+    }
+  end
+  private_class_method :collection_checks
 
   def self.tally(rows, key)
     counts = FLAGS.to_h { |flag| [flag, rows.count { |row| row[key] == flag }] }

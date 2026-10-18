@@ -65,6 +65,9 @@ jobs:
     - name: Validate CSRF middleware contract
       run: bundle exec ruby tests/csrf_protection_test.rb
 
+    - name: Validate Puma HTTP and shutdown contract
+      run: bundle exec ruby tests/puma_http_test.rb
+
     - name: Validate Redis lease ownership
       env:
         LOCK_TEST_REDIS_URL: redis://localhost:6379/15

@@ -2,6 +2,8 @@
 
 This is human observation, not a scripted feed-fetch exercise. No supply/ranking
 change is enabled. Follow the [quality roadmap](MEME_CONTENT_QUALITY_ROADMAP.md).
+Use the [private worksheet](CONTENT_BASELINE_WORKSHEET.md) for sampling, participant
+tasks, ordinary supply cycles and the intervention decision record.
 
 ## Record observations privately
 
@@ -54,6 +56,13 @@ explicit denominators, unknowns, source-age distribution and guest/returning and
 mobile/desktop sample mix. Review both mixes before claiming baseline coverage.
 Unknowns stay in visible denominators; zero denominators yield null percentages.
 target_met means 100 visible observations only, not research/quality acceptance.
+`collection_checks` additionally reports the four joint session/device cells,
+unknown judgment counts, missing-data warnings and required manual reviews. Both
+marginal mixes can look complete while guest-desktop and returning-mobile are
+entirely absent. Nonempty cells still do not prove balance or representativeness.
+No warnings means only these mechanical collection checks passed—not that content
+is good, participants are satisfied, or research/rollout is approved. Invisible
+requests do not contribute to sample coverage or unknown judgment counts.
 Output intentionally omits raw row identifiers and free text. Review aggregates
 for small-sample privacy before sharing. Do not commit private input/output.
 

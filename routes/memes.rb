@@ -76,11 +76,18 @@ module Routes
           end
           
           # Accept both 'url' and 'meme_url' for backwards compatibility
+          halt 400, { error: 'Expected a JSON object' }.to_json unless data.is_a?(Hash)
           url = data['url'] || data['meme_url'] || params[:url]
           
           unless url
             AppLogger.warn("⚠️  [Like] No URL provided in request")
             halt 400, { error: "No URL provided" }.to_json
+          end
+          unless url.is_a?(String) && !url.strip.empty? && url.bytesize <= 4096
+            halt 400, { error: 'Invalid URL' }.to_json
+          end
+          if data.key?('liked') && ![true, false].include?(data['liked'])
+            halt 400, { error: 'liked must be a boolean' }.to_json
           end
           
           AppLogger.debug("✅ [Like] Request for URL: #{url}")
@@ -88,48 +95,31 @@ module Routes
           # For anonymous users: use session (temporary)
           unless current_user_id
             session[:liked_memes] ||= []
-            liked_now = if session[:liked_memes].include?(url)
-              session[:liked_memes].delete(url)
-              false
-            else
-              session[:liked_memes] << url
-              true
+            previous = session[:liked_memes].include?(url)
+            liked_now = data.key?('liked') ? data['liked'] : !previous
+            if liked_now == previous
+              likes = ::DB.get_first_value('SELECT likes FROM meme_stats WHERE url = ?', [url]).to_i
+              EngagementService.invalidate_like_cache(url)
+              return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
             end
+            liked_now ? session[:liked_memes] << url : session[:liked_memes].delete(url)
             
             likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
+            EngagementService.invalidate_like_cache(url)
             return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
           end
 
           # For logged-in users: use database with FULL INTEGRATION
           user_id = current_user_id
           
-          # Check if already liked in user_liked_memes table
-          existing = ::DB.execute(
-            "SELECT id FROM user_liked_memes WHERE user_id = ? AND meme_url = ?",
-            [user_id, url]
-          ).first
-          
-          if existing
-            # Unlike - remove from database
-            ::DB.execute("DELETE FROM user_liked_memes WHERE id = ?", [existing['id']])
-            liked_now = false
-          else
-            # Like - add to database
-            ::DB.execute(
-              "INSERT INTO user_liked_memes (user_id, meme_url, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
-              [user_id, url]
-            )
-            liked_now = true
-          end
-          
-          # Use EngagementService for comprehensive tracking with gamification, leaderboard, and metrics
-          result = ::EngagementService.track_like(
+          result = ::EngagementService.set_like(
             user_id: user_id,
             meme_url: url,
-            liked_now: liked_now,
+            desired: data.key?('liked') ? data['liked'] : nil,
             session: session,
             db: ::DB
           )
+          halt 503, { success: false, error: result[:error] }.to_json unless result[:success]
           
           response = {
             success: result[:success],
@@ -271,13 +261,14 @@ module Routes
         # routes/random_meme.rb, routes/health.rb, etc.) - swapped in.
         app.get "/search" do
           query = params[:q]
-          if query.nil? && !request.accept?('application/json')
+          json_search = request.preferred_type('text/html', 'application/json') == 'application/json'
+          if query.nil? && !json_search
             @query = nil
             @results = []
             next erb :search
           end
 
-          if request.accept?("application/json")
+          if json_search
             # BUG FIX: SearchService.search (lib/services/search_service.rb)
             # always returns a Hash ({success:, results:, query:, total:}),
             # never a bare Array - but this called `.map`/`.size` directly

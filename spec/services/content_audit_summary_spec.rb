@@ -46,6 +46,41 @@ RSpec.describe ContentAuditSummary do
     expect(error).not_to include('/private/nonexistent')
   end
 
+  it 'detects missing joint sample cells even when both marginal mixes are present' do
+    rows = 100.times.map do |i|
+      row.merge('id' => i + 1, 'session' => i.even? ? 'guest' : 'returning',
+        'device' => i.even? ? 'mobile' : 'desktop')
+    end
+    report = described_class.summarize(rows)
+    expect(report[:target_met]).to be true
+    checks = report[:collection_checks]
+    expect(checks[:session_device_cells].map { |cell| cell[:count] }).to eq([50, 0, 0, 50])
+    expect(checks[:warnings].join(' ')).to include('cells have no visible observations', 'judgments are unknown')
+    expect(checks[:unknown_judgments]['readable']).to eq(100)
+  end
+
+  it 'keeps manual acceptance open even for fully judged observations in all cells' do
+    rows = 100.times.map do |i|
+      row.merge('id' => i + 1, 'session' => i % 4 < 2 ? 'guest' : 'returning',
+        'device' => i.even? ? 'mobile' : 'desktop', 'readable' => 'yes',
+        'repeated_artwork' => 'no', 'source_age' => 'under_day')
+    end
+    checks = described_class.summarize(rows)[:collection_checks]
+    expect(checks[:session_device_cells].map { |cell| cell[:count] }).to eq([25, 25, 25, 25])
+    expect(checks[:warnings]).to eq([])
+    expect(checks[:requires_manual_review]).to include('Reviewer agreement', 'User tasks and subjective worth')
+    expect(checks[:note]).to include('No automated research acceptance')
+  end
+
+  it 'does not count unviewed requests toward collection coverage or unknown judgments' do
+    unseen = row.merge('visible' => 'no')
+    %w[available readable repeated_url repeated_artwork source_age].each { |field| unseen[field] = 'unknown' }
+    checks = described_class.summarize([unseen])[:collection_checks]
+    expect(checks[:session_device_cells].sum { |cell| cell[:count] }).to eq(0)
+    expect(checks[:unknown_judgments].values.sum).to eq(0)
+    expect(checks[:warnings]).to include('Fewer than 100 visible observations.')
+  end
+
   it 'runs the CLI successfully without exporting row identifiers' do
     Tempfile.create(['content-audit', '.json']) do |file|
       file.write([row].to_json)

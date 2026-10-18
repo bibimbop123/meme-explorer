@@ -2,6 +2,10 @@
 
 ## Purpose and status
 
+The [product improvement roadmap](PRODUCT_IMPROVEMENT_ROADMAP.md) is the current
+six-dimension scorecard and product-priority index. This document retains the
+technical delivery dependencies; historical checkpoints below are not new evidence.
+
 This is the current delivery sequence for remaining work. It supersedes older
 next-action ordering, not historical evidence, security requirements or protocol
 contracts. Estimates are focused engineering days, not dates or commitments.

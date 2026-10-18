@@ -58,6 +58,7 @@ require_relative "./lib/services/trending_service"
 require_relative "./lib/services/retention_service"  # Phase 1 roadmap: does the loop actually retain users, not just run fast - see file header
 require_relative "./lib/services/subscription_service"  # Phase 2 roadmap: real Stripe integration for the ad-free premium tier - see file header
 require_relative "./lib/services/meme_service"
+require_relative "./lib/services/search_service"
 require_relative "./lib/services/reddit_fetcher_service"
 require_relative "./lib/services/inline_reddit_fetcher"  # Restored - critical for meme fetching
 # Route files — loaded before registration block

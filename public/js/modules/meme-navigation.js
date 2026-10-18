@@ -82,7 +82,9 @@ export class MemeNavigation {
     const display = document.querySelector('#meme-display');
     if (!display) return;
     const failed = event => {
-      const media = event.target;
+      // Browsers may emit a nested <source> error without setting video.error
+      // or dispatching an error on <video> itself.
+      const media = event.target.tagName === 'SOURCE' ? event.target.parentElement : event.target;
       if (!media.matches?.('[data-recoverable-media]')) return;
       media.dataset.mediaFailed = 'true';
       const existing = media.parentElement.querySelector('[data-media-recovery]');
@@ -238,16 +240,23 @@ export class MemeNavigation {
     let start = null;
     display?.addEventListener('touchstart', event => {
       start = null;
-      if (!event.target.closest?.('.meme-gallery') || event.target.closest?.('button, a') || event.touches.length !== 1) return;
+      if (!event.target.closest?.('.meme-gallery') || event.target.closest?.('button, a, input, textarea, select, [contenteditable]') || event.touches.length !== 1) return;
       start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
     }, { passive: true });
+    display?.addEventListener('touchmove', event => {
+      if (!start) return;
+      if (event.touches.length !== 1) { start = null; return; }
+      const x = Math.abs(event.touches[0].clientX - start.x);
+      const y = Math.abs(event.touches[0].clientY - start.y);
+      if (y > 10 && y >= x) start = null;
+    }, { passive: true });
     display?.addEventListener('touchend', event => {
-      if (!start || !event.changedTouches.length) return;
       const origin = start;
       start = null;
+      if (!origin || event.touches.length || !event.changedTouches.length) return;
       const x = event.changedTouches[0].clientX - origin.x;
       const y = event.changedTouches[0].clientY - origin.y;
-      if (Math.abs(x) < 50 || Math.abs(x) <= Math.abs(y)) return;
+      if (Math.abs(x) < 50 || Math.abs(x) <= Math.abs(y) * 1.5) return;
       if (x < 0) this.nextGalleryImage(); else this.prevGalleryImage();
     }, { passive: true });
     display?.addEventListener('touchcancel', () => { start = null; }, { passive: true });
