@@ -872,7 +872,7 @@ test('initial server-rendered media starts observation before speculative prefet
   const originalDocument = globalThis.document;
   const display = { dataset: { impressionId: 'initial-id' } };
   const events = [];
-  globalThis.document = { querySelector: () => display, addEventListener() {} };
+  globalThis.document = { querySelector: () => display, getElementById: () => null, addEventListener() {} };
   const nav = navigation();
   Object.assign(nav, {
     bindKeyboardShortcuts() {}, bindNavigationButtons() {}, bindGalleryControls() {}, setupPopStateHandler() {}, seedInitialHistory() {}, bindVideoRecovery() {}, bindScrollRecovery() {}, bindRecentMemes() {}, bindMediaRecovery() {}, bindTitleToggle() {},

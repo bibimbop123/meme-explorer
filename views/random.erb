@@ -64,6 +64,7 @@
      position on mobile, one unobtrusive slot instead of vertical
      clutter). This is real, working code - it was already defined in
      lib/helpers/ad_helpers.rb but never actually called anywhere. -->
+<%= erb :'partials/_feed_preferences' if discovery_controls_enabled? %>
 <details id="recently-viewed" style="max-width: 800px; margin: 24px auto; padding: 16px;">
   <summary>Recently viewed</summary>
   <p>Up to 20 recently viewed memes. Images and videos with exact links survive refreshes in this tab when browser storage is available; reopening them loads their current page. Other entries, including galleries, remain page-only. Clear the list on shared devices.</p>

@@ -25,7 +25,7 @@ module Routes
           # first and only falls back to the legacy cache/local memes when
           # nothing better is available, so call it unconditionally
           # instead of trusting a possibly-stale MEME_CACHE snapshot.
-          pool = random_memes_pool
+          pool = filter_feed_communities(random_memes_pool)
           session_id = feed_session_id
           @meme = MemeExplorer::SimpleMemeSelector.select(pool, session_id, user_id: current_user_id)
           @meme ||= fallback_meme
@@ -33,6 +33,8 @@ module Routes
           AppLogger.error("Error in root route: #{e.class}: #{e.message}")
           @meme = fallback_meme
         end
+
+        @meme = filter_feed_communities([@meme].compact).first
         
         @image_src = meme_image_src(@meme)
         engagement = viewer_engagement_state(@meme['url'] || @meme['file'])

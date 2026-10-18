@@ -106,6 +106,11 @@ retain media/readability/diversity/safety guardrails. Small samples are diagnost
 
 ### Phase 4: control and learning contracts
 
+Current candidate: session-only Hide community with Restore/Undo/Reset and explicit
+scarcity recovery. See [discovery acceptance](DISCOVERY_CONTROLS_ACCEPTANCE.md) for
+implemented scope, evidence, unresolved multi-tab/session writes and NOT RUN manual/
+research gates. This is implementation progress, not validated relevance benefit.
+
 Signal-integrity slice: sequential re-likes of the same user/media now reuse
 existing liked_at evidence instead of repeatedly increasing community preference.
 Real-route regression cycles unlike/re-like and verifies a different meme still
