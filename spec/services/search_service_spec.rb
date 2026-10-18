@@ -86,6 +86,57 @@ describe SearchService do
     end
 
     context 'with database results' do
+      it 'supplements sparse cache matches with database results without replacing cached media' do
+        allow(MemeService).to receive(:fetch_reddit_memes).and_return([])
+        allow(SearchService).to receive(:flatten_memes).and_return([])
+        cache = [{ 'url' => 'https://example.com/cache-only.jpg', 'title' => 'Popular cached meme', 'subreddit' => 'local' }]
+        result = search_results('popular', cache, popular_subreddits)
+        expect(result.map { |m| m['url'] }).to contain_exactly('https://example.com/cache-only.jpg', 'http://db.com/1.jpg')
+      end
+
+      it 'keeps distinct local file matches when provider merging has no URL keys' do
+        allow(MemeService).to receive(:fetch_reddit_memes).and_return([])
+        allow(SearchService).to receive(:flatten_memes).and_return([])
+        cache = %w[one two].map { |name| { 'file' => "/images/#{name}.jpg", 'title' => 'Unique sparse topic' } }
+        result = search_results('unique sparse topic', cache, popular_subreddits)
+        expect(result.map { |m| m['file'] }).to contain_exactly('/images/one.jpg', '/images/two.jpg')
+      end
+
+      it 'retains the existing fast path when three cached matches are available' do
+        cache = 3.times.map { |i| { 'url' => "https://example.com/fast#{i}.jpg", 'title' => 'Fast topic' } }
+        expect(MemeService).not_to receive(:fetch_reddit_memes)
+        expect(SearchService).not_to receive(:flatten_memes)
+        expect(DB).not_to receive(:execute)
+        expect(search_results('fast topic', cache, popular_subreddits).size).to eq(3)
+      end
+
+      it 'finds community-only matches with cold cache and unavailable provider supply' do
+        allow(MemeService).to receive(:fetch_reddit_memes).and_return([])
+        allow(SearchService).to receive(:flatten_memes).and_return([])
+        result = search_results('FuNnY', [], popular_subreddits)
+        expect(result.map { |m| m['url'] }).to include('http://db.com/1.jpg')
+        expect(result.map { |m| m['url'] }).not_to include('http://db.com/2.jpg')
+      end
+
+      it 'treats wildcard and escape characters literally in community names' do
+        allow(MemeService).to receive(:fetch_reddit_memes).and_return([])
+        allow(SearchService).to receive(:flatten_memes).and_return([])
+        DB.execute('INSERT INTO meme_stats (url, title, subreddit) VALUES (?, ?, ?)', ['https://example.com/literal-community.jpg', 'Unrelated', 'topic_100%!'])
+        DB.execute('INSERT INTO meme_stats (url, title, subreddit) VALUES (?, ?, ?)', ['https://example.com/other-community.jpg', 'Unrelated', 'topicX100more!'])
+        result = search_results('topic_100%!', [], popular_subreddits)
+        expect(result.map { |m| m['url'] }).to eq(['https://example.com/literal-community.jpg'])
+      end
+
+      it 'finds community-only local fallback entries without duplicating database media' do
+        allow(MemeService).to receive(:fetch_reddit_memes).and_return([])
+        allow(SearchService).to receive(:flatten_memes).and_return([
+          { 'file' => '/images/funny1.jpeg', 'title' => 'Different title', 'subreddit' => 'funny' },
+          { 'url' => 'http://db.com/1.jpg', 'title' => 'Popular Meme from DB', 'subreddit' => 'funny' }
+        ])
+        result = search_results('funny', [], popular_subreddits)
+        expect(result.map { |m| m['url'] || m['file'] }).to contain_exactly('/images/funny1.jpeg', 'http://db.com/1.jpg')
+      end
+
       before do
         # Insert memes into database
         DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, ?, ?)",

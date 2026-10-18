@@ -7,6 +7,9 @@ security diagnosis and acceptance ledger retain their technical/release authorit
 
 ## Scorecard
 
+Immediate execution and operator/research responsibilities:
+[priority release handoff](PRIORITY_RELEASE_HANDOFF.md).
+
 | Dimension | Baseline | Target | Evidence required |
 | --- | ---: | ---: | --- |
 | Content quality, freshness, discovery | 13/25 | 22/25 | Reviewed novelty/readability, sustainable supply, worthwhile discoveries |
