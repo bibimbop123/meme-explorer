@@ -52,7 +52,7 @@ end
 
 # On boot event - runs once per cluster (only in cluster mode: WEB_CONCURRENCY > 0)
 if Integer(ENV.fetch("WEB_CONCURRENCY", 0)) > 0
-  on_worker_boot do
+  before_worker_boot do
     # Reconnect to database on worker boot
     if ENV['DATABASE_URL']
       require 'sequel'

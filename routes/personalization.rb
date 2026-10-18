@@ -8,18 +8,15 @@ module Routes
 
       app.get '/taste-evolution' do
         require_auth!
-        user_id = current_user_id
-        personalization = PersonalizationService.new(user_id)
-        @taste_evolution = personalization.get_taste_evolution
+        headers 'Cache-Control' => 'no-store, private'
+        status 410
         erb :taste_evolution
       end
 
       app.get '/saved' do
         require_auth!
-        user_id = current_user_id
-        personalization = PersonalizationService.new(user_id)
-        @organized_saves = personalization.organize_saved_memes
-        erb :saved_memes
+        headers 'Cache-Control' => 'no-store, private'
+        redirect '/profile'
       end
 
       app.post '/api/subscribe' do

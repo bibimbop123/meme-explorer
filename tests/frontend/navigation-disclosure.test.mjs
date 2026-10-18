@@ -21,6 +21,7 @@ function setup({ bottom = 140 } = {}) {
   const context = {
     window: { innerHeight: 812, addEventListener: (name, handler) => { windowListeners[name] = handler; } },
     document: {
+      querySelector: () => null,
       readyState: 'loading',
       getElementById: id => id === 'menuToggle' ? toggle : menu,
       addEventListener: (name, callback) => { listeners[name] = callback; }

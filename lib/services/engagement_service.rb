@@ -5,6 +5,37 @@
 
 class EngagementService
   class << self
+    # Serialize all signed-in transitions for a media URL using its stats row.
+    # nil preserves legacy toggle requests; booleans express retry-safe intent.
+    def set_like(user_id:, meme_url:, desired: nil, session: {}, db: DB)
+      outcome = nil
+      db.transaction do
+        ensure_meme_stats_exists(meme_url, db)
+        db.execute('SELECT url FROM meme_stats WHERE url = ? FOR UPDATE', [meme_url])
+        existing = db.execute('SELECT id FROM user_liked_memes WHERE user_id = ? AND meme_url = ?', [user_id, meme_url]).first
+        liked = desired.nil? ? !existing : desired
+        if liked == !!existing
+          outcome = { success: true, liked: liked, likes: get_likes_count(meme_url, db), unchanged: true }
+          next
+        end
+        if liked
+          db.execute('INSERT INTO user_liked_memes (user_id, meme_url, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)', [user_id, meme_url])
+        else
+          db.execute('DELETE FROM user_liked_memes WHERE user_id = ? AND meme_url = ?', [user_id, meme_url])
+        end
+        result = track_like(user_id: user_id, meme_url: meme_url, liked_now: liked, session: session, db: db)
+        raise 'Like transition failed' unless result[:success]
+        # Legacy best-effort helpers rescue SQL errors. An aborted PostgreSQL
+        # transaction must not silently COMMIT as ROLLBACK and report success.
+        db.execute('SELECT 1')
+        outcome = result
+      end
+      outcome
+    rescue StandardError => e
+      AppLogger.warn('Like transition unavailable', error: e.class.name)
+      { success: false, error: 'Could not update like. Please retry.' }
+    end
+
     # Track a like action with full integration
     # @param user_id [Integer] User performing the action
     # @param meme_url [String] URL of meme being liked
@@ -38,16 +69,18 @@ class EngagementService
         
         result[:likes] = get_likes_count(meme_url, db)
         
-        # 1b. ROADMAP.md Phase 1 ("Feed real per-user signal ... back into
-        # MemePoolManager's tier-distributed pool selection weighting") -
-        # see bump_subreddit_preference's own comment below for the full
-        # story on why this wasn't happening before. Only on real likes,
-        # not unlikes: an unlike shouldn't erase or count against a prior
-        # preference signal, and there's no decrement path here by design.
+        # Preference evidence is first-ever like per user/media, not repeated
+        # toggling. liked_at survives unlike; consult it before updating stats.
+        # This preserves historical positive evidence rather than treating unlike
+        # as an explicit negative preference. Concurrent toggles need a separate
+        # transaction/idempotent API contract; this is not a concurrency claim.
         if liked_now && user_id
-          subreddit_row = db.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [meme_url]).first
-          subreddit = subreddit_row && (subreddit_row['subreddit'] || subreddit_row[:subreddit])
-          bump_subreddit_preference(user_id, subreddit, db, increment: 0.2)
+          prior = db.execute('SELECT liked_at FROM user_meme_stats WHERE user_id = ? AND meme_url = ?', [user_id, meme_url]).first
+          unless prior && (prior['liked_at'] || prior[:liked_at])
+            subreddit_row = db.execute("SELECT subreddit FROM meme_stats WHERE url = ?", [meme_url]).first
+            subreddit = subreddit_row && (subreddit_row['subreddit'] || subreddit_row[:subreddit])
+            bump_subreddit_preference(user_id, subreddit, db, increment: 0.2)
+          end
         end
         
         # 2. Log activity for metrics (time-based tracking)
@@ -67,7 +100,23 @@ class EngagementService
         end
         
         # 5. Update weekly leaderboard
-        update_weekly_leaderboard(user_id, 'like', db) if user_id
+        if user_id
+          # Optional legacy leaderboard tables may be absent. Its rescued SQL
+          # must not poison the critical membership/count transaction.
+          if Thread.current[:db_connection]
+            db.execute('SAVEPOINT optional_like_leaderboard')
+            begin
+              update_weekly_leaderboard(user_id, 'like', db)
+              db.execute('SELECT 1')
+            rescue StandardError
+              db.execute('ROLLBACK TO SAVEPOINT optional_like_leaderboard')
+            ensure
+              db.execute('RELEASE SAVEPOINT optional_like_leaderboard')
+            end
+          else
+            update_weekly_leaderboard(user_id, 'like', db)
+          end
+        end
         
         # 6. Record in ActivityTrackerService (Redis for real-time stats)
         # ActivityTrackerService removed during Elon audit

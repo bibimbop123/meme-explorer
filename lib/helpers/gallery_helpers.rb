@@ -66,7 +66,7 @@ module GalleryHelpers
     gallery_images.each_with_index do |image, index|
       active_class = index == 0 ? "active" : ""
       html += %{
-        <div class="gallery-slide #{active_class}" data-index="#{index}">
+        <div class="gallery-slide #{active_class}" data-index="#{index}" #{index.zero? ? '' : 'hidden style="display: none;"'}>
           <img data-recoverable-media #{MediaDimensions.attributes(image)} src="#{Rack::Utils.escape_html(MediaUrl.safe(image['url']) || '/images/meme-placeholder.svg')}" alt="#{Rack::Utils.escape_html(meme_title.to_s)} - Image #{index + 1}" loading="#{index.zero? ? 'eager' : 'lazy'}">
           #{image['caption'] && image['caption'] != '' ? "<p class='gallery-caption'>#{Rack::Utils.escape_html(image['caption'].to_s)}</p>" : ""}
         </div>
@@ -84,7 +84,7 @@ module GalleryHelpers
       
       gallery_images.each_with_index do |_, index|
         active_class = index == 0 ? "active" : ""
-        html += %{<span class="gallery-dot #{active_class}" data-index="#{index}"></span>}
+        html += %{<button type="button" class="gallery-dot #{active_class}" data-index="#{index}" aria-label="Show image #{index + 1} of #{gallery_images.size}" aria-pressed="#{index.zero?}"></button>}
       end
       
       html += "</div>"
@@ -93,7 +93,7 @@ module GalleryHelpers
     end
     
     html += %{
-      <div class="gallery-counter">#{gallery_images.size > 1 ? "1 / #{gallery_images.size}" : ""}</div>
+      <div class="gallery-counter" role="status" aria-live="polite" aria-atomic="true">#{gallery_images.size > 1 ? "1 / #{gallery_images.size}" : ""}</div>
       </div>
     }
     
@@ -286,11 +286,18 @@ module GalleryHelpers
             if (slides.length <= 1) return;
             
             function showSlide(index) {
-              slides.forEach(slide => slide.classList.remove('active'));
-              dots.forEach(dot => dot.classList.remove('active'));
               
               if (index >= slides.length) currentSlide = 0;
               if (index < 0) currentSlide = slides.length - 1;
+              slides.forEach((slide, i) => {
+                slide.classList.remove('active');
+                slide.hidden = i !== currentSlide;
+                slide.style.display = i === currentSlide ? '' : 'none';
+              });
+              dots.forEach((dot, i) => {
+                dot.classList.remove('active');
+                dot.setAttribute('aria-pressed', String(i === currentSlide));
+              });
               
               slides[currentSlide].classList.add('active');
               dots[currentSlide]?.classList.add('active');
@@ -323,30 +330,41 @@ module GalleryHelpers
             });
             
             // Touch/swipe support for mobile
-            let touchStartX = 0;
-            let touchEndX = 0;
+            let touchStart = null;
             
             gallery.addEventListener('touchstart', e => {
-              touchStartX = e.changedTouches[0].screenX;
-            });
+              touchStart = null;
+              if (e.touches.length !== 1 || e.target.closest('button, a, input, textarea, select, [contenteditable]')) return;
+              touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: true });
+
+            gallery.addEventListener('touchmove', e => {
+              if (!touchStart) return;
+              if (e.touches.length !== 1) { touchStart = null; return; }
+              const x = Math.abs(e.touches[0].clientX - touchStart.x);
+              const y = Math.abs(e.touches[0].clientY - touchStart.y);
+              if (y > 10 && y >= x) touchStart = null;
+            }, { passive: true });
+            gallery.addEventListener('touchcancel', () => { touchStart = null; }, { passive: true });
             
             gallery.addEventListener('touchend', e => {
-              touchEndX = e.changedTouches[0].screenX;
-              handleSwipe();
-            });
-            
-            function handleSwipe() {
-              if (touchEndX < touchStartX - 50) {
+              const start = touchStart;
+              touchStart = null;
+              if (!start || e.touches.length || !e.changedTouches.length) return;
+              const x = e.changedTouches[0].clientX - start.x;
+              const y = e.changedTouches[0].clientY - start.y;
+              if (Math.abs(x) < 50 || Math.abs(x) <= Math.abs(y) * 1.5) return;
+              if (x < 0) {
                 // Swipe left - next
                 currentSlide++;
                 showSlide(currentSlide);
               }
-              if (touchEndX > touchStartX + 50) {
+              if (x > 0) {
                 // Swipe right - prev
                 currentSlide--;
                 showSlide(currentSlide);
               }
-            }
+            }, { passive: true });
             
             // Arrow-key ownership is centralized in MemeNavigation. The
             // gallery's buttons remain the single owner of slide changes.

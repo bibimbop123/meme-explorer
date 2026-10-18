@@ -2,6 +2,297 @@
 
 ## Execution state
 
+### Signed-in browser like continuity — 2026-10-17
+
+Opt-in random disposable account adds six checks: browser-fetch signup with real
+CSRF/session, DOM Like confirmation/count, liked media on profile after full-page
+navigation, unlike baseline restoration, logout and protected profile redirect.
+**138 total browser checks pass**; default account-free run remains 132. Signup
+fetch is not real form submission; image presence is not exact-meme reload state.
+Fixture guards existing accounts and deletes only designated random user/activity
+at exit. Independent query after shutdown reports zero matching fixture users.
+
+153 frontend tests, syntax/diff checks pass. Test/harness/docs-only; no backend
+rerun or product defect/implementation change. No account credentials logged in
+reports, production mutation, commit/push/deploy/feed changes or score increase.
+Temporary Chrome/server/Redis stopped. Physical pointer, concurrent tabs, exact
+reload state, real user/content evidence and manual/platform gates remain open.
+
+### Guest browser like retry/late-response acceptance — 2026-10-17
+
+Complete Chrome fixture suite **132 passing checks**. Six new checks use DOM
+Like-button listeners with real guest HTTP/CSRF/Redis persistence and test-only
+fetch wrapper dropping/holding successful responses after server completion.
+Lost success → visible rollback → retry desired true with one count increment;
+explicit unlike restores count. Held success after Next leaves other meme UI
+unchanged; Previous restores confirmed original like. Final unlike restores delta.
+No new app defect/implementation change or physical click claim. 153 frontend tests,
+JS syntax/diff pass. Backend not rerun; latest 1,313/zero failures/seven pending.
+No signed-in browser or guest multi-tab race claim. Fixture services stopped;
+no production/flag/commit/push/deploy changes, no score increase.
+
+### Like HTTP retry and partial-write rollback acceptance — 2026-10-17
+
+Extended actual-app config.ru/HTTP test to 19 checks: missing like CSRF rejected;
+desired states true/true/false/false/true preserve intended state and counts;
+nonboolean intent rejected. Real Redis session/auth/CSRF stack; no browser click
+claim. Added random like fixture identity and at-exit metadata/activity cleanup.
+Independent DB query confirms zero fixture users/stats/activity afterward.
+
+New backend regression injects swallowed missing-table SQL after membership/count/
+preference writes start; all three roll back and service reports failure. Full
+backend **1,313 examples / zero failures / seven pending, 77.61% coverage
+(5,303/6,833), exit 0**, 72.29s. **153 frontend tests pass**, Ruby syntax/diff
+checks pass. Product implementation unchanged this slice; tests/docs only. No
+browser rerun, concurrency HTTP guarantee, guest-session race fix, deployment,
+commit/push/feed change or score increase. Disposable Redis stopped afterward.
+
+### Desired-state and atomic signed-in likes — 2026-10-17, local validation
+
+`/like` accepts optional boolean liked; invalid shapes/states/URL types rejected.
+Bundled client sends intent, not toggle-only. Missing state retains old toggle
+compatibility. Signed-in set_like locks media stats row within DB transaction,
+serializes membership/count/preference transition, returns unchanged for repeated
+desired state and rolls back critical failure with safe 503. Explicit outcome retained
+because repository transaction wrapper returns COMMIT result. Optional legacy
+leaderboard isolated by savepoint: rescued missing-table SQL otherwise poisons
+PostgreSQL transaction. Final SELECT verifies transaction has not silently aborted.
+
+Initial full runs failed for transaction return semantics and optional leaderboard
+SQL; fixed, not bypassed. One bundle-fingerprint failure came from rebuilding during
+tests; final run used fixed artifacts. Final **1,312 examples / zero failures /
+seven pending, 77.54% coverage (5,298/6,833), exit 0**, 71.19s. **153 frontend tests
+pass**, including explicit-state client payload; build/syntax/diff pass. New tests:
+route retries/validation, unchanged-state counts/preferences, rollback and four
+concurrent same-state requests over real pooled DB connections. Existing real Redis
+session toggle compatibility passes. Browser interaction mutation not newly run.
+
+Guest desired states use session and remain vulnerable to concurrent session writes;
+legacy clients still toggle on retry. Conflicting signed-in intents serialize by DB
+arrival, not client sequence/version. Direct track_like callers outside route remain
+outside lock boundary. No schema/ranking/flag/historical score repair or production
+changes. No commit/push/deploy/score bump. Disposable Redis stopped after checks.
+
+### Sequential like preference integrity — 2026-10-17, local regression
+
+Inspection confirmed track_like bumped preferences on every positive toggle while
+liked_at history survives unlike. Preference bump now consults prior liked_at so
+sequential re-likes of one user/media do not repeatedly strengthen community taste.
+New real-route regression exercises first like, three unlike/re-like cycles and a
+different meme in the same community: global counts alternate 0/1; preference stays
+1.0/times_liked=1 until second distinct meme then becomes 1.2/2.
+
+Full backend **1,308 examples / zero failures / seven pending, 77.51% coverage
+(5,274/6,804), exit 0**, 71.16s. **152 frontend tests pass**; syntax/diff checks pass.
+No ranking formula/feed flag/schema change, no historical score repair. This retains
+historical-positive evidence rather than decrementing on unlike. Not a retry-safe
+desired-state API or concurrency fix; authenticated route still toggles and its
+multiple persistence writes are not atomic. Missing legacy liked_at can count once
+again; preference-write failure handling remains existing best-effort behavior.
+No recommendation quality/retention lift claimed. Browser not rerun for backend
+slice. Disposable test Redis stopped; no commit/push/deploy or score increase.
+
+### Content baseline collection checks — 2026-10-17, offline tooling
+
+Extended existing bounded offline summary without changing its private input schema:
+four joint guest/returning × mobile/desktop cell counts, unknown judgment counts,
+missing-coverage warnings and explicit manual-review requirements. Detects complete
+marginal mixes masking empty joint cells. Unviewed requests excluded; no quality
+score, auto acceptance, fetching, ranking changes or real observations invented.
+Runbook/worksheet explain empty warnings are not quality or research approval.
+
+Three new regression examples cover joint gaps, fully judged balanced fixtures still
+requiring manual review and invisible-request exclusion. Full backend: **1,307
+examples, zero failures, seven pending, 77.45% coverage (5,268/6,802), exit 0**,
+70.43s. **152 frontend tests pass**; direct offline empty-report smoke, Ruby syntax
+and diff checks pass. Test fixtures are synthetic validation, not content evidence.
+No app/browser behavior change; browser suite not rerun. Disposable Redis stopped.
+Real audit/user research, manual accessibility and platform acceptance remain open.
+No commit/push/deploy, feed changes or score increase.
+
+### Action-group keyboard visibility — 2026-10-17, local fixture acceptance
+
+Browser suite now **126 passing checks**: 48 new focus/viewport/center-hit assertions
+for Like/Save/Share/Download at 320/375/1280px in both themes. Entry is programmatic
+Like focus, then native Tab through Save→Share→Download. No action mutations,
+no reproduced app defect and no product code changed. 152 Node tests, JS syntax
+and diff checks pass. Backend not rerun for test/docs-only additions; latest remains
+1,304 examples / zero failures / seven pending / 77.38% coverage.
+
+Fixture image checks do not cover all scroll/media/overlay/error/zoom/contrast
+states or whole-page Tab order. Center-hit is narrower than full unobscuration.
+No screen-reader/physical-device acceptance or real-content evidence added. Test
+services stopped; no commit/push/deploy/flag changes or score increase. Prioritize
+real baseline and manual/platform gates over further count-only fixture expansion.
+
+### Skip-to-content keyboard continuity — 2026-10-17, reproduced/fixed
+
+Skip activation did not focus main. Adding tabindex alone was insufficient:
+fragment navigation reached viewer popstate content-history logic. Added main
+tabindex=-1 and a skip click handler preventing fragment history while focusing/
+scrolling main. Native anchor remains without JS. Browser at 320/375/1280 confirms
+visible focused skip, main focus, unchanged meme/URL and next Tab into viewer
+navigation. Menu test waits after focus-induced scrolling before opening; scroll
+intentionally closes disclosure. No general history semantics change.
+
+Final validation: **78 browser checks**, **152 frontend tests**, build/syntax/diff
+pass. Final-code full backend: **1,304 examples, zero failures, seven pending,
+77.38% coverage (5,253/6,789), exit 0**, 69.22s. Bundle rebuilt. Two new Node
+regressions cover landmark markup and handler focus/scroll/preventDefault behavior.
+Action-focus/sticky coverage remains incomplete; true zoom, screen-reader listening,
+physical devices, ads, content study and Render termination remain open. No score
+increase, commit/push/deploy or feed/config changes. Temporary services stopped.
+
+### Gallery accessibility — 2026-10-17, reproduced/fixed
+
+Chrome AX tree exposed inactive server slides: reproduced before fix. Server slides
+now hidden semantically; labeled native indicator buttons expose selected state;
+counter is polite/atomic live status. Added focus-visible styling and reduced-motion
+gallery transition suppression. Browser indicator Enter activation required correct
+CDP input metadata (test fix, not product bug). Route contract verifies initial
+semantics; Node gallery mocks reflect native style/attribute updates.
+
+Final validation: **66 browser checks**, **150 frontend tests**, build/syntax/diff
+pass. Full backend **1,304 examples, zero failures, seven pending, 77.40% coverage
+(5,255/6,789), exit 0**, 70.36s. Accessibility tree confirms one current image;
+keyboard activation, selected state, visible outline and zero reduced-motion
+transition verified. No actual screen-reader listening or desktop 200% zoom;
+viewport/text enlargement not relabeled as zoom. Physical devices, contrast across
+all states, ads/real content and platform termination remain open. No score bump,
+commit/push/deploy or feed flag changes. Temporary fixture services stopped.
+
+### Valid playback and dynamic galleries — 2026-10-17, local fixture acceptance
+
+Browser script now passes **60 checks**. Added original in-memory canvas→VP8/WebM
+fixture and CDP byte-range responses. Normal dynamic renderer now has browser
+evidence for decoded gallery, button/vertical/horizontal touch ownership and exact
+slide recovery after Next→Previous. Synthetic silent video decodes, plays, seeks
+paused/muted to 0.8s and restores position after Next→Previous. Initial failures
+were test global-variable scoping and missing byte ranges, not confirmed app bugs.
+
+150 frontend tests, JS syntax and diff checks pass. No product code changed or
+backend suite rerun this slice; latest backend remains 1,304 / zero failures /
+seven pending. No binary fixture or new dependency; recording is generated locally
+in Chrome memory. One WebM codec is not cross-browser MP4/audio/streaming coverage.
+True zoom, screen reader, physical devices, ads, real content research and platform
+termination remain open. No score increase/commit/push/deploy or feed changes.
+Services stopped after validation. See [browser report](BROWSER_UX_ACCEPTANCE_2026_10_17.md).
+
+### Gallery gestures and video recovery — 2026-10-17, reproduced/fixed
+
+Extended browser fixture with request-local gallery and invalid-video modes.
+Browser regression reproduced vertical-dominant touch changing a server gallery
+slide, and nested video `<source>` error failing to create recovery actions.
+Fixed both server/dynamic gallery gesture state for direction, pinch/multitouch,
+cancellation and interactive exclusions. Recovery now maps SOURCE errors to parent
+VIDEO. Two new executable Node gallery tests plus nested-source assertion; updated
+existing touch mocks with native touchend shape. Rebuilt committed bundle.
+
+Final validation: **50 browser checks pass**, **150 frontend tests pass**, build
+passes, full backend **1,304 examples / zero failures / seven pending, 77.40%
+coverage (5,255/6,789), exit 0**, 69.97s. Syntax/diff checks pass. Browser confirms
+gallery button/keyboard ownership, vertical gesture preserving slide/feed identity,
+video controls/muted state, explicit retry retaining identity and next escape to
+decoded local image. Existing 132-byte MP4s are invalid; no successful playback,
+seeking or codec acceptance claimed. Server gallery has browser evidence; dynamic
+gesture changes have executable Node coverage, not equivalent browser acceptance.
+
+True zoom, physical devices, screen reader, ads-enabled layouts, valid playback,
+live content study and production/platform termination remain open. No feed flags,
+production changes, commit/push/deploy or score increase. Local fixture services
+stopped after checks. See [browser report](BROWSER_UX_ACCEPTANCE_2026_10_17.md).
+
+### Browser image-viewer UX — 2026-10-17, local fixture acceptance
+
+Added guarded actual-stack browser fixture and dependency-free Node/CDP script.
+42 checks pass in headless Chrome: 320/375/1280px layout, decoded-image bounds,
+theme states, menu viewport/Escape/focus, shortcuts focus trap/dismissal,
+Space→Next→Previous identity, doubled root text, reduced-motion query delivery,
+emulated vertical/horizontal touch, About swipe non-navigation and no uncaught
+Runtime exceptions. Ruby HTTP blocked, Sidekiq faked, page external requests
+intercepted, ads disabled, local test DB/disposable Redis. No feed override.
+
+No defect reproduced or product-code edits this slice. No actual 200% zoom,
+screen reader, physical-device pinch, video/gallery/ad-enabled or real content
+acceptance claimed; text enlargement and touch emulation are narrower checks.
+See [browser report](BROWSER_UX_ACCEPTANCE_2026_10_17.md). Scripts remain opt-in;
+no new browser dependency. No full backend rerun for these harness/docs additions.
+No commit/push/deploy or score increase. Fixture server/Chrome/disposable Redis
+stopped after validation. Research observations and production state untouched.
+
+### Actual-app middleware and shutdown — 2026-10-17, local acceptance
+
+Added guarded opt-in `tests/app_server_test.rb`: actual config.ru evaluated inside
+an isolated wrapper, explicit local test PostgreSQL/disposable Redis 16379,
+allowlisted child environment, dotenv bypass, Ruby HTTP blocked, fake Sidekiq and
+local media supply. No feed override. Twelve checks pass through actual Redis
+sessions, SessionValidator, authorization, compression and app: login/CSRF/session
+rotation, profile, repaired routes, viewer markup, old-token rejection, logout and
+post-logout protection. A gated health request completes after direct-Puma TERM;
+analytics shutdown completes before process reap. This is not Render Rackup or
+production-environment acceptance, nor actual provider OAuth/browser media testing.
+
+Transport suite extended to 19 checks with explicit in-flight response drain.
+Both suites pass; fixture-account cleanup independently verified (zero matching
+rows). Nonlocal DB guard rejects before app boot. Frontend 148 pass; Ruby syntax
+and diff checks pass. Full backend's latest run remains the preceding Puma batch
+(1,304 / zero failures / seven pending); not rerun for these test/docs-only changes.
+See [acceptance detail](PUMA_7_ACCEPTANCE.md). No production/start-command/config
+changes, commit/push/deploy or score increase. Browser/physical-device/accessibility
+and real content review remain open. Local disposable Redis stopped after tests.
+
+### Puma security remediation — 2026-10-17, local validation
+
+Puma upgraded 6.6.1→7.2.1 with matching `~>7.2.1` constraint; native extension
+loads on isolated Ruby 3.2.1. Config hook renamed to `before_worker_boot`; cluster
+behavior not accepted. Fresh standalone advisory scan against fa229525 reports
+**zero known vulnerabilities, exit 0**. No advisory ignores or relaxed gates.
+
+Added standalone `tests/puma_http_test.rb` and CI step: **17 passing** checks
+using real subprocesses/loopback sockets for Rackup and repository Puma config,
+cookie/CSRF/body continuity over persistent HTTP, malformed Content-Length,
+isolated PROXY v1 initial/repeated/oversized lines and shutdown. Full backend:
+**1,304 examples, zero failures, seven pending, 77.43% coverage (5,257/6,789),
+exit 0**, 71.3s. Frontend 148 passed; build/native diagnostics/bundle check and
+diff/syntax checks passed. No actual provider OAuth or new full-browser acceptance.
+
+Important discovery: Rackup fixture SIGTERM does not gracefully shut down through
+its handler; SIGINT does. Direct Puma CLI logs graceful stop on TERM, then normally
+re-raises the signal. Tests reflect those distinct contracts, not a hidden success
+claim. Render still uses Rackup; platform TERM/in-flight request drain and actual
+app staging acceptance remain deployment blockers. See [Puma acceptance](PUMA_7_ACCEPTANCE.md).
+Tests use fixture Rack apps, not actual config.ru, to avoid dotenv/provider/startup
+job side effects. Hosted Linux CI remains unrun locally. No commit/push/deploy,
+start-command changes, production mutations or feed enablement. Score unchanged.
+
+### Product roadmap phase 1 — 2026-10-17, local validation
+
+Started the [66→90 roadmap](PRODUCT_IMPROVEMENT_ROADMAP.md); no score increase
+claimed. Authenticated `/saved` now redirects to implemented `/profile` favorites;
+unsupported `/taste-evolution` returns an explicit 410 with useful alternatives,
+not a missing-service exception or fabricated insights. Six new route examples
+cover browser/JSON authentication, exact favorites continuity and retirement state.
+Replaced obsolete taste template; corrected README's stale Render build claim.
+Added private baseline worksheet for 100 visible selections, double review,
+5–8 user tasks and three ordinary supply cycles; no observations fabricated.
+
+Scoped isolated dependency updates: ActiveSupport 7.2.4, Faraday 2.14.4,
+HTTParty 0.24.3, JSON 2.21.2, JWT 3.3.0, OAuth2 2.0.25 plus required transitive
+changes; separate development-only SQLite update to 2.10.0. Gemfile constraints
+unchanged. SQLite native in-memory round trip passed. Final backend run against
+local test PostgreSQL and disposable Redis 16379: **1,304 examples, zero failures,
+seven pending, 77.36% coverage (5,252/6,789), exit 0**, 70.3s. Frontend 148 passed;
+Vite build, isolated native diagnostics, CSRF contract, syntax, documentation links
+and diff checks passed. Seven pending tests predate this slice.
+
+Fresh standalone Ruby audit still exits 1 for two Puma 6.6.1 PROXY protocol
+advisories only. Security gate remains blocked; no ignores or bypass. Major server
+upgrade/boot/shutdown/HTTP acceptance is next. No real provider OAuth, fresh browser
+acceptance, hosted Linux CI, credential rotation, live content research, commit,
+push, deployment or feed flag enablement performed. Existing earlier mobile-swipe
+changes retained. Temporary reports under `/tmp/meme-roadmap-*` are local evidence,
+not durable production metrics. Scores remain 66/100 pending outcome validation.
+
 ### ACK concurrency investigation: real middleware reproduction
 
 Uncommitted telemetry review: date buckets now explicitly UTC to avoid cross-host

@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+test('skip link targets a programmatically focusable main landmark without adding a Tab stop', async () => {
+  const layout = await readFile(new URL('../../views/layout.erb', import.meta.url), 'utf8');
+  assert.match(layout, /href="#main-content" class="skip-to-content"/);
+  assert.match(layout, /<main id="main-content" role="main" tabindex="-1">/);
+});
+
 test('viewer layout overrides load after competing legacy responsive styles', async () => {
   const layout = await readFile(new URL('../../views/layout.erb', import.meta.url), 'utf8');
   assert.ok(layout.indexOf('viewer_stylesheet_path') > layout.indexOf('/css/mobile-optimizations-v2.css'));

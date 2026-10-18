@@ -21,16 +21,18 @@
   };
 
   // State
-  let touchStartX = 0;
+  let touchStartX = null;
   let touchStartY = 0;
   let touchStartTime = 0;
   let isSwiping = false;
   let swipeOverlay = null;
+  let initialized = false;
 
   /**
    * Initialize swipe gestures
    */
   function init() {
+    if (initialized || !document.getElementById('meme-display')) return;
     // Only enable on touch devices
     if (!('ontouchstart' in window)) {
       console.log('📱 Swipe gestures: Not a touch device, skipping');
@@ -41,11 +43,13 @@
     
     // Create swipe feedback overlay
     createSwipeOverlay();
+    initialized = true;
     
     // Add touch event listeners
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', resetGesture, { passive: true });
     
     console.log('✅ Swipe gestures: Ready');
   }
@@ -79,20 +83,12 @@
    * Handle touch start
    */
   function handleTouchStart(e) {
-    touchStartX = 0;
-    touchStartY = 0;
-    isSwiping = false;
-    // Gallery owns its gesture; never also navigate away from the meme.
-    if (e.target.closest('.gallery-carousel, .meme-gallery')) return;
-    // Ignore if touching input/textarea
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      return;
-    }
-
-    // Ignore if touching a button/link
-    if (e.target.closest('button, a')) {
-      return;
-    }
+    resetGesture();
+    // Only the viewer owns feed gestures. Preserve browser zoom, media controls,
+    // galleries, editable content and gestures inside open dialogs.
+    if (e.touches.length !== 1 || document.body.classList.contains('modal-open')) return;
+    if (!e.target.closest('#meme-display')) return;
+    if (e.target.closest('.gallery-carousel, .meme-gallery, video, audio, input, textarea, select, button, a, [contenteditable], [role="dialog"], dialog')) return;
 
     const touch = e.touches[0];
     touchStartX = touch.clientX;
@@ -105,14 +101,19 @@
    * Handle touch move
    */
   function handleTouchMove(e) {
-    if (!touchStartX) return;
+    if (e.touches.length !== 1) { resetGesture(); return; }
+    if (touchStartX === null) return;
 
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchStartX;
     const deltaY = Math.abs(touch.clientY - touchStartY);
 
     // Check if this is a horizontal swipe
-    if (Math.abs(deltaX) > 10 && deltaY < CONFIG.maxVerticalDrift) {
+    if (deltaY > CONFIG.maxVerticalDrift || (deltaY > 10 && deltaY >= Math.abs(deltaX))) {
+      resetGesture();
+      return;
+    }
+    if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY * 1.5) {
       isSwiping = true;
       
       // Show visual feedback
@@ -138,7 +139,7 @@
       
       // Prevent default scroll if swiping
       if (Math.abs(deltaX) > CONFIG.swipeThreshold / 2) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
       }
     }
   }
@@ -147,10 +148,8 @@
    * Handle touch end
    */
   function handleTouchEnd(e) {
-    if (!touchStartX || !isSwiping) {
-      touchStartX = 0;
-      touchStartY = 0;
-      hideSwipeOverlay();
+    if (touchStartX === null || !isSwiping || e.touches.length || !e.changedTouches.length) {
+      resetGesture();
       return;
     }
 
@@ -158,11 +157,12 @@
     const deltaX = touch.clientX - touchStartX;
     const deltaY = Math.abs(touch.clientY - touchStartY);
     const deltaTime = Date.now() - touchStartTime;
-    const velocity = Math.abs(deltaX) / deltaTime;
+    const velocity = Math.abs(deltaX) / Math.max(deltaTime, 1);
 
     // Check if swipe meets thresholds
     const isValidSwipe = 
       Math.abs(deltaX) > CONFIG.swipeThreshold &&
+      Math.abs(deltaX) > deltaY * 1.5 &&
       deltaY < CONFIG.maxVerticalDrift &&
       velocity > CONFIG.velocityThreshold;
 
@@ -189,7 +189,11 @@
     }
 
     // Reset
-    touchStartX = 0;
+    resetGesture();
+  }
+
+  function resetGesture() {
+    touchStartX = null;
     touchStartY = 0;
     isSwiping = false;
     hideSwipeOverlay();
@@ -201,9 +205,7 @@
   function hideSwipeOverlay() {
     if (swipeOverlay) {
       swipeOverlay.style.opacity = '0';
-      setTimeout(() => {
-        swipeOverlay.style.display = 'none';
-      }, 200);
+      swipeOverlay.style.display = 'none';
     }
   }
 
@@ -225,8 +227,7 @@
       return;
     }
 
-    // Ultimate fallback: Navigate to /random
-    window.location.href = '/random';
+    // No fallback navigation: a missing viewer control must not leave the page.
   }
 
   /**
@@ -247,8 +248,7 @@
       return;
     }
 
-    // Fallback: Navigate to /random
-    window.location.href = '/random';
+    // No fallback navigation: Previous must never unexpectedly advance the feed.
   }
 
   /**
@@ -258,10 +258,14 @@
     document.removeEventListener('touchstart', handleTouchStart);
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', handleTouchEnd);
+    document.removeEventListener('touchcancel', resetGesture);
+    resetGesture();
+    initialized = false;
     
     if (swipeOverlay && swipeOverlay.parentNode) {
       swipeOverlay.parentNode.removeChild(swipeOverlay);
     }
+    swipeOverlay = null;
     
     console.log('📱 Swipe gestures: Destroyed');
   }

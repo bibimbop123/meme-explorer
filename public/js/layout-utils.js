@@ -62,6 +62,15 @@ if (document.readyState === 'loading') {
 }
 
 // Export for use in other modules
+// Avoid fragment navigation reaching the viewer's content-history popstate handler.
+document.querySelector('.skip-to-content')?.addEventListener('click', event => {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  event.preventDefault();
+  main.focus({ preventScroll: true });
+  main.scrollIntoView({ block: 'start', behavior: 'instant' });
+});
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { toggleMobileNav, initNavigationDisclosure };
 }

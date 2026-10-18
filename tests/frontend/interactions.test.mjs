@@ -5,6 +5,25 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../../public/js/modules/meme-interactions.js', import.meta.url), 'utf8');
 const { MemeInteractions } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
+test('like sends explicit intended state instead of a retry-unsafe toggle', async () => {
+  const original = { document: globalThis.document, fetch: globalThis.fetch };
+  const button = { classList: { contains: () => false, add() {}, remove() {} } };
+  let payload;
+  globalThis.document = { getElementById: () => button };
+  globalThis.fetch = async (_url, options) => {
+    payload = JSON.parse(options.body);
+    return { ok: true, json: async () => ({ success: true, liked: true, likes: 1 }) };
+  };
+  const interactions = Object.create(MemeInteractions.prototype);
+  interactions.getCurrentMemeUrl = () => '/images/current.jpg';
+  for (const method of ['createRipple', 'updateLikeButton', 'triggerHaptic', 'publishInteraction', 'showToast', 'updateLikeCount']) interactions[method] = () => {};
+  try {
+    await interactions.handleLike({});
+    assert.deepEqual(payload, { url: '/images/current.jpg', liked: true });
+    assert.equal(interactions.isProcessing, false);
+  } finally { Object.assign(globalThis, original); }
+});
+
 test('share uses the displayed stable meme path rather than random page address', async () => {
   const original = { navigator: Object.getOwnPropertyDescriptor(globalThis, 'navigator'), window: globalThis.window, document: globalThis.document };
   let copied;
