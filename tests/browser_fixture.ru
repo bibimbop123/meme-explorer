@@ -17,6 +17,7 @@ Sidekiq::Testing.fake!
 # Prevent inherited external integrations even when launched from a developer shell.
 %w[SENTRY_DSN REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET CDN_URL GOOGLE_ADSENSE_CLIENT MONETAG_ZONE_ID].each { |key| ENV.delete(key) }
 ENV['DISABLE_ADS'] = 'true'
+ENV['ENABLE_DISCOVERY_CONTROLS'] = 'true'
 ENV['SESSION_SECRET'] = 'local-browser-fixture-only-' * 8
 root = File.expand_path('..', __dir__)
 require File.join(root, 'app')

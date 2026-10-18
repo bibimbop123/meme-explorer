@@ -1,0 +1,30 @@
+<details id="discovery-controls" class="feed-preferences" <%= 'open' if !@meme %>>
+  <summary>Discovery controls (<%= hidden_feed_communities.size %> hidden communities)</summary>
+  <p>Hide a community from future Random selections in this browser session. This is not an account preference. Settings expire 30 days after your first change and may survive closing the browser. Signing in preserves them; signing out starts a new session. Search, exact links, and previously viewed memes remain available. Use Reset on shared devices. Other open tabs may still show previously loaded memes.</p>
+  <% community = @meme && @meme['subreddit'].to_s.downcase %>
+  <% valid_community = community && community.match?(/\A[a-z0-9_]{1,32}\z/) %>
+    <form id="hide-current-community" method="post" action="/feed/preferences" <%= 'hidden' unless valid_community %>>
+      <input type="hidden" name="authenticity_token" value="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
+      <input type="hidden" name="action" value="hide">
+      <input type="hidden" name="community" value="<%= Rack::Utils.escape_html(valid_community ? community : '') %>">
+      <button type="submit">Hide r/<%= Rack::Utils.escape_html(community) %> from Random</button>
+    </form>
+  <% hidden_feed_communities.each do |name| %>
+    <form method="post" action="/feed/preferences">
+      <input type="hidden" name="authenticity_token" value="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
+      <input type="hidden" name="action" value="restore">
+      <input type="hidden" name="community" value="<%= Rack::Utils.escape_html(name) %>">
+      <button type="submit">Restore r/<%= Rack::Utils.escape_html(name) %></button>
+    </form>
+  <% end %>
+  <% unless hidden_feed_communities.empty? %>
+    <% %w[undo reset].each do |action| %>
+      <% next if action == 'undo' && !hidden_feed_communities.include?(discovery_preferences['undo']) %>
+      <form method="post" action="/feed/preferences">
+        <input type="hidden" name="authenticity_token" value="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
+        <input type="hidden" name="action" value="<%= action %>">
+        <button type="submit"><%= action == 'undo' ? 'Undo last hide' : 'Reset hidden communities' %></button>
+      </form>
+    <% end %>
+  <% end %>
+</details>

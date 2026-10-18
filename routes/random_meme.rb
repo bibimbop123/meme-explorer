@@ -256,7 +256,7 @@ module Routes
           # headline number, but WHERE its time actually goes - see
           # lib/services/selection_benchmark.rb.
           @meme = SelectionBenchmark.measure do
-            meme_pool = SelectionBenchmark.measure(stage: :pool_lookup) { random_memes_pool }
+            meme_pool = SelectionBenchmark.measure(stage: :pool_lookup) { filter_feed_communities(random_memes_pool) }
             # ROADMAP.md Phase 1: same personalization wiring as
             # /random.json below - this is the first-load HTML path, the
             # other real entry point into selection.
@@ -287,6 +287,8 @@ module Routes
           @meme = fallback_meme
         end
         
+        @meme = filter_feed_communities([@meme].compact).first
+
         # View count tracking (session-based, works for both logged-in and anonymous users)
         session[:view_count] ||= 0
         session[:view_count] += 1
@@ -341,6 +343,7 @@ module Routes
             random_memes_pool
           end
           
+          meme_pool = filter_feed_communities(meme_pool)
           halt 404, { error: "No memes available" }.to_json if meme_pool.empty?
 
           session_id = feed_session_id
@@ -397,7 +400,7 @@ module Routes
           # Use random_memes_pool for ALL users (both auth and non-auth) to ensure API memes are always available
           memes = SelectionBenchmark.measure(stage: :pool_lookup) do
             pool_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            pool = random_memes_pool
+            pool = filter_feed_communities(random_memes_pool)
             pool_lookup_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - pool_started) * 1000
             pool
           end

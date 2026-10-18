@@ -409,6 +409,35 @@ try {
     await wait(`location.pathname==='/search' && location.search==='' && document.readyState==='complete'`);
     check(`${width}px: start new search clears query`,await evaluate(`document.querySelector('#meme-search').value===''`));
   }
+  await send('Page.navigate',{url:`${origin}/random`});
+  await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!document.querySelector('#hide-current-community')`);
+  check('discovery controls disclose session-only scope',await evaluate(`document.querySelector('#discovery-controls').textContent.includes('not an account preference')`));
+  await evaluate(`document.querySelector('#discovery-controls').open=true;document.querySelector('#hide-current-community').requestSubmit()`);
+  await wait(`document.querySelector('h1')?.textContent==='No memes match your discovery controls'`);
+  check('hiding fixture community preserves exclusion with open recovery controls',await evaluate(`document.querySelector('#discovery-controls').open && document.body.textContent.includes('Restore r/local') && !document.querySelector('#meme-display')`));
+  for (const width of [320,375,1280]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
+    for (const theme of ['light','dark']) {
+      await evaluate(`if(document.documentElement.dataset.theme!==${JSON.stringify(theme)})document.querySelector('#darkModeToggle').click()`);
+      check(`${width}px ${theme}: discovery recovery panel fits viewport`,await evaluate(`(() => {const r=document.querySelector('#discovery-controls').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1 && document.documentElement.scrollWidth<=innerWidth+1;})()`));
+      check(`${width}px ${theme}: discovery recovery controls have bounded 44px targets`,await evaluate(`Array.from(document.querySelectorAll('#discovery-controls form:not([hidden]) button')).every(b=>{const r=b.getBoundingClientRect();return r.height>=44 && r.left>=0 && r.right<=innerWidth+1;})`));
+      await evaluate(`document.querySelector('#discovery-controls summary').focus()`);
+      await key('Tab');
+      check(`${width}px ${theme}: recovery action reachable with visible keyboard focus`,await evaluate(`document.activeElement.closest('#discovery-controls')!==null && document.activeElement.tagName==='BUTTON' && getComputedStyle(document.activeElement).outlineStyle!=='none'`));
+    }
+  }
+  const exhausted = await evaluate(`(async()=>{const r=await fetch('/random.json');return {status:r.status,body:await r.json()}})()`);
+  check('browser JSON selection never silently widens exhausted preferences',exhausted.status===409 && exhausted.body.preferences_exhausted===true);
+  await evaluate(`Array.from(document.querySelectorAll('#discovery-controls form')).find(f=>f.querySelector('[name="action"]').value==='undo').requestSubmit()`);
+  await wait(`!document.querySelector('h1') && document.querySelector('#discovery-controls summary')?.textContent.includes('(0 hidden communities)')`);
+  await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!document.querySelector('#hide-current-community')`);
+  check('Undo restores browsing and clears hidden fixture community',await evaluate(`document.querySelector('#discovery-controls summary').textContent.includes('(0 hidden communities)')`));
+  await evaluate(`document.querySelector('#discovery-controls').open=true;document.querySelector('#hide-current-community').requestSubmit()`);
+  await wait(`document.querySelector('h1')?.textContent==='No memes match your discovery controls'`);
+  await evaluate(`Array.from(document.querySelectorAll('#discovery-controls form')).find(f=>f.querySelector('[name="action"]').value==='reset').requestSubmit()`);
+  await wait(`!document.querySelector('h1') && document.querySelector('#discovery-controls summary')?.textContent.includes('(0 hidden communities)')`);
+  await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!document.querySelector('#hide-current-community')`);
+  check('Reset restores browser Random selection',await evaluate(`document.querySelector('#discovery-controls summary').textContent.includes('(0 hidden communities)')`));
   check('no uncaught browser exceptions', exceptions.length === 0);
 } finally {
   for (const item of pending.values()) clearTimeout(item.timer);

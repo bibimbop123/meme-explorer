@@ -1,4 +1,23 @@
 /* Loaded after legacy responsive rules. Keep overrides scoped to the viewer. */
+.feed-preferences {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 800px;
+  margin: 24px auto;
+  padding: 16px;
+  border: 1px solid #737373;
+  border-radius: 12px;
+  background: #fff;
+  color: #222;
+  overflow-wrap: anywhere;
+}
+.feed-preferences summary { cursor: pointer; padding: 8px; }
+.feed-preferences p { line-height: 1.6; }
+.feed-preferences form { margin: 12px 0; }
+.feed-preferences button { min-height: 44px; max-width: 100%; padding: 12px; white-space: normal; overflow-wrap: anywhere; }
+.feed-preferences :focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+[data-theme="dark"] .feed-preferences { background: #1e1e1e; color: #f5f5f5; }
+[data-theme="dark"] .feed-preferences :focus-visible { outline-color: #93c5fd; }
 .meme-share-panel {
   box-sizing: border-box;
   width: 100%;

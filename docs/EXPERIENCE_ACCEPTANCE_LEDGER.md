@@ -2,6 +2,206 @@
 
 ## Execution state
 
+### Atomic store survives late session commit
+
+Extended deterministic real-middleware harness: **eight checks pass**, legacy
+snapshot overwrite reproduced and separate preference list/revision retained.
+Established identity only; other consistency gates unchanged. Syntax/diff pass;
+tests/docs-only, full suites not rerun. Temporary Redis stopped; default-off,
+uncommitted/undeployed.
+
+### Fresh-Next Chrome rerun
+
+Current client/atomic routes: **203 Chrome checks pass, exit 0**, no uncaught
+exceptions. Enabled-control navigation and Hide/scarcity/Undo/Reset remain working
+without speculative selection. No product changes in this rerun; not a latency or
+two-tab consistency evaluation. Temporary app/Chrome/Redis stopped. Default-off,
+uncommitted/undeployed; identity/in-flight/manual/research gates unchanged.
+
+### Discovery fresh Next instead of speculative reuse
+
+Enabled discovery pages skip prefetch; Next discards an old cached candidate and
+fetches current server state. Disabled pages/history unchanged. Two regressions
+added, existing init DOM fixture updated: **170 frontend pass**, build/diff pass.
+No backend changes/full backend rerun. Chrome rerun still required. Does not solve
+already-in-flight selection overlap or identity races; default-off retained.
+
+### Atomic-store browser rerun
+
+Enabled fixture against current atomic-store routes: **203 Chrome checks pass,
+exit 0**, including Hide/scarcity/Undo/Reset, responsive/theme/keyboard recovery,
+and no uncaught exceptions. No product code changes or backend rerun in this step.
+Does not establish cross-tab/logout-race consistency; default-off remains.
+Temporary app/Chrome/Redis stopped. Candidate uncommitted/undeployed.
+
+### Discovery logout cleanup
+
+POST logout deletes separate preference record even when flag disabled; cleanup
+outage does not block session destruction. TTL fallback retained. No revocation
+guarantee against in-flight preference writes after deletion. Two new route tests;
+full backend **1,356 examples, zero failures, seven pending**, **77.95% coverage**,
+exit 0. Syntax/diff checks pass. No frontend change/browser rerun. Default-off,
+uncommitted/undeployed. Temporary Redis stopped.
+
+### Atomic discovery route integration
+
+Routes and Undo UI use independent atomic preferences under existing browsing
+identity. Legacy session exclusion fields unused, not migrated. Added fail-closed
+503 route read/write regression; stored controls survive outage. Login identity
+preserved by existing auth code; logout drops identity but records remain until
+fixed expiry (immediate deletion not implemented). **1,354 examples, zero failures,
+seven pending, 77.92% coverage**, **168 frontend pass**, syntax/diff pass. No Chrome
+rerun; cross-tab prefetch/identity races still open, feature default-off. Temporary
+Redis stopped. Uncommitted/undeployed.
+
+### Deterministic session lost-write reproduction
+
+Standalone `tests/discovery_session_race_test.rb` against installed Redis session
+middleware: **six checks pass**, reproducing successful Hide overwritten by late
+selection snapshot. No timing sleeps/threads, app/DB boot or production changes;
+unique short-lived namespace with scoped cleanup, guarded loopback Redis only.
+Passing script means bug reproduced, NOT consistency acceptance. Syntax/diff pass;
+no full suites rerun for test/docs-only change. Default-off gate remains necessary.
+Temporary Redis stopped after run.
+
+### Enabled-switch browser rerun
+
+Chrome account-free suite rerun with fixture `ENABLE_DISCOVERY_CONTROLS=true`:
+**203 checks pass, exit 0**, including native Hide/scarcity/Undo/Reset, responsive
+recovery controls at three widths in both themes, keyboard focus and no uncaught
+exceptions. This supersedes the earlier switch entry's browser-not-rerun caveat.
+No product code changes. Default-off behavior remains backend-covered; multi-tab,
+manual staging and research gates unchanged. Temporary app/Chrome/Redis stopped.
+
+### Default-off discovery release switch
+
+Only `ENABLE_DISCOVERY_CONTROLS=true` enables the candidate. Otherwise controls
+are absent, stored exclusions ignored and preference writes return 404 without
+mutation (CSRF still applies). State retained for re-enable. Browser fixture opts
+in explicitly; Chrome not rerun after switch. Backend **1,348 examples, zero
+failures, seven pending; 77.86% coverage**, frontend **168 pass**, build/syntax/diff
+pass. Switch is process-wide, not a cohort canary or multi-tab fix. Remaining
+release gates unchanged; candidate uncommitted/undeployed, temporary Redis stopped.
+
+### Discovery recovery panel responsive/keyboard browser acceptance
+
+Account-free Chrome suite **203 checks pass**: recovery panel bounds/no horizontal
+overflow, visible form button targets >=44px and within width, Tab-reachable button
+with focus outline across 320/375/1280px and light/dark. Existing native Hide,
+JSON409, Undo/Reset journey passes afterward. **168 frontend tests**, JS syntax/
+diff pass. Tests/docs-only, no backend rerun; last backend 1,347/zero failures/seven
+pending. Not contrast audit, true zoom, screen-reader, real-user or multi-tab
+acceptance. Candidate uncommitted/undeployed; temporary Chrome/server/Redis stopped.
+
+### Discovery scope wording and supply distinction
+
+Session copy now states it can survive browser close until expiry, advises shared-
+device Reset, and warns other tabs may retain loaded content. Scoped light/dark,
+focus/44px-control/wrapping styles added. Empty supply bypasses exclusion-scarcity
+classification; route regression confirms JSON404 not misleading preferences409.
+**168 frontend tests**, build/syntax/diff pass. Backend **1,347 examples / zero
+failures / seven pending, 77.87% coverage (5,358/6,881), exit 0**, 75.51s.
+New panel CSS not yet browser-validated, no manual/user acceptance claimed. No
+concurrency synchronization added, uncommitted/undeployed. Temporary Redis stopped.
+
+### Discovery current-community form lifecycle
+
+Initial missing/invalid community previously omitted Hide form permanently, so
+later AJAX valid community had no control to reveal. Always render hidden form;
+extracted updater normalizes valid current community, clears invalid input and
+reveals on later valid media. Node transition regression and initial-render route
+regression added. No account/ranking change. **168 frontend tests**, build/syntax/
+diff pass; backend **1,346 examples / zero failures / seven pending, 77.87% coverage
+(5,358/6,881), exit 0**, 75.96s. No fresh browser/manual/user acceptance. Candidate
+uncommitted/undeployed; session/multi-tab concerns remain. Disposable Redis stopped.
+
+### Discovery CSRF and exact-link scope acceptance
+
+Two route regressions verify missing/forged CSRF leave exclusions unchanged and
+exact shared meme remains available despite hidden Random community. Standalone
+middleware contract includes preferences path. No product change required.
+Full backend **1,345 examples / zero failures / seven pending, 77.90% coverage
+(5,360/6,881), exit 0**, 72.51s. **167 frontend tests**, standalone CSRF, diff
+checks pass. No new browser/manual/user evidence. Candidate remains uncommitted;
+no deploy/flag/score increase. Disposable Redis stopped. Session write concurrency
+and multi-tab stale prefetch remain unresolved release concerns.
+
+### Discovery Undo semantics and cap boundary
+
+Duplicate hide no longer replaces last actual hide target. Restoring that target
+clears stale Undo; template omits Undo when no hidden target exists. Three route
+regressions cover duplicate ordering, restore→Undo no-op/UI and 20-community cap
+preserving existing exclusions/allowing duplicate. No account or ranking changes.
+Full backend **1,343 examples / zero failures / seven pending, 77.85% coverage
+(5,357/6,881), exit 0**, 72.57s. **167 frontend tests**, syntax/diff pass. No fresh
+browser/user/multitab acceptance. Uncommitted, no deploy/score increase; disposable
+Redis stopped after validation. Session write races remain explicitly unresolved.
+
+### Exclusions on fallback failures / Similar recovery
+
+Home/Random HTML now recheck selected fallback against hidden communities outside
+rescue path. Failure-injection tests found blocked fallback title still leaked into
+layout metadata on exhausted rendering; clear @meme before no-match response.
+Both route regressions now require no blocked title or viewer. Similar client uses
+explicit preference-recovery message for classified scarcity too.
+
+Initial backend run failed two new metadata checks; fixed, no assertion weakened.
+Final **1,340 examples / zero failures / seven pending, 77.82% coverage
+(5,353/6,879), exit 0**, 72.59s. **167 frontend tests**, build/syntax/diff pass.
+No browser rerun for this fallback slice; earlier steering form journey remains
+185 checks, not fresh failure acceptance. Session/multi-tab stale prefetch races
+remain open. Uncommitted, no deploy/flag/account-score/score increase; Redis stopped.
+
+### Discovery native-form browser journey acceptance
+
+Account-free Chrome **185 checks pass**: session-scope disclosure, native requestSubmit
+Hide→explicit exhausted HTML/open restore controls, JSON409 preserving exclusion,
+Undo and Reset restoring decoded fixture media. Initial browser run caught discovery
+disclosure above viewer breaking skip→Tab navigation; moved disclosure below viewer.
+Subsequent harness race after Undo fixed by waiting for actual redirect page state,
+not weakening assertions. Controls tested with single local fixture community,
+not real-user clarity, mixed-source relevance or multi-tab stale-prefetch acceptance.
+
+167 frontend tests/syntax/diff pass. Backend run after stopping browser traffic:
+**1,338 examples / zero failures / seven pending, 77.81% coverage (5,350/6,876),
+exit 0**, 75.5s. No commit/deploy/account-score/flag/score increase. Temporary
+Chrome/server/Redis stopped. Session concurrency, fallback-on-error exclusion,
+Similar-specific client recovery and intended-user validation remain open.
+
+### Discovery scarcity client recovery checkpoint
+
+Explicit preferences_exhausted=true HTTP 409 classified separately from other
+conflicts. Next failure preserves current media and renders fixed, safe recovery
+copy/link to /random#discovery-controls, not untrusted server text or pointless
+retry guidance. HTML exhausted state opens discovery controls automatically.
+Two Node regressions cover classification and non-destructive recovery link.
+
+**167 frontend tests**, build/syntax/diff pass. Full backend **1,338 examples,
+zero failures, seven pending, 77.73% coverage (5,345/6,876), exit 0**, 77.4s.
+No fresh Chrome steering, physical accessibility or user study acceptance; multi-tab
+prefetch/session-write races and fallback failure behavior remain open. Candidate
+not release-complete, uncommitted, no deploy/score/flag change. Disposable Redis
+stopped after validation. Prior generic-AJAX-error limitation now addressed for Next;
+other callers must be reviewed separately.
+
+### Session discovery-control implementation candidate
+
+Added CSRF-protected session-only hide community/restore/undo/reset forms with
+visible active list (max 20, validated names). Explicit scope: browser session,
+not account preference; auth may clear it; Search/exact links/history unaffected.
+Pool filter runs before home/Random HTML/JSON and Similar selection. Entire eligible
+pool excluded yields explicit HTML restore/reset page or JSON 409, never widening
+silently. Dynamic viewer updates current-community form. Full-page preference POST
+redirect avoids retaining old prefetched client choices in that page.
+
+165 frontend tests/build/syntax/diff pass. Full backend **1,338 examples / zero
+failures / seven pending, 77.76% coverage (5,347/6,876), exit 0**, 76.95s. Three
+new route examples cover selection/visible scope, scarcity/reset, undo/restore/name
+validation. Browser, real-user steering, cross-tab stale prefetch and failure/fallback
+acceptance remain open. AJAX 409 still generic client error; no relevance/retention
+lift or research validation claimed. Needs follow-up before release. Uncommitted,
+no deploy/flag/account-score change. Temporary Redis stopped.
+
 ### Consolidated sharing final local checkpoint
 
 Accumulated uncommitted panel/desktop clipboard/fallback/reset/resource changes

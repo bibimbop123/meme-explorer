@@ -1,5 +1,6 @@
 # Authentication Routes
 require_relative '../lib/validators'
+require_relative '../lib/services/discovery_preferences_store'
 
 class AuthRoutes
   def self.register(app)
@@ -360,6 +361,14 @@ class AuthRoutes
             # Get session ID before clearing (for logging)
             session_id = request.session_options[:id] rescue 'unknown'
             user_id = session[:user_id]
+
+            # Cleanup is independent of the rollout flag. An unavailable store
+            # must never prevent auth session destruction; fixed TTL is fallback.
+            begin
+              DiscoveryPreferencesStore.delete(session[:feed_session_id])
+            rescue DiscoveryPreferencesStore::Unavailable
+              AppLogger.warn('Discovery preference cleanup unavailable during logout')
+            end
             
             # Clear all session data (works with both Cookie and Redis sessions)
             session.clear

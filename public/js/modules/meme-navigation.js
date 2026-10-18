@@ -49,6 +49,9 @@ export class MemeNavigation {
     }
 
     // Prefetch first next meme immediately
+    // Enabled controls require selection at click time, not an older speculative
+    // response from before a preference change in another tab.
+    this.discoveryControlsActive = !!document.getElementById('discovery-controls');
     this.prefetchNext();
   }
 
@@ -574,7 +577,8 @@ export class MemeNavigation {
 
       // Use prefetched meme if available
       let meme;
-      if (!this.prefetchedMeme && this.prefetchPromise) await this.prefetchPromise;
+      if (this.discoveryControlsActive) this.prefetchedMeme = null;
+      if (!this.discoveryControlsActive && !this.prefetchedMeme && this.prefetchPromise) await this.prefetchPromise;
       if (version !== this.navigationVersion) return;
       if (this.prefetchedMeme) {
         console.log('[MemeNavigation] Using prefetched meme');
@@ -618,7 +622,11 @@ export class MemeNavigation {
     } catch (error) {
       if (version !== this.navigationVersion) return;
       console.error('[MemeNavigation] Failed to load meme:', error);
-      this.showError('Failed to load meme. Please try again.');
+      if (error.preferencesExhausted) {
+        this.showPreferencesExhausted();
+      } else {
+        this.showError('Failed to load meme. Please try again.');
+      }
 
 
     } finally {
@@ -655,7 +663,8 @@ export class MemeNavigation {
     } catch (error) {
       if (version !== this.navigationVersion) return;
       console.error('[MemeNavigation] Failed to load similar meme:', error);
-      this.showError('Could not load a similar meme. Your current meme is still here.');
+      if (error.preferencesExhausted) this.showPreferencesExhausted();
+      else this.showError('Could not load a similar meme. Your current meme is still here.');
 
     } finally {
       if (version === this.navigationVersion) {
@@ -692,6 +701,7 @@ export class MemeNavigation {
     document.getElementById('meme-navigation-error')?.remove();
     display.innerHTML = this.renderMemeHTML(meme);
     display.dataset.memeUrl = meme.url || '';
+    this.updateDiscoveryCommunity(meme);
     const manualShare = document.querySelector('#manual-share');
     if (manualShare) manualShare.hidden = true;
     const saveSignIn = document.querySelector('#save-sign-in');
@@ -949,6 +959,27 @@ export class MemeNavigation {
     }
   }
 
+  updateDiscoveryCommunity(meme) {
+    const form = document.getElementById('hide-current-community');
+    if (!form) return;
+    const community = String(meme.subreddit || '').toLowerCase();
+    const valid = /^[a-z0-9_]{1,32}$/.test(community);
+    form.hidden = !valid;
+    form.querySelector('[name="community"]').value = valid ? community : '';
+    form.querySelector('button').textContent = valid ? `Hide r/${community} from Random` : 'Community unavailable';
+  }
+
+  showPreferencesExhausted() {
+    this.showError('No memes match your hidden-community settings. Your current meme is still here.');
+    const notice = document.getElementById('meme-navigation-error');
+    if (!notice) return;
+    notice.textContent = 'No memes match your hidden-community settings. Your current meme is still here. ';
+    const recovery = document.createElement('a');
+    recovery.href = '/random#discovery-controls';
+    recovery.textContent = 'Review hidden communities to restore or reset';
+    notice.appendChild(recovery);
+  }
+
   /**
    * Update browser URL without reload
    */
@@ -971,6 +1002,7 @@ export class MemeNavigation {
    * Prefetch next meme in background for instant loading
    */
   prefetchNext() {
+    if (this.discoveryControlsActive) return;
     if (this.dataSavingEnabled()) return this.prefetchPromise;
     // Don't prefetch if already loading or already have one
     if (this.loading || this.prefetchedMeme || this.prefetchPromise) {
@@ -1007,7 +1039,18 @@ export class MemeNavigation {
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 409) {
+          let body;
+          try { body = await response.json(); } catch (_) {}
+          if (body?.preferences_exhausted === true) {
+            const error = new Error('Discovery preferences exhausted');
+            error.preferencesExhausted = true;
+            throw error;
+          }
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
       const meme = await response.json();
       if (!meme || typeof meme !== 'object' || Array.isArray(meme) || typeof meme.url !== 'string' || !meme.url) {
         throw new Error('Invalid meme response');
