@@ -32,6 +32,15 @@ require 'set'
 
 module MemeExplorer
   class SimpleMemeSelector
+    # Owner-directed editorial pilot, not inferred humor/politics classification.
+    # Selection-only: no provider budget changes, deletions or unseen bypass.
+    HUMOR_FIRST_SOURCES = %w[memes dankmemes me_irl meirl adviceanimals
+      wholesomememes starterpacks antimeme bonehurtingjuice programmerhumor
+      prequelmemes lotrmemes animalsbeingderps reactiongifs highqualitygifs].freeze
+    COMMENTARY_SOURCES = %w[whitepeopletwitter blackpeopletwitter murderedbywords
+      clevercomebacks suicidebywords kamikazebywords genz antiwork
+      aboringdystopia publicfreakout actualpublicfreakouts].freeze
+
     class << self
       # Main selection method
       # @param all_memes [Array] Pool of all available memes
@@ -201,6 +210,12 @@ module MemeExplorer
           if user_prefs.any?
             subreddit = (m['subreddit'] || m[:subreddit]).to_s.downcase
             score *= (user_prefs[subreddit] || 1.0)
+          end
+
+          if ENV['ENABLE_HUMOR_FIRST_MIX'] == 'true'
+            source = (m['subreddit'] || m[:subreddit]).to_s.downcase
+            score *= 1.5 if HUMOR_FIRST_SOURCES.include?(source)
+            score *= 0.2 if COMMENTARY_SOURCES.include?(source)
           end
 
           score

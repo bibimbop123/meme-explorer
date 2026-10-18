@@ -11,6 +11,7 @@ and offline summary; do not add worksheet fields to that tool's input.
 - Engineering/research/release owners:
 - App revision and verified web/worker revisions, if deployed:
 - Environment and permitted test accounts:
+- Discovery-control flag state (default off); keep fixed within comparison windows:
 - UTC windows, browser/OS, viewport, theme, ad state, network conditions:
 - Sampling method and limitations:
 - Consent procedure, storage access, retention/deletion date:
@@ -58,8 +59,11 @@ Unaided task script:
 4. “Save that meme and find where you would return to it.” Test the account
    continuation only with an approved disposable account.
 5. “Find something about a different topic you enjoy.”
-6. If a new steering control exists in a later candidate: “Change that preference
-   back.” Do not grade the current app on controls not yet implemented.
+6. Only in an approved candidate with discovery controls enabled: “Hide a community
+   you do not want, then change that preference back.” Record unaided use of
+   Restore/Undo/Reset and ask whether the participant expects account or browser
+   persistence. Skip and label unavailable when controls are disabled; do not
+   enable the flag solely to fill a research task or compare unlike conditions.
 
 For each task record participant code, guest/account state, broad interests
 volunteered by the participant, device, completed/partial/failed/skipped, time,
@@ -78,6 +82,22 @@ Use approved diagnostics, not forced jobs. Distinguish retained total from addit
 Zero yield is a finding, not permission to increase provider requests.
 
 ## Decision record
+
+Select one intervention from the dominant observed disappointment:
+
+| Finding | First candidate | Evidence before implementation |
+| --- | --- | --- |
+| Broken/unreadable media | Eligibility or presentation fix | Reproducible displayed failure, by media/device |
+| Exact URL repeats | Recent-view suppression correction | Visible repeat counts and within-session boundaries |
+| Repeated artwork under new URLs | Offline duplicate grouping | Reviewed matches including caption variants/false positives |
+| Source concentration | Soft recent-source diversity | Source mix paired with subjective relevance, not counts alone |
+| Low freshness/new supply | Replace about 10% of listing budget with newer listings | Three ordinary cycle yields and verified age/novelty findings |
+| Usable/varied but irrelevant | One explicit positive steering experiment | Consented task failures and relevance feedback |
+
+Do not run all candidates together. Keep provider request budget unchanged for a
+freshness pilot. Source age alone is not success. Predeclare worthwhile-discovery
+and repetition comparisons alongside media/readability/safety guardrails; report
+raw counts, unknowns, timeouts and sample limitations. No automatic rollout.
 
 Before deciding, inspect the summary's `collection_checks`: all four joint
 session/device counts, unknowns and required manual reviews. A 100-row sample or

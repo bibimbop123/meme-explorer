@@ -15,6 +15,36 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
   end
 
   describe '.select' do
+    it 'applies the optional editorial source weights only with exact opt-in' do
+      previous = ENV['ENABLE_HUMOR_FIRST_MIX']
+      # Equal engagement: draw 0.6 selects commentary at baseline, humor with pilot.
+      pool = [{ 'url' => '/humor.jpg', 'subreddit' => 'MeMeS' },
+              { 'url' => '/commentary.jpg', 'subreddit' => 'WhitePeopleTwitter' }]
+      allow(described_class).to receive(:rand).and_return(0.6)
+      [nil, 'false', 'TRUE', '1'].each do |value|
+        value.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = value
+        expect(described_class.send(:weighted_sample, pool)['url']).to eq('/commentary.jpg')
+      end
+      ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/humor.jpg')
+      # Downweighted does not mean excluded, and explicit preferences still apply.
+      allow(described_class).to receive(:rand).and_return(0.99)
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/commentary.jpg')
+    ensure
+      previous.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = previous
+    end
+
+    it 'keeps the last unseen commentary item eligible in the editorial pilot' do
+      previous = ENV['ENABLE_HUMOR_FIRST_MIX']
+      ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'
+      pool = [{ 'url' => '/seen-humor.jpg', 'subreddit' => 'memes' },
+              { 'url' => '/unseen-commentary.jpg', 'subreddit' => 'WhitePeopleTwitter' }]
+      MemeExplorer::ViewingHistoryService.mark_seen(session_id, '/seen-humor.jpg')
+      expect(described_class.select(pool, session_id, boost_fresh: false)['url']).to eq('/unseen-commentary.jpg')
+    ensure
+      previous.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = previous
+    end
+
     [1, 2, 20, 200, 5000].each do |size|
       it "selects the last unseen URL before replay for a #{size}-item inventory" do
         pool = size.times.map { |i| { 'url' => "/matrix-#{i}.jpg" } }
