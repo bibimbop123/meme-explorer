@@ -36,6 +36,10 @@ Dir.mktmpdir('meme-app-server') do |dir|
     require 'sidekiq/testing'
     Sidekiq::Testing.fake!
     require #{File.join(root, 'app').inspect}
+    raise 'SearchService missing from app boot' unless defined?(SearchService) && SearchService.respond_to?(:search)
+    MemeExplorer::App::MEME_CACHE[:memes] = 3.times.map { |i|
+      { 'url' => "/images/funny1.jpeg?boot-search-\#{i}", 'title' => "Boot search fixture \#{i}", 'subreddit' => 'local' }
+    }
     uid = UserService.create_email_user(#{email.inspect}, #{password.inspect})
     raise 'Fixture account creation failed' unless uid
     at_exit do
@@ -111,6 +115,8 @@ Dir.mktmpdir('meme-app-server') do |dir|
       puts "PASS: #{label}"
     end
     token_from = ->(html) { html[/name="csrf-token" content="([a-f0-9]+)"/, 1] }
+    search = request.call(:get, '/search?q=Boot+search+fixture')
+    check.call('Search works from isolated app boot without spec helper requires', search.code == '200' && search.body.include?('Boot search fixture 0') && search.body.include?('View Meme'))
     login = request.call(:get, '/login')
     token = token_from.call(login.body)
     check.call('actual login renders token with Redis session', login.code == '200' && token && cookies.keys.include?('meme_explorer.session'))

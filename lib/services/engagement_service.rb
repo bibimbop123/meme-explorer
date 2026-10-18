@@ -30,11 +30,22 @@ class EngagementService
         db.execute('SELECT 1')
         outcome = result
       end
-      RedisService.delete("meme:likes:#{meme_url}") if outcome[:success] && !outcome[:unchanged]
+      invalidate_like_cache(meme_url) if outcome[:success]
       outcome
     rescue StandardError => e
       AppLogger.warn('Like transition unavailable', error: e.class.name)
       { success: false, error: 'Could not update like. Please retry.' }
+    end
+
+    # Cache cleanup is outside the transaction: its failure must not contradict a
+    # committed result. Also retry cleanup for unchanged desired-state requests.
+    def invalidate_like_cache(meme_url)
+      cleared = RedisService.delete("meme:likes:#{meme_url}")
+      AppLogger.warn('Like cache invalidation unavailable') unless cleared
+      cleared
+    rescue StandardError => e
+      AppLogger.warn('Like cache invalidation unavailable', error: e.class.name)
+      false
     end
 
     # Track a like action with full integration

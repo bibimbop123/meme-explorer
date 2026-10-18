@@ -1,4 +1,4 @@
-<div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+<div class="search-page" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
   <h1 style="margin-bottom: 10px;">Search Results</h1>
   <form action="/search" method="get" role="search" style="display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0;">
     <label for="meme-search">Search titles or communities</label>
@@ -27,9 +27,11 @@
   <% elsif @query.nil? %>
     <p id="search-feedback">Find a meme by topic or community. Try cats, programming, or wholesome.</p>
   <% elsif @results.empty? %>
-    <div id="search-feedback" style="text-align: center; padding: 60px 20px; background: #f5f5f5; border-radius: 12px;">
-      <p style="font-size: 18px; color: #999;">No memes found for "<%= Rack::Utils.escape_html(@query.to_s) %>" 😢</p>
-      <p style="color: #aaa; margin-top: 10px;">Try a different search term!</p>
+    <div id="search-feedback" class="search-empty" role="status">
+      <h2>No matching memes</h2>
+      <p>No memes found for “<%= Rack::Utils.escape_html(@query.to_s) %>”.</p>
+      <p>Try fewer words, check the spelling, or search a community name without <code>r/</code>. Search matches titles and community names, not text inside images.</p>
+      <p class="search-recovery"><a href="/search">Start a new search</a><a href="/trending">Browse trending memes</a></p>
     </div>
   <% else %>
     <p id="search-feedback" role="status"><%= @results.size %> results found.</p>
@@ -126,6 +128,19 @@
 <% end %>
 
 <style>
+  .search-page .search-empty {
+    padding: 24px;
+    border: 1px solid #737373;
+    border-radius: 12px;
+    background: #f5f5f5;
+    color: #222;
+    overflow-wrap: anywhere;
+  }
+  .search-page .search-empty p { line-height: 1.6; }
+  .search-page .search-recovery { display: flex; flex-wrap: wrap; gap: 12px; }
+  .search-page .search-recovery a { padding: 12px; color: #174ea6; text-decoration: underline; }
+  [data-theme="dark"] .search-page .search-empty { background: #1e1e1e; color: #f5f5f5; }
+  [data-theme="dark"] .search-page .search-recovery a { color: #a8c7fa; }
   @media (max-width: 768px) {
     div[style*="grid-template-columns"] {
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;

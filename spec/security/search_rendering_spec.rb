@@ -1,6 +1,30 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Search discovery rendering' do
+  it 'prefers HTML for browser navigation even when wildcard permits JSON' do
+    stub_search([])
+    get '/search', { q: 'missing' }, { 'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' }
+    expect(last_response.status).to eq(200)
+    expect(last_response.content_type).to include('text/html')
+    expect(last_response.body).to include('No matching memes')
+  end
+
+  it 'retains explicit JSON negotiation' do
+    stub_search([])
+    get '/search', { q: 'missing' }, { 'HTTP_ACCEPT' => 'application/json' }
+    expect(last_response.status).to eq(200)
+    expect(JSON.parse(last_response.body)).to include('results' => [], 'total' => 0)
+  end
+
+  it 'offers honest recovery for no matches without inventing available topics' do
+    stub_search([])
+    get '/search', { q: 'missing & topic' }, { 'HTTP_ACCEPT' => 'text/html' }
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).to include('No matching memes', 'missing &amp; topic',
+      'Start a new search', 'Browse trending memes', 'not text inside images', 'class="search-empty" role="status"')
+    expect(last_response.body).not_to include('id="search-result-0"')
+  end
+
   it 'registers and renders only the requested result page and preserves the query' do
     results = 50.times.map { |index| { 'url' => "https://i.redd.it/page#{index}.jpg", 'title' => "Result #{index}" } }
     stub_search(results)

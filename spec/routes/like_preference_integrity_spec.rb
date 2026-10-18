@@ -1,6 +1,19 @@
 require_relative '../spec_helper'
 
 RSpec.describe 'Like preference signal integrity' do
+  it 'keeps guest desired-state responses correct when optional cache cleanup raises' do
+    url = 'https://example.com/guest-cache-failure.jpg'
+    allow(RedisService).to receive(:delete).with("meme:likes:#{url}").and_raise(IOError, 'private cache details')
+    [true, true, false, false].each do |desired|
+      post '/like', { url: url, liked: desired }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+      expect(last_response.status).to eq(200)
+      expect(JSON.parse(last_response.body)).to include('success' => true, 'liked' => desired,
+        'likes' => desired ? 1 : 0, 'persistent' => false)
+      expect(DB.get_first_value('SELECT likes FROM meme_stats WHERE url = ?', [url]).to_i).to eq(desired ? 1 : 0)
+      expect(last_response.body).not_to include('private cache details')
+    end
+  end
+
   it 'invalidates a cached count after a signed-in transition' do
     set_session(user_id: create_test_user('like-cache@example.test'))
     url = 'https://example.com/like-cache.jpg'

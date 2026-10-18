@@ -344,6 +344,27 @@ try {
     await wait(`location.pathname==='/login' && document.readyState==='complete'`);
     check('profile redirects to login after browser logout',true);
   }
+  for (const width of [320, 375, 1280]) {
+    await send('Emulation.setDeviceMetricsOverride', {width,height:900,deviceScaleFactor:1,mobile:false});
+    await send('Page.navigate',{url:`${origin}/search?q=${encodeURIComponent('browser-no-matches & topic')}`});
+    await wait(`!!document.querySelector('.search-empty') && document.readyState==='complete'`);
+    check(`${width}px: Search preserves unmatched query`,await evaluate(`document.querySelector('#meme-search').value==='browser-no-matches & topic'`));
+    for (const theme of ['light','dark']) {
+      await evaluate(`if(document.documentElement.dataset.theme!==${JSON.stringify(theme)})document.querySelector('#darkModeToggle').click()`);
+      check(`${width}px ${theme}: empty Search fits viewport`,await evaluate(`document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.search-empty').getBoundingClientRect().width<=innerWidth`));
+      check(`${width}px ${theme}: empty Search text and links meet 4.5 contrast`,await evaluate(`(() => {
+        const luminance=color=>{const channels=color.match(/[0-9.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4});return channels[0]*0.2126+channels[1]*0.7152+channels[2]*0.0722};
+        const panel=document.querySelector('.search-empty');const bg=luminance(getComputedStyle(panel).backgroundColor);
+        return [panel,...panel.querySelectorAll('a')].every(el=>{const fg=luminance(getComputedStyle(el).color);return (Math.max(fg,bg)+0.05)/(Math.min(fg,bg)+0.05)>=4.5});
+      })()`));
+      await evaluate(`document.querySelector('.search-recovery a').focus()`);
+      await key('Tab');
+      check(`${width}px ${theme}: recovery links follow keyboard order with visible focus`,await evaluate(`document.activeElement===document.querySelectorAll('.search-recovery a')[1] && getComputedStyle(document.activeElement).outlineStyle!=='none'`));
+    }
+    await evaluate(`document.querySelector('.search-recovery a').click()`);
+    await wait(`location.pathname==='/search' && location.search==='' && document.readyState==='complete'`);
+    check(`${width}px: start new search clears query`,await evaluate(`document.querySelector('#meme-search').value===''`));
+  }
   check('no uncaught browser exceptions', exceptions.length === 0);
 } finally {
   for (const item of pending.values()) clearTimeout(item.timer);

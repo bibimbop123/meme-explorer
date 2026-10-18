@@ -20,6 +20,15 @@ ENV['DISABLE_ADS'] = 'true'
 ENV['SESSION_SECRET'] = 'local-browser-fixture-only-' * 8
 root = File.expand_path('..', __dir__)
 require File.join(root, 'app')
+class SearchService
+  class << self
+    alias_method :browser_original_search, :search
+    def search(query, *args)
+      return { success: true, results: [], query: query } if query == 'browser-no-matches & topic'
+      browser_original_search(query, *args)
+    end
+  end
+end
 if (email = ENV['BROWSER_FIXTURE_ACCOUNT'])
   abort 'Invalid disposable browser account.' unless email.match?(/\Abrowser-[a-f0-9]{24}@example\.test\z/)
   abort 'Disposable browser account already exists.' if DB.get_first_value('SELECT id FROM users WHERE email = ?', [email])

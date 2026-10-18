@@ -59,6 +59,13 @@ cluster/streaming-request drain behavior.
 
 ## Actual-app middleware and drain acceptance
 
+Latest actual-app harness has **20 checks**: an isolated subprocess now asserts
+SearchService is present from app.rb and serves seeded local Search results without
+spec_helper dependencies. This failed before adding the missing normal runtime
+require. Browser fixture no longer supplies that missing require. Local seeded
+cache avoids provider fetches; outbound HTTP remains blocked. This is test-mode
+boot evidence, not deployed production acceptance.
+
 Latest extension passes **19 checks** (the twelve-check baseline below remains
 historical). Seven new assertions cover missing-CSRF rejection on `/like`, repeated
 true/false desired-state requests with exact counts and invalid boolean rejection.

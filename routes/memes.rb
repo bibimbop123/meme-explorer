@@ -99,12 +99,13 @@ module Routes
             liked_now = data.key?('liked') ? data['liked'] : !previous
             if liked_now == previous
               likes = ::DB.get_first_value('SELECT likes FROM meme_stats WHERE url = ?', [url]).to_i
+              EngagementService.invalidate_like_cache(url)
               return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
             end
             liked_now ? session[:liked_memes] << url : session[:liked_memes].delete(url)
             
             likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
-            RedisService.delete("meme:likes:#{url}")
+            EngagementService.invalidate_like_cache(url)
             return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
           end
 
@@ -260,13 +261,14 @@ module Routes
         # routes/random_meme.rb, routes/health.rb, etc.) - swapped in.
         app.get "/search" do
           query = params[:q]
-          if query.nil? && !request.accept?('application/json')
+          json_search = request.preferred_type('text/html', 'application/json') == 'application/json'
+          if query.nil? && !json_search
             @query = nil
             @results = []
             next erb :search
           end
 
-          if request.accept?("application/json")
+          if json_search
             # BUG FIX: SearchService.search (lib/services/search_service.rb)
             # always returns a Hash ({success:, results:, query:, total:}),
             # never a bare Array - but this called `.map`/`.size` directly

@@ -2,6 +2,112 @@
 
 ## Execution state
 
+### Search/cache follow-up commit validation — 2026-10-17
+
+Final sequential gates before requested commit: **156 account-free Chrome checks**,
+**20 actual-app HTTP checks**, **153 frontend tests**, transport suite/build and
+fresh standalone dependency audit zero known findings. Full isolated backend:
+**1,322 examples / zero failures / seven pending, 77.67% coverage (5,316/6,844),
+exit 0**, 74.07s. No shared browser traffic during backend benchmark run. Targeted
+credential-pattern scan/diff checks pass; environment/database/deploy/flag files
+unchanged. This narrow scan is not history-wide secret clearance. Fixture account
+cleanup verified; disposable Redis stopped after tests. Commit requested; no push,
+deployment, production change or score increase. Manual accessibility/platform and
+real content/user research gates remain open.
+
+### Search runtime dependency boot repair — 2026-10-17
+
+Inspection found SearchService loaded by spec_helper/browser fixture but absent
+from app.rb. Added isolated actual-app boot assertion first: subprocess failed
+before listening. Added runtime require to app.rb and removed browser fixture's
+compensating require. Harness seeds three local cache matches (no provider work),
+asserts service presence and real HTTP HTML results without spec_helper loading.
+**20 actual-app checks pass** after fix; disposable fixture user cleanup verified.
+
+Full backend **1,322 examples / zero failures / seven pending, 77.67% coverage
+(5,316/6,844), exit 0**, 73.88s. **153 frontend tests pass**, Ruby syntax/diff
+pass. No browser rerun for boot-require change; prior Search browser evidence remains
+156 account-free checks. Test-mode subprocess is not deployed production acceptance.
+No commit/push/deploy/feed change or score increase. Temporary Redis stopped.
+
+### Search browser negotiation and recovery acceptance — 2026-10-17
+
+Chrome navigation reproduced raw JSON instead of HTML because accept?(JSON)
+matched browser wildcard. Search now negotiates preferred_type(HTML, JSON); two
+route regressions preserve browser HTML and explicit JSON. Browser fixture explicitly
+requires SearchService and forces one fixed no-match query; no ranking/content claims.
+**156 account-free browser checks pass**, including 24 new Search query/layout/
+sampled contrast/keyboard/recovery assertions across three widths and two themes.
+Opt-in account flow not rerun. Contrast is sampled opaque-panel defaults, not WCAG.
+
+First backend run overlapped browser fixture on shared Redis: benchmark counted
+102 versus 100 samples. Stopped Chrome/server, reran without competing traffic:
+**1,322 examples / zero failures / seven pending, 77.64% coverage (5,313/6,843),
+exit 0**, 73.71s. No assertion relaxed. **153 frontend tests pass**, syntax/diff
+pass. Keep benchmark/browser services sequential or independently isolated.
+Temporary services stopped; no push/deploy/commit/feed changes or score increase.
+Search and previous cache-boundary follow-up remain uncommitted.
+
+### Search no-match recovery — 2026-10-17
+
+Replaced low-contrast fixed-pale no-result message with scoped light/dark empty
+state, explicit title, query/spelling/community-name guidance, search limitations
+(no image-text search), and real Start a new search / Trending links. No fabricated
+topic inventory or ranking changes. Query remains escaped; status semantics added.
+Route regression verifies recovery/escaping/no invented result card.
+
+Full backend **1,320 examples / zero failures / seven pending, 77.67% coverage
+(5,314/6,842), exit 0**, 73.48s. **153 frontend tests pass**, syntax/diff pass.
+No browser contrast/viewport acceptance claimed for this new search state; CSS is
+scoped to empty state, not a whole-search redesign. Disposable Redis stopped.
+Uncommitted follow-up; no push/deploy/feed changes or score increase. Content/user
+baseline still absent, so this is usability recovery work, not relevance evidence.
+
+### Shared signed-in count concurrency — 2026-10-17
+
+Added synchronized-start two-account DB regression: concurrent true intents return
+counts 1/2 with two memberships; concurrent false intents return 0/1 with zero
+memberships, zero count and no active user_meme_stats flags. Allows either database
+arrival order. Rollback example now asserts no cache invalidation on failed
+transaction. No product change required. Same-process threads/pooled PostgreSQL
+connections, not multiprocess, HTTP load, deterministic lock barrier or guest-session
+race evidence. No guest/cache-refill race or all conflicting intent schedules solved.
+
+Full backend **1,319 examples / zero failures / seven pending, 77.71% coverage
+(5,317/6,842), exit 0**, 73.83s. **153 frontend tests pass**, syntax/diff pass.
+No browser rerun for tests/docs. Earlier cache-boundary implementation and following
+tests remain uncommitted; no push/deploy/feed changes or score increase. Disposable
+Redis stopped after validation. Next work should prioritize open product/research
+and manual acceptance gates rather than further small count-only test increments.
+
+### Optional-cache boundary regression expansion — 2026-10-17
+
+Three new examples verify guest true/true/false/false desired states return correct
+HTTP state/count and actual DB count despite injected cache cleanup exceptions;
+signed-in committed success survives a false cache result; exception diagnostics
+contain class only and no raw message/media URL. No product-code changes this slice.
+Full backend **1,318 examples / zero failures / seven pending, 77.67% coverage
+(5,314/6,842), exit 0**, 73.02s. **153 frontend tests pass**, Ruby syntax/diff
+checks pass. No browser rerun for test/docs additions. Previous boundary implementation
+and these tests remain uncommitted. No push/deploy/feed changes or score increase.
+Disposable Redis stopped. Guest-session concurrency/cache-refill races remain open.
+
+### Cache failure versus committed likes — 2026-10-17
+
+Isolated optional like-cache invalidation from critical database outcome. Unexpected
+cache exceptions after commit no longer return false mutation failure; warnings
+contain exception class only, no media URL or raw error text. Both guest and signed-in
+desired-state no-ops retry invalidation without changing counts. Normal false return
+also logs unavailability. Existing Redis helper already handles usual Redis errors;
+this addresses unexpected exceptions and retry cleanup, not database/session failures.
+
+New failure injection proves committed success/count survives cache exception and
+unchanged retry attempts cleanup. Full backend **1,315 examples / zero failures /
+seven pending, 77.65% coverage (5,313/6,842), exit 0**, 72.42s. **153 frontend tests
+pass**; syntax/diff checks pass. No browser rerun for backend slice. Redis outages
+can still leave stale counts until retry/TTL; concurrent stale refill remains open.
+No production/flag/push/deploy changes or score increase. Disposable Redis stopped.
+
 ### Commit checkpoint and exact-link count recovery — 2026-10-17
 
 Accumulated batch committed as **69be9b5** after 1,313 backend examples/zero

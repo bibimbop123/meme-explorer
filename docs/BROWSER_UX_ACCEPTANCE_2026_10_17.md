@@ -2,6 +2,26 @@
 
 ## Result
 
+### Search recovery and browser negotiation: 156 account-free checks
+
+Current account-free suite passes **156 checks** (132 prior +24 Search checks).
+No opt-in account run this slice. Chrome initially received raw JSON on navigation:
+`accept?('application/json')` matched its wildcard despite preferred HTML. Route
+now uses preferred_type with HTML first; explicit JSON remains supported. Two
+route regressions cover actual browser Accept shape and explicit JSON.
+
+At 320/375/1280px, checks preserve unmatched query, fit empty state to viewport,
+sample foreground/link contrast >=4.5 against computed opaque panel background in
+both themes, keyboard traversal/focus between recovery links and cleared-query
+navigation. Contrast samples panel text/link default states, not all descendants,
+hover/focus/visited states or whole-page WCAG. Fixture forces no results for one
+fixed query; not real content/relevance evidence. Initial harness failed because
+SearchService needed explicit require; corrected without production boot change.
+
+Do not run browser fixture and backend benchmark suite on shared Redis concurrently:
+their aggregate counters interfere. One full run saw 102 rather than 100 benchmark
+samples during overlap; services stopped before isolated rerun, no assertion relaxed.
+
 ### Exact-link count recovery: 139 opt-in checks
 
 Exact permalink reload reproduced stale cached count with correct liked state.
