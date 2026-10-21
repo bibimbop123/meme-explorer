@@ -30,6 +30,45 @@ RSpec.describe RetentionService do
   end
 
   describe '.daily_return_rate' do
+    it 'uses UTC dates regardless of the database connection timezone' do
+      user_id = create_user('timezone@example.test')
+      log_activity(user_id, Time.utc(2026, 10, 19, 23, 30))
+      log_activity(user_id, Time.utc(2026, 10, 20, 0, 30))
+      DB_POOL.with do |connection|
+        original = connection.exec('SHOW TIME ZONE').first.values.first
+        begin
+          connection.exec("SET TIME ZONE 'America/Los_Angeles'")
+          allow(DB_POOL).to receive(:with).and_yield(connection)
+          result = described_class.daily_return_rate(window_days: 1, now: Time.utc(2026, 10, 21, 12))
+          expect(result).to include(eligible_account_days: 1, returned_account_days: 1)
+        ensure
+          connection.exec_params("SELECT set_config('TimeZone', $1, false)", [original])
+          allow(DB_POOL).to receive(:with).and_call_original
+        end
+      end
+    end
+
+    it 'distinguishes unavailable measurements from available empty activity' do
+      expect(described_class.daily_return_rate).to include(available: true, eligible_account_days: 0)
+      allow(DB_POOL).to receive(:with).and_raise(StandardError, 'test outage')
+      expect(described_class.daily_return_rate).to include(available: false, overall_return_rate_pct: nil)
+      allow(DB_POOL).to receive(:with).and_call_original
+    end
+
+    it 'excludes incomplete return days, future and unsupported events with fixed UTC boundaries' do
+      now = Time.utc(2026, 10, 21, 12)
+      user_id = create_user('utc-boundary@example.test')
+      log_activity(user_id, Time.utc(2026, 10, 19, 23, 59))
+      log_activity(user_id, Time.utc(2026, 10, 20))
+      log_activity(user_id, Time.utc(2026, 10, 21))
+      log_activity(user_id, Time.utc(2026, 10, 22))
+      log_activity(user_id, Time.utc(2026, 10, 18))
+      db.execute("UPDATE meme_activity_log SET activity_type = 'unsupported' WHERE created_at = ?", [Time.utc(2026, 10, 18)])
+      result = described_class.daily_return_rate(window_days: 1, now: now)
+      expect(result).to include(eligible_account_days: 1, returned_account_days: 1, overall_return_rate_pct: 100.0, timezone: 'UTC', available: true)
+      expect(result[:days].map { |day| day[:date] }).to eq(['2026-10-19'])
+    end
+
     it 'returns a safe empty shape when there is no activity' do
       result = RetentionService.daily_return_rate
 
@@ -40,8 +79,8 @@ RSpec.describe RetentionService do
 
     it 'counts a user active on consecutive days as returned' do
       user_id = create_user("returning_user@example.com")
-      log_activity(user_id, Time.now - 86400) # yesterday
-      log_activity(user_id, Time.now)         # today
+      log_activity(user_id, Time.now - 172800) # yesterday
+      log_activity(user_id, Time.now - 86400) # completed return day
 
       result = RetentionService.daily_return_rate
 
@@ -53,7 +92,7 @@ RSpec.describe RetentionService do
 
     it 'does not count a user active on only one day as returned' do
       user_id = create_user("one_time_user@example.com")
-      log_activity(user_id, Time.now - 86400) # yesterday only, no activity today
+      log_activity(user_id, Time.now - 172800) # yesterday only, no activity today
 
       result = RetentionService.daily_return_rate
 
@@ -63,7 +102,7 @@ RSpec.describe RetentionService do
     it 'excludes anonymous activity (user_id IS NULL)' do
       db.execute(
         "INSERT INTO meme_activity_log (meme_url, activity_type, user_id, session_id, created_at) VALUES (?, 'view', NULL, ?, ?)",
-        ["https://example.com/anon.jpg", "anon-session", Time.now - 86400]
+        ["https://example.com/anon.jpg", "anon-session", Time.now - 172800]
       )
 
       result = RetentionService.daily_return_rate
@@ -73,7 +112,7 @@ RSpec.describe RetentionService do
 
     it 'respects the window_days parameter' do
       user_id = create_user("windowed_user@example.com")
-      log_activity(user_id, Time.now - 86400)
+      log_activity(user_id, Time.now - 172800)
       log_activity(user_id, Time.now)
 
       result = RetentionService.daily_return_rate(window_days: 3)
@@ -83,6 +122,17 @@ RSpec.describe RetentionService do
   end
 
   describe '.avg_session_length_minutes' do
+    it 'ignores future and unsupported activity when calculating recorded spans' do
+      now = Time.utc(2026, 10, 21, 12)
+      user_id = create_user('span-boundary@example.test')
+      log_activity(user_id, now - 600)
+      log_activity(user_id, now)
+      log_activity(user_id, now + 3600)
+      log_activity(user_id, now - 7200)
+      db.execute("UPDATE meme_activity_log SET activity_type = 'unsupported' WHERE created_at = ?", [now - 7200])
+      expect(described_class.avg_session_length_minutes(now: now)).to eq(10.0)
+    end
+
     it 'returns nil when there is no multi-event activity' do
       expect(RetentionService.avg_session_length_minutes).to be_nil
     end

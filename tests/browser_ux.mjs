@@ -361,6 +361,13 @@ try {
       return {status:r.status,body:await r.json()};
     })()`);
     check('disposable signup succeeds through browser session',signup.status===200 && signup.body.success===true);
+    await send('Page.navigate',{url:`${origin}/metrics`});
+    await wait(`document.readyState==='complete' && document.title==='Meme Metrics Dashboard'`);
+    check('metrics discloses recorded activity rather than confirmed engagement',await evaluate(`document.body.innerText.includes('not new-user cohort retention or proof of enjoyment') && document.body.innerText.includes('single-event days excluded and idle gaps included') && !document.body.innerText.includes('D1 Return Rate')`));
+    for (const width of [375,1280]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
+      check(`${width}px metrics limitations fit document width`,await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`));
+    }
     await send('Page.navigate',{url:`${origin}/random`});
     await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!window.mobileSwipe`);
     identity=await evaluate(`document.querySelector('#meme-display').dataset.memeUrl`);
@@ -438,6 +445,17 @@ try {
   await wait(`!document.querySelector('h1') && document.querySelector('#discovery-controls summary')?.textContent.includes('(0 hidden communities)')`);
   await wait(`document.querySelector('#meme-image')?.naturalWidth>0 && !!document.querySelector('#hide-current-community')`);
   check('Reset restores browser Random selection',await evaluate(`document.querySelector('#discovery-controls summary').textContent.includes('(0 hidden communities)')`));
+  if (process.env.BROWSER_FIXTURE_AD_PREVIEW === 'true') {
+    for (const width of [320,375,1280]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
+      for (const theme of ['light','dark']) {
+        await evaluate(`if(document.documentElement.dataset.theme!==${JSON.stringify(theme)})document.querySelector('#darkModeToggle').click()`);
+        check(`${width}px ${theme}: preview footer exists and remains in normal flow`,await evaluate(`(() => {const a=document.querySelector('.ad-anchor-bottom');return !!a && getComputedStyle(a).position==='static';})()`));
+        check(`${width}px ${theme}: preview footer does not overlap media or actions`,await evaluate(`(() => {const a=document.querySelector('.ad-anchor-bottom').getBoundingClientRect();return ['#meme-display','.meme-controls'].every(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return a.top>=r.bottom || a.bottom<=r.top;});})()`));
+        check(`${width}px ${theme}: ad preview has no document overflow`,await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`));
+      }
+    }
+  }
   check('no uncaught browser exceptions', exceptions.length === 0);
 } finally {
   for (const item of pending.values()) clearTimeout(item.timer);

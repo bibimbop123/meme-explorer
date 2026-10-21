@@ -39,6 +39,20 @@ describe "Metrics Routes" do
       get path
     end
 
+    it 'renders measurement limitations and distinguishes unavailable return data' do
+      session[:user_id] = @user_id
+      allow(RetentionService).to receive(:daily_return_rate).and_return(days: [], available: false, overall_return_rate_pct: nil)
+      get '/metrics'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('Measurement unavailable', 'not new-user cohort retention',
+        'single-event days excluded and idle gaps included')
+      expect(last_response.body).not_to include('D1 Return Rate')
+      allow(RetentionService).to receive(:daily_return_rate).and_return(days: [], available: true, overall_return_rate_pct: nil)
+      get '/metrics'
+      expect(last_response.body).to include('No eligible recorded activity')
+      expect(last_response.body).not_to include('Measurement unavailable')
+    end
+
     %w[all 30d 7d 24h].each do |period|
       it "uses the same report for HTML, JSON and CSV for #{period}" do
         session[:user_id] = @user_id

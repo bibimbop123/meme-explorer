@@ -4,6 +4,28 @@ require_relative '../spec_helper'
 require_relative '../../lib/services/engagement_service'
 
 RSpec.describe EngagementService do
+  describe 'saved-state activity boundaries' do
+    it 'does not manufacture activity when an item was never saved' do
+      user_id = create_test_user('never-saved@example.test')
+      result = described_class.track_save(user_id: user_id, meme_url: 'https://example.com/never-saved.jpg', saved_now: false, db: DB)
+      expect(result).to include(success: true, saved: false, unchanged: true)
+      expect(DB.get_first_value('SELECT COUNT(*) FROM meme_activity_log WHERE user_id = ?', [user_id]).to_i).to eq(0)
+    end
+
+    it 'records a genuine resave after removal, but not duplicate requests' do
+      user_id = create_test_user('resave-events@example.test')
+      url = 'https://example.com/resave-events.jpg'
+      [true, true, false, false, true, true].each do |saved|
+        result = described_class.track_save(user_id: user_id, meme_url: url, saved_now: saved, db: DB)
+        expect(result[:success]).to be true
+      end
+      counts = DB.execute('SELECT activity_type, COUNT(*) AS count FROM meme_activity_log WHERE user_id = ? GROUP BY activity_type', [user_id])
+        .to_h { |row| [row['activity_type'], row['count'].to_i] }
+      expect(counts).to eq('save' => 2, 'unsave' => 1)
+      expect(DB.get_first_value('SELECT COUNT(*) FROM saved_memes WHERE user_id = ? AND meme_url = ?', [user_id, url]).to_i).to eq(1)
+    end
+  end
+
   describe 'initialization' do
     it 'initializes successfully' do
       expect { described_class.new }.not_to raise_error

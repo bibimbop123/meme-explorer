@@ -206,9 +206,9 @@
   padding-top: 2rem;
 }
 
-/* Anchor/Footer Ad - High viewability */
+/* Preview footer slots stay in document flow, never over the artwork. */
 .ad-anchor-bottom {
-  position: sticky;
+  position: static;
   bottom: 0;
   background: white;
   border-top: 1px solid #e0e0e0;
@@ -220,7 +220,7 @@
 
 @media (max-width: 768px) {
   .ad-anchor-bottom {
-    position: fixed;
+    position: static;
   }
   
   /* MOBILE FIX: Hide side/vertical ads on mobile */

@@ -1,0 +1,31 @@
+require_relative '../spec_helper'
+
+RSpec.describe 'Demo ad placement policy' do
+  around do |example|
+    previous = ENV.to_h.slice('AD_PLACEHOLDER_PREVIEW', 'RACK_ENV', 'DISABLE_ADS')
+    example.run
+  ensure
+    %w[AD_PLACEHOLDER_PREVIEW RACK_ENV DISABLE_ADS].each do |key|
+      previous.key?(key) ? ENV[key] = previous[key] : ENV.delete(key)
+    end
+  end
+
+  it 'renders no demo slots by default on Random' do
+    ENV.delete('AD_PLACEHOLDER_PREVIEW')
+    get '/random'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).not_to include('Ad Placeholder', 'class="ad-anchor-bottom"', 'data-position="left"', 'data-position="right"')
+  end
+
+  it 'supports explicit test preview but never production placeholders' do
+    helper = Object.new.extend(AdHelpers)
+    allow(helper).to receive(:should_show_ads?).and_return(true)
+    ENV['AD_PLACEHOLDER_PREVIEW'] = 'true'
+    ENV['RACK_ENV'] = 'test'
+    expect(helper.render_ad_unit).to include('Ad Placeholder')
+    expect(helper.render_anchor_ad).to include('ad-anchor-bottom')
+    ENV['RACK_ENV'] = 'production'
+    expect(helper.render_ad_unit).to eq('')
+    expect(helper.render_anchor_ad).to eq('')
+  end
+end
