@@ -189,18 +189,14 @@
       </div>
     <% end %>
 
-    <!-- Phase 1 roadmap: "latency proves the loop is fast; retention
-         proves the loop is actually better for the user, which is the
-         real test of a monopoly-shaped product versus a merely
-         functional one." See lib/services/retention_service.rb - this
-         is real D1 return-rate computed from meme_activity_log, not a
-         placeholder. -->
-    <h2>🔁 Retention — separate 14-day window, signed-in accounts only</h2>
+    <h2>🔁 Recorded account returns — completed UTC return days, signed-in accounts only</h2>
+    <p>Account-day weighted activity, not new-user cohort retention or proof of enjoyment. Historical view logs may include speculative selections.</p>
     <div class="metrics">
       <% if @retention && @retention[:overall_return_rate_pct] %>
-        <div class="metric <%= @retention[:overall_return_rate_pct] >= 20 ? 'success' : 'warning' %>">
-          <h3>D1 Return Rate (last <%= @retention[:window_days] %>d)</h3>
+        <div class="metric">
+          <h3>Next-day recorded return rate (<%= @retention[:window_days] %> eligible UTC days)</h3>
           <p><%= @retention[:overall_return_rate_pct] %>%</p>
+          <p><%= @retention[:returned_account_days] %> returned / <%= @retention[:eligible_account_days] %> eligible account-days</p>
         </div>
         <div class="metric">
           <h3>Days with data</h3>
@@ -208,13 +204,14 @@
         </div>
       <% else %>
         <div class="metric">
-          <h3>D1 Return Rate</h3>
-          <p>No data yet</p>
+          <h3>Next-day recorded return rate</h3>
+          <p><%= @retention && @retention[:available] == false ? 'Measurement unavailable' : 'No eligible recorded activity' %></p>
         </div>
       <% end %>
       <div class="metric">
         <h3>Avg active account-day span — not session duration</h3>
         <p><%= @avg_session_length_minutes ? "#{@avg_session_length_minutes} min" : "No data yet" %></p>
+        <p>Multi-event UTC account-days only; single-event days excluded and idle gaps included. Not active time.</p>
       </div>
     </div>
 

@@ -3,6 +3,12 @@
 # Default: Every 12 memes (configurable via ENV)
 
 module AdHelpers
+  # Demo slots are not billable inventory. Preview only outside production.
+  # Does not control the independent third-party site-wide loader.
+  def ad_placeholder_preview?
+    ENV['RACK_ENV'] != 'production' && ENV['AD_PLACEHOLDER_PREVIEW'] == 'true'
+  end
+
   # ADSENSE POLICY COMPLIANCE: Pages that should never show ads
   # Per Google's policy, ads cannot appear on:
   # - Authentication/behavioral pages
@@ -110,6 +116,7 @@ module AdHelpers
   # layout and spacing (views/random.erb's grid, /css/ads.css) keep
   # working unchanged if a real per-slot network is added later.
   def render_ad_unit(ad_index = 0, format: 'square', position: nil)
+    return '' unless ad_placeholder_preview? && should_show_ads?
     ad_id = "ad-unit-#{ad_index}"
 
     case format
@@ -277,7 +284,7 @@ end
 
 # Render anchor/footer ad
 def render_anchor_ad
-  return '' unless should_show_ads?
+  return '' unless ad_placeholder_preview? && should_show_ads?
 
   # 'native' here, not 'banner': this sticky bar spans full width on both
   # mobile (its actual, primary use case - see views/random.erb) and

@@ -108,6 +108,14 @@ describe "Random Meme Routes" do
   # than unit-testing the helper in isolation, since it depends on
   # Sinatra's request/session context.
   describe "GET /random - premium ad suppression (Phase 2)" do
+    around do |example|
+      previous = ENV['AD_PLACEHOLDER_PREVIEW']
+      ENV['AD_PLACEHOLDER_PREVIEW'] = 'true'
+      example.run
+    ensure
+      previous.nil? ? ENV.delete('AD_PLACEHOLDER_PREVIEW') : ENV['AD_PLACEHOLDER_PREVIEW'] = previous
+    end
+
     def create_user(email, premium_status: nil, premium_current_period_end: nil)
       hashed = BCrypt::Password.create("testpass123")
       DB.execute(

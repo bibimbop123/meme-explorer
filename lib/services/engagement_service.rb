@@ -202,11 +202,13 @@ class EngagementService
           # direct call.
           bump_subreddit_preference(user_id, subreddit, db, increment: 0.3)
         else
-          # Unsave
-          db.execute(
-            "DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ?",
+          # Only actual deletion is an activity transition. Retries/no-op
+          # requests must not manufacture account activity or return evidence.
+          removed = db.execute(
+            "DELETE FROM saved_memes WHERE user_id = ? AND meme_url = ? RETURNING id",
             [user_id, meme_url]
           )
+          return result.merge(success: true, unchanged: true) if removed.empty?
           AppLogger.info("✅ [ENGAGEMENT] Unsave recorded for user #{user_id}")
         end
         
