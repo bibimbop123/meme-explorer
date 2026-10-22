@@ -1,9 +1,25 @@
 require_relative '../lib/services/metrics_report'
+require_relative '../lib/services/browser_visitor_metrics'
 # routes/metrics_routes.rb
 module Routes
   module MetricsRoutes
 
     def self.registered(app)
+      app.post '/api/visitor-observation' do
+        headers 'Cache-Control' => 'no-store, private'
+        halt 404 unless ENV['ENABLE_VISITOR_METRICS'] == 'true'
+        halt 204 if request.env['HTTP_SEC_GPC'] == '1' || request.env['HTTP_DNT'] == '1'
+        halt 400 unless params['consent'] == 'accepted'
+        identity = request.cookies['meme_visitor']
+        identity = SecureRandom.hex(32) unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
+        BrowserVisitorMetrics.record(identity)
+        response.set_cookie('meme_visitor', value: identity, path: '/', httponly: true,
+          same_site: :lax, secure: request.secure?, max_age: 2_592_000)
+        status 204
+      rescue StandardError
+        halt 503, 'Visitor measurement unavailable'
+      end
+
       app.get '/api/admin/legacy-impression-metrics' do
         content_type :json
         headers 'Cache-Control' => 'no-store'
@@ -28,7 +44,7 @@ module Routes
         require_auth!
         content_type :json
         headers 'Cache-Control' => 'no-store'
-        metrics_report.merge(selection_latency: SelectionBenchmark.stage_breakdown,
+        metrics_report.merge(browser_visitors: BrowserVisitorMetrics.snapshot, selection_latency: SelectionBenchmark.stage_breakdown,
           retention: RetentionService.daily_return_rate,
           avg_session_length_minutes: RetentionService.avg_session_length_minutes).to_json
       end
@@ -42,6 +58,7 @@ module Routes
         @selection_latency = SelectionBenchmark.stats
         @selection_breakdown = SelectionBenchmark.stage_breakdown
         @retention = RetentionService.daily_return_rate
+        @browser_visitors = BrowserVisitorMetrics.snapshot
         @avg_session_length_minutes = RetentionService.avg_session_length_minutes
         erb :metrics, layout: false
       end

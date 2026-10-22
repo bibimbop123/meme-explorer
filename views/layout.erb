@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="csrf-token" content="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
+  <% if ENV['ENABLE_VISITOR_METRICS'] == 'true' %><meta name="visitor-metrics-enabled" content="true"><% end %>
   <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/csrf.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= @meme_unavailable ? 'Meme unavailable | Meme Explorer' : (@permalink_page ? Rack::Utils.escape_html("#{@meme['title'].to_s[0, 180]} | Meme Explorer") : 'Meme Explorer 😎 - Best Memes from Reddit') %></title>
