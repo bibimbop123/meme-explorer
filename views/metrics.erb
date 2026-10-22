@@ -189,6 +189,17 @@
       </div>
     <% end %>
 
+    <h2>Unique browser visitors</h2>
+    <p>Opted-in visible-page observations, not unique people. Cookies/devices, blockers and automation affect counts. No historical backfill.</p>
+    <div class="metrics">
+      <% %w[24h 7d 30d].each do |window| %>
+        <div class="metric"><h3>Last <%= window %></h3>
+          <p><%= @browser_visitors[:available] ? @browser_visitors[:counts][window] : 'Measurement disabled or unavailable' %></p>
+          <% if @browser_visitors[:available] && @browser_visitors[:partial_windows].include?(window) %><p>Partial collection window</p><% end %>
+        </div>
+      <% end %>
+    </div>
+    <p>Collection started: <%= Rack::Utils.escape_html(@browser_visitors[:collected_since].to_s) %></p>
     <h2>🔁 Recorded account returns — completed UTC return days, signed-in accounts only</h2>
     <p>Account-day weighted activity, not new-user cohort retention or proof of enjoyment. Historical view logs may include speculative selections.</p>
     <div class="metrics">

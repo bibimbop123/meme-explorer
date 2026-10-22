@@ -39,6 +39,9 @@ class DatabaseCleanupWorker
        ) RETURNING id"
     )
     cleanup_stats[:old_impressions] = result.size
+    if ENV['ENABLE_VISITOR_METRICS'] == 'true'
+      DB.execute("DELETE FROM browser_visitors WHERE visitor_key IN (SELECT visitor_key FROM browser_visitors WHERE last_seen_at < NOW() - INTERVAL '30 days' ORDER BY last_seen_at LIMIT 10000)")
+    end
     AppLogger.info("✅ [CLEANUP WORKER] Cleaned up:")
     AppLogger.info("   - #{cleanup_stats[:broken_images]} broken images")
     AppLogger.info("   - #{cleanup_stats[:old_meme_stats]} old meme stats")

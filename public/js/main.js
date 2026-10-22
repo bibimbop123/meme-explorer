@@ -34,5 +34,6 @@ import './error-boundary.js';
 import './sw-refresh.js';
 import './layout-utils.js';
 import './cookie-consent.js';
+import './modules/browser-visitors.js';
 
 console.log('✅ Meme Explorer bundled - 74→23 JS files');
