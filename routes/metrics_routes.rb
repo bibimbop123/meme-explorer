@@ -5,6 +5,18 @@ module Routes
   module MetricsRoutes
 
     def self.registered(app)
+      app.post '/api/visitor-withdrawal' do
+        headers 'Cache-Control' => 'no-store, private'
+        identity = request.cookies['meme_visitor']
+        if identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
+          BrowserVisitorMetrics.withdraw(identity)
+        end
+        response.delete_cookie('meme_visitor', path: '/', same_site: :lax, secure: request.secure?)
+        status 204
+      rescue StandardError
+        halt 503, 'Withdrawal unavailable. Retry withdrawal; removal from visitor counts is not confirmed.'
+      end
+
       app.post '/api/visitor-observation' do
         headers 'Cache-Control' => 'no-store, private'
         halt 404 unless ENV['ENABLE_VISITOR_METRICS'] == 'true'
@@ -12,7 +24,7 @@ module Routes
         halt 400 unless params['consent'] == 'accepted'
         identity = request.cookies['meme_visitor']
         identity = SecureRandom.hex(32) unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
-        BrowserVisitorMetrics.record(identity)
+        halt 409, 'This visitor identity was withdrawn. Reload before choosing Allow again.' unless BrowserVisitorMetrics.record(identity)
         response.set_cookie('meme_visitor', value: identity, path: '/', httponly: true,
           same_site: :lax, secure: request.secure?, max_age: 2_592_000)
         status 204
@@ -67,6 +79,7 @@ module Routes
         require_auth!
         require 'csv'
         report = metrics_report
+        visitors = BrowserVisitorMetrics.snapshot
         headers 'Cache-Control' => 'no-store'
         attachment "meme_metrics_#{report[:period]}_#{Time.now.utc.strftime('%Y%m%d')}.csv"
         content_type 'text/csv'
@@ -79,6 +92,12 @@ module Routes
           csv << ['Metric', 'Value']
           %i[total_memes total_likes total_views avg_likes avg_views engagement_rate].each do |key|
             csv << [key, report[key]]
+          end
+          csv << ['browser_visitors_status', visitors[:available] ? 'available' : visitors[:status]]
+          csv << ['browser_visitors_collected_since_utc', visitors[:collected_since]]
+          %w[24h 7d 30d].each do |window|
+            csv << ["browser_visitors_#{window}", visitors[:available] ? visitors[:counts][window] : nil]
+            csv << ["browser_visitors_#{window}_partial", visitors[:available] ? visitors[:partial_windows].include?(window) : nil]
           end
         end
       end

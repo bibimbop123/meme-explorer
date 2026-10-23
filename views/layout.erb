@@ -171,6 +171,15 @@
       <nav class="footer-links">
         <a href="/about">About</a>
         <a href="/privacy">Privacy</a>
+        <% if ENV['ENABLE_VISITOR_METRICS'] == 'true' %>
+          <details id="visitor-privacy-controls">
+            <summary>Visitor measurement privacy</summary>
+            <p>Optional analytics counts this browser, not your identity. We store a hashed browser key and last visit time, not page history. The cookie lasts 30 days. Withdrawal clears the visit time and cookie; a hashed suppression key prevents late requests from counting again and is eligible for scheduled cleanup after 30 days. This choice does not enable advertising.</p>
+            <button type="button" id="visitor-allow">Allow visitor measurement</button>
+            <button type="button" id="visitor-withdraw">Decline / withdraw visitor measurement</button>
+            <p id="visitor-privacy-status" role="status" aria-live="polite"></p>
+          </details>
+        <% end %>
         <a href="/terms">Terms</a>
         <a href="/dmca">DMCA</a>
         <a href="/contact">Contact</a>

@@ -39,8 +39,11 @@ class DatabaseCleanupWorker
        ) RETURNING id"
     )
     cleanup_stats[:old_impressions] = result.size
-    if ENV['ENABLE_VISITOR_METRICS'] == 'true'
-      DB.execute("DELETE FROM browser_visitors WHERE visitor_key IN (SELECT visitor_key FROM browser_visitors WHERE last_seen_at < NOW() - INTERVAL '30 days' ORDER BY last_seen_at LIMIT 10000)")
+    # Retention cleanup must continue after collection is disabled. Older
+    # deployments without this additive migration have nothing to clean yet.
+    visitor_schema = DB.get_first_value("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'browser_visitors' AND column_name = 'revoked_at')")
+    if visitor_schema == true || visitor_schema == 't'
+      DB.execute("DELETE FROM browser_visitors WHERE visitor_key IN (SELECT visitor_key FROM browser_visitors WHERE COALESCE(revoked_at, last_seen_at) < NOW() - INTERVAL '30 days' ORDER BY COALESCE(revoked_at, last_seen_at) LIMIT 10000)")
     end
     AppLogger.info("✅ [CLEANUP WORKER] Cleaned up:")
     AppLogger.info("   - #{cleanup_stats[:broken_images]} broken images")

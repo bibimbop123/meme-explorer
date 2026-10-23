@@ -53,6 +53,13 @@ class Rack::Attack
     req.ip if req.path.start_with?("/api", "/random.json", "/similar.json")
   end
 
+  # Analytics observes page entries, not every AJAX selection. Bound writes
+  # separately; never include privacy withdrawal in this narrower throttle.
+  # IP is a transient abuse-control key, not the visitor identity stored in SQL.
+  throttle('visitor-observation/ip', limit: 60, period: 60) do |req|
+    req.ip if req.post? && req.path == '/api/visitor-observation'
+  end
+
   # 5. Login attempts: STRICT (brute force protection)
   throttle("login/ip", limit: 10, period: 60) do |req|
     req.ip if req.path == "/login" && req.post?

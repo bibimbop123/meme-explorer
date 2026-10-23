@@ -39,6 +39,34 @@ describe "Metrics Routes" do
       get path
     end
 
+    it 'distinguishes disabled visitor tracking, unavailable counts and available empty windows' do
+      session[:user_id] = @user_id
+      allow(BrowserVisitorMetrics).to receive(:snapshot).and_return(available: false, status: 'disabled')
+      get '/metrics'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('Visitor tracking disabled')
+      expect(last_response.body).not_to include('Visitor measurement unavailable')
+      allow(BrowserVisitorMetrics).to receive(:snapshot).and_return(available: false, status: 'unavailable')
+      get '/metrics'
+      expect(last_response.body).to include('Visitor measurement unavailable', 'no zero counts inferred')
+      expect(last_response.body).not_to include('Visitor tracking disabled')
+      allow(BrowserVisitorMetrics).to receive(:snapshot).and_return(available: true,
+        counts: { '24h' => 0, '7d' => 0, '30d' => 0 }, partial_windows: %w[24h 7d 30d], collected_since: nil)
+      get '/metrics'
+      expect(last_response.body).to include('No observations yet', 'Partial collection window')
+      expect(last_response.body).not_to include('Visitor tracking disabled', 'Visitor measurement unavailable')
+      require 'csv'
+      get '/metrics/export'
+      rows = CSV.parse(last_response.body).select { |row| row.size == 2 }.to_h
+      expect(rows).to include('browser_visitors_status' => 'available',
+        'browser_visitors_24h' => '0', 'browser_visitors_24h_partial' => 'true',
+        'browser_visitors_7d' => '0', 'browser_visitors_30d' => '0')
+      allow(BrowserVisitorMetrics).to receive(:snapshot).and_return(available: false, status: 'unavailable')
+      get '/metrics/export'
+      rows = CSV.parse(last_response.body).select { |row| row.size == 2 }.to_h
+      expect(rows).to include('browser_visitors_status' => 'unavailable', 'browser_visitors_24h' => nil)
+    end
+
     it 'renders measurement limitations and distinguishes unavailable return data' do
       session[:user_id] = @user_id
       allow(RetentionService).to receive(:daily_return_rate).and_return(days: [], available: false, overall_return_rate_pct: nil)
