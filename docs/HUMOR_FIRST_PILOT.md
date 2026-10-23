@@ -6,8 +6,10 @@ research. Current small live review is incomplete and does not establish uplift.
 
 ## Candidate
 
-`ENABLE_HUMOR_FIRST_MIX=true` multiplies existing selection weights by 1.5 for
-the explicit `HUMOR_FIRST_SOURCES` list and 0.2 for `COMMENTARY_SOURCES` in
+`ENABLE_HUMOR_FIRST_MIX=true` multiplies existing selection weights by 2.0 for
+the expanded `HUMOR_FIRST_SOURCES` list (38 visual/punchline humor communities)
+and 0.15 for `COMMENTARY_SOURCES` (41 political, text-wall, Q&A and dating-screenshot
+communities) in
 `SimpleMemeSelector`. Other sources stay neutral; unset/other flag values retain
 baseline behavior. Lists are case-insensitive editorial proxies, not automated
 political/humor classification. They do not classify individual posts, remove

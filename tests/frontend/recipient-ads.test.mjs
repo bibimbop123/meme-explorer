@@ -23,10 +23,10 @@ test(`recipient page ${pathname} never initializes ad consent or advertising`, (
 });
 }
 
-test('normal desktop browsing retains accepted-consent ad loading', () => {
+test('normal desktop browsing disables Monetag by default and requires explicit opt-in', () => {
   const scripts = [];
-  const context = {
-    window: { location: { pathname: '/random' }, innerWidth: 1200 },
+  const makeContext = (enableMonetag = false) => ({
+    window: { location: { pathname: '/random' }, innerWidth: 1200, ENABLE_MONETAG: enableMonetag },
     navigator: { userAgent: 'Desktop' },
     console: { log() {} },
     localStorage: { getItem: () => 'accepted' },
@@ -35,8 +35,10 @@ test('normal desktop browsing retains accepted-consent ad loading', () => {
       createElement: () => ({ setAttribute() {} }),
       head: { appendChild: script => scripts.push(script) }
     }
-  };
-  vm.runInNewContext(source, context);
+  });
+  vm.runInNewContext(source, makeContext(false));
+  assert.equal(scripts.length, 0);
+  vm.runInNewContext(source, makeContext(true));
   assert.equal(scripts.length, 1);
   assert.equal(scripts[0].src, 'https://quge5.com/88/tag.min.js');
 });

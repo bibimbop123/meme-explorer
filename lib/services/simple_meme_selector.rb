@@ -36,10 +36,23 @@ module MemeExplorer
     # Selection-only: no provider budget changes, deletions or unseen bypass.
     HUMOR_FIRST_SOURCES = %w[memes dankmemes me_irl meirl adviceanimals
       wholesomememes starterpacks antimeme bonehurtingjuice programmerhumor
-      prequelmemes lotrmemes animalsbeingderps reactiongifs highqualitygifs].freeze
+      prequelmemes lotrmemes animalsbeingderps reactiongifs highqualitygifs
+      comedyheaven holup blursedimages bikinibottomtwitter historymemes
+      trippinthroughtime fakehistoryporn marvelmemes animalsbeingjerks
+      contagiouslaughter unexpected yesyesyesyesno nonononoyes bettereveryloop
+      youseeingthisshit speedoflobsters sbubby shitposting okbuddyretard
+      gamingmemes minecraftmemes crappydesign expectationvsreality
+      photoshopbattles hmmm atbge redneckengineering whatcouldgowrong
+      instant_regret therewasanattempt eyebleach aww rarepuppers].freeze
     COMMENTARY_SOURCES = %w[whitepeopletwitter blackpeopletwitter murderedbywords
       clevercomebacks suicidebywords kamikazebywords genz antiwork
-      aboringdystopia publicfreakout actualpublicfreakouts].freeze
+      aboringdystopia publicfreakout actualpublicfreakouts scottishpeopletwitter
+      tinder bumble dating dating_advice dating_fails niceguys nicegirls
+      creepypms choosingbeggars sadcringe cringetopia justneckbeardthings
+      amitheasshole tifu confession offmychest trueoffmychest outoftheloop
+      explainlikeimfive nostupidquestions tooafraidtoask lifehacks lifeprotips
+      youshouldknow todayilearned recruitinghell linkedinlunatics brandnewsentence
+      rareinsults nottheonion].freeze
 
     class << self
       # Main selection method
@@ -214,8 +227,8 @@ module MemeExplorer
 
           if ENV['ENABLE_HUMOR_FIRST_MIX'] == 'true'
             source = (m['subreddit'] || m[:subreddit]).to_s.downcase
-            score *= 1.5 if HUMOR_FIRST_SOURCES.include?(source)
-            score *= 0.2 if COMMENTARY_SOURCES.include?(source)
+            score *= 2.0 if HUMOR_FIRST_SOURCES.include?(source)
+            score *= 0.15 if COMMENTARY_SOURCES.include?(source)
           end
 
           score

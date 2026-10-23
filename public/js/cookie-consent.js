@@ -131,6 +131,8 @@ class CookieConsent {
   
   loadMonetag() {
     if (window.location.pathname.startsWith('/meme/')) return;
+    // Monetag multitag is disabled by default; require explicit opt-in.
+    if (window.ENABLE_MONETAG !== true) return;
     // Only load if not already loaded and user consented (or is non-EU)
     if (!document.querySelector('script[src*="quge5.com"]')) {
       const script = document.createElement('script');
