@@ -6,6 +6,21 @@ RSpec.describe DatabaseCleanupWorker do
   let(:worker) { described_class.new }
 
   describe '#perform' do
+    it 'cleans expired visitors and suppression markers even when collection is disabled' do
+      %w[add_browser_visitors.sql add_browser_visitor_revocation.sql].each do |file|
+        DB_POOL.with { |connection| connection.exec(File.read(File.expand_path("../../db/migrations/#{file}", __dir__))) }
+      end
+      DB.execute('DELETE FROM browser_visitors')
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('ENABLE_VISITOR_METRICS').and_return('false')
+      DB.execute("INSERT INTO browser_visitors (visitor_key, last_seen_at) VALUES (?, NOW() - INTERVAL '31 days'), (?, NOW())", ['a' * 64, 'b' * 64])
+      DB.execute("INSERT INTO browser_visitors (visitor_key, last_seen_at, revoked_at) VALUES (?, NULL, NOW() - INTERVAL '31 days'), (?, NULL, NOW() - INTERVAL '1 day')", ['c' * 64, 'd' * 64])
+      worker.perform
+      expect(DB.execute('SELECT visitor_key FROM browser_visitors ORDER BY visitor_key').map { |row| row['visitor_key'] }).to eq(['b' * 64, 'd' * 64])
+    ensure
+      DB.execute('DELETE FROM browser_visitors')
+    end
+
     it 'executes without raising' do
       expect { worker.perform }.not_to raise_error
     end

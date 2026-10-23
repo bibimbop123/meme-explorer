@@ -146,10 +146,11 @@ RSpec.describe RetentionService do
 
     it 'computes the gap between first and last same-day activity' do
       user_id = create_user("session_user@example.com")
-      log_activity(user_id, Time.now - 600) # 10 minutes ago
-      log_activity(user_id, Time.now)
+      now = Time.utc(2026, 10, 21, 12)
+      log_activity(user_id, now - 600)
+      log_activity(user_id, now)
 
-      result = RetentionService.avg_session_length_minutes
+      result = RetentionService.avg_session_length_minutes(now: now)
 
       expect(result).to be_within(0.5).of(10.0)
     end

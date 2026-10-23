@@ -51,6 +51,8 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Network.enable');
+  // Each acceptance run starts a fresh fixture visitor, even when reusing CDP.
+  await send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' });
   // Interception blocks every non-fixture origin before navigation.
   await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   ws.addEventListener('message', event => {
@@ -280,6 +282,7 @@ try {
   await touch('touchStart',280,horizontalY);
   await touch('touchMove',90,horizontalY);
   await touch('touchEnd',90,horizontalY);
+  await wait(`document.querySelector('.gallery-slide.active')?.dataset.index==='2'`);
   check('dynamic gallery horizontal touch changes slide not feed',await evaluate(`document.querySelector('.gallery-slide.active').dataset.index==='2' && document.querySelector('#meme-display').dataset.memeUrl===${JSON.stringify(identity)}`));
   await evaluate(`document.querySelector('.gallery-prev').click()`);
   await evaluate(`document.querySelector('#next-btn').click()`);
@@ -455,6 +458,25 @@ try {
         check(`${width}px ${theme}: ad preview has no document overflow`,await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`));
       }
     }
+  }
+  if (process.env.ENABLE_VISITOR_METRICS === 'true') {
+    check('visitor controls present without prior analytics choice',await evaluate(`!!document.querySelector('#visitor-allow') && localStorage.getItem('meme_explorer_visitor_consent')===null`));
+    const visitorCookies = async () => (await send('Network.getCookies',{urls:[origin]})).cookies.filter(c=>c.name==='meme_visitor');
+    check('no visitor cookie before opt-in',(await visitorCookies()).length===0);
+    await evaluate(`document.querySelector('#visitor-privacy-controls').open=true;document.querySelector('#visitor-allow').click()`);
+    for (let i=0;i<50 && !(await visitorCookies()).length;i++) await new Promise(r=>setTimeout(r,100));
+    const initialCookies=await visitorCookies();
+    check('allow sets HttpOnly visitor cookie',initialCookies.length===1 && initialCookies[0].httpOnly);
+    check('analytics choice does not grant advertising consent',await evaluate(`localStorage.getItem('meme_explorer_cookie_consent')!=='accepted'`));
+    await send('Page.navigate',{url:`${origin}/random`});
+    await wait(`document.readyState==='complete' && !!document.querySelector('#visitor-withdraw')`);
+    check('reload keeps visitor identity',(await visitorCookies())[0]?.value===initialCookies[0]?.value);
+    await evaluate(`document.querySelector('#visitor-privacy-controls').open=true;document.querySelector('#visitor-withdraw').click()`);
+    await wait(`document.querySelector('#visitor-privacy-status').textContent.includes('Visit time and cookie cleared')`);
+    check('withdrawal removes visitor cookie',(await visitorCookies()).length===0);
+    await send('Page.navigate',{url:`${origin}/random`});
+    await wait(`document.readyState==='complete' && !!document.querySelector('#visitor-withdraw')`);
+    check('withdrawal persists across reload',await evaluate(`localStorage.getItem('meme_explorer_visitor_consent')==='rejected'`) && (await visitorCookies()).length===0);
   }
   check('no uncaught browser exceptions', exceptions.length === 0);
 } finally {
