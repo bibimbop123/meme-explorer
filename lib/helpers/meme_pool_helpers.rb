@@ -311,7 +311,7 @@ module MemePoolHelpers
       begin
         if defined?(InlineRedditFetcher)
           AppLogger.info("[POOL] Cache empty — fetching from Reddit via OAuth...")
-          subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesome', 'therewasanattempt', 'facepalm', 'tifu', 'HolUp']
+          subreddits = defined?(POPULAR_SUBREDDITS) ? POPULAR_SUBREDDITS.first(15) : ['funny', 'memes', 'dankmemes', 'AdviceAnimals', 'me_irl', 'wholesomememes', 'therewasanattempt', 'facepalm', 'ComedyHeaven', 'HolUp']
           # Instrumented separately from the overall :pool_lookup stage
           # (see lib/services/selection_benchmark.rb): this is the one call
           # in the whole pool-lookup chain that does real network I/O

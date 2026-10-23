@@ -184,13 +184,13 @@ class MemeService
     # SUBREDDIT BOOST - Prioritize top-tier subreddits
     top_tier_subs = [
       'memes', 'dankmemes', 'me_irl', 'meirl', '2meirl4meirl',
-      'comedyheaven', 'tinder', 'bumble', 'relationship_memes',
+      'comedyheaven', 'starterpacks', 'bonehurtingjuice', 'relationship_memes',
       'relationshipmemes', 'holup', 'okbuddyretard', 'adviceanimals'
     ]
     
     mid_tier_subs = [
-      'funny', 'wholesomememes', 'mademesmile', 'murderedbywords',
-      'rareinsults', 'facepalm', 'instant_regret'
+      'funny', 'wholesomememes', 'mademesmile', 'unexpected',
+      'contagiouslaughter', 'facepalm', 'instant_regret'
     ]
     
     score += 8.0 if top_tier_subs.include?(subreddit)    # Increased from 5.0

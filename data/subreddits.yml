@@ -17,30 +17,12 @@ tier_1:
   - blursedimages
   
   # Relationship & Dating Gold
-  - Tinder
-  - Bumble
   - relationship_memes
   - relationshipmemes
   - AdviceAnimals
-  - dating_advice
-  - niceguys
-  - Nicegirls
   - Badfaketexts
-  - CreepyPMs
   
   # NEW TIER 1 ADDITIONS (50+ subreddits)
-  - dating
-  - dating_fails
-  - justneckbeardthings
-  - sadcringe
-  - Cringetopia
-  - ChoosingBeggars
-  - WhitePeopleTwitter
-  - BlackPeopleTwitter
-  - ScottishPeopleTwitter
-  - clevercomebacks
-  - suicidebywords
-  - kamikazebywords
   - TrollXChromosomes
   - trolling
   - BikiniBottomTwitter
@@ -91,44 +73,18 @@ tier_2:
   - ComedyNecromancy
   - comedyhomicide
   - fellowkids
-  - OutOfTheLoop
-  - explainlikeimfive
   - explainlikeimcalvin
-  - nostupidquestions
-  - TooAfraidToAsk
-  - AmItheAsshole
-  - tifu
-  - confession
-  - OffMyChest
-  - TrueOffMyChest
-  - UnethicalLifeProTips
-  - IllegalLifeProTips
   - ShittyLifeProTips
-  - LifeProTips
-  - YouShouldKnow
-  - todayilearned
-  - Showerthoughts
-  - CrazyIdeas
-  - lightbulb
   - DiWHY
 
 # TIER 3: SPECIFIC HUMOR NICHES (10% priority) - TARGETED COMEDY
 tier_3:
-  # Workplace & Life
-  - antiwork
-  - recruitinghell
-  - LinkedInLunatics
-  - ABoringDystopia
-  
   # Tech & Nerd Humor
   - ProgrammerHumor
   - softwaregore
   - techsupportgore
   
   # Specific Formats
-  - MurderedByWords
-  - rareinsults
-  - BrandNewSentence
   - suspiciouslyspecific
   
   # NEW TIER 3 ADDITIONS (30+ subreddits)
@@ -150,13 +106,8 @@ tier_3:
   - minecraft
   - MinecraftMemes
   - teenagers
-  - GenZ
   - Millennials
   - FellowKids
-  - OutOfTheLoop
-  - NoStupidQuestions
-  - TooAfraidToAsk
-  - nottheonion
   - TheOnion
   - atetheonion
   - savedyouaclick
@@ -241,28 +192,10 @@ popular:
   - HolUp
   - cursedcomments
   - blursedimages
-  - Tinder
-  - Bumble
   - relationship_memes
   - relationshipmemes
   - AdviceAnimals
-  - dating_advice
-  - niceguys
-  - Nicegirls
   - Badfaketexts
-  - CreepyPMs
-  - dating
-  - dating_fails
-  - justneckbeardthings
-  - sadcringe
-  - Cringetopia
-  - ChoosingBeggars
-  - WhitePeopleTwitter
-  - BlackPeopleTwitter
-  - ScottishPeopleTwitter
-  - clevercomebacks
-  - suicidebywords
-  - kamikazebywords
   - TrollXChromosomes
   - BikiniBottomTwitter
   - HistoryMemes
@@ -303,32 +236,13 @@ popular:
   - ComedyNecromancy
   - comedyhomicide
   - fellowkids
-  - AmItheAsshole
-  - tifu
-  - confession
-  - OffMyChest
-  - TrueOffMyChest
-  - UnethicalLifeProTips
-  - IllegalLifeProTips
   - ShittyLifeProTips
-  - LifeProTips
-  - YouShouldKnow
-  - todayilearned
-  - Showerthoughts
-  - CrazyIdeas
   - DiWHY
   
   # TIER 3: Specific Humor (10%)
-  - antiwork
-  - recruitinghell
-  - LinkedInLunatics
-  - ABoringDystopia
   - ProgrammerHumor
   - softwaregore
   - techsupportgore
-  - MurderedByWords
-  - rareinsults
-  - BrandNewSentence
   - suspiciouslyspecific
   - coding
   - badcode
@@ -344,9 +258,7 @@ popular:
   - minecraft
   - MinecraftMemes
   - teenagers
-  - GenZ
   - Millennials
-  - nottheonion
   - atetheonion
   - WTF
   - hmmm
