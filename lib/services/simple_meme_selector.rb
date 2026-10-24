@@ -229,6 +229,9 @@ module MemeExplorer
             source = (m['subreddit'] || m[:subreddit]).to_s.downcase
             score *= 2.0 if HUMOR_FIRST_SOURCES.include?(source)
             score *= 0.15 if COMMENTARY_SOURCES.include?(source)
+            title_len = (m['title'] || m[:title]).to_s.strip.length
+            score *= 1.25 if title_len.between?(1, 80)
+            score *= 0.35 if title_len > 160
           end
 
           score

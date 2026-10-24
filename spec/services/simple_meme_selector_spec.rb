@@ -34,6 +34,19 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
       previous.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = previous
     end
 
+    it 'favors concise punchy titles over rambling >160-char titles when humor-first mix is enabled' do
+      previous = ENV['ENABLE_HUMOR_FIRST_MIX']
+      ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'
+      pool = [
+        { 'url' => '/punchy.jpg', 'subreddit' => 'funny', 'title' => 'When the code compiles on the first try' },
+        { 'url' => '/rambling.jpg', 'subreddit' => 'funny', 'title' => 'A' * 180 }
+      ]
+      allow(described_class).to receive(:rand).and_return(0.75)
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/punchy.jpg')
+    ensure
+      previous.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = previous
+    end
+
     it 'keeps the last unseen commentary item eligible in the editorial pilot' do
       previous = ENV['ENABLE_HUMOR_FIRST_MIX']
       ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'
