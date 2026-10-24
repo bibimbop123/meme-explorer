@@ -270,7 +270,9 @@ module Routes
             # ROADMAP.md Phase 1: same personalization wiring as
             # /random.json below - this is the first-load HTML path, the
             # other real entry point into selection.
-            SelectionBenchmark.measure(stage: :selection) { MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id) }
+            SelectionBenchmark.measure(stage: :selection) do
+              MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit])
+            end
           end
 
           # Fallback if something goes wrong
@@ -298,6 +300,7 @@ module Routes
         end
         
         @meme = filter_feed_communities([@meme].compact).first
+        session[:last_subreddit] = @meme["subreddit"]&.downcase if @meme
 
         # View count tracking (session-based, works for both logged-in and anonymous users)
         session[:view_count] ||= 0
@@ -425,7 +428,7 @@ module Routes
           # never-called apply_user_preferences path.
           SelectionBenchmark.measure(stage: :selection) do
             selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id)
+            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit])
             selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
             selected
           end

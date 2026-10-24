@@ -61,6 +61,13 @@ export class MemeNavigation {
 
   bindTitleToggle() {
     document.querySelector('#meme-info')?.addEventListener('click', event => {
+      const similar = event.target.closest?.('[data-action="similar-meme"]');
+      if (similar) {
+        event.preventDefault();
+        const sub = similar.dataset.subreddit;
+        if (sub && /^[a-z0-9_]{1,32}$/.test(sub)) this.loadSimilarMeme(sub);
+        return;
+      }
       if (!event.target.closest?.('[data-action="toggle-meme-title"]')) return;
       event.preventDefault();
       this.toggleTitle();
@@ -835,6 +842,8 @@ export class MemeNavigation {
    * Render meme info/metadata
    */
   renderInfoHTML(meme) {
+    const rawSub = String(meme.subreddit || '').toLowerCase();
+    const validSub = /^[a-z0-9_]{1,32}$/.test(rawSub);
     const subreddit = this.escapeHtml(meme.subreddit || 'unknown');
     const title = this.escapeHtml(meme.title || 'Untitled Meme');
     const likes = parseInt(meme.likes) || 0;
@@ -850,6 +859,7 @@ export class MemeNavigation {
             r/${subreddit}
           </a>
         </span>
+        ${validSub ? `<button type="button" class="more-from-sub-btn" data-action="similar-meme" data-subreddit="${this.escapeHtml(rawSub)}">More from r/${this.escapeHtml(rawSub)} →</button>` : ''}
         <span class="meme-divider">•</span>
         <span class="meme-likes">${likes} likes</span>
         ${source ? `<a href="${this.escapeHtml(source)}" target="_blank" rel="noopener" aria-label="View original post on Reddit">Source →</a>` : ''}

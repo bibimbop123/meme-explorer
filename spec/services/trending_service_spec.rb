@@ -139,6 +139,32 @@ RSpec.describe TrendingService do
     end
   end
 
+  describe '.curated_top_memes' do
+    it 'excludes commentary sources, caps per-subreddit dominance, and backfills from the pool' do
+      db.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES (?, ?, ?, 50, 200, CURRENT_TIMESTAMP)",
+        ['https://example.com/pol.jpg', 'Pol', 'WhitePeopleTwitter']
+      )
+      3.times do |i|
+        db.execute(
+          "INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES (?, ?, ?, ?, 100, CURRENT_TIMESTAMP)",
+          ["https://example.com/m#{i}.jpg", "Meme #{i}", 'memes', 40 - i]
+        )
+      end
+      fallback = [
+        { 'url' => 'https://example.com/backfill1.jpg', 'title' => 'Backfill 1', 'subreddit' => 'dankmemes' },
+        { 'url' => 'https://example.com/backfill2.jpg', 'title' => 'Backfill 2', 'subreddit' => 'wholesomememes' }
+      ]
+      curated = TrendingService.curated_top_memes(limit: 4, max_per_subreddit: 2, fallback_pool: fallback)
+      expect(curated.map { |m| m['url'] }).to eq([
+        'https://example.com/m0.jpg',
+        'https://example.com/m1.jpg',
+        'https://example.com/backfill1.jpg',
+        'https://example.com/backfill2.jpg'
+      ])
+    end
+  end
+
   describe 'integration test' do
     it 'full trending workflow' do
       5.times do |i|

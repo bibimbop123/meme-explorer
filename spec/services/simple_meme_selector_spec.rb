@@ -15,23 +15,44 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
   end
 
   describe '.select' do
-    it 'applies the optional editorial source weights only with exact opt-in' do
+    it 'enables editorial humor-first weights by default and disables them when ENABLE_HUMOR_FIRST_MIX=false' do
       previous = ENV['ENABLE_HUMOR_FIRST_MIX']
       # Equal engagement: draw 0.6 selects commentary at baseline, humor with pilot.
       pool = [{ 'url' => '/humor.jpg', 'subreddit' => 'MeMeS' },
               { 'url' => '/commentary.jpg', 'subreddit' => 'WhitePeopleTwitter' }]
       allow(described_class).to receive(:rand).and_return(0.6)
-      [nil, 'false', 'TRUE', '1'].each do |value|
+      ENV['ENABLE_HUMOR_FIRST_MIX'] = 'false'
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/commentary.jpg')
+      [nil, 'true'].each do |value|
         value.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = value
-        expect(described_class.send(:weighted_sample, pool)['url']).to eq('/commentary.jpg')
+        expect(described_class.send(:weighted_sample, pool)['url']).to eq('/humor.jpg')
       end
-      ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'
-      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/humor.jpg')
       # Downweighted does not mean excluded, and explicit preferences still apply.
       allow(described_class).to receive(:rand).and_return(0.99)
       expect(described_class.send(:weighted_sample, pool)['url']).to eq('/commentary.jpg')
     ensure
       previous.nil? ? ENV.delete('ENABLE_HUMOR_FIRST_MIX') : ENV['ENABLE_HUMOR_FIRST_MIX'] = previous
+    end
+
+    it 'downweights immediate back-to-back repeats from the same subreddit when alternatives exist' do
+      pool = [
+        { 'url' => '/repeat.jpg', 'subreddit' => 'memes' },
+        { 'url' => '/fresh-sub.jpg', 'subreddit' => 'dankmemes' }
+      ]
+      allow(described_class).to receive(:rand).and_return(0.35)
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/repeat.jpg')
+      expect(described_class.send(:weighted_sample, pool, {}, last_subreddit: 'memes')['url']).to eq('/fresh-sub.jpg')
+    end
+
+    it 'boosts high-converting memes and decays 25+ view duds with zero likes' do
+      pool = [
+        { 'url' => '/dud.jpg', 'subreddit' => 'funny', 'likes' => 0, 'views' => 36 },
+        { 'url' => '/winner.jpg', 'subreddit' => 'funny', 'likes' => 6, 'views' => 12 }
+      ]
+      # Without conversion/dud weighting, both have sqrt(likes*2 + views) == sqrt(24) or sqrt(36).
+      # With conversion boost (1.5x) vs dud decay (0.4x), winner dominates.
+      allow(described_class).to receive(:rand).and_return(0.25)
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/winner.jpg')
     end
 
     it 'favors concise punchy titles over rambling >160-char titles when humor-first mix is enabled' do

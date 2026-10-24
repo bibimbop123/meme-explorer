@@ -55,6 +55,10 @@ module MemeExplorer
       rareinsults nottheonion].freeze
 
     class << self
+      def humor_first_enabled?
+        ENV['ENABLE_HUMOR_FIRST_MIX'] != 'false'
+      end
+
       # Main selection method
       # @param all_memes [Array] Pool of all available memes
       # @param session_id [String] User session identifier
@@ -86,6 +90,7 @@ module MemeExplorer
       # actually closes the loop, since this is the code real traffic runs.
       def select(all_memes, session_id, options = {})
         user_id = options[:user_id] || options['user_id']
+        last_subreddit = (options[:last_subreddit] || options['last_subreddit']).to_s.strip.downcase
         return all_memes.sample if all_memes.empty?
         
         # 1. Filter out previously seen memes
@@ -134,7 +139,7 @@ module MemeExplorer
         # this plain Ruby class - unlike the separate, previously-unused
         # apply_user_preferences path this replaces functionally.
         user_prefs = user_id ? subreddit_preferences_for(user_id) : {}
-        selected = weighted_sample(pool, user_prefs)
+        selected = weighted_sample(pool, user_prefs, last_subreddit: last_subreddit)
         selection_method = if selected && !user_prefs.empty?
                              'personalized_weighted_random'
                            elsif selected && has_engagement_data?(pool)
@@ -211,28 +216,42 @@ module MemeExplorer
       # subreddit, so a user with no signal for a given subreddit sees
       # the exact same weighting as before this change - this only ever
       # boosts, never penalizes, since preference_score only increases).
-      def weighted_sample(pool, user_prefs = {})
+      def weighted_sample(pool, user_prefs = {}, last_subreddit: nil)
         return nil if pool.empty?
+        last_sub = last_subreddit.to_s.strip.downcase
+        has_alternative_sub = !last_sub.empty? && pool.any? { |item| (item['subreddit'] || item[:subreddit]).to_s.downcase != last_sub }
 
         weights = pool.map do |m|
           likes = (m['likes'] || m[:likes]).to_i
           views = (m['views'] || m[:views]).to_i
           score = Math.sqrt((likes * 2 + views).to_f)
           score = [score, 0.1].max
+          source = (m['subreddit'] || m[:subreddit]).to_s.downcase
 
           if user_prefs.any?
-            subreddit = (m['subreddit'] || m[:subreddit]).to_s.downcase
-            score *= (user_prefs[subreddit] || 1.0)
+            score *= (user_prefs[source] || 1.0)
           end
 
-          if ENV['ENABLE_HUMOR_FIRST_MIX'] == 'true'
-            source = (m['subreddit'] || m[:subreddit]).to_s.downcase
+          if humor_first_enabled?
             score *= 2.0 if HUMOR_FIRST_SOURCES.include?(source)
             score *= 0.15 if COMMENTARY_SOURCES.include?(source)
             title_len = (m['title'] || m[:title]).to_s.strip.length
             score *= 1.25 if title_len.between?(1, 80)
             score *= 0.35 if title_len > 160
+            if likes > 0 && views > 0
+              conversion_boost = [likes.to_f / [views, 5].max, 1.5].min
+              score *= (1.0 + conversion_boost)
+            elsif views >= 25 && likes == 0
+              score *= 0.4
+            end
+            w = (m['width'] || m[:width]).to_i
+            h = (m['height'] || m[:height]).to_i
+            if w > 0 && h > 0 && (h.to_f / w) > 2.4 && !HUMOR_FIRST_SOURCES.include?(source)
+              score *= 0.3
+            end
           end
+
+          score *= 0.25 if has_alternative_sub && source == last_sub
 
           score
         end
