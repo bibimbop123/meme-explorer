@@ -6,32 +6,12 @@ module Routes
     def self.registered(app)
       # Trending memes page
       app.get "/trending" do
-        # P2 OPTIMIZATION: Sort in SQL, not Ruby (70% faster)
-        # Use calculated column and LIMIT in database
         @memes = begin
-          if defined?(DB) && DB
-            DB.execute(
-              "SELECT url, title, subreddit, views, likes, 
-                      (likes * 2 + views) AS score 
-               FROM meme_stats 
-               ORDER BY score DESC 
-               LIMIT 20"
-            )
-          else
-            AppLogger.warn("⚠️ [TRENDING] Database not available")
-            []
-          end
-        rescue PG::Error, StandardError => e
-          AppLogger.error("⚠️ [TRENDING] Database error: #{e.message}")
-          []
+          TrendingService.curated_top_memes(limit: 20, fallback_pool: (random_memes_pool rescue []))
         rescue => e
-          AppLogger.error("⚠️ [TRENDING] Database error: #{e.class} - #{e.message}")
+          AppLogger.error("⚠️ [TRENDING] Error: #{e.class} - #{e.message}")
           []
         end
-        
-        # FALLBACK: If no memes in database, the JavaScript will fetch via API
-        # which uses TrendingService that can pull from cache/API
-        # This is expected behavior - frontend handles empty state gracefully
         
         erb :trending
       end

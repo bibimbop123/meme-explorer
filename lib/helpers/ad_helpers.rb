@@ -282,6 +282,25 @@ def render_trending_ad
   HTML
 end
 
+# Render clean, static direct sponsor slot when configured via ENV
+def render_sponsor_slot
+  return '' unless should_show_ads?
+  name = ENV['SPONSOR_NAME'].to_s.strip
+  url = ENV['SPONSOR_URL'].to_s.strip
+  tagline = ENV['SPONSOR_TAGLINE'].to_s.strip
+  return '' if name.empty? || !url.match?(/\Ahttps:\/\/[^\s<>"]+\z/)
+
+  escaped_name = Rack::Utils.escape_html(name[0, 80])
+  escaped_url = Rack::Utils.escape_html(url)
+  escaped_tagline = Rack::Utils.escape_html(tagline[0, 140])
+  <<~HTML
+    <aside class="sponsor-slot-card" aria-label="Sponsor">
+      <small class="ad-label">Supported by</small>
+      <p><a href="#{escaped_url}" target="_blank" rel="noopener sponsored"><strong>#{escaped_name}</strong></a>#{escaped_tagline.empty? ? '' : " — #{escaped_tagline}"}</p>
+    </aside>
+  HTML
+end
+
 # Render anchor/footer ad
 def render_anchor_ad
   return '' unless ad_placeholder_preview? && should_show_ads?

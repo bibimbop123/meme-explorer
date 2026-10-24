@@ -66,20 +66,23 @@ RSpec.describe 'Session discovery controls' do
     expect(stored_preferences['hidden']).to eq(['cats'])
   end
 
-  it 'defaults off, ignores stored exclusions and rejects writes without mutating them' do
+  it 'enables discovery controls by default and disables them when ENABLE_DISCOVERY_CONTROLS=false, retaining stored state' do
     preference('hide', 'cats')
     preference('hide', 'dogs')
-    [nil, 'false', 'TRUE', '1'].each do |value|
+    ENV['ENABLE_DISCOVERY_CONTROLS'] = 'false'
+    get '/random'
+    expect(last_response.status).to eq(200)
+    expect(last_response.body).not_to include('id="discovery-controls"')
+    get '/random.json'
+    expect(last_response.status).to eq(200)
+    post '/feed/preferences', action: 'reset'
+    expect(last_response.status).to eq(404)
+    expect(stored_preferences['hidden']).to eq(['cats', 'dogs'])
+    expect(stored_preferences['undo']).to eq('dogs')
+    [nil, 'true'].each do |value|
       value.nil? ? ENV.delete('ENABLE_DISCOVERY_CONTROLS') : ENV['ENABLE_DISCOVERY_CONTROLS'] = value
-      get '/random'
-      expect(last_response.status).to eq(200)
-      expect(last_response.body).not_to include('id="discovery-controls"')
       get '/random.json'
-      expect(last_response.status).to eq(200)
-      post '/feed/preferences', action: 'reset'
-      expect(last_response.status).to eq(404)
-      expect(stored_preferences['hidden']).to eq(['cats', 'dogs'])
-      expect(stored_preferences['undo']).to eq('dogs')
+      expect(last_response.status).to eq(409)
     end
   end
 

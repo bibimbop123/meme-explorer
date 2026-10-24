@@ -12,6 +12,10 @@
   
   <div class="refined-collection-badge">
     <span class="meme-subreddit"><a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(@meme['subreddit'].to_s)) %>" title="Search this community"><%= Rack::Utils.escape_html(collection_name.to_s) %></a></span>
+    <% valid_sub = @meme['subreddit'].to_s.downcase.match?(/\A[a-z0-9_]{1,32}\z/) %>
+    <% if valid_sub %>
+      <button type="button" class="more-from-sub-btn" data-action="similar-meme" data-subreddit="<%= Rack::Utils.escape_html(@meme['subreddit'].to_s.downcase) %>">More from r/<%= Rack::Utils.escape_html(@meme['subreddit'].to_s.downcase) %> →</button>
+    <% end %>
     <% if rarity_data[:label] != 'Common' %>
       <span class="rarity-indicator rarity-<%= rarity_data[:label].downcase %>">
         <%= rarity_data[:icon] %> <%= rarity_data[:label] %>

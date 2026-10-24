@@ -44,6 +44,17 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
       expect(described_class.send(:weighted_sample, pool, {}, last_subreddit: 'memes')['url']).to eq('/fresh-sub.jpg')
     end
 
+    it 'boosts high-converting memes and decays 25+ view duds with zero likes' do
+      pool = [
+        { 'url' => '/dud.jpg', 'subreddit' => 'funny', 'likes' => 0, 'views' => 36 },
+        { 'url' => '/winner.jpg', 'subreddit' => 'funny', 'likes' => 6, 'views' => 12 }
+      ]
+      # Without conversion/dud weighting, both have sqrt(likes*2 + views) == sqrt(24) or sqrt(36).
+      # With conversion boost (1.5x) vs dud decay (0.4x), winner dominates.
+      allow(described_class).to receive(:rand).and_return(0.25)
+      expect(described_class.send(:weighted_sample, pool)['url']).to eq('/winner.jpg')
+    end
+
     it 'favors concise punchy titles over rambling >160-char titles when humor-first mix is enabled' do
       previous = ENV['ENABLE_HUMOR_FIRST_MIX']
       ENV['ENABLE_HUMOR_FIRST_MIX'] = 'true'

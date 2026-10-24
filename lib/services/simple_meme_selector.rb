@@ -238,6 +238,17 @@ module MemeExplorer
             title_len = (m['title'] || m[:title]).to_s.strip.length
             score *= 1.25 if title_len.between?(1, 80)
             score *= 0.35 if title_len > 160
+            if likes > 0 && views > 0
+              conversion_boost = [likes.to_f / [views, 5].max, 1.5].min
+              score *= (1.0 + conversion_boost)
+            elsif views >= 25 && likes == 0
+              score *= 0.4
+            end
+            w = (m['width'] || m[:width]).to_i
+            h = (m['height'] || m[:height]).to_i
+            if w > 0 && h > 0 && (h.to_f / w) > 2.4 && !HUMOR_FIRST_SOURCES.include?(source)
+              score *= 0.3
+            end
           end
 
           score *= 0.25 if has_alternative_sub && source == last_sub

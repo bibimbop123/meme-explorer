@@ -172,4 +172,49 @@ module TrendingService
       }
     }
   end
+
+  # Diversified, humor-first top memes with cold-start pool backfill
+  def curated_top_memes(limit: 12, max_per_subreddit: 2, fallback_pool: [])
+    commentary = defined?(MemeExplorer::SimpleMemeSelector::COMMENTARY_SOURCES) ? MemeExplorer::SimpleMemeSelector::COMMENTARY_SOURCES : []
+    humor_first = defined?(MemeExplorer::SimpleMemeSelector::HUMOR_FIRST_SOURCES) ? MemeExplorer::SimpleMemeSelector::HUMOR_FIRST_SOURCES : []
+
+    candidates = get_trending_memes(limit: limit * 4, time_window_hours: 168)
+    selected = []
+    seen_urls = {}
+    sub_counts = Hash.new(0)
+
+    candidates.each do |meme|
+      break if selected.size >= limit
+      url = (meme[:url] || meme['url']).to_s
+      next if url.empty? || seen_urls[url]
+      sub = (meme[:subreddit] || meme['subreddit']).to_s.downcase
+      next if commentary.include?(sub)
+      next if !sub.empty? && sub_counts[sub] >= max_per_subreddit
+
+      seen_urls[url] = true
+      sub_counts[sub] += 1 unless sub.empty?
+      selected << meme.transform_keys(&:to_s)
+    end
+
+    if selected.size < limit && fallback_pool.is_a?(Array) && fallback_pool.any?
+      sorted_fallback = fallback_pool.sort_by do |m|
+        sub = (m['subreddit'] || m[:subreddit]).to_s.downcase
+        humor_first.include?(sub) ? 0 : (commentary.include?(sub) ? 2 : 1)
+      end
+      sorted_fallback.each do |meme|
+        break if selected.size >= limit
+        url = (meme['url'] || meme[:url] || meme['file'] || meme[:file]).to_s
+        next if url.empty? || seen_urls[url]
+        sub = (meme['subreddit'] || meme[:subreddit]).to_s.downcase
+        next if commentary.include?(sub)
+        next if !sub.empty? && sub_counts[sub] >= max_per_subreddit
+
+        seen_urls[url] = true
+        sub_counts[sub] += 1 unless sub.empty?
+        selected << meme.transform_keys(&:to_s)
+      end
+    end
+
+    selected
+  end
 end

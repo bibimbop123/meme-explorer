@@ -64,9 +64,16 @@
   <button type="button" id="clear-recent-memes">Clear list</button>
   <div id="recent-meme-list"><p>No viewed memes yet.</p></div>
 </details>
+<%= render_sponsor_slot %>
 <%= render_anchor_ad %>
 <% if @permalink_page %>
-  <p style="text-align: center; margin: 24px;"><a href="/random">Find your next favorite</a></p>
+  <section class="permalink-cta-card" aria-label="Explore more memes">
+    <p><strong>Want more quick visual humor?</strong></p>
+    <div class="permalink-cta-actions">
+      <a href="/random" class="permalink-cta-btn">🔥 Find your next favorite →</a>
+      <a href="/trending" class="permalink-cta-secondary">🏆 See Trending Top Memes</a>
+    </div>
+  </section>
 <% end %>
 
 <!--

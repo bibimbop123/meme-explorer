@@ -8,7 +8,7 @@ module Routes
     def self.registered(app)
       app.helpers do
         def discovery_controls_enabled?
-          ENV['ENABLE_DISCOVERY_CONTROLS'] == 'true'
+          ENV['ENABLE_DISCOVERY_CONTROLS'] != 'false'
         end
 
         def hidden_feed_communities
