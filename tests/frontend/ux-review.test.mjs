@@ -10,11 +10,13 @@ test('initial community is searchable and unseen inventory does not claim freshn
   assert.match(metadata, /class="meme-subreddit"/);
   assert.match(metadata, /href="\/search\?q=/);
   assert.match(metadata, /URI.encode_www_form_component/);
+  assert.match(metadata, /data-action="similar-meme"/);
   const source = await read('public/js/modules/meme-navigation.js');
   const { MemeNavigation } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const nav = Object.create(MemeNavigation.prototype);
   const html = nav.renderInfoHTML({ title: 'Example', subreddit: 'cats', total_unseen: 12 });
   assert.match(html, /12 unseen memes remaining/);
+  assert.match(html, /More from r\/cats →/);
   assert.doesNotMatch(html, /fresh memes remaining/);
 });
 

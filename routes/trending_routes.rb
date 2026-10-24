@@ -94,12 +94,13 @@ module Routes
       # above, which trending.js does NOT call).
       app.get "/api/v1/trending" do
         content_type :json
+        limit = params[:limit].to_i > 0 ? params[:limit].to_i : 20
 
         result = begin
           TrendingService.trending_memes(
             time_window: params[:time_window] || '24h',
             sort_by: params[:sort_by] || 'trending',
-            limit: (params[:limit].to_i > 0 ? params[:limit].to_i : 20),
+            limit: limit,
             cursor: params[:cursor]
           )
         rescue => e
@@ -107,8 +108,13 @@ module Routes
           { memes: [], pagination: { has_more: false, next_cursor: nil, total: 0 } }
         end
 
+        memes = result[:memes].map { |m| m.transform_keys(&:to_s) }
+        if memes.empty? && params[:cursor].to_s.empty?
+          memes = TrendingService.curated_top_memes(limit: limit, fallback_pool: (random_memes_pool rescue [])) rescue []
+        end
+
         {
-          data: result[:memes].map { |m| m.transform_keys(&:to_s) },
+          data: memes,
           pagination: result[:pagination]
         }.to_json
       end
