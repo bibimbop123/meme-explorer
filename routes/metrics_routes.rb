@@ -8,6 +8,7 @@ module Routes
       app.post '/api/visitor-withdrawal' do
         headers 'Cache-Control' => 'no-store, private'
         identity = request.cookies['meme_visitor']
+        identity = session[:feed_session_id] unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
         if identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
           BrowserVisitorMetrics.withdraw(identity)
         end
@@ -19,10 +20,11 @@ module Routes
 
       app.post '/api/visitor-observation' do
         headers 'Cache-Control' => 'no-store, private'
-        halt 404 unless ENV['ENABLE_VISITOR_METRICS'] == 'true'
+        halt 404 unless BrowserVisitorMetrics.enabled?
         halt 204 if request.env['HTTP_SEC_GPC'] == '1' || request.env['HTTP_DNT'] == '1'
         halt 400 unless params['consent'] == 'accepted'
         identity = request.cookies['meme_visitor']
+        identity = feed_session_id unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
         identity = SecureRandom.hex(32) unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
         halt 409, 'This visitor identity was withdrawn. Reload before choosing Allow again.' unless BrowserVisitorMetrics.record(identity)
         response.set_cookie('meme_visitor', value: identity, path: '/', httponly: true,

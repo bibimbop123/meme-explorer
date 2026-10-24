@@ -133,6 +133,9 @@ try {
     await key('Tab');
     check(`${width}px: Tab after skip reaches viewer navigation`, await evaluate(`document.activeElement.closest('.viewer-navigation') !== null`));
     check(`${width}px: no horizontal page overflow`, await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+    if (width === 375) {
+      check('375px: compact mobile header starts meme display within top 220px', await evaluate(`document.querySelector('#meme-display').getBoundingClientRect().top <= 220`));
+    }
     check(`${width}px: decoded image remains within viewer`, await evaluate(`(() => { const image = document.querySelector('#meme-image').getBoundingClientRect(); const viewer = document.querySelector('#meme-display').getBoundingClientRect(); return image.width > 0 && image.left >= viewer.left - 1 && image.right <= viewer.right + 1; })()`));
     for (const theme of ['dark', 'light']) {
       await evaluate(`if(document.documentElement.dataset.theme !== '${theme}') document.querySelector('#darkModeToggle').click()`);
@@ -269,6 +272,7 @@ try {
   await wait(`!!document.querySelector('.meme-gallery') && document.querySelector('.gallery-slide.active img')?.naturalWidth > 0`);
   check('JSON gallery renders decoded first slide',true);
   await evaluate(`document.querySelector('.gallery-next').click()`);
+  await wait(`document.querySelector('.gallery-slide.active')?.dataset.index==='1' && document.querySelector('.gallery-slide.active img')?.naturalWidth > 0`);
   check('dynamic gallery advances once',await evaluate(`document.querySelector('.gallery-slide.active').dataset.index==='1'`));
   identity=await evaluate(`document.querySelector('#meme-display').dataset.memeUrl`);
   await evaluate(`document.querySelector('.gallery-slide.active img').scrollIntoView({block:'center'})`);
@@ -276,6 +280,7 @@ try {
   await touch('touchStart',280,dynamicY);
   await touch('touchMove',200,dynamicY-180);
   await touch('touchEnd',200,dynamicY-180);
+  await new Promise(resolve => setTimeout(resolve, 400));
   check('dynamic gallery vertical touch preserves slide',await evaluate(`document.querySelector('.gallery-slide.active').dataset.index==='1'`));
   await evaluate(`document.querySelector('.gallery-slide.active img').scrollIntoView({block:'center'})`);
   const horizontalY = await evaluate(`(() => {const r=document.querySelector('.gallery-slide.active img').getBoundingClientRect();return Math.max(180,Math.min(550,r.top+r.height/2));})()`);

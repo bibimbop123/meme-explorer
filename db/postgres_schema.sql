@@ -119,3 +119,16 @@ CREATE TABLE IF NOT EXISTS broken_images (
   first_failed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   last_failed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- browser_visitors tables (24h / 7d / 30d unique viewer tracking on /metrics)
+CREATE TABLE IF NOT EXISTS browser_visitor_collection (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS browser_visitors (
+  visitor_key VARCHAR(64) PRIMARY KEY,
+  last_seen_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  revoked_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS browser_visitors_last_seen ON browser_visitors(last_seen_at);

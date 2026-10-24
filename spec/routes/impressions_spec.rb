@@ -46,7 +46,10 @@ RSpec.describe 'Acknowledged AJAX impressions' do
     expect(DB.get_first_value("SELECT COUNT(*) FROM meme_activity_log WHERE activity_type = 'view' AND user_id = ?", [user_id]).to_i).to eq(1)
     get '/metrics.json?period=24h'
     expect(last_response.status).to eq(200)
-    expect(JSON.parse(last_response.body)['total_views']).to eq(report[:total_views])
+    metrics_json = JSON.parse(last_response.body)
+    expect(metrics_json['total_views']).to eq(report[:total_views])
+    expect(metrics_json.dig('browser_visitors', 'available')).to be true
+    expect(metrics_json.dig('browser_visitors', 'counts', '24h')).to be >= 1
   end
 
   def select_meme

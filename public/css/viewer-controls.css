@@ -64,6 +64,10 @@
   outline-offset: 4px;
 }
 
+.meme-gallery {
+  touch-action: pan-y pinch-zoom;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gallery-slide { transition: none !important; }
 }
@@ -129,26 +133,51 @@
 }
 
 @media (max-width: 768px) {
+  header {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
   nav.main-nav {
     flex-wrap: wrap !important;
     overflow: visible !important;
     box-sizing: border-box;
-    padding: 8px !important;
+    padding: 4px 8px !important;
+    gap: 4px !important;
+  }
+
+  nav.main-nav .logo {
+    font-size: 1.1rem !important;
+    padding: 4px 6px !important;
+    min-height: 44px !important;
   }
 
   nav.viewer-navigation {
     overflow: visible !important;
-    padding: 8px !important;
+    padding: 6px 8px !important;
+    gap: 8px !important;
   }
 
   nav.main-nav .nav-items {
-    width: 100%;
+    width: auto !important;
+    flex: 1 1 auto;
+    justify-content: flex-end;
     min-width: 0;
+    gap: 2px !important;
   }
 
   nav.main-nav .nav-items a,
   nav.main-nav .nav-items button {
-    padding: 8px !important;
+    padding: 6px 8px !important;
+    font-size: 0.85rem !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .page-wrapper.simplified-mode,
+  .simplified-mode .meme-container {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
   }
 }
 
