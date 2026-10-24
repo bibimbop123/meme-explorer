@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="csrf-token" content="<%= Rack::Utils.escape_html(session['csrf'].to_s) %>">
-  <% if ENV['ENABLE_VISITOR_METRICS'] == 'true' %><meta name="visitor-metrics-enabled" content="true"><% end %>
+  <% if defined?(BrowserVisitorMetrics) && BrowserVisitorMetrics.enabled? %><meta name="visitor-metrics-enabled" content="true"><% end %>
   <script<%= env['meme.csp_nonce'] ? " nonce=\"#{Rack::Utils.escape_html(env['meme.csp_nonce'])}\"" : '' %> src="/js/csrf.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= @meme_unavailable ? 'Meme unavailable | Meme Explorer' : (@permalink_page ? Rack::Utils.escape_html("#{@meme['title'].to_s[0, 180]} | Meme Explorer") : 'Meme Explorer 😎 - Best Memes from Reddit') %></title>
@@ -171,7 +171,7 @@
       <nav class="footer-links">
         <a href="/about">About</a>
         <a href="/privacy">Privacy</a>
-        <% if ENV['ENABLE_VISITOR_METRICS'] == 'true' %>
+        <% if defined?(BrowserVisitorMetrics) && BrowserVisitorMetrics.enabled? %>
           <details id="visitor-privacy-controls">
             <summary>Visitor measurement privacy</summary>
             <p>Optional analytics counts this browser, not your identity. We store a hashed browser key and last visit time, not page history. The cookie lasts 30 days. Withdrawal clears the visit time and cookie; a hashed suppression key prevents late requests from counting again and is eligible for scheduled cleanup after 30 days. This choice does not enable advertising.</p>

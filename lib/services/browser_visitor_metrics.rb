@@ -6,6 +6,33 @@ require 'time'
 class BrowserVisitorMetrics
   WINDOWS = { '24h' => 86_400, '7d' => 604_800, '30d' => 2_592_000 }.freeze
 
+  def self.enabled?
+    ENV['ENABLE_VISITOR_METRICS'] != 'false'
+  end
+
+  def self.ensure_schema!
+    return if @schema_ready
+    DB_POOL.with do |conn|
+      conn.exec(<<~SQL)
+        CREATE TABLE IF NOT EXISTS browser_visitor_collection (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS browser_visitors (
+          visitor_key VARCHAR(64) PRIMARY KEY,
+          last_seen_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          revoked_at TIMESTAMPTZ
+        );
+        ALTER TABLE browser_visitors ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+        ALTER TABLE browser_visitors ALTER COLUMN last_seen_at DROP NOT NULL;
+        CREATE INDEX IF NOT EXISTS browser_visitors_last_seen ON browser_visitors(last_seen_at);
+      SQL
+    end
+    @schema_ready = true
+  rescue StandardError
+    false
+  end
+
   def self.record(identity, now: Time.now.utc)
     raise ArgumentError unless identity.is_a?(String) && identity.match?(/\A[a-f0-9]{64}\z/)
     recorded = false
@@ -25,7 +52,7 @@ class BrowserVisitorMetrics
   end
 
   def self.snapshot(now: Time.now.utc)
-    return { available: false, status: 'disabled' } unless ENV['ENABLE_VISITOR_METRICS'] == 'true'
+    return { available: false, status: 'disabled' } unless enabled?
     # One statement gives all cards and coverage metadata the same MVCC snapshot.
     row = DB.execute(<<~SQL, [(now - WINDOWS['24h']).iso8601(6), (now - WINDOWS['7d']).iso8601(6), (now - WINDOWS['30d']).iso8601(6), now.iso8601(6)]).first
       SELECT COUNT(*) FILTER (WHERE last_seen_at >= ?) AS visitors_24h,
@@ -42,4 +69,6 @@ class BrowserVisitorMetrics
   rescue StandardError
     { available: false, status: 'unavailable' }
   end
+
+  ensure_schema! if defined?(DB_POOL)
 end

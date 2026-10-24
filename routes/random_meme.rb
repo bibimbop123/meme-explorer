@@ -220,6 +220,16 @@ module Routes
           halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json
         end
         LegacyImpressionMetrics.record(recorded ? 'ack_recorded' : 'ack_duplicate')
+        if recorded && defined?(BrowserVisitorMetrics) && BrowserVisitorMetrics.enabled? &&
+           request.env['HTTP_SEC_GPC'] != '1' && request.env['HTTP_DNT'] != '1'
+          begin
+            visitor_id = request.cookies['meme_visitor']
+            visitor_id = feed_session_id unless visitor_id.is_a?(String) && visitor_id.match?(/\A[a-f0-9]{64}\z/)
+            BrowserVisitorMetrics.record(visitor_id) if visitor_id.is_a?(String) && visitor_id.match?(/\A[a-f0-9]{64}\z/)
+          rescue StandardError
+            nil
+          end
+        end
         { success: true, recorded: recorded }.to_json
       end
 
