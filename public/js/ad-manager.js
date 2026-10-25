@@ -36,6 +36,8 @@ class AdManager {
       console.log('📢 [AD MANAGER] Ads disabled for this page:', currentPath);
       return false;
     }
+
+    if (window.AD_PLACEHOLDER_PREVIEW !== true) return false;
     
     return !this.userIsPremium && !this.adsDisabled;
   }

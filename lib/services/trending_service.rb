@@ -193,7 +193,9 @@ module TrendingService
 
       seen_urls[url] = true
       sub_counts[sub] += 1 unless sub.empty?
-      selected << meme.transform_keys(&:to_s)
+      normalized = meme.transform_keys(&:to_s)
+      normalized['image_url'] ||= url
+      selected << normalized
     end
 
     if selected.size < limit && fallback_pool.is_a?(Array) && fallback_pool.any?
@@ -211,7 +213,10 @@ module TrendingService
 
         seen_urls[url] = true
         sub_counts[sub] += 1 unless sub.empty?
-        selected << meme.transform_keys(&:to_s)
+        normalized = meme.transform_keys(&:to_s)
+        normalized['url'] ||= url
+        normalized['image_url'] ||= url
+        selected << normalized
       end
     end
 
