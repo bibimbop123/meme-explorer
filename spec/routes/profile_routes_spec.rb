@@ -124,6 +124,19 @@ describe 'Profile Routes' do
       expect(last_response.body).to include('1 liked matches', 'Purring Kitten')
       expect(last_response.body).not_to include('Barking Puppy')
     end
+
+    it 'preserves liked_q across multi-page liked search results' do
+      session[:user_id] = user_id
+      26.times do |i|
+        url = "https://i.redd.it/cat-page-#{i}.jpg"
+        DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, 'cats', 5, 20)", [url, "Cat #{i}"])
+        DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, url])
+      end
+
+      get '/profile', { liked_q: 'cats' }
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('26 liked matches', 'Likes page 1 of 2', 'liked_page=2&amp;liked_q=cats#liked-memes')
+    end
   end
 
   describe 'POST /api/save-meme' do

@@ -79,11 +79,11 @@
   <% if !@liked_load_error && @liked_pages && @liked_pages > 1 %>
     <nav aria-label="Liked meme pages" style="display: flex; justify-content: center; gap: 24px; padding: 16px;">
       <% if @liked_page > 1 %>
-        <a rel="prev" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">← Previous likes</a>
+        <a rel="prev" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#liked-memes">← Previous likes</a>
       <% end %>
       <span>Likes page <%= @liked_page %> of <%= @liked_pages %></span>
       <% if @liked_page < @liked_pages %>
-        <a rel="next" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">More likes →</a>
+        <a rel="next" href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#liked-memes">More likes →</a>
       <% end %>
     </nav>
   <% end %>
@@ -93,9 +93,12 @@
     <label for="saved-query">Search favorites by title or community</label>
     <input id="saved-query" name="saved_q" type="search" maxlength="200" value="<%= Rack::Utils.escape_html(@saved_query) %>">
     <input type="hidden" name="liked_page" value="<%= @liked_page %>">
+    <% unless @liked_query.to_s.empty? %>
+      <input type="hidden" name="liked_q" value="<%= Rack::Utils.escape_html(@liked_query) %>">
+    <% end %>
     <button type="submit">Search saved</button>
     <% unless @saved_query.empty? %>
-      <a href="/profile?liked_page=<%= @liked_page %>#saved-memes">Clear search</a>
+      <a href="/profile?liked_page=<%= @liked_page %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#saved-memes">Clear search</a>
     <% end %>
   </form>
   <% if !@saved_load_error && !@saved_query.empty? %>
@@ -128,11 +131,11 @@
   <% if !@saved_load_error && @saved_pages && @saved_pages > 1 %>
     <nav aria-label="Saved meme pages" style="display: flex; justify-content: center; gap: 24px; padding: 16px;">
       <% if @saved_page > 1 %>
-        <a rel="prev" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#saved-memes">← Previous favorites</a>
+        <a rel="prev" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page - 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#saved-memes">← Previous favorites</a>
       <% end %>
       <span>Page <%= @saved_page %> of <%= @saved_pages %></span>
       <% if @saved_page < @saved_pages %>
-        <a rel="next" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#saved-memes">More favorites →</a>
+        <a rel="next" href="/profile?liked_page=<%= @liked_page %>&amp;saved_page=<%= @saved_page + 1 %><%= Rack::Utils.escape_html(@saved_query_suffix) %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#saved-memes">More favorites →</a>
       <% end %>
     </nav>
   <% end %>
