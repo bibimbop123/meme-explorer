@@ -120,11 +120,11 @@ module MemeExplorer
           unseen = [oldest]
         end
         
-        # 3. Optionally boost fresh content (10% of the time)
+        # 3. Optionally boost fresh content (on first impression of session, or 10% of the time)
         pool = unseen
-        if options[:boost_fresh] != false && rand < 0.1
+        if options[:boost_fresh] != false && (last_subreddit.empty? || rand < 0.1)
           fresh = unseen.select { |m| fresh?(m) }
-          if fresh.size > 10
+          if (last_subreddit.empty? && fresh.any?) || fresh.size > 10
             pool = fresh
             AppLogger.debug("[SimpleMemeSelector] Using fresh pool: #{fresh.size} memes")
           end

@@ -63,6 +63,7 @@ class MetricsReport
     rankings = db.execute("SELECT * FROM (#{ranking}) ranked ORDER BY (likes * 2 + views) DESC, url LIMIT 10", period == 'all' ? [] : args)
     report[:top_memes] = rankings
     report[:top_subreddits] = db.execute("SELECT subreddit, SUM(likes) AS total_likes, SUM(views) AS total_views, COUNT(*) AS count, CASE WHEN SUM(views) > 0 THEN ROUND((100.0 * SUM(likes) / SUM(views))::numeric, 1) ELSE NULL END AS like_rate FROM (#{ranking}) ranked WHERE subreddit IS NOT NULL GROUP BY subreddit ORDER BY total_likes DESC, subreddit LIMIT 10", period == 'all' ? [] : args)
+    report[:low_converting_subreddits] = db.execute("SELECT subreddit, SUM(likes) AS total_likes, SUM(views) AS total_views, COUNT(*) AS count, ROUND((100.0 * SUM(likes) / SUM(views))::numeric, 1) AS like_rate FROM (#{ranking}) ranked WHERE subreddit IS NOT NULL GROUP BY subreddit HAVING SUM(views) >= 25 ORDER BY like_rate ASC, total_views DESC, subreddit ASC LIMIT 5", period == 'all' ? [] : args)
     report
   end
 end

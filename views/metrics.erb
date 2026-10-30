@@ -354,6 +354,28 @@
           </table>
         </div>
       <% end %>
+
+      <% if @low_converting_subreddits && @low_converting_subreddits.any? %>
+        <h2>⚠️ Low-Converting Subreddits (25+ Views)</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>Subreddit</th><th>Like Rate</th><th>Total Likes</th><th>Total Views</th><th>Meme Count</th></tr>
+            </thead>
+            <tbody>
+              <% @low_converting_subreddits.each do |sub| %>
+                <tr>
+                  <td>r/<%= Rack::Utils.escape_html(sub['subreddit'].to_s) %></td>
+                  <td><%= sub['like_rate'] ? "#{sub['like_rate']}%" : '0.0%' %></td>
+                  <td><%= sub['total_likes'] %></td>
+                  <td><%= sub['total_views'] || 0 %></td>
+                  <td><%= sub['count'] %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
     </section>
 
     <footer>

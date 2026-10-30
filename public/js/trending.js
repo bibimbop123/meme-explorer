@@ -100,8 +100,20 @@ class TrendingPage {
           if (!append) {
             this.container.innerHTML = '';
             this.memeCount = 0; // Reset counter when loading fresh
+            if (isDailyPack) {
+              const banner = document.createElement('div');
+              banner.style.cssText = 'width: 100%; max-width: 860px; background: #eef2ff; color: #312e81; padding: 12px 18px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 8px;';
+              banner.textContent = `🎯 Today's Top ${memes.length} Daily Pack — Strictly 1 top meme per humor community`;
+              this.container.appendChild(banner);
+            }
           }
           memes.forEach(meme => this.renderMemeCard(meme));
+          if (isDailyPack && memes.length > 0) {
+            const doneCard = document.createElement('div');
+            doneCard.style.cssText = 'width: 100%; max-width: 860px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 16px; border-radius: 10px; text-align: center; margin-top: 12px;';
+            doneCard.innerHTML = '<strong>🎉 You’ve reached the end of Today’s Top 10!</strong> <a href="/random" style="margin-left: 12px; color: #e52e71; font-weight: 700; text-decoration: underline;">🔥 Continue in Random Feed →</a>';
+            this.container.appendChild(doneCard);
+          }
           
           // Setup lazy loading for ads after rendering
           if (this.adManager) {

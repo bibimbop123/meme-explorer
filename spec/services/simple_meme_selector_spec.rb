@@ -333,6 +333,16 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
       ensure
         MemeExplorer::ViewingHistoryService.clear_history("user:#{user_id}") if user_id
       end
+
+      it 'prioritizes fresh (<24h) unseen memes on the first selection of a session' do
+        pool = [
+          { 'url' => '/older.jpg', 'title' => 'Older meme', 'subreddit' => 'memes', 'created_at' => 3.days.ago.iso8601 },
+          { 'url' => '/fresh.jpg', 'title' => 'Fresh meme', 'subreddit' => 'memes', 'created_at' => 2.hours.ago.iso8601 }
+        ]
+
+        selected = described_class.select(pool, session_id, last_subreddit: nil)
+        expect(selected['url']).to eq('/fresh.jpg')
+      end
     end
   end
 end

@@ -181,5 +181,20 @@ describe "Metrics Routes" do
       expect(data["selection_latency"]).to have_key("total")
       expect(data["selection_latency"]["total"]["count"]).to be >= 1
     end
+
+    it "surfaces low-converting subreddits with 25+ views on /metrics and /metrics.json" do
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES ('https://i.redd.it/dud1.jpg', 'Dud 1', 'dudsub', 0, 40)")
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES ('https://i.redd.it/hit1.jpg', 'Hit 1', 'hitsub', 20, 40)")
+
+      authenticated_get "/metrics"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("Low-Converting Subreddits (25+ Views)", "r/dudsub")
+
+      env "rack.session", { user_id: @user_id }
+      header "Accept", "application/json"
+      get "/metrics.json"
+      data = JSON.parse(last_response.body)
+      expect(data["low_converting_subreddits"].first["subreddit"]).to eq("dudsub")
+    end
   end
 end
