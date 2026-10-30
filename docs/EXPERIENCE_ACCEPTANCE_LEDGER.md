@@ -13,9 +13,11 @@ self-serve `/profile/export.json`, `/profile/delete-account`, `/profile/clear-hi
 boosting, crosspost title deduplication (`SimpleMemeSelector`), guest-to-account
 migration (`migrate_guest_activity`), cross-device `ViewingHistoryService.sync_account_history`
 `GET /api/v1/daily-digest` (**Daily Top 10**), live SQL `/leaderboard` without
-email exposure, and 7d `RetentionService.engagement_funnel` on `/metrics`.
-**Full backend RSpec suite: 1,415 examples, zero failures, seven pending, 79.69%
-coverage (5,831/7,317), exit 0**; **23 real-socket server acceptance checks pass**
+email exposure, `low_converting_subreddits` (25+ views) on `/metrics`, first-impression
+freshness priority in `SimpleMemeSelector`, and replacement of the last seven removed-service
+`pending` specs in `spec/integration/random_algorithm_integration_spec.rb`.
+**Full backend RSpec suite: 1,417 examples, zero failures, zero pending, 79.86%
+coverage (5,844/7,318), exit 0**; **23 real-socket server acceptance checks pass**
 (`tests/app_server_test.rb`), **19 CSRF contract checks pass**
 (`tests/csrf_protection_test.rb`), and **180 frontend tests pass** (`npm test`).
 
