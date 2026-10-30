@@ -101,7 +101,13 @@ describe 'Profile Routes' do
       )
       get '/profile'
       expect(last_response.status).to eq(200)
-      expect(last_response.body).to include('Your Top Communities', 'r/wholesomememes', '/search?q=wholesomememes')
+      expect(last_response.body).to include('Your Top Communities', 'r/wholesomememes', '/search?q=wholesomememes', 'Reset community boosts')
+
+      post '/profile/reset-preferences'
+      expect(last_response.status).to eq(303)
+      expect(DB.get_first_value('SELECT COUNT(*) FROM user_subreddit_preferences WHERE user_id = ?', [user_id]).to_i).to eq(0)
+      get '/profile'
+      expect(last_response.body).to include('Your community feed preferences have been reset.')
     end
   end
 

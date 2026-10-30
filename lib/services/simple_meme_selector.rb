@@ -98,6 +98,10 @@ module MemeExplorer
           all_memes.uniq { |m| m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id] }
         )
         seen = ViewingHistoryService.get_seen_memes(session_id)
+        if user_id && !session_id.to_s.start_with?('user:')
+          account_seen = ViewingHistoryService.get_seen_memes("user:#{user_id}")
+          seen = (seen + account_seen).uniq unless account_seen.empty?
+        end
         seen_lookup = seen.to_set
         unseen = all_memes.reject do |meme|
           meme_id = meme['url'] || meme[:url] || meme['file'] || meme[:file] || meme['id'] || meme[:id]
@@ -142,11 +146,12 @@ module MemeExplorer
         # apply_user_preferences path this replaces functionally.
         user_prefs = user_id ? subreddit_preferences_for(user_id) : {}
         session_prefs = options[:session_prefs] || options['session_prefs']
-        if user_prefs.empty? && session_prefs.is_a?(Hash) && session_prefs.any?
-          user_prefs = session_prefs.each_with_object({}) do |(sub, weight), h|
+        if session_prefs.is_a?(Hash) && session_prefs.any?
+          session_prefs.each do |sub, weight|
             key = sub.to_s.strip.downcase
-            val = weight.to_f
-            h[key] = [[val, 1.0].max, 2.5].min unless key.empty?
+            next if key.empty?
+            bounded = [[weight.to_f, 1.0].max, 2.5].min
+            user_prefs[key] = [user_prefs[key].to_f, bounded].max if bounded > 1.0
           end
         end
         selected = weighted_sample(pool, user_prefs, last_subreddit: last_subreddit)

@@ -85,9 +85,18 @@ module AppHelpers
       "<a href=\"/search?q=#{encoded}\" style=\"display:inline-block;padding:6px 12px;background:#eef2ff;color:#3730a3;border-radius:16px;text-decoration:none;font-size:0.85rem;font-weight:600;\">r/#{escaped}</a>"
     end.join(' ')
 
+    csrf_token = (defined?(session) && session.is_a?(Hash) ? session['csrf'] : '').to_s
+    escaped_csrf = Rack::Utils.escape_html(csrf_token)
+
     <<~HTML
       <section aria-label="Favorite communities" style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:30px;">
-        <h2 style="margin-top:0;font-size:1.15rem;">Your Top Communities</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;font-size:1.15rem;">Your Top Communities</h2>
+          <form method="post" action="/profile/reset-preferences" style="margin:0;">
+            <input type="hidden" name="authenticity_token" value="#{escaped_csrf}">
+            <button type="submit" style="padding:4px 10px;font-size:0.8rem;background:#fff;color:#555;border:1px solid #ccc;border-radius:4px;cursor:pointer;">Reset community boosts</button>
+          </form>
+        </div>
         <p style="margin:6px 0 12px 0;font-size:0.9rem;color:#555;">Communities boosted in your Random feed based on memes you've liked and saved:</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">#{chips}</div>
       </section>

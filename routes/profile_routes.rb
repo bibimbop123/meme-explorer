@@ -20,6 +20,7 @@ module Routes
         @saved_query = @saved_query.strip
         @saved_query_suffix = @saved_query.empty? ? '' : "&saved_q=#{Rack::Utils.escape(@saved_query)}"
         @history_cleared = session.delete(:history_cleared_notice) == true
+        @preferences_reset = session.delete(:preferences_reset_notice) == true
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -294,6 +295,16 @@ module Routes
         MemeExplorer::ViewingHistoryService.clear_history(feed_session_id)
         MemeExplorer::ViewingHistoryService.clear_history("user:#{current_user_id}") if current_user_id
         session[:history_cleared_notice] = true
+        redirect "/profile", 303
+      end
+
+      # Self-serve reset of learned account & session subreddit preferences
+      app.post "/profile/reset-preferences" do
+        headers 'Cache-Control' => 'no-store, private'
+        require_auth!
+        MemeExplorer::App::DB.execute('DELETE FROM user_subreddit_preferences WHERE user_id = ?', [current_user_id])
+        session.delete(:liked_subreddits)
+        session[:preferences_reset_notice] = true
         redirect "/profile", 303
       end
 

@@ -319,6 +319,20 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
         expect(selected['url']).to eq('/crosspost_high.jpg')
         expect(selected['pool_size']).to eq(1)
       end
+
+      it 'excludes memes already seen under the signed-in account key across devices' do
+        user_id = create_user("cross_device_selector@example.com")
+        MemeExplorer::ViewingHistoryService.mark_seen("user:#{user_id}", '/seen_on_phone.jpg')
+        pool = [
+          { 'url' => '/seen_on_phone.jpg', 'title' => 'Phone meme', 'subreddit' => 'memes' },
+          { 'url' => '/unseen_on_laptop.jpg', 'title' => 'Laptop meme', 'subreddit' => 'dankmemes' }
+        ]
+
+        selected = described_class.select(pool, session_id, boost_fresh: false, user_id: user_id)
+        expect(selected['url']).to eq('/unseen_on_laptop.jpg')
+      ensure
+        MemeExplorer::ViewingHistoryService.clear_history("user:#{user_id}") if user_id
+      end
     end
   end
 end
