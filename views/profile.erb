@@ -26,10 +26,27 @@
   <% end %>
 
   <h2 id="liked-memes">My Liked Memes</h2>
+  <form method="get" action="/profile#liked-memes" role="search" aria-label="Search liked memes" style="margin-bottom: 16px;">
+    <label for="liked-query">Search likes by title or community</label>
+    <input id="liked-query" name="liked_q" type="search" maxlength="200" value="<%= Rack::Utils.escape_html(@liked_query.to_s) %>">
+    <input type="hidden" name="saved_page" value="<%= @saved_page %>">
+    <% unless @saved_query.to_s.empty? %>
+      <input type="hidden" name="saved_q" value="<%= Rack::Utils.escape_html(@saved_query) %>">
+    <% end %>
+    <button type="submit">Search likes</button>
+    <% unless @liked_query.to_s.empty? %>
+      <a href="/profile?saved_page=<%= @saved_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">Clear likes search</a>
+    <% end %>
+  </form>
+  <% if !@liked_load_error && !@liked_query.to_s.empty? %>
+    <p role="status"><%= @liked_matches %> liked matches</p>
+  <% end %>
   
   <% if @liked_load_error %>
     <p role="alert">We could not load your liked memes. Please try again.</p>
-    <p><a href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %>#liked-memes">Try loading Likes again</a></p>
+    <p><a href="/profile?saved_page=<%= @saved_page %>&amp;liked_page=<%= @liked_page %><%= Rack::Utils.escape_html(@saved_query_suffix) %><%= Rack::Utils.escape_html(@liked_query_suffix.to_s) %>#liked-memes">Try loading Likes again</a></p>
+  <% elsif @liked_memes.empty? && !@liked_query.to_s.empty? %>
+    <p>No liked memes match this search. Try another title or community, or clear the search.</p>
   <% elsif @liked_memes.empty? %>
     <p style="text-align: center; color: #999;">No liked memes yet.</p>
   <% else %>

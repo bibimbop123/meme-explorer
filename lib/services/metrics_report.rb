@@ -29,6 +29,8 @@ class MetricsReport
       source: period == 'all' ? 'cumulative stored counters' : 'recorded activity events',
       total_users: db.get_first_value('SELECT COUNT(*) FROM users').to_i,
       total_saved_memes: total_saved,
+      total_persisted_likes: (db.get_first_value('SELECT COUNT(*) FROM user_liked_memes').to_i rescue 0),
+      broken_images_count: (db.get_first_value('SELECT COUNT(*) FROM broken_images').to_i rescue 0),
       memes_with_no_likes: db.get_first_value('SELECT COUNT(*) FROM meme_stats WHERE likes = 0').to_i,
       memes_with_no_views: db.get_first_value('SELECT COUNT(*) FROM meme_stats WHERE views = 0').to_i,
       avg_likes: count.positive? ? (report[:total_likes].to_f / count).round(2) : 0,

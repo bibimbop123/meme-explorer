@@ -109,6 +109,21 @@ describe 'Profile Routes' do
       get '/profile'
       expect(last_response.body).to include('Your community feed preferences have been reset.')
     end
+
+    it 'filters liked memes by title or community via liked_q search' do
+      session[:user_id] = user_id
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 5, 20)",
+        ['https://i.redd.it/like-cat.jpg', 'Purring Kitten', 'cats'])
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 5, 20)",
+        ['https://i.redd.it/like-dog.jpg', 'Barking Puppy', 'dogs'])
+      DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, 'https://i.redd.it/like-cat.jpg'])
+      DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, 'https://i.redd.it/like-dog.jpg'])
+
+      get '/profile', { liked_q: 'Purring' }
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('1 liked matches', 'Purring Kitten')
+      expect(last_response.body).not_to include('Barking Puppy')
+    end
   end
 
   describe 'POST /api/save-meme' do

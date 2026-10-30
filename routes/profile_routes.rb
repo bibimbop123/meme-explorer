@@ -19,6 +19,10 @@ module Routes
         halt 400, 'Saved search must be text up to 200 characters.' unless @saved_query.is_a?(String) && @saved_query.length <= 200
         @saved_query = @saved_query.strip
         @saved_query_suffix = @saved_query.empty? ? '' : "&saved_q=#{Rack::Utils.escape(@saved_query)}"
+        @liked_query = params[:liked_q] || ''
+        halt 400, 'Likes search must be text up to 200 characters.' unless @liked_query.is_a?(String) && @liked_query.length <= 200
+        @liked_query = @liked_query.strip
+        @liked_query_suffix = @liked_query.empty? ? '' : "&liked_q=#{Rack::Utils.escape(@liked_query)}"
         @history_cleared = session.delete(:history_cleared_notice) == true
         @preferences_reset = session.delete(:preferences_reset_notice) == true
       
@@ -58,12 +62,24 @@ module Routes
           @liked_memes = begin
             count_row = MemeExplorer::App::DB.execute('SELECT COUNT(*) AS count FROM user_liked_memes WHERE user_id = ?', [user_id]).first
             @liked_count = count_row['count'].to_i
-            @liked_pages = [(@liked_count / 24.0).ceil, 1].max
-            @liked_page = [@liked_page, @liked_pages].min
-            results = MemeExplorer::App::DB.execute(
-              "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
-              [user_id, 24, (@liked_page - 1) * 24]
-            ) || []
+            if @liked_query.empty?
+              @liked_matches = @liked_count
+              @liked_pages = [(@liked_count / 24.0).ceil, 1].max
+              @liked_page = [@liked_page, @liked_pages].min
+              results = MemeExplorer::App::DB.execute(
+                "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                [user_id, 24, (@liked_page - 1) * 24]
+              ) || []
+            else
+              liked_filter_sql = " FROM user_liked_memes ul LEFT JOIN meme_stats ms ON ms.url = ul.meme_url WHERE ul.user_id = ? AND (POSITION(LOWER(?) IN LOWER(COALESCE(ms.title, ''))) > 0 OR POSITION(LOWER(?) IN LOWER(COALESCE(ms.subreddit, ''))) > 0 OR POSITION(LOWER(?) IN LOWER(COALESCE(ul.meme_url, ''))) > 0)"
+              @liked_matches = MemeExplorer::App::DB.execute("SELECT COUNT(*) AS count#{liked_filter_sql}", [user_id, @liked_query, @liked_query, @liked_query]).first['count'].to_i
+              @liked_pages = [(@liked_matches / 24.0).ceil, 1].max
+              @liked_page = [@liked_page, @liked_pages].min
+              results = MemeExplorer::App::DB.execute(
+                "SELECT ul.meme_url, ul.created_at as liked_at#{liked_filter_sql} ORDER BY ul.created_at DESC, ul.id DESC LIMIT ? OFFSET ?",
+                [user_id, @liked_query, @liked_query, @liked_query, 24, (@liked_page - 1) * 24]
+              ) || []
+            end
             liked_rows = results.map { |row| row.transform_keys(&:to_s) }
             if liked_rows.any?
               begin
