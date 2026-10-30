@@ -18,7 +18,7 @@ end
 check('GET creates a session token') { app.call(environment.call('GET'))[0] == 200 && session['csrf'].size == 64 }
 check('missing token is rejected') { app.call(environment.call('POST'))[0] == 403 }
 check('forged token is rejected') { app.call(environment.call('POST', '/like', '{}', 'HTTP_X_CSRF_TOKEN' => 'x' * 64))[0] == 403 }
-%w[/like /api/save-meme /api/unsave-meme /api/skip-meme /feed/preferences /login /signup].each do |path|
+%w[/like /api/save-meme /api/unsave-meme /api/skip-meme /feed/preferences /login /signup /profile/clear-history /profile/reset-preferences /profile/unlike /profile/delete-account].each do |path|
   check("valid token accepted for #{path} without consuming JSON") do
     result = app.call(environment.call('POST', path, '{"url":"test"}', 'HTTP_X_CSRF_TOKEN' => session['csrf']))
     result[0] == 200 && result[2].join == '{"url":"test"}'
