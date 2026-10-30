@@ -31,7 +31,7 @@
       <h2>No matching memes</h2>
       <p>No memes found for “<%= Rack::Utils.escape_html(@query.to_s) %>”.</p>
       <p>Try fewer words, check the spelling, or search a community name without <code>r/</code>. Search matches titles and community names, not text inside images.</p>
-      <p class="search-recovery"><a href="/search">Start a new search</a><a href="/trending">Browse trending memes</a></p>
+      <p class="search-recovery"><a href="/search">Start a new search</a><a href="/trending">Browse trending memes</a><a href="/random">Explore random memes</a></p>
     </div>
   <% else %>
     <p id="search-feedback" role="status"><%= @results.size %> results found.</p>

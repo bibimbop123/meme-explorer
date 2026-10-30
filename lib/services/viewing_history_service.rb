@@ -107,6 +107,39 @@ module MemeExplorer
       rescue => e
         AppLogger.error("Failed to clear history: #{e.message}")
       end
+
+      # Bidirectional sync between a browser session history key and an account history key
+      # so signed-in users keep anti-repeat continuity across devices and browsers.
+      def sync_account_history(session_visitor_id, user_id)
+        return unless session_visitor_id && user_id
+        session_key = history_key(session_visitor_id)
+        account_key = history_key("user:#{user_id}")
+        cutoff = Time.now.to_f - HISTORY_TTL
+
+        RedisService.with_redis do |redis|
+          source_entries = redis.zrangebyscore(session_key, cutoff, '+inf', with_scores: true) || []
+          account_entries = redis.zrangebyscore(account_key, cutoff, '+inf', with_scores: true) || []
+          merged = {}
+          (account_entries + source_entries).each do |member, score|
+            next unless member
+            ts = score.to_f
+            merged[member] = ts if !merged.key?(member) || ts > merged[member]
+          end
+          return if merged.empty?
+
+          pairs = merged.map { |member, score| [score, member] }
+          redis.pipelined do |pipeline|
+            [session_key, account_key].each do |key|
+              pipeline.zremrangebyscore(key, '-inf', cutoff)
+              pipeline.zadd(key, pairs)
+              pipeline.zremrangebyrank(key, 0, -(MAX_HISTORY_SIZE + 1))
+              pipeline.expire(key, HISTORY_TTL)
+            end
+          end
+        end
+      rescue => e
+        AppLogger.warn("Account viewing history sync skipped: #{e.class}")
+      end
       
       # Get viewing stats for debugging
       def get_stats(visitor_id)

@@ -79,6 +79,14 @@ RSpec.describe DatabaseCleanupWorker do
       worker.perform
       expect(DB.execute('SELECT id FROM meme_impressions').map { |row| row['id'] }).to eq(['recent'])
     end
+
+    it 'prunes meme_activity_log events older than 90 days while retaining 30d/14d window events' do
+      DB.execute("INSERT INTO meme_activity_log (meme_url, activity_type, created_at) VALUES ('/ancient.jpg', 'view', NOW() - INTERVAL '95 days')")
+      DB.execute("INSERT INTO meme_activity_log (meme_url, activity_type, created_at) VALUES ('/recent.jpg', 'view', NOW() - INTERVAL '10 days')")
+      worker.perform
+      urls = DB.execute('SELECT meme_url FROM meme_activity_log').map { |row| row['meme_url'] }
+      expect(urls).to eq(['/recent.jpg'])
+    end
   end
 
   describe 'Sidekiq configuration' do

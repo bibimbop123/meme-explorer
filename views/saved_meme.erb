@@ -34,7 +34,8 @@
       </h1>
       
       <div class="meme-meta-info">
-        <span class="meme-subreddit-badge">r/<%= Rack::Utils.escape_html(@meme["subreddit"] || "Unknown") %></span>
+        <% sub_name = (@meme["subreddit"] || "Unknown").to_s %>
+        <a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(sub_name)) %>" class="meme-subreddit-badge" style="text-decoration: none;" title="More from r/<%= Rack::Utils.escape_html(sub_name) %>">r/<%= Rack::Utils.escape_html(sub_name) %> →</a>
       </div>
 
       <div class="meme-stats">
@@ -50,12 +51,13 @@
     <form class="action-form" action="/like" method="POST">
       <input type="hidden" name="url" value="<%= Rack::Utils.escape_html(@image_src.to_s) %>">
       
+      <% is_liked = defined?(@liked) ? @liked : session[:liked_memes]&.include?(@image_src) %>
       <button
         type="submit"
-        class="action-button action-button-primary <%= 'liked' if session[:liked_memes]&.include?(@image_src) %>"
+        class="action-button action-button-primary <%= 'liked' if is_liked %>"
       >
-        <span class="button-icon"><%= session[:liked_memes]&.include?(@image_src) ? "💔" : "❤️" %></span>
-        <span class="button-text"><%= session[:liked_memes]&.include?(@image_src) ? "Unlike" : "Like" %></span>
+        <span class="button-icon"><%= is_liked ? "💔" : "❤️" %></span>
+        <span class="button-text"><%= is_liked ? "Unlike" : "Like" %></span>
       </button>
     </form>
 
@@ -74,6 +76,11 @@
     <a id="saved-back-link" href="<%= Rack::Utils.escape_html(@saved_return_path || '/profile') %>" class="action-button action-button-secondary">
       <span class="button-icon">⬅️</span>
       <span class="button-text">Back</span>
+    </a>
+
+    <a href="/random" class="action-button action-button-secondary" title="Continue exploring random memes">
+      <span class="button-icon">🔥</span>
+      <span class="button-text">Random</span>
     </a>
   </div>
 

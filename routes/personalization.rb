@@ -44,12 +44,24 @@ module Routes
         halt 404 unless discovery_controls_enabled?
         result = DiscoveryPreferencesStore.call(feed_session_id,
           action: params[:action].to_s, community: params[:community])
-        halt 400, 'You can hide up to 20 communities. Reset or restore one first.' if result == :cap
+        if result == :cap
+          msg = 'You can hide up to 20 communities. Reset or restore one first.'
+          halt 400, json_request? ? { error: msg }.to_json : msg
+        end
+        if json_request?
+          content_type :json
+          return {
+            success: true,
+            hidden: result['hidden'] || [],
+            undo: result['undo']
+          }.to_json
+        end
         redirect '/random', 303
       rescue ArgumentError => e
-        halt 400, e.message
+        halt 400, json_request? ? { error: e.message }.to_json : e.message
       rescue DiscoveryPreferencesStore::Unavailable
-        halt 503, 'Discovery controls are temporarily unavailable. Please retry; your settings have not been reset.'
+        msg = 'Discovery controls are temporarily unavailable. Please retry; your settings have not been reset.'
+        halt 503, json_request? ? { error: msg }.to_json : msg
       end
 
       app.get '/taste-evolution' do

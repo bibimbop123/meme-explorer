@@ -95,4 +95,41 @@ module RetentionService
     AppLogger.error("RetentionService.avg_session_length_minutes failed", error: e.message, backtrace: e.backtrace&.first(3)) if defined?(AppLogger)
     nil
   end
+
+  # 7-day conversion funnel & session depth from recorded meme_activity_log events
+  def engagement_funnel(window_days: 7, now: Time.now)
+    window_days = [[window_days.to_i, 1].max, 365].min
+    finish = now.getutc
+    start = finish - window_days * 86_400
+    query = <<~SQL
+      SELECT
+        COUNT(*) FILTER (WHERE activity_type = 'view') AS views,
+        COUNT(*) FILTER (WHERE activity_type = 'like') AS likes,
+        COUNT(*) FILTER (WHERE activity_type = 'save') AS saves,
+        COUNT(DISTINCT CASE WHEN user_id IS NOT NULL THEN CONCAT(user_id::text, ':', DATE(created_at AT TIME ZONE 'UTC')::text) END) AS active_account_days
+      FROM meme_activity_log
+      WHERE activity_type IN ('view','like','unlike','save','unsave')
+        AND created_at >= $1::timestamptz AND created_at <= $2::timestamptz
+    SQL
+
+    row = DB_POOL.with { |conn| conn.exec_params(query, [start.iso8601, finish.iso8601]).first } || {}
+    views = row['views'].to_i
+    likes = row['likes'].to_i
+    saves = row['saves'].to_i
+    account_days = row['active_account_days'].to_i
+
+    {
+      window_days: window_days,
+      views: views,
+      likes: likes,
+      saves: saves,
+      like_conversion_pct: views > 0 ? ((likes.to_f / views) * 100).round(2) : nil,
+      save_conversion_pct: views > 0 ? ((saves.to_f / views) * 100).round(2) : nil,
+      avg_views_per_account_day: account_days > 0 ? (views.to_f / account_days).round(1) : nil,
+      available: true
+    }
+  rescue => e
+    AppLogger.error("RetentionService.engagement_funnel failed", error: e.message) if defined?(AppLogger)
+    { window_days: window_days, views: 0, likes: 0, saves: 0, like_conversion_pct: nil, save_conversion_pct: nil, avg_views_per_account_day: nil, available: false }
+  end
 end

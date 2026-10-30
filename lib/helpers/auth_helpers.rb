@@ -60,6 +60,46 @@ module AuthHelpers
     target
   end
 
+  # Migrate guest session likes and positive subreddit preferences into the
+  # authenticated account after session rotation. Best-effort: never blocks login.
+  def migrate_guest_activity(user_id, liked_urls: nil, liked_subreddits: nil, browsing_identity: nil)
+    return unless user_id
+
+    if browsing_identity
+      MemeExplorer::ViewingHistoryService.sync_account_history(browsing_identity, user_id)
+    end
+
+    if liked_urls.is_a?(Array)
+      liked_urls.first(50).each do |raw_url|
+        safe_url = MediaUrl.safe(raw_url)
+        next unless safe_url
+        ::DB.execute(
+          'INSERT INTO user_liked_memes (user_id, meme_url, created_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (user_id, meme_url) DO NOTHING',
+          [user_id, safe_url]
+        )
+      end
+    end
+
+    if liked_subreddits.is_a?(Hash)
+      liked_subreddits.each do |sub, weight|
+        clean_sub = sub.to_s.strip.downcase
+        next unless clean_sub.match?(/\A[a-z0-9_]{1,32}\z/)
+        score = [[weight.to_f, 1.0].max, 2.5].min.round(2)
+        next unless score > 1.0
+        ::DB.execute(
+          'INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked, last_updated) ' \
+          'VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP) ' \
+          'ON CONFLICT (user_id, subreddit) DO UPDATE SET ' \
+          'preference_score = GREATEST(user_subreddit_preferences.preference_score, EXCLUDED.preference_score), ' \
+          'last_updated = CURRENT_TIMESTAMP',
+          [user_id, clean_sub, score]
+        )
+      end
+    end
+  rescue => e
+    AppLogger.warn('Guest activity migration skipped', error: e.class.name)
+  end
+
   # Returns the current user's DB record (memoized per request).
   # Returns nil if not logged in or user not found.
   def current_user

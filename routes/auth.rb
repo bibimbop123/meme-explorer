@@ -104,6 +104,8 @@ class AuthRoutes
             # ✅ SECURITY FIX: Prevent session fixation attacks by regenerating session ID
             # Clear old session and create new one with different ID
             pending_save = session[:pending_save]
+            guest_liked_memes = session[:liked_memes]
+            guest_liked_subreddits = session[:liked_subreddits]
             browsing_identity = feed_session_id
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
@@ -119,6 +121,7 @@ class AuthRoutes
             session[:reddit_username] = result[:username]
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
+            migrate_guest_activity(user_id, liked_urls: guest_liked_memes, liked_subreddits: guest_liked_subreddits, browsing_identity: browsing_identity)
 
             AppLogger.info("Reddit OAuth successful",
               username: result[:username],
@@ -207,6 +210,8 @@ class AuthRoutes
               
               # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
               pending_save = session[:pending_save]
+              guest_liked_memes = session[:liked_memes]
+              guest_liked_subreddits = session[:liked_subreddits]
               browsing_identity = feed_session_id
               env['rack.session'].clear
               env['rack.session'].options[:renew] = true
@@ -222,6 +227,7 @@ class AuthRoutes
               session[:email] = email
               session[:login_timestamp] = Time.now.to_i
               session[:login_ip] = request.ip
+              migrate_guest_activity(user_id, liked_urls: guest_liked_memes, liked_subreddits: guest_liked_subreddits, browsing_identity: browsing_identity)
               
               AppLogger.info("User login successful",
                 user_id: user_id,
@@ -316,6 +322,8 @@ class AuthRoutes
 
             # ✅ SECURITY FIX: Regenerate session ID to prevent fixation
             pending_save = session[:pending_save]
+            guest_liked_memes = session[:liked_memes]
+            guest_liked_subreddits = session[:liked_subreddits]
             browsing_identity = feed_session_id
             env['rack.session'].clear
             env['rack.session'].options[:renew] = true
@@ -331,6 +339,7 @@ class AuthRoutes
             session[:email] = email
             session[:login_timestamp] = Time.now.to_i
             session[:login_ip] = request.ip
+            migrate_guest_activity(user_id, liked_urls: guest_liked_memes, liked_subreddits: guest_liked_subreddits, browsing_identity: browsing_identity)
             
             AppLogger.info("User signup successful",
               user_id: user_id,

@@ -60,7 +60,8 @@ module Routes
         headers 'Cache-Control' => 'no-store'
         metrics_report.merge(browser_visitors: BrowserVisitorMetrics.snapshot, selection_latency: SelectionBenchmark.stage_breakdown,
           retention: RetentionService.daily_return_rate,
-          avg_session_length_minutes: RetentionService.avg_session_length_minutes).to_json
+          avg_session_length_minutes: RetentionService.avg_session_length_minutes,
+          engagement_funnel: RetentionService.engagement_funnel).to_json
       end
 
       app.get '/metrics' do
@@ -74,6 +75,7 @@ module Routes
         @retention = RetentionService.daily_return_rate
         @browser_visitors = BrowserVisitorMetrics.snapshot
         @avg_session_length_minutes = RetentionService.avg_session_length_minutes
+        @engagement_funnel = RetentionService.engagement_funnel
         erb :metrics, layout: false
       end
 
@@ -92,7 +94,7 @@ module Routes
           csv << ['Window start UTC', report[:window_start]]
           csv << ['Generated UTC', report[:generated_at]]
           csv << ['Metric', 'Value']
-          %i[total_memes total_likes total_views avg_likes avg_views engagement_rate].each do |key|
+          %i[total_memes total_likes total_views total_saves avg_likes avg_views engagement_rate save_rate].each do |key|
             csv << [key, report[key]]
           end
           csv << ['browser_visitors_status', visitors[:available] ? 'available' : visitors[:status]]

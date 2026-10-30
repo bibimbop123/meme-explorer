@@ -93,8 +93,10 @@ module MemeExplorer
         last_subreddit = (options[:last_subreddit] || options['last_subreddit']).to_s.strip.downcase
         return all_memes.sample if all_memes.empty?
         
-        # 1. Filter out previously seen memes
-        all_memes = all_memes.uniq { |m| m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id] }
+        # 1. Filter out previously seen memes and deduplicate crossposted identical titles
+        all_memes = deduplicate_crossposts(
+          all_memes.uniq { |m| m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id] }
+        )
         seen = ViewingHistoryService.get_seen_memes(session_id)
         seen_lookup = seen.to_set
         unseen = all_memes.reject do |meme|
@@ -139,6 +141,14 @@ module MemeExplorer
         # this plain Ruby class - unlike the separate, previously-unused
         # apply_user_preferences path this replaces functionally.
         user_prefs = user_id ? subreddit_preferences_for(user_id) : {}
+        session_prefs = options[:session_prefs] || options['session_prefs']
+        if user_prefs.empty? && session_prefs.is_a?(Hash) && session_prefs.any?
+          user_prefs = session_prefs.each_with_object({}) do |(sub, weight), h|
+            key = sub.to_s.strip.downcase
+            val = weight.to_f
+            h[key] = [[val, 1.0].max, 2.5].min unless key.empty?
+          end
+        end
         selected = weighted_sample(pool, user_prefs, last_subreddit: last_subreddit)
         selection_method = if selected && !user_prefs.empty?
                              'personalized_weighted_random'
@@ -279,6 +289,45 @@ module MemeExplorer
         return false unless created
         
         created > 24.hours.ago
+      end
+
+      GENERIC_TITLES = %w[me_irl meirl hmmm holup meme memes dankmemes IRL].freeze
+
+      # Collapse crossposts that share an identical substantive normalized title
+      # (>12 chars, non-generic) to the highest-engagement instance.
+      def deduplicate_crossposts(memes)
+        return memes if memes.size <= 1
+        seen_titles = {}
+        result = []
+
+        memes.each do |meme|
+          raw_title = (meme['title'] || meme[:title]).to_s
+          sig = normalize_title_signature(raw_title)
+          if sig.nil?
+            result << meme
+            next
+          end
+
+          existing_idx = seen_titles[sig]
+          if existing_idx.nil?
+            seen_titles[sig] = result.size
+            result << meme
+          else
+            existing = result[existing_idx]
+            existing_eng = (existing['likes'] || existing[:likes]).to_i * 2 + (existing['views'] || existing[:views]).to_i
+            candidate_eng = (meme['likes'] || meme[:likes]).to_i * 2 + (meme['views'] || meme[:views]).to_i
+            result[existing_idx] = meme if candidate_eng > existing_eng
+          end
+        end
+
+        result
+      end
+
+      def normalize_title_signature(title)
+        cleaned = title.to_s.downcase.gsub(/[^a-z0-9]+/, ' ').strip
+        return nil if cleaned.length <= 12
+        return nil if GENERIC_TITLES.include?(cleaned.delete(' '))
+        cleaned
       end
     end
   end

@@ -131,6 +131,41 @@ RSpec.describe 'Trending Routes' do
       expect(data).to have_key('period')
     end
   end
+
+  describe 'GET /api/v1/daily-digest' do
+    it 'returns a diversified daily top pack with 1 meme per subreddit' do
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES ('https://i.redd.it/d1.jpg', 'D1', 'memes', 40, 200, CURRENT_TIMESTAMP)")
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES ('https://i.redd.it/d2.jpg', 'D2', 'memes', 35, 200, CURRENT_TIMESTAMP)")
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES ('https://i.redd.it/d3.jpg', 'D3', 'dankmemes', 30, 200, CURRENT_TIMESTAMP)")
+
+      get '/api/v1/daily-digest?limit=5'
+      expect(last_response.status).to eq(200)
+      body = JSON.parse(last_response.body)
+      expect(body).to include('date', 'count', 'data')
+      memes_subs = body['data'].map { |m| m['subreddit'] }.compact.reject(&:empty?)
+      expect(memes_subs).to eq(memes_subs.uniq)
+    end
+  end
+
+  describe 'GET /leaderboard and GET /api/leaderboard' do
+    it 'renders live curator and community rankings without exposing user email addresses' do
+      uid = UserService.create_email_user('private-curator@example.com', 'password123')
+      UserService.save_meme(uid, 'https://i.redd.it/lb1.jpg', 'LB Meme', 'wholesomememes')
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES ('https://i.redd.it/lb1.jpg', 'LB Meme', 'wholesomememes', 15, 60)")
+
+      get '/leaderboard'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("Curator ##{uid}", 'Top Humor Communities', 'r/wholesomememes')
+      expect(last_response.body).not_to include('private-curator@example.com')
+
+      get '/api/leaderboard'
+      expect(last_response.status).to eq(200)
+      json = JSON.parse(last_response.body)
+      expect(json['success']).to eq(true)
+      expect(json['leaderboard'].first['username']).to eq("Curator ##{uid}")
+      expect(json['top_communities'].map { |c| c['subreddit'] }).to include('wholesomememes')
+    end
+  end
   
   describe 'trending algorithm' do
     it 'prioritizes recent engagement over old engagement' do

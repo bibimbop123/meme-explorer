@@ -19,6 +19,7 @@ module Routes
         halt 400, 'Saved search must be text up to 200 characters.' unless @saved_query.is_a?(String) && @saved_query.length <= 200
         @saved_query = @saved_query.strip
         @saved_query_suffix = @saved_query.empty? ? '' : "&saved_q=#{Rack::Utils.escape(@saved_query)}"
+        @history_cleared = session.delete(:history_cleared_notice) == true
       
         # Wrap Redis or DB calls in safe error handling
         begin
@@ -62,7 +63,39 @@ module Routes
               "SELECT meme_url, created_at as liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
               [user_id, 24, (@liked_page - 1) * 24]
             ) || []
-            results.map { |row| row.transform_keys(&:to_s) }
+            liked_rows = results.map { |row| row.transform_keys(&:to_s) }
+            if liked_rows.any?
+              begin
+                urls = liked_rows.map { |r| r['meme_url'] }.compact.uniq
+                stats_rows = MemeExplorer::App::DB.execute(
+                  'SELECT url, title, subreddit FROM meme_stats WHERE url IN (?)',
+                  [urls]
+                ) || []
+                stats_by_url = stats_rows.each_with_object({}) do |r, h|
+                  row = r.transform_keys(&:to_s)
+                  h[row['url']] = row
+                end
+                catalog_rows = MemeExplorer::App::DB.execute(
+                  'SELECT media_url, id FROM meme_catalog WHERE media_url IN (?) AND removed_at IS NULL',
+                  [urls]
+                ) || []
+                catalog_by_url = catalog_rows.each_with_object({}) do |r, h|
+                  row = r.transform_keys(&:to_s)
+                  h[row['media_url']] = row['id']
+                end
+                liked_rows.each do |r|
+                  cid = catalog_by_url[r['meme_url']]
+                  r['viewer_path'] = "/meme/#{cid}" if cid && cid.match?(/\A[a-f0-9]{64}\z/)
+                  meta = stats_by_url[r['meme_url']]
+                  next unless meta
+                  r['meme_title'] = meta['title'] if meta['title'] && !meta['title'].to_s.strip.empty? && meta['title'] != 'Unknown'
+                  r['meme_subreddit'] = meta['subreddit'] if meta['subreddit'] && !meta['subreddit'].to_s.strip.empty? && meta['subreddit'] != 'unknown'
+                end
+              rescue => e
+                AppLogger.warn("Liked metadata enrichment skipped: #{e.class}")
+              end
+            end
+            liked_rows
           rescue => e
             AppLogger.error("Error fetching liked memes: #{e.message}")
             @liked_load_error = true
@@ -237,7 +270,12 @@ module Routes
         }
         @image_src = saved_meme["meme_url"]
         @likes = get_meme_likes(@image_src)
+        @liked = (EngagementService.user_liked?(user_id: current_user_id, meme_url: @image_src) rescue false)
         @saved_meme_id = saved_id
+        if (saved_sub = saved_meme["meme_subreddit"].to_s.strip.downcase).match?(/\A[a-z0-9_]{1,32}\z/)
+          session[:liked_subreddits] ||= {}
+          session[:liked_subreddits][saved_sub] = [session[:liked_subreddits][saved_sub].to_f, 1.3].max.round(2)
+        end
         page = params[:saved_page].to_s
         page = '1' unless page.match?(/\A[1-9][0-9]{0,8}\z/)
         @saved_return_path = "/profile?saved_page=#{page}#saved-card-#{saved_id}"
@@ -247,6 +285,111 @@ module Routes
         end
 
         erb :saved_meme
+      end
+
+      # Self-serve browsing history reset on /profile
+      app.post "/profile/clear-history" do
+        headers 'Cache-Control' => 'no-store, private'
+        require_auth!
+        MemeExplorer::ViewingHistoryService.clear_history(feed_session_id)
+        MemeExplorer::ViewingHistoryService.clear_history("user:#{current_user_id}") if current_user_id
+        session[:history_cleared_notice] = true
+        redirect "/profile", 303
+      end
+
+      # Remove a liked meme directly from /profile
+      app.post "/profile/unlike" do
+        headers 'Cache-Control' => 'no-store, private'
+        require_auth!
+        url = params[:url].to_s.strip
+        if url.empty? || url.bytesize > 4096
+          halt 400, json_request? ? { error: 'URL required' }.to_json : 'URL required'
+        end
+
+        result = EngagementService.set_like(
+          user_id: current_user_id,
+          meme_url: url,
+          desired: false,
+          session: session,
+          db: ::DB
+        )
+
+        if json_request?
+          content_type :json
+          status(result[:success] ? 200 : 503)
+          return result.to_json
+        end
+
+        liked_page = params[:liked_page].to_s.match?(/\A[1-9][0-9]{0,8}\z/) ? params[:liked_page].to_s : '1'
+        saved_page = params[:saved_page].to_s.match?(/\A[1-9][0-9]{0,8}\z/) ? params[:saved_page].to_s : '1'
+        redirect "/profile?saved_page=#{saved_page}&liked_page=#{liked_page}#liked-memes", 303
+      end
+
+      # Self-serve JSON data export (GDPR/CCPA data portability)
+      app.get "/profile/export.json" do
+        headers 'Cache-Control' => 'no-store, private'
+        require_auth!
+        user_id = current_user_id
+        user = UserService.find_by_id(user_id)
+        halt 404, { error: 'User not found' }.to_json unless user
+
+        saved = MemeExplorer::App::DB.execute(
+          'SELECT meme_url, meme_title, meme_subreddit, saved_at FROM saved_memes WHERE user_id = ? ORDER BY saved_at DESC',
+          [user_id]
+        ) || []
+        liked = MemeExplorer::App::DB.execute(
+          'SELECT meme_url, created_at AS liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC',
+          [user_id]
+        ) || []
+        prefs = MemeExplorer::App::DB.execute(
+          'SELECT subreddit, preference_score, times_liked, last_updated FROM user_subreddit_preferences WHERE user_id = ? ORDER BY preference_score DESC',
+          [user_id]
+        ) || []
+
+        attachment "meme_explorer_data_#{Time.now.utc.strftime('%Y%m%d')}.json"
+        content_type :json
+        {
+          exported_at: Time.now.utc.iso8601,
+          account: {
+            id: user['id'].to_i,
+            email: user['email'],
+            reddit_username: user['reddit_username'],
+            role: user['role'],
+            created_at: user['created_at']
+          },
+          saved_memes: saved.map { |r| r.transform_keys(&:to_s) },
+          liked_memes: liked.map { |r| r.transform_keys(&:to_s) },
+          subreddit_preferences: prefs.map { |r| r.transform_keys(&:to_s) }
+        }.to_json
+      end
+
+      # Self-serve account deletion (Privacy Policy Section 8/10/11 compliance)
+      app.post "/profile/delete-account" do
+        headers 'Cache-Control' => 'no-store, private'
+        require_auth!
+        unless params[:confirm_delete].to_s == 'DELETE'
+          halt 400, 'Please confirm account deletion by typing DELETE.'
+        end
+        user_id = current_user_id
+        browsing_id = session[:feed_session_id]
+
+        MemeExplorer::App::DB.transaction do
+          MemeExplorer::App::DB.execute('UPDATE meme_activity_log SET user_id = NULL WHERE user_id = ?', [user_id])
+          MemeExplorer::App::DB.execute('DELETE FROM users WHERE id = ?', [user_id])
+        end
+        MemeExplorer::App::DB.execute('DELETE FROM email_subscriptions WHERE user_id = ?', [user_id]) rescue nil
+
+        begin
+          MemeExplorer::ViewingHistoryService.clear_history(browsing_id) if browsing_id
+          MemeExplorer::ViewingHistoryService.clear_history("user:#{user_id}") if user_id
+          DiscoveryPreferencesStore.revoke(browsing_id) if browsing_id
+        rescue StandardError
+          AppLogger.warn('Session store cleanup skipped during account deletion')
+        end
+
+        session.clear
+        request.session_options[:drop] = true if request.session_options
+        redirect '/', 303
       end
     end
   end

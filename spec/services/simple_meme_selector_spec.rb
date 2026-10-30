@@ -291,6 +291,34 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
 
         expect(selected['selection_method']).not_to eq('personalized_weighted_random')
       end
+
+      it 'applies bounded guest session_prefs when user_id is nil' do
+        pool = [
+          { 'url' => 'guest_pref_a', 'subreddit' => 'wholesomememes', 'likes' => 1, 'views' => 1 },
+          { 'url' => 'guest_pref_b', 'subreddit' => 'dankmemes', 'likes' => 1, 'views' => 1 }
+        ]
+
+        selected = described_class.select(
+          pool,
+          session_id,
+          boost_fresh: false,
+          user_id: nil,
+          session_prefs: { 'wholesomememes' => 1.9 }
+        )
+
+        expect(selected['selection_method']).to eq('personalized_weighted_random')
+      end
+
+      it 'deduplicates crossposted memes with identical substantive titles in favour of higher engagement' do
+        pool = [
+          { 'url' => '/crosspost_low.jpg', 'title' => 'When the production deploy succeeds on Friday afternoon', 'subreddit' => 'memes', 'likes' => 2, 'views' => 10 },
+          { 'url' => '/crosspost_high.jpg', 'title' => 'When the production deploy succeeds on Friday afternoon!', 'subreddit' => 'dankmemes', 'likes' => 25, 'views' => 100 }
+        ]
+
+        selected = described_class.select(pool, session_id, boost_fresh: false)
+        expect(selected['url']).to eq('/crosspost_high.jpg')
+        expect(selected['pool_size']).to eq(1)
+      end
     end
   end
 end

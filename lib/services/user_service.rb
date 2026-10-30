@@ -52,7 +52,10 @@ class UserService
 
   def self.get_stats(user_id)
     saved_count = DB.get_first_value("SELECT COUNT(*) FROM saved_memes WHERE user_id = ?", [user_id]).to_i
-    liked_count = DB.get_first_value("SELECT COUNT(*) FROM user_meme_stats WHERE user_id = ? AND liked = 1", [user_id]).to_i
+    liked_count = DB.get_first_value("SELECT COUNT(*) FROM user_liked_memes WHERE user_id = ?", [user_id]).to_i
+    if liked_count == 0
+      liked_count = (DB.get_first_value("SELECT COUNT(*) FROM user_meme_stats WHERE user_id = ? AND liked = 1", [user_id]).to_i rescue 0)
+    end
     { saved_count: saved_count, liked_count: liked_count }
   end
 
@@ -92,9 +95,17 @@ class UserService
   end
 
   def self.get_liked_memes(user_id, limit = 50)
+    rows = DB.execute(
+      "SELECT meme_url, created_at AS liked_at FROM user_liked_memes WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+      [user_id, limit]
+    )
+    return rows if rows && !rows.empty?
+
     DB.execute(
       "SELECT meme_url, liked_at FROM user_meme_stats WHERE user_id = ? AND liked = 1 ORDER BY liked_at DESC LIMIT ?",
       [user_id, limit]
     )
+  rescue
+    []
   end
 end

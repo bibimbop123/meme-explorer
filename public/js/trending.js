@@ -82,8 +82,15 @@ class TrendingPage {
     this.isLoading = true;
 
     // Use cursor-based pagination instead of page
+    const isDailyPack = this.currentTimeWindow === 'daily_top_10';
+    if (isDailyPack && append) {
+      this.isLoading = false;
+      return;
+    }
     const cursor = append && this.nextCursor ? this.nextCursor : '';
-    const url = `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&cursor=${cursor}&limit=20`;
+    const url = isDailyPack
+      ? '/api/v1/daily-digest?limit=10'
+      : `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&cursor=${cursor}&limit=20`;
 
     fetch(url)
       .then(response => response.json())
@@ -102,8 +109,8 @@ class TrendingPage {
           }
           
           // Store next cursor for infinite scroll
-          this.nextCursor = data.pagination?.next_cursor || null;
-          this.hasMore = data.pagination?.has_more || false;
+          this.nextCursor = isDailyPack ? null : (data.pagination?.next_cursor || null);
+          this.hasMore = isDailyPack ? false : (data.pagination?.has_more || false);
         }
         this.isLoading = false;
       })
@@ -186,6 +193,10 @@ class TrendingPage {
         <div style="color: white; text-align: center; margin-top: 15px;">
           <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
           <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
+          <p style="margin-top: 12px;">
+            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${meme.subreddit || 'reddit'} →</a>
+            <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
+          </p>
           <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Click anywhere to close</p>
         </div>
       </div>

@@ -119,6 +119,27 @@ module Routes
         }.to_json
       end
 
+      # Finite Daily Top 10 digest pack (strictly 1 meme per humor-first community)
+      app.get "/api/v1/daily-digest" do
+        content_type :json
+        headers 'Cache-Control' => 'no-store, private'
+        limit = params[:limit].to_i
+        limit = 10 if limit <= 0 || limit > 25
+
+        pack = begin
+          TrendingService.daily_top_pack(limit: limit, fallback_pool: (random_memes_pool rescue []))
+        rescue => e
+          AppLogger.error("⚠️ [DAILY-DIGEST] #{e.class}: #{e.message}")
+          []
+        end
+
+        {
+          date: Time.now.utc.strftime('%Y-%m-%d'),
+          count: pack.size,
+          data: pack
+        }.to_json
+      end
+
       # Before filter for category routes
       app.before "/category/*" do
         # Define default categories if not loaded
@@ -130,31 +151,7 @@ module Routes
         }
       end
       
-      # Browse memes by category
-      app.get "/category/:name" do
-        category_name = params[:name].to_sym
-        subreddits = @categories[category_name]
-        halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
-      
-        # Filter valid memes
-        local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
-        api_memes = (fetch_fresh_memes(batch_size: 50) rescue []).select { |m| subreddits.include?(m["subreddit"]) }
-      
-        @memes = (local_memes + api_memes).uniq { |m| m["url"] || m["file"] }
-      
-        # Use fallback only if empty
-        @memes = [fallback_meme.merge("subreddit" => category_name.to_s)] if @memes.empty?
-      
-        if request.accept?("application/json")
-          content_type :json
-          @memes.to_json
-        else
-          @category_name = category_name
-          erb :category, layout: :layout
-        end
-      end
-      
-      # View specific meme in a category
+      # View specific meme in a category (GET /category/:name lives in routes/memes.rb)
       app.get "/category/:name/meme/:title" do
         category_name = params[:name].to_sym
         subreddits = @categories[category_name] || []
