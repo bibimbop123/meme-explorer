@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS meme_activity_log (
   session_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_meme_activity_log_created_at ON meme_activity_log(created_at DESC, activity_type);
+CREATE INDEX IF NOT EXISTS idx_meme_activity_log_user_date ON meme_activity_log(user_id, created_at DESC);
 
 -- Persistent likes used by the live /like route and profile. Mirrors the
 -- additive fix_production_errors_2026 migration for fresh installations.
@@ -132,3 +134,24 @@ CREATE TABLE IF NOT EXISTS browser_visitors (
   revoked_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS browser_visitors_last_seen ON browser_visitors(last_seen_at);
+
+-- email_subscriptions table (used by POST /api/subscribe)
+CREATE TABLE IF NOT EXISTS email_subscriptions (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  subscribed_at BIGINT NOT NULL
+);
+
+-- push_subscriptions table (used by POST /api/subscribe-push)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subscription_data TEXT,
+  endpoint TEXT,
+  p256dh TEXT,
+  auth TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);

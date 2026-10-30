@@ -60,33 +60,50 @@ module AppHelpers
     { type: 'default', icon: '✨', message: 'From the community feed' }
   end
   
-  # Wrapper for rendering taste profile (used in views/profile.erb)
+  # Wrapper for rendering taste profile (used in views/profile.erb).
+  # Renders only real, persisted user_subreddit_preferences (>1.0 score)
+  # without fabricating personality labels when no data exists.
   def render_taste_profile(user_id)
     return '' unless user_id
 
-    # TasteProfileService was removed in a previous cleanup pass but this
-    # caller was never updated. Fail soft (empty profile section) instead of
-    # raising NameError on every /profile view until the service is rebuilt.
-    unless defined?(TasteProfileService)
-      AppLogger.debug("ℹ️  [AppHelpers] TasteProfileService not available - skipping taste profile")
-      return ''
+    rows = DB.execute(
+      'SELECT subreddit, preference_score, times_liked FROM user_subreddit_preferences ' \
+      'WHERE user_id = ? AND preference_score > 1.0 ' \
+      'ORDER BY preference_score DESC, times_liked DESC LIMIT 8',
+      [user_id]
+    ) || []
+    valid_rows = rows.select do |r|
+      sub = (r['subreddit'] || r[:subreddit]).to_s.strip.downcase
+      sub.match?(/\A[a-z0-9_]{1,32}\z/)
     end
+    return '' if valid_rows.empty?
 
-    begin
-      # Fetch user data
-      user = get_user(user_id)
-      return '' unless user
-      
-      # Generate taste profile using TasteProfileService
-      profile = TasteProfileService.generate_profile(user)
-      
-      # Render the partial with profile data
-      erb :_taste_profile, locals: { profile: profile }
-    rescue => e
-      AppLogger.error("⚠️ Error rendering taste profile: #{e.class} - #{e.message}")
-      AppLogger.error("backtrace", lines: e.backtrace&.first(3)&.join("\n"))
-      ''  # Return empty string on error to prevent page crash
-    end
+    chips = valid_rows.map do |r|
+      sub = (r['subreddit'] || r[:subreddit]).to_s.strip.downcase
+      escaped = Rack::Utils.escape_html(sub)
+      encoded = Rack::Utils.escape_html(URI.encode_www_form_component(sub))
+      "<a href=\"/search?q=#{encoded}\" style=\"display:inline-block;padding:6px 12px;background:#eef2ff;color:#3730a3;border-radius:16px;text-decoration:none;font-size:0.85rem;font-weight:600;\">r/#{escaped}</a>"
+    end.join(' ')
+
+    csrf_token = (defined?(session) && session.is_a?(Hash) ? session['csrf'] : '').to_s
+    escaped_csrf = Rack::Utils.escape_html(csrf_token)
+
+    <<~HTML
+      <section aria-label="Favorite communities" style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:30px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;font-size:1.15rem;">Your Top Communities</h2>
+          <form method="post" action="/profile/reset-preferences" style="margin:0;">
+            <input type="hidden" name="authenticity_token" value="#{escaped_csrf}">
+            <button type="submit" style="padding:4px 10px;font-size:0.8rem;background:#fff;color:#555;border:1px solid #ccc;border-radius:4px;cursor:pointer;">Reset community boosts</button>
+          </form>
+        </div>
+        <p style="margin:6px 0 12px 0;font-size:0.9rem;color:#555;">Communities boosted in your Random feed based on memes you've liked and saved:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">#{chips}</div>
+      </section>
+    HTML
+  rescue => e
+    AppLogger.warn("Error rendering taste profile: #{e.class}")
+    ''
   end
 
   # ====================

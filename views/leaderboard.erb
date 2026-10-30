@@ -41,7 +41,7 @@
         <% @leaderboard.each_with_index do |entry, i| %>
           <tr style="border-bottom: 1px solid #ddd; <%= 'background: #fff3cd;' if entry['is_current_user'] %>">
             <td style="padding: 10px;"><%= i + 1 %></td>
-            <td style="padding: 10px;"><%= Rack::Utils.escape_html((entry['username'] || entry['reddit_username'] || entry['email'] || "User ##{entry['user_id']}").to_s) %></td>
+            <td style="padding: 10px;"><%= Rack::Utils.escape_html((entry['username'] || entry['reddit_username'] || "Curator ##{entry['user_id']}").to_s) %></td>
             <td style="padding: 10px; text-align: right;"><%= entry['score'] || entry['points'] || entry['total_xp'] || 0 %></td>
           </tr>
         <% end %>
@@ -49,6 +49,29 @@
     </table>
   <% else %>
     <p style="text-align: center; color: #999;">No leaderboard data yet. Come back after some activity!</p>
+  <% end %>
+
+  <% if @top_communities && @top_communities.any? %>
+    <h2 style="margin-top: 32px;">👑 Top Humor Communities</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+      <thead>
+        <tr style="background: #4169e1; color: white;">
+          <th style="padding: 10px; text-align: left;">Community</th>
+          <th style="padding: 10px; text-align: right;">Likes</th>
+          <th style="padding: 10px; text-align: right;">Views</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @top_communities.each do |sub| %>
+          <% sname = sub['subreddit'].to_s %>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 10px;"><a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(sname)) %>" style="color: #4169e1; font-weight: 600; text-decoration: none;">r/<%= Rack::Utils.escape_html(sname) %></a></td>
+            <td style="padding: 10px; text-align: right;"><%= sub['total_likes'].to_i %></td>
+            <td style="padding: 10px; text-align: right;"><%= sub['total_views'].to_i %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
   <% end %>
 
   <!-- Ad improvement: this page had zero ad inventory before. Gated on

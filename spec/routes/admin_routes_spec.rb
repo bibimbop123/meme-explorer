@@ -74,6 +74,25 @@ describe 'Admin Routes' do
       meme = DB.execute("SELECT * FROM meme_stats WHERE url = ?", ['http://example.com/meme.jpg']).first
       expect(meme).to be_nil
     end
+
+    it 'removes admin-deleted meme from user_liked_memes and marks meme_catalog removed' do
+      cid = MemeIdentityService.register({ 'url' => 'https://i.redd.it/admin-del.jpg', 'title' => 'Remove me' })
+      DB.execute("INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, 'https://i.redd.it/admin-del.jpg')", [admin_user])
+
+      delete "/admin/meme/#{CGI.escape('https://i.redd.it/admin-del.jpg')}"
+      expect(last_response.status).to eq(200)
+      expect(DB.get_first_value("SELECT COUNT(*) FROM user_liked_memes WHERE meme_url = 'https://i.redd.it/admin-del.jpg'").to_i).to eq(0)
+      expect(MemeIdentityService.find(cid)).to be_nil
+    end
+  end
+
+  describe 'POST /api/report-broken-content' do
+    it 'records broken content into broken_images table' do
+      post '/api/report-broken-content', { url: 'https://i.redd.it/broken-report.jpg', page: '/random' }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+      expect(last_response.status).to eq(200)
+      expect(JSON.parse(last_response.body)['success']).to eq(true)
+      expect(DB.get_first_value("SELECT COUNT(*) FROM broken_images WHERE url = 'https://i.redd.it/broken-report.jpg'").to_i).to eq(1)
+    end
   end
 
   describe 'GET /health' do

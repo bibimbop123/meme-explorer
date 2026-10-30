@@ -46,6 +46,12 @@ than replacing it.
 
 ## Progress log
 
+**October 30, 2026 — User data audit, metrics funnel & retention UX execution:**
+- **Cookie & schema hygiene:** removed the legacy `seen_memes` cookie read/write from `app.rb` (`ViewingHistoryService` in Redis is canonical); added `email_subscriptions`, `push_subscriptions`, and `meme_activity_log` composite indexes to `db/postgres_schema.sql`; added bounded 90-day `meme_activity_log` pruning in `DatabaseCleanupWorker`.
+- **Self-serve user data rights & profile UX:** added `GET /profile/export.json` (JSON data portability), `POST /profile/delete-account` (account deletion + activity-log anonymization), `POST /profile/clear-history`, `POST /profile/reset-preferences`, `POST /profile/unlike`, `liked_q` search/pagination on `/profile`, and **Your Top Communities** powered by real `user_subreddit_preferences` rows.
+- **Cross-device & guest-to-account continuity:** added within-session guest subreddit preference boosting (`session[:liked_subreddits]` / `session_prefs`), guest-to-account migration on `/login`, `/signup`, and Reddit OAuth (`migrate_guest_activity`), bidirectional `ViewingHistoryService.sync_account_history`, and real-time cross-device seen-meme union in `SimpleMemeSelector`.
+- **Retention & product health metrics:** added `total_saves`, `save_rate`, per-subreddit `total_views` & `like_rate`, `total_persisted_likes`, `broken_images_count`, and 7-day `RetentionService.engagement_funnel` across `/metrics`, `/metrics.json`, and `/metrics/export` CSV; added `GET /api/v1/daily-digest` (**🎯 Daily Top 10** tab on `/trending`) and fixed `/leaderboard` + `/api/leaderboard` with live SQL curator/community rankings that never expose user email addresses.
+
 **This session:** a reliability audit surfaced and fixed several concrete
 bugs matching this document's own thesis - not hypothetical risks, actual
 broken/dead code found by reading the app against its own test suite and

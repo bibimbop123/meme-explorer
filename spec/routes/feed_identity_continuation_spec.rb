@@ -38,4 +38,39 @@ RSpec.describe 'Feed identity through authentication' do
     post '/logout'
     expect(session[:feed_session_id]).to be_nil
   end
+
+  it 'migrates guest liked memes and subreddit preferences into the account upon login' do
+    user_id = create_test_user('guest-migrate@example.test', 'SecurePass123!')
+    session[:liked_memes] = ['https://i.redd.it/guest-like-1.jpg']
+    session[:liked_subreddits] = { 'wholesomememes' => 1.6 }
+    post '/login', email: 'guest-migrate@example.test', password: 'SecurePass123!'
+    expect(JSON.parse(last_response.body)['success']).to eq(true)
+
+    liked = DB.execute('SELECT meme_url FROM user_liked_memes WHERE user_id = ?', [user_id]).map { |r| r['meme_url'] }
+    expect(liked).to include('https://i.redd.it/guest-like-1.jpg')
+
+    pref = DB.execute('SELECT preference_score FROM user_subreddit_preferences WHERE user_id = ? AND subreddit = ?', [user_id, 'wholesomememes']).first
+    expect(pref['preference_score'].to_f).to be_within(0.01).of(1.6)
+  end
+
+  it 'syncs account viewing history across browser sessions upon login' do
+    user_id = create_test_user('sync-history@example.test', 'SecurePass123!')
+    MemeExplorer::ViewingHistoryService.mark_seen("user:#{user_id}", 'https://i.redd.it/seen-on-desktop.jpg')
+    MemeExplorer::ViewingHistoryService.mark_seen(identity, 'https://i.redd.it/seen-as-guest.jpg')
+
+    post '/login', email: 'sync-history@example.test', password: 'SecurePass123!'
+    expect(JSON.parse(last_response.body)['success']).to eq(true)
+
+    expect(MemeExplorer::ViewingHistoryService.get_seen_memes(identity)).to include(
+      'https://i.redd.it/seen-on-desktop.jpg',
+      'https://i.redd.it/seen-as-guest.jpg'
+    )
+    expect(MemeExplorer::ViewingHistoryService.get_seen_memes("user:#{user_id}")).to include(
+      'https://i.redd.it/seen-on-desktop.jpg',
+      'https://i.redd.it/seen-as-guest.jpg'
+    )
+  ensure
+    MemeExplorer::ViewingHistoryService.clear_history(identity)
+    MemeExplorer::ViewingHistoryService.clear_history("user:#{user_id}") if user_id
+  end
 end

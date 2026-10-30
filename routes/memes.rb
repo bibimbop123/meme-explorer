@@ -103,6 +103,23 @@ module Routes
               return { success: true, liked: liked_now, likes: likes, persistent: false }.to_json
             end
             liked_now ? session[:liked_memes] << url : session[:liked_memes].delete(url)
+
+            # Update guest within-session subreddit preference weights
+            begin
+              sub = (data['subreddit'] || ::DB.get_first_value('SELECT subreddit FROM meme_stats WHERE url = ?', [url])).to_s.strip.downcase
+              if sub.match?(/\A[a-z0-9_]{1,32}\z/)
+                session[:liked_subreddits] ||= {}
+                current_weight = (session[:liked_subreddits][sub] || 1.0).to_f
+                if liked_now
+                  session[:liked_subreddits][sub] = [current_weight + 0.3, 2.5].min.round(2)
+                else
+                  updated_weight = [current_weight - 0.3, 1.0].max.round(2)
+                  updated_weight <= 1.0 ? session[:liked_subreddits].delete(sub) : session[:liked_subreddits][sub] = updated_weight
+                end
+              end
+            rescue => e
+              AppLogger.warn("Guest session preference update skipped: #{e.class}")
+            end
             
             likes = ::MemeService.toggle_like(url, liked_now, session, ::DB)
             EngagementService.invalidate_like_cache(url)
@@ -185,50 +202,6 @@ module Routes
           result.to_json
         end
 
-        # NOTE (found while adding the route above): this /random.json is
-        # a dead duplicate - routes/random_meme.rb registers a real,
-        # different /random.json (richer response shape: includes
-        # media_type, file, is_gallery/gallery_images for galleries) and
-        # Routes::RandomMeme is registered before Routes::Memes in
-        # app.rb, so Sinatra's first-registered-route-wins means this
-        # definition below has never actually been reachable. Confirmed
-        # via a real request: the live response always matches
-        # random_meme.rb's shape, never this one's. Left in place rather
-        # than deleted in this pass - it's out of scope for the skip-
-        # signal feature being added here - but flagged so the next
-        # session doesn't spend time debugging "changes to this route
-        # don't seem to do anything."
-        app.get "/random.json" do
-          memes = ApiCacheService.fetch_and_cache_memes(MemeExplorer::App::POPULAR_SUBREDDITS)
-          memes = MemeExplorer::App::MEME_CACHE[:memes] || [] if memes.empty?
-          memes = MemeExplorer::App::MEMES.values.flatten if memes.empty?
-          halt 404, { error: "No memes available" }.to_json if memes.empty?
-
-          # Use weighted random selector with consistent session tracking
-          # FIX: Use consistent session ID (not object_id which changes every request!)
-          session_id = session[:visitor_id] || current_user_id || request.session_options[:id]
-          session[:visitor_id] ||= session_id  # Persist for consistency
-          
-          # NOTE: Content filtering removed - users should have choice, not hard-coded exclusions
-          user_prefs = {}
-          meme = MemeExplorer::MemeSelectionService.select_random_meme(memes, session_id: session_id, preferences: user_prefs)
-          
-          halt 404, { error: "No suitable memes available" }.to_json unless meme
-          
-          image_src = app.helpers.meme_image_src(meme)
-          reddit_path = extract_reddit_path(meme, image_src)
-          likes = MemeService.get_likes(image_src)
-
-          content_type :json
-          {
-            url: image_src,
-            title: meme['title'] || 'Unknown',
-            subreddit: meme['subreddit'] || 'reddit',
-            reddit_path: reddit_path,
-            likes: likes
-          }.to_json
-        end
-
         app.post "/report-broken-image" do
           url = params[:url]
           halt 400, { error: "No URL provided" }.to_json unless url
@@ -266,6 +239,10 @@ module Routes
             @query = nil
             @results = []
             next erb :search
+          end
+          if query.is_a?(String) && (clean_q = query.strip.downcase.sub(/\Ar\//, '')).match?(/\A[a-z0-9_]{2,32}\z/)
+            session[:liked_subreddits] ||= {}
+            session[:liked_subreddits][clean_q] = [session[:liked_subreddits][clean_q].to_f, 1.25].max.round(2)
           end
 
           if json_search
@@ -381,6 +358,13 @@ module Routes
 
           subreddits = categories[category_name]
           halt 404, { error: "Category not found" }.to_json unless subreddits && !subreddits.empty?
+
+          session[:liked_subreddits] ||= {}
+          subreddits.each do |sub|
+            clean_sub = sub.to_s.strip.downcase
+            next unless clean_sub.match?(/\A[a-z0-9_]{2,32}\z/)
+            session[:liked_subreddits][clean_sub] = [session[:liked_subreddits][clean_sub].to_f, 1.25].max.round(2)
+          end
 
           local_memes = MemeExplorer::App::MEMES.is_a?(Hash) ? MemeExplorer::App::MEMES[category_name.to_s] || [] : []
           @memes = local_memes.empty? ? [app.helpers.fallback_meme.merge("subreddit" => category_name.to_s)] : local_memes

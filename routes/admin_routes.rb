@@ -12,7 +12,9 @@ module Routes
         @total_likes = MemeExplorer::App::DB.get_first_value("SELECT SUM(likes) FROM meme_stats").to_i
         @total_users = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM users").to_i
         @total_saved_memes = MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM saved_memes").to_i
+        @total_broken_images = (MemeExplorer::App::DB.get_first_value("SELECT COUNT(*) FROM broken_images").to_i rescue 0)
         @top_memes = MemeExplorer::App::DB.execute("SELECT title, url, likes, subreddit FROM meme_stats ORDER BY likes DESC LIMIT 10")
+        @broken_images = (MemeExplorer::App::DB.execute("SELECT url, failure_count, last_failed_at FROM broken_images ORDER BY failure_count DESC, last_failed_at DESC LIMIT 10") rescue [])
 
         erb :admin
       end

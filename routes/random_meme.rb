@@ -139,6 +139,10 @@ module Routes
         @social_image ||= MediaUrl.social_image(@meme['thumbnail_url'], origin: origin) if origin
         engagement = viewer_engagement_state(@meme['url'])
         @likes, @liked, @saved = engagement.values_at(:likes, :liked, :saved)
+        if (shared_sub = @meme['subreddit'].to_s.strip.downcase).match?(/\A[a-z0-9_]{1,32}\z/)
+          session[:liked_subreddits] ||= {}
+          session[:liked_subreddits][shared_sub] = [session[:liked_subreddits][shared_sub].to_f, 1.3].max.round(2)
+        end
         @impression_id = issue_impression(url: @meme['url'], title: @meme['title'], subreddit: @meme['subreddit'])[:impression_id]
         erb :random
       end
@@ -220,6 +224,9 @@ module Routes
           halt 503, { error: 'Impression tracking temporarily unavailable' }.to_json
         end
         LegacyImpressionMetrics.record(recorded ? 'ack_recorded' : 'ack_duplicate')
+        if recorded && current_user_id
+          MemeExplorer::ViewingHistoryService.mark_seen("user:#{current_user_id}", item['url'])
+        end
         if recorded && defined?(BrowserVisitorMetrics) && BrowserVisitorMetrics.enabled? &&
            request.env['HTTP_SEC_GPC'] != '1' && request.env['HTTP_DNT'] != '1'
           begin
@@ -271,7 +278,7 @@ module Routes
             # /random.json below - this is the first-load HTML path, the
             # other real entry point into selection.
             SelectionBenchmark.measure(stage: :selection) do
-              MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit])
+              MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit], session_prefs: session[:liked_subreddits])
             end
           end
 
@@ -367,7 +374,12 @@ module Routes
         
         # ROADMAP.md Phase 1: same personalization wiring as /random and
         # /random.json above - /similar.json is a real, live endpoint too.
-        @meme = MemeExplorer::SimpleMemeSelector.select(similar_pool, session_id, user_id: current_user_id)
+        if subreddit.match?(/\A[a-z0-9_]{1,32}\z/)
+          session[:liked_subreddits] ||= {}
+          current_weight = (session[:liked_subreddits][subreddit] || 1.0).to_f
+          session[:liked_subreddits][subreddit] = [current_weight + 0.2, 2.5].min.round(2)
+        end
+        @meme = MemeExplorer::SimpleMemeSelector.select(similar_pool, session_id, user_id: current_user_id, session_prefs: session[:liked_subreddits])
           
           halt 404, { error: "No similar memes found for #{subreddit}" }.to_json if @meme.nil?
           # ✅ Track in Redis (NOT session)
@@ -428,7 +440,7 @@ module Routes
           # never-called apply_user_preferences path.
           SelectionBenchmark.measure(stage: :selection) do
             selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit])
+            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit], session_prefs: session[:liked_subreddits])
             selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
             selected
           end

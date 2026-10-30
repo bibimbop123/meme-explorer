@@ -2,6 +2,25 @@
 
 ## Execution state
 
+### User data audit, metrics funnel, and retention UX checkpoint (2026-10-30)
+
+Removed legacy `seen_memes` cookie read/write (`app.rb`); added `email_subscriptions`,
+`push_subscriptions`, and `meme_activity_log` composite indexes (`db/postgres_schema.sql`)
+plus bounded 90-day `meme_activity_log` pruning (`DatabaseCleanupWorker`). Added
+self-serve `/profile/export.json`, `/profile/delete-account`, `/profile/clear-history`,
+`/profile/reset-preferences`, `/profile/unlike`, `liked_q` search/pagination, and
+`Your Top Communities` from `user_subreddit_preferences`. Added guest `session_prefs`
+boosting, crosspost title deduplication (`SimpleMemeSelector`), guest-to-account
+migration (`migrate_guest_activity`), cross-device `ViewingHistoryService.sync_account_history`
+`GET /api/v1/daily-digest` (**Daily Top 10**), live SQL `/leaderboard` without
+email exposure, `low_converting_subreddits` (25+ views) on `/metrics`, first-impression
+freshness priority in `SimpleMemeSelector`, and replacement of the last seven removed-service
+`pending` specs in `spec/integration/random_algorithm_integration_spec.rb`.
+**Full backend RSpec suite: 1,417 examples, zero failures, zero pending, 79.86%
+coverage (5,844/7,318), exit 0**; **23 real-socket server acceptance checks pass**
+(`tests/app_server_test.rb`), **19 CSRF contract checks pass**
+(`tests/csrf_protection_test.rb`), and **180 frontend tests pass** (`npm test`).
+
 ### Revocation ordering under stale session commit
 
 Real Redis session interleaving harness **13 checks pass**: old loaded request

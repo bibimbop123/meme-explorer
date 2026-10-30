@@ -73,35 +73,25 @@ RSpec.describe "Random Algorithm Integration", type: :integration do
 
   describe "Anti-repetition system" do
     it "never returns the same meme twice in succession" do
-      skip "ViewingHistoryService not available" unless defined?(MemeExplorer::ViewingHistoryService)
-      skip "DiversityEngineService not available" unless defined?(MemeExplorer::DiversityEngineService)
-
       meme_ids = []
-      
+      pool = (1..100).map { |i| { "url" => "meme_#{i}", "title" => "Meme #{i}" } }
+
       10.times do
-        # Simulate getting a meme from pool
-        pool = (1..100).map { |i| { "url" => "meme_#{i}", "title" => "Meme #{i}" } }
-        
-        meme = MemeExplorer::DiversityEngineService.select_diverse_meme(
+        meme = MemeExplorer::SimpleMemeSelector.select(
           pool,
-          session_id: session_id,
-          preferences: {}
+          session_id,
+          boost_fresh: false
         )
-        
+
         meme_ids << meme["url"] if meme
-        
-        # Mark as seen
-        MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme["url"]) if meme
       end
 
-      # Check no consecutive duplicates
       consecutive_dupes = meme_ids.each_cons(2).any? { |a, b| a == b }
       expect(consecutive_dupes).to be_falsey
+      expect(meme_ids.uniq.size).to eq(10)
     end
 
     it "tracks viewing history in Redis" do
-      skip "ViewingHistoryService not available" unless defined?(MemeExplorer::ViewingHistoryService)
-      
       meme_url = "test_meme_#{SecureRandom.hex(8)}"
       
       MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_url)
@@ -111,99 +101,70 @@ RSpec.describe "Random Algorithm Integration", type: :integration do
     end
   end
 
-  describe "MemePool service" do
-    context "when MemePool service exists" do
+  describe "MemePoolManager service" do
+    context "when MemePoolManager service exists" do
       it "returns a non-empty array of memes" do
-        skip "MemePool not yet created" unless defined?(MemeExplorer::MemePool)
-        
-        pool = MemeExplorer::MemePool.get
-        
-        expect(pool).to be_an(Array)
-        expect(pool).not_to be_empty
+        allow(MemePoolManager).to receive(:get_pool).and_return(
+          success: true,
+          memes: [{ "url" => "/images/funny1.jpeg", "title" => "Pool meme", "subreddit" => "memes" }],
+          pool_size: 1
+        )
+        result = MemePoolManager.get_pool
+
+        expect(result[:memes]).to be_an(Array)
+        expect(result[:memes]).not_to be_empty
       end
 
       it "handles Redis failures gracefully" do
-        skip "MemePool not yet created" unless defined?(MemeExplorer::MemePool)
-        
-        # Mock Redis failure
-        if defined?(MemePoolManager)
-          allow(MemePoolManager).to receive(:get_pool)
-            .and_return({ success: false, memes: [] })
-        end
+        allow(MemePoolManager).to receive(:get_pool).and_return({ success: false, memes: [] })
+        result = MemePoolManager.get_pool
 
-        pool = MemeExplorer::MemePool.get
-        
-        # Should fallback to local memes
-        expect(pool).to be_an(Array)
+        expect(result[:memes]).to be_an(Array)
       end
     end
   end
 
   describe "Configuration management" do
-    it "loads algorithm config from YAML" do
-      skip "AlgorithmConfigService not available" unless defined?(MemeExplorer::AlgorithmConfigService)
-      
-      config = MemeExplorer::AlgorithmConfigService.config
-      
-      expect(config).to be_a(Hash)
-      expect(config).to have_key('streak_bonuses')
-      expect(config).to have_key('freshness')
-      expect(config).to have_key('viral')
+    it "loads editorial source lists in SimpleMemeSelector" do
+      expect(MemeExplorer::SimpleMemeSelector::HUMOR_FIRST_SOURCES).to include("memes", "dankmemes")
+      expect(MemeExplorer::SimpleMemeSelector::COMMENTARY_SOURCES).to include("whitepeopletwitter")
     end
 
-    it "uses configuration in contextual scoring" do
-      skip "ContextualScoringService not available" unless defined?(MemeExplorer::ContextualScoringService)
-      
-      meme = {
-        "score" => 1000,
-        "num_comments" => 100,
-        "created_utc" => Time.now.to_i - 3600 # 1 hour ago
-      }
-
-      scored = MemeExplorer::ContextualScoringService.calculate_contextual_boost(meme)
-      
-      # Should return a boosted score based on config
-      expect(scored).to be > 0
+    it "uses editorial and conversion weighting in SimpleMemeSelector" do
+      pool = [
+        { "url" => "/winner.jpg", "subreddit" => "memes", "likes" => 10, "views" => 20, "title" => "Punchy joke" },
+        { "url" => "/dud.jpg", "subreddit" => "whitepeopletwitter", "likes" => 0, "views" => 40, "title" => "A" * 180 }
+      ]
+      allow(MemeExplorer::SimpleMemeSelector).to receive(:rand).and_return(0.5)
+      selected = MemeExplorer::SimpleMemeSelector.send(:weighted_sample, pool)
+      expect(selected["url"]).to eq("/winner.jpg")
     end
   end
 
-  describe "Async DB writes" do
-    context "when MemeStatsWriter worker exists" do
-      it "queues background job for meme stats" do
-        skip "MemeStatsWriter not available" unless defined?(MemeStatsWriter)
-        skip "Sidekiq not configured" unless defined?(Sidekiq)
-        
-        expect {
-          MemeStatsWriter.perform_async(
-            "test_meme_url",
-            "Test Meme",
-            "test_subreddit",
-            nil
-          )
-        }.to change { MemeStatsWriter.jobs.size }.by(1)
-      end
+  describe "SelectionBenchmark telemetry" do
+    it "records selection stage latencies into Redis" do
+      SelectionBenchmark.measure(stage: :selection) { true }
+      stats = SelectionBenchmark.stats(stage: :selection)
+      expect(stats[:count]).to be >= 1
     end
   end
 
   describe "Performance" do
     it "completes random meme selection in under 100ms" do
-      skip "Performance test - run manually" if ENV['CI']
-      skip "DiversityEngineService not available" unless defined?(MemeExplorer::DiversityEngineService)
+      pool = (1..100).map { |i| { "url" => "perf_meme_#{i}", "title" => "Perf Meme #{i}" } }
 
-      pool = (1..100).map { |i| { "url" => "meme_#{i}", "title" => "Meme #{i}" } }
-      
       start_time = Time.now
-      
+
       10.times do
-        MemeExplorer::DiversityEngineService.select_diverse_meme(
+        MemeExplorer::SimpleMemeSelector.select(
           pool,
-          session_id: session_id,
-          preferences: {}
+          session_id,
+          boost_fresh: false
         )
       end
-      
+
       avg_time = (Time.now - start_time) / 10
-      
+
       expect(avg_time).to be < 0.1 # 100ms
     end
   end

@@ -12,13 +12,19 @@ might claim.
 - **Random Meme Discovery** - `/random` and `/random.json`, backed by
   `MemePoolManager`'s Redis-cached, tier-distributed pool with anti-repetition
   selection
-- **Trending Memes** - `/trending` and `/trending.json`, engagement-scored
+- **Trending Memes** - `/trending`, `/trending.json`, and `/api/v1/daily-digest`
+  (including the **🎯 Daily Top 10** 1-per-community habit pack), engagement-scored
   with time decay
 - **Search** - `/search` and `/api/search.json`
-- **User Profiles** - `/profile`, saved memes, engagement tracking
-- **Leaderboard** - `/leaderboard` and `/api/leaderboard`
+- **User Profiles** - `/profile`, saved & liked meme search/pagination, self-serve
+  JSON data export (`/profile/export.json`), browsing history & preference resets,
+  and self-serve account deletion (`/profile/delete-account`)
+- **Leaderboard** - `/leaderboard` and `/api/leaderboard` (live curator & community rankings)
 - **Gallery View** - Multi-image Reddit gallery rendering
-- **Personalization** - Signed-in subreddit preferences from likes/saves; favorites at `/profile` (`/saved` redirects there). The unsupported `/taste-evolution` dashboard is retired.
+- **Personalization** - Signed-in and within-session guest subreddit preferences
+  from likes/saves/searches, cross-device seen-meme continuity, and favorites at
+  `/profile` (`/saved` redirects there). The unsupported `/taste-evolution`
+  dashboard is retired.
 - **Blog** - `/blog` (original content pages)
 
 ### Background Jobs (Sidekiq)
@@ -120,22 +126,28 @@ GET  /random.json        - Random meme API
 GET  /trending           - Trending memes
 GET  /trending.json      - Trending memes API
 GET  /api/trending       - Trending memes API (paginated, {memes, count, period, pagination} shape)
+GET  /api/v1/daily-digest - Daily Top 10 diversified digest pack (1 per community)
 GET  /search             - Search memes
 GET  /api/search.json    - Search API
-GET  /leaderboard        - User rankings
+GET  /leaderboard        - User & community rankings
 GET  /api/leaderboard    - Leaderboard API
 GET  /blog               - Blog index
 ```
 
 ### Authenticated Routes
 ```
-POST /signup              - Create account
-POST /login                - Sign in
-GET  /profile             - Current user profile
-POST /api/save-meme       - Save meme to collection
-POST /api/unsave-meme     - Remove meme from collection
-GET  /saved               - Redirect to profile and favorites
-GET  /taste-evolution     - Retired insights page (410 after authentication)
+POST /signup                  - Create account (migrates guest likes & history)
+POST /login                   - Sign in (migrates guest likes & syncs seen history)
+GET  /profile                 - Current user profile (saved & liked search/pagination)
+GET  /profile/export.json     - Self-serve JSON account data export
+POST /profile/clear-history   - Reset unseen feed browsing history
+POST /profile/reset-preferences - Reset learned community feed boosts
+POST /profile/unlike          - Remove a liked meme from profile
+POST /profile/delete-account  - Self-serve permanent account deletion
+POST /api/save-meme           - Save meme to collection
+POST /api/unsave-meme         - Remove meme from collection
+GET  /saved                   - Redirect to profile and favorites
+GET  /taste-evolution         - Retired insights page (410 after authentication)
 ```
 
 ### Admin Routes

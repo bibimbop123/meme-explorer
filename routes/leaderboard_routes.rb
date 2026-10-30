@@ -3,6 +3,60 @@
 
 module Routes
   module LeaderboardRoutes
+    def self.live_curator_leaderboard(limit: 25, offset: 0)
+      limit = [[limit.to_i, 1].max, 100].min
+      offset = [offset.to_i, 0].max
+      rows = ::DB.execute(<<~SQL, [limit, offset])
+        SELECT
+          u.id AS user_id,
+          u.reddit_username,
+          (COALESCE(s.saved_count, 0) * 3 + COALESCE(l.liked_count, 0) * 2) AS score
+        FROM users u
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) AS saved_count FROM saved_memes GROUP BY user_id
+        ) s ON s.user_id = u.id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) AS liked_count FROM user_liked_memes GROUP BY user_id
+        ) l ON l.user_id = u.id
+        WHERE (COALESCE(s.saved_count, 0) + COALESCE(l.liked_count, 0)) > 0
+        ORDER BY score DESC, u.id ASC
+        LIMIT ? OFFSET ?
+      SQL
+      (rows || []).each_with_index.map do |row, idx|
+        uid = (row['user_id'] || row[:user_id]).to_i
+        uname = (row['reddit_username'] || row[:reddit_username]).to_s.strip
+        uname = "Curator ##{uid}" if uname.empty?
+        {
+          'rank' => offset + idx + 1,
+          'user_id' => uid,
+          'username' => uname,
+          'score' => (row['score'] || row[:score]).to_i
+        }
+      end
+    rescue => e
+      AppLogger.warn("Live curator leaderboard unavailable: #{e.class}")
+      []
+    end
+
+    def self.live_community_leaderboard(limit: 10)
+      rows = ::DB.execute(<<~SQL, [limit])
+        SELECT
+          subreddit,
+          COALESCE(SUM(likes), 0) AS total_likes,
+          COALESCE(SUM(views), 0) AS total_views,
+          COUNT(*) AS meme_count
+        FROM meme_stats
+        WHERE subreddit IS NOT NULL AND subreddit != '' AND LOWER(subreddit) != 'unknown'
+        GROUP BY subreddit
+        ORDER BY (COALESCE(SUM(likes), 0) * 2 + COALESCE(SUM(views), 0)) DESC, subreddit ASC
+        LIMIT ?
+      SQL
+      (rows || []).map { |r| r.transform_keys(&:to_s) }
+    rescue => e
+      AppLogger.warn("Live community leaderboard unavailable: #{e.class}")
+      []
+    end
+
     def self.registered(app)
     app.get "/leaderboard" do
       AppLogger.info("🏆 [LEADERBOARD] Route accessed")
@@ -19,26 +73,26 @@ module Routes
       @challenge_progress = nil
       @previous_periods = []
 
-      # PRIMARY: Try advanced LeaderboardService (gracefully falls back to simple version)
+      # PRIMARY: Try advanced LeaderboardService (gracefully falls back to live SQL leaderboard)
       @leaderboard = begin
-        if @leaderboard_type == :weekly && @current_period.nil?
-          # For weekly default, try simple method first (faster)
-          AppLogger.info("🏆 [LEADERBOARD] Using simple weekly leaderboard")
-          get_leaderboard || []
+        if defined?(LeaderboardService)
+          if @leaderboard_type == :weekly && @current_period.nil? && respond_to?(:get_leaderboard, true)
+            get_leaderboard || []
+          else
+            LeaderboardService.get_leaderboard(
+              type: @leaderboard_type,
+              period: @current_period,
+              limit: 25
+            )
+          end
         else
-          # For other types or specific periods, use LeaderboardService
-          AppLogger.info("🏆 [LEADERBOARD] Using LeaderboardService (type: #{@leaderboard_type})")
-          LeaderboardService.get_leaderboard(
-            type: @leaderboard_type,
-            period: @current_period,
-            limit: 25
-          )
+          Routes::LeaderboardRoutes.live_curator_leaderboard(limit: 25)
         end
       rescue => e
-        AppLogger.error("⚠️ [LEADERBOARD] Advanced service failed: #{e.message}, falling back to simple")
-        @leaderboard_type = :weekly  # Reset to weekly on error
-        get_leaderboard rescue []
+        AppLogger.error("⚠️ [LEADERBOARD] Advanced service failed: #{e.message}, falling back to live SQL")
+        Routes::LeaderboardRoutes.live_curator_leaderboard(limit: 25)
       end
+      @top_communities = Routes::LeaderboardRoutes.live_community_leaderboard(limit: 10)
 
       AppLogger.info("🏆 [LEADERBOARD] Got #{@leaderboard.size} entries")
 
@@ -53,18 +107,21 @@ module Routes
       if current_user_id
         # Get user's rank with advanced details
         @user_rank = begin
-          LeaderboardService.get_user_rank(
-            current_user_id,
-            type: @leaderboard_type,
-            period: @current_period
-          )
+          if defined?(LeaderboardService)
+            LeaderboardService.get_user_rank(
+              current_user_id,
+              type: @leaderboard_type,
+              period: @current_period
+            )
+          else
+            @leaderboard.find { |e| e['user_id'].to_i == current_user_id }
+          end
         rescue => e
           AppLogger.error("⚠️ [LEADERBOARD] get_user_rank failed: #{e.message}")
-          # Fallback: find in current leaderboard
           @leaderboard.find { |e| e['user_id'].to_i == current_user_id }
         end
 
-        if @user_rank
+        if @user_rank && defined?(LeaderboardService)
           # Get rank change from previous period
           @rank_change = begin
             LeaderboardService.rank_change(current_user_id, type: @leaderboard_type)
@@ -133,7 +190,7 @@ module Routes
       @challenge = current_weekly_challenge rescue nil
 
       # Generate previous periods for dropdown (for weekly/monthly types)
-      if @leaderboard_type == :weekly || @leaderboard_type == :monthly
+      if (@leaderboard_type == :weekly || @leaderboard_type == :monthly) && defined?(LeaderboardService)
         @previous_periods = begin
           periods = []
           current = LeaderboardService.current_period(@leaderboard_type)
@@ -173,12 +230,16 @@ module Routes
         offset = (params[:offset] || 0).to_i
 
         # Get leaderboard data
-        leaderboard = LeaderboardService.get_leaderboard(
-          type: type,
-          period: period,
-          limit: limit,
-          offset: offset
-        )
+        leaderboard = if defined?(LeaderboardService)
+          LeaderboardService.get_leaderboard(
+            type: type,
+            period: period,
+            limit: limit,
+            offset: offset
+          )
+        else
+          Routes::LeaderboardRoutes.live_curator_leaderboard(limit: limit, offset: offset)
+        end
 
         # Mark current user
         if current_user_id
@@ -193,7 +254,7 @@ module Routes
         nearby = []
         insights = {}
 
-        if current_user_id
+        if current_user_id && defined?(LeaderboardService)
           user_rank = LeaderboardService.get_user_rank(
             current_user_id,
             type: type,
@@ -224,11 +285,12 @@ module Routes
         end
 
         # Get challenge
-        challenge = current_weekly_challenge
+        challenge = respond_to?(:current_weekly_challenge, true) ? (current_weekly_challenge rescue nil) : nil
 
         {
           success: true,
           leaderboard: leaderboard,
+          top_communities: Routes::LeaderboardRoutes.live_community_leaderboard(limit: 10),
           user_rank: user_rank,
           rank_change: rank_change,
           nearby: nearby,

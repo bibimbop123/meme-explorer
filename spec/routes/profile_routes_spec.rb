@@ -28,6 +28,115 @@ describe 'Profile Routes' do
       get '/profile'
       expect(last_response.status).to eq(200)
     end
+
+    it 'enriches liked memes with title and subreddit from meme_stats when available' do
+      session[:user_id] = user_id
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 5, 20)",
+        ['https://i.redd.it/enriched-like.jpg', 'Hilarious Cat Meme', 'cats'])
+      DB.execute("INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)",
+        [user_id, 'https://i.redd.it/enriched-like.jpg'])
+
+      get '/profile'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('Hilarious Cat Meme', 'r/cats')
+    end
+
+    it 'allows authenticated users to clear their unseen browsing history from profile' do
+      session[:user_id] = user_id
+      session[:feed_session_id] = SecureRandom.hex(32)
+      MemeExplorer::ViewingHistoryService.mark_seen(session[:feed_session_id], 'https://i.redd.it/seen1.jpg')
+      expect(MemeExplorer::ViewingHistoryService.seen_count(session[:feed_session_id])).to eq(1)
+
+      post '/profile/clear-history'
+      expect(last_response.status).to eq(303)
+      expect(MemeExplorer::ViewingHistoryService.seen_count(session[:feed_session_id])).to eq(0)
+    end
+
+    it 'exports user account, saved memes, and liked memes as JSON' do
+      session[:user_id] = user_id
+      UserService.save_meme(user_id, 'https://i.redd.it/export-save.jpg', 'Exported Save', 'funny')
+      DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, 'https://i.redd.it/export-like.jpg'])
+
+      get '/profile/export.json'
+      expect(last_response.status).to eq(200)
+      data = JSON.parse(last_response.body)
+      expect(data['account']['id']).to eq(user_id)
+      expect(data['saved_memes'].first['meme_url']).to eq('https://i.redd.it/export-save.jpg')
+      expect(data['liked_memes'].first['meme_url']).to eq('https://i.redd.it/export-like.jpg')
+    end
+
+    it 'allows confirmed self-serve account deletion and anonymizes activity logs' do
+      del_user = UserService.create_email_user('delete-me@example.com', 'password123')
+      session[:user_id] = del_user
+      UserService.save_meme(del_user, 'https://i.redd.it/del.jpg', 'Del', 'funny')
+      DB.execute("INSERT INTO meme_activity_log (meme_url, activity_type, user_id) VALUES ('https://i.redd.it/del.jpg', 'view', ?)", [del_user])
+
+      post '/profile/delete-account', { confirm_delete: 'nope' }
+      expect(last_response.status).to eq(400)
+      expect(UserService.find_by_id(del_user)).not_to be_nil
+
+      post '/profile/delete-account', { confirm_delete: 'DELETE' }
+      expect(last_response.status).to eq(303)
+      expect(UserService.find_by_id(del_user)).to be_nil
+      expect(UserService.get_saved_memes_count(del_user)).to eq(0)
+      expect(DB.get_first_value('SELECT COUNT(*) FROM meme_activity_log WHERE user_id = ?', [del_user]).to_i).to eq(0)
+    end
+
+    it 'allows removing a liked meme directly from /profile/unlike' do
+      session[:user_id] = user_id
+      url = 'https://i.redd.it/unlike-from-profile.jpg'
+      EngagementService.set_like(user_id: user_id, meme_url: url, desired: true, db: DB)
+      expect(EngagementService.user_liked?(user_id: user_id, meme_url: url, db: DB)).to eq(true)
+
+      post '/profile/unlike', { url: url, liked_page: '1', saved_page: '1' }
+      expect(last_response.status).to eq(303)
+      expect(EngagementService.user_liked?(user_id: user_id, meme_url: url, db: DB)).to eq(false)
+    end
+
+    it 'renders Your Top Communities on /profile when user has positive subreddit preferences' do
+      session[:user_id] = user_id
+      DB.execute(
+        'INSERT INTO user_subreddit_preferences (user_id, subreddit, preference_score, times_liked) VALUES (?, ?, 1.8, 3)',
+        [user_id, 'wholesomememes']
+      )
+      get '/profile'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('Your Top Communities', 'r/wholesomememes', '/search?q=wholesomememes', 'Reset community boosts')
+
+      post '/profile/reset-preferences'
+      expect(last_response.status).to eq(303)
+      expect(DB.get_first_value('SELECT COUNT(*) FROM user_subreddit_preferences WHERE user_id = ?', [user_id]).to_i).to eq(0)
+      get '/profile'
+      expect(last_response.body).to include('Your community feed preferences have been reset.')
+    end
+
+    it 'filters liked memes by title or community via liked_q search' do
+      session[:user_id] = user_id
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 5, 20)",
+        ['https://i.redd.it/like-cat.jpg', 'Purring Kitten', 'cats'])
+      DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, ?, 5, 20)",
+        ['https://i.redd.it/like-dog.jpg', 'Barking Puppy', 'dogs'])
+      DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, 'https://i.redd.it/like-cat.jpg'])
+      DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, 'https://i.redd.it/like-dog.jpg'])
+
+      get '/profile', { liked_q: 'Purring' }
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('1 liked matches', 'Purring Kitten')
+      expect(last_response.body).not_to include('Barking Puppy')
+    end
+
+    it 'preserves liked_q across multi-page liked search results' do
+      session[:user_id] = user_id
+      26.times do |i|
+        url = "https://i.redd.it/cat-page-#{i}.jpg"
+        DB.execute("INSERT INTO meme_stats (url, title, subreddit, likes, views) VALUES (?, ?, 'cats', 5, 20)", [url, "Cat #{i}"])
+        DB.execute('INSERT INTO user_liked_memes (user_id, meme_url) VALUES (?, ?)', [user_id, url])
+      end
+
+      get '/profile', { liked_q: 'cats' }
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('26 liked matches', 'Likes page 1 of 2', 'liked_page=2&amp;liked_q=cats#liked-memes')
+    end
   end
 
   describe 'POST /api/save-meme' do
@@ -117,6 +226,13 @@ describe 'Profile Routes' do
     it 'returns saved meme page' do
       get "/saved/#{@saved_meme['id']}"
       expect(last_response.status).to eq(200)
+    end
+
+    it 'reflects persisted liked state on /saved/:id and links the subreddit to search' do
+      EngagementService.set_like(user_id: user_id, meme_url: 'http://example.com/meme.jpg', desired: true, db: DB)
+      get "/saved/#{@saved_meme['id']}"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include('Unlike', '/search?q=funny')
     end
 
     it 'returns 404 for non-existent saved meme' do

@@ -18,9 +18,9 @@ RSpec.describe 'Routes: GET /' do
       expect(last_response.body).not_to be_empty
     end
 
-    it 'sets a session cookie' do
+    it 'initializes session state for the visitor' do
       get '/'
-      expect(last_response.headers['Set-Cookie']).not_to be_nil
+      expect(session[:feed_session_id]).to match(/\A[a-f0-9]{64}\z/)
     end
 
     it 'does not leak internal errors to the response body' do

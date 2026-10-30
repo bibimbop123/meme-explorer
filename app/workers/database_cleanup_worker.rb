@@ -39,6 +39,19 @@ class DatabaseCleanupWorker
        ) RETURNING id"
     )
     cleanup_stats[:old_impressions] = result.size
+
+    # Bound meme_activity_log growth by pruning activity events older than 90 days
+    # (rolling metrics reports use up to 30d and retention uses 14d).
+    activity_schema = DB.get_first_value("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'meme_activity_log')")
+    if activity_schema == true || activity_schema == 't'
+      DB.execute(
+        "DELETE FROM meme_activity_log WHERE id IN (
+           SELECT id FROM meme_activity_log
+           WHERE created_at < NOW() - INTERVAL '90 days'
+           ORDER BY created_at LIMIT 10000
+         )"
+      )
+    end
     # Retention cleanup must continue after collection is disabled. Older
     # deployments without this additive migration have nothing to clean yet.
     visitor_schema = DB.get_first_value("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'browser_visitors' AND column_name = 'revoked_at')")

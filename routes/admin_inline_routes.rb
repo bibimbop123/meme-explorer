@@ -49,6 +49,8 @@ module Routes
 
       DB.execute("DELETE FROM meme_stats WHERE url = ?", [url])
       DB.execute("DELETE FROM saved_memes WHERE meme_url = ?", [url])
+      DB.execute("DELETE FROM user_liked_memes WHERE meme_url = ?", [url]) rescue nil
+      DB.execute("UPDATE meme_catalog SET removed_at = CURRENT_TIMESTAMP WHERE media_url = ?", [url]) rescue nil
 
       content_type :json
       { deleted: true, message: "Meme deleted" }.to_json
@@ -75,13 +77,12 @@ module Routes
             status_code: nil,
             duration_ms: nil
           )
-
-          AppLogger.info("👤 [USER FEEDBACK] Broken content reported: #{url} (from #{page})")
-
-          { success: true, message: 'Thank you for your feedback!' }.to_json
         else
-          halt 500, { success: false, error: 'Service unavailable' }.to_json
+          report_broken_image(url)
         end
+
+        AppLogger.info("👤 [USER FEEDBACK] Broken content reported: #{url} (from #{page})")
+        { success: true, message: 'Thank you for your feedback!' }.to_json
       rescue JSON::ParserError => e
         halt 400, { success: false, error: 'Invalid JSON' }.to_json
       rescue => e

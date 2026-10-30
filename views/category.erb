@@ -20,11 +20,13 @@
         </div>
       <% end %>
       <div style="width:250px; text-align:center; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-        <a href="/category/<%= @category_name %>/meme/<%= URI.encode_www_form_component(meme["title"]) %>">
-          <img src="<%= meme["file"] %>" alt="<%= meme["title"] %>" width="250" style="display:block;">
+        <% cat_img = MediaUrl.safe(meme["file"] || meme["url"]) || "/images/meme-placeholder.svg" %>
+        <% cat_title = (meme["title"] || "Untitled Meme").to_s %>
+        <a href="/category/<%= Rack::Utils.escape_html(@category_name.to_s) %>/meme/<%= Rack::Utils.escape_html(URI.encode_www_form_component(cat_title)) %>">
+          <img src="<%= Rack::Utils.escape_html(cat_img) %>" alt="<%= Rack::Utils.escape_html(cat_title) %>" width="250" style="display:block;">
         </a>
-        <p style="margin:4px 0;"><%= meme["title"] %></p>
-        <small style="color:#777;">Category: <%= @category_name %></small>
+        <p style="margin:4px 0;"><%= Rack::Utils.escape_html(cat_title) %></p>
+        <small style="color:#777;">Category: <%= Rack::Utils.escape_html(@category_name.to_s) %></small>
       </div>
     <% end %>
   </div>

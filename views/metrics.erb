@@ -230,6 +230,13 @@
         <p><%= @avg_session_length_minutes ? "#{@avg_session_length_minutes} min" : "No data yet" %></p>
         <p>Multi-event UTC account-days only; single-event days excluded and idle gaps included. Not active time.</p>
       </div>
+      <% if @engagement_funnel && @engagement_funnel[:available] %>
+        <div class="metric primary">
+          <h3>7d Views / Active Account-Day</h3>
+          <p><%= @engagement_funnel[:avg_views_per_account_day] || 'No data yet' %></p>
+          <p>7d conversion: Likes <%= @engagement_funnel[:like_conversion_pct] ? "#{@engagement_funnel[:like_conversion_pct]}%" : 'N/A' %> · Saves <%= @engagement_funnel[:save_conversion_pct] ? "#{@engagement_funnel[:save_conversion_pct]}%" : 'N/A' %></p>
+        </div>
+      <% end %>
     </div>
 
     <% if @total_memes == 0 && @top_memes.empty? %>
@@ -254,6 +261,10 @@
         <div class="metric success">
           <h3>Likes / views ratio — not unique-user engagement</h3>
           <p><%= @engagement_rate.nil? ? 'N/A — no views' : "#{@engagement_rate}%" %></p>
+        </div>
+        <div class="metric success">
+          <h3><%= @period == 'all' ? 'Saves / views ratio' : 'Save actions in window' %></h3>
+          <p><%= @period == 'all' ? (@save_rate.nil? ? 'N/A — no views' : "#{@save_rate}%") : @total_saves %></p>
         </div>
         <div class="metric primary">
           <h3>Avg Likes / Meme</h3>
@@ -327,13 +338,37 @@
         <div class="table-container">
           <table>
             <thead>
-              <tr><th>Subreddit</th><th>Total Likes</th><th>Meme Count</th></tr>
+              <tr><th>Subreddit</th><th>Total Likes</th><th>Total Views</th><th>Like Rate</th><th>Meme Count</th></tr>
             </thead>
             <tbody>
               <% @top_subreddits.each do |sub| %>
                 <tr>
                   <td>r/<%= Rack::Utils.escape_html(sub['subreddit'].to_s) %></td>
                   <td><%= sub['total_likes'] %></td>
+                  <td><%= sub['total_views'] || 0 %></td>
+                  <td><%= sub['like_rate'] ? "#{sub['like_rate']}%" : 'N/A' %></td>
+                  <td><%= sub['count'] %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+
+      <% if @low_converting_subreddits && @low_converting_subreddits.any? %>
+        <h2>⚠️ Low-Converting Subreddits (25+ Views)</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>Subreddit</th><th>Like Rate</th><th>Total Likes</th><th>Total Views</th><th>Meme Count</th></tr>
+            </thead>
+            <tbody>
+              <% @low_converting_subreddits.each do |sub| %>
+                <tr>
+                  <td>r/<%= Rack::Utils.escape_html(sub['subreddit'].to_s) %></td>
+                  <td><%= sub['like_rate'] ? "#{sub['like_rate']}%" : '0.0%' %></td>
+                  <td><%= sub['total_likes'] %></td>
+                  <td><%= sub['total_views'] || 0 %></td>
                   <td><%= sub['count'] %></td>
                 </tr>
               <% end %>

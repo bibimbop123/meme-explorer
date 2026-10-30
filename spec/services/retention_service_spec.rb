@@ -155,4 +155,25 @@ RSpec.describe RetentionService do
       expect(result).to be_within(0.5).of(10.0)
     end
   end
+
+  describe '.engagement_funnel' do
+    it 'computes 7d view-to-like and view-to-save conversion rates and views per account day' do
+      user_id = create_user('funnel@example.com')
+      now = Time.utc(2026, 10, 21, 12)
+      4.times { |i| log_activity(user_id, now - i * 60, url: "https://example.com/m#{i}.jpg") }
+      db.execute("INSERT INTO meme_activity_log (meme_url, activity_type, user_id, created_at) VALUES ('https://example.com/m0.jpg', 'like', ?, ?)", [user_id, now])
+      db.execute("INSERT INTO meme_activity_log (meme_url, activity_type, user_id, created_at) VALUES ('https://example.com/m1.jpg', 'save', ?, ?)", [user_id, now])
+
+      funnel = RetentionService.engagement_funnel(window_days: 7, now: now)
+      expect(funnel).to include(
+        available: true,
+        views: 4,
+        likes: 1,
+        saves: 1,
+        like_conversion_pct: 25.0,
+        save_conversion_pct: 25.0,
+        avg_views_per_account_day: 4.0
+      )
+    end
+  end
 end

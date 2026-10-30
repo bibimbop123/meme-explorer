@@ -80,6 +80,12 @@ describe "Search Routes" do
       get "/search?q=programming"
       expect([last_response.body.include?("search"), last_response.body.include?("result")].any?).to be true
     end
+
+    it "seeds session subreddit preference when searching a valid community name" do
+      get "/search?q=r/wholesomememes"
+      expect(last_response.status).to eq(200)
+      expect(session[:liked_subreddits]['wholesomememes']).to be >= 1.25
+    end
   end
 
   describe "GET /api/search.json" do

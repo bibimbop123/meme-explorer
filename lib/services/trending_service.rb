@@ -222,4 +222,9 @@ module TrendingService
 
     selected
   end
+
+  # Finite, completable Daily Top 10 pack with strict 1-per-subreddit diversity
+  def daily_top_pack(limit: 10, fallback_pool: [])
+    curated_top_memes(limit: limit, max_per_subreddit: 1, fallback_pool: fallback_pool)
+  end
 end

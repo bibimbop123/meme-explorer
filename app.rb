@@ -287,13 +287,7 @@ METRICS = {
   # -----------------------
   before do
     @start_time = Time.now
-    @seen_memes = begin
-      cookie_data = request.cookies["seen_memes"]
-      JSON.parse(cookie_data) if cookie_data
-    rescue => e
-      AppLogger.error("⚠️ Cookie parsing error: #{e.class}")
-      []
-    end || []
+    @seen_memes = []
     
     # GAMIFICATION: Disabled during Elon audit - features removed for simplicity
     # Streak and level tracking removed along with GamificationHelpers
@@ -352,21 +346,9 @@ METRICS = {
     
     begin
       METRICS[:total_requests].increment
-METRICS[:total_duration_ms].update { |v| v + duration.to_i }
+      METRICS[:total_duration_ms].update { |v| v + duration.to_i }
     rescue => e
       AppLogger.error("After hook metrics error: #{e.class}")
-    end
-
-    begin
-      response.set_cookie(
-        "seen_memes",
-        value: @seen_memes.to_json,
-        path: "/",
-        expires: Time.now + 60 * 60 * 24 * 30,
-        httponly: true
-      )
-    rescue => e
-      AppLogger.error("After hook cookie error: #{e.class}")
     end
   end
 

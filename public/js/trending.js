@@ -82,8 +82,15 @@ class TrendingPage {
     this.isLoading = true;
 
     // Use cursor-based pagination instead of page
+    const isDailyPack = this.currentTimeWindow === 'daily_top_10';
+    if (isDailyPack && append) {
+      this.isLoading = false;
+      return;
+    }
     const cursor = append && this.nextCursor ? this.nextCursor : '';
-    const url = `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&cursor=${cursor}&limit=20`;
+    const url = isDailyPack
+      ? '/api/v1/daily-digest?limit=10'
+      : `/api/v1/trending?time_window=${this.currentTimeWindow}&sort_by=${this.currentSort}&cursor=${cursor}&limit=20`;
 
     fetch(url)
       .then(response => response.json())
@@ -93,8 +100,20 @@ class TrendingPage {
           if (!append) {
             this.container.innerHTML = '';
             this.memeCount = 0; // Reset counter when loading fresh
+            if (isDailyPack) {
+              const banner = document.createElement('div');
+              banner.style.cssText = 'width: 100%; max-width: 860px; background: #eef2ff; color: #312e81; padding: 12px 18px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 8px;';
+              banner.textContent = `🎯 Today's Top ${memes.length} Daily Pack — Strictly 1 top meme per humor community`;
+              this.container.appendChild(banner);
+            }
           }
           memes.forEach(meme => this.renderMemeCard(meme));
+          if (isDailyPack && memes.length > 0) {
+            const doneCard = document.createElement('div');
+            doneCard.style.cssText = 'width: 100%; max-width: 860px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 16px; border-radius: 10px; text-align: center; margin-top: 12px;';
+            doneCard.innerHTML = '<strong>🎉 You’ve reached the end of Today’s Top 10!</strong> <a href="/random" style="margin-left: 12px; color: #e52e71; font-weight: 700; text-decoration: underline;">🔥 Continue in Random Feed →</a>';
+            this.container.appendChild(doneCard);
+          }
           
           // Setup lazy loading for ads after rendering
           if (this.adManager) {
@@ -102,8 +121,8 @@ class TrendingPage {
           }
           
           // Store next cursor for infinite scroll
-          this.nextCursor = data.pagination?.next_cursor || null;
-          this.hasMore = data.pagination?.has_more || false;
+          this.nextCursor = isDailyPack ? null : (data.pagination?.next_cursor || null);
+          this.hasMore = isDailyPack ? false : (data.pagination?.has_more || false);
         }
         this.isLoading = false;
       })
@@ -186,6 +205,10 @@ class TrendingPage {
         <div style="color: white; text-align: center; margin-top: 15px;">
           <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
           <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
+          <p style="margin-top: 12px;">
+            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${meme.subreddit || 'reddit'} →</a>
+            <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
+          </p>
           <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Click anywhere to close</p>
         </div>
       </div>

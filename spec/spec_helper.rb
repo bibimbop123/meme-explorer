@@ -203,6 +203,9 @@ RSpec.configure do |config|
       begin
         RedisService.clear_pattern('trending:*')
         RedisService.clear_pattern('selection_benchmark:*')
+        RedisService.clear_pattern('signup_attempts:*')
+        RedisService.clear_pattern('failed_login:*')
+        RedisService.clear_pattern('account_lockout:*')
       rescue => e
         warn "Test Redis cleanup warning (non-fatal): #{e.message}"
       end

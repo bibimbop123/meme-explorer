@@ -191,6 +191,13 @@ RSpec.describe 'Session discovery controls' do
     expect(last_response.status).to eq(400)
   end
 
+  it 'returns JSON state when requested with Accept: application/json' do
+    post '/feed/preferences', { action: 'hide', community: 'cats' }, { 'HTTP_ACCEPT' => 'application/json' }
+    expect(last_response.status).to eq(200)
+    data = JSON.parse(last_response.body)
+    expect(data).to include('success' => true, 'hidden' => ['cats'], 'undo' => 'cats')
+  end
+
   ['/random', '/'].each do |path|
     it "keeps hidden community excluded when selection fails on #{path}" do
       preference('hide', 'cats')

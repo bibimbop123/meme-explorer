@@ -19,19 +19,24 @@ class MetricsReport
     totals = if period == 'all'
       db.execute('SELECT COUNT(*) AS total_memes, COALESCE(SUM(likes),0) AS total_likes, COALESCE(SUM(views),0) AS total_views FROM meme_stats').first
     else
-      db.execute("SELECT COUNT(DISTINCT meme_url) AS total_memes, COUNT(*) FILTER (WHERE activity_type = 'like') AS total_likes, COUNT(*) FILTER (WHERE activity_type = 'view') AS total_views FROM meme_activity_log WHERE #{condition} AND activity_type IN ('view','like','unlike','save','unsave')", args).first
+      db.execute("SELECT COUNT(DISTINCT meme_url) AS total_memes, COUNT(*) FILTER (WHERE activity_type = 'like') AS total_likes, COUNT(*) FILTER (WHERE activity_type = 'view') AS total_views, COUNT(*) FILTER (WHERE activity_type = 'save') AS total_saves FROM meme_activity_log WHERE #{condition} AND activity_type IN ('view','like','unlike','save','unsave')", args).first
     end
     report = totals.transform_keys(&:to_sym).transform_values(&:to_i)
     count = report[:total_memes]
+    total_saved = db.get_first_value('SELECT COUNT(*) FROM saved_memes').to_i
+    report[:total_saves] = total_saved if period == 'all'
     report.merge!(period: period, generated_at: finish.iso8601, window_start: start&.iso8601,
       source: period == 'all' ? 'cumulative stored counters' : 'recorded activity events',
       total_users: db.get_first_value('SELECT COUNT(*) FROM users').to_i,
-      total_saved_memes: db.get_first_value('SELECT COUNT(*) FROM saved_memes').to_i,
+      total_saved_memes: total_saved,
+      total_persisted_likes: (db.get_first_value('SELECT COUNT(*) FROM user_liked_memes').to_i rescue 0),
+      broken_images_count: (db.get_first_value('SELECT COUNT(*) FROM broken_images').to_i rescue 0),
       memes_with_no_likes: db.get_first_value('SELECT COUNT(*) FROM meme_stats WHERE likes = 0').to_i,
       memes_with_no_views: db.get_first_value('SELECT COUNT(*) FROM meme_stats WHERE views = 0').to_i,
       avg_likes: count.positive? ? (report[:total_likes].to_f / count).round(2) : 0,
       avg_views: count.positive? ? (report[:total_views].to_f / count).round(2) : 0,
-      engagement_rate: report[:total_views].positive? ? (100.0 * report[:total_likes] / report[:total_views]).round(2) : nil)
+      engagement_rate: report[:total_views].positive? ? (100.0 * report[:total_likes] / report[:total_views]).round(2) : nil,
+      save_rate: report[:total_views].positive? ? (100.0 * report[:total_saves] / report[:total_views]).round(2) : nil)
 
     # Keep all-time charts bounded, but explicitly label their shorter scope.
     chart_start = start || finish - PERIODS.fetch('30d')
@@ -57,7 +62,8 @@ class MetricsReport
     end
     rankings = db.execute("SELECT * FROM (#{ranking}) ranked ORDER BY (likes * 2 + views) DESC, url LIMIT 10", period == 'all' ? [] : args)
     report[:top_memes] = rankings
-    report[:top_subreddits] = db.execute("SELECT subreddit, SUM(likes) AS total_likes, COUNT(*) AS count FROM (#{ranking}) ranked WHERE subreddit IS NOT NULL GROUP BY subreddit ORDER BY total_likes DESC, subreddit LIMIT 10", period == 'all' ? [] : args)
+    report[:top_subreddits] = db.execute("SELECT subreddit, SUM(likes) AS total_likes, SUM(views) AS total_views, COUNT(*) AS count, CASE WHEN SUM(views) > 0 THEN ROUND((100.0 * SUM(likes) / SUM(views))::numeric, 1) ELSE NULL END AS like_rate FROM (#{ranking}) ranked WHERE subreddit IS NOT NULL GROUP BY subreddit ORDER BY total_likes DESC, subreddit LIMIT 10", period == 'all' ? [] : args)
+    report[:low_converting_subreddits] = db.execute("SELECT subreddit, SUM(likes) AS total_likes, SUM(views) AS total_views, COUNT(*) AS count, ROUND((100.0 * SUM(likes) / SUM(views))::numeric, 1) AS like_rate FROM (#{ranking}) ranked WHERE subreddit IS NOT NULL GROUP BY subreddit HAVING SUM(views) >= 25 ORDER BY like_rate ASC, total_views DESC, subreddit ASC LIMIT 5", period == 'all' ? [] : args)
     report
   end
 end
