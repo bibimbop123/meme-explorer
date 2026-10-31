@@ -166,11 +166,14 @@ Coordinate ACK/confirmed-view integration with existing contracts. Local fixture
 do not approve rollout. Agree resource/error/latency budgets, rollback and canary
 scope first. Keep `feed.legacy_pending_store` unchanged until operational acceptance.
 Prevent frontend drift, inventory script ownership, replace removed-service pending
-tests and add browser critical paths incrementally. No framework rewrite needed.
+tests (completed: 1,417 backend examples, 0 failures, 0 pending) and add browser
+critical paths incrementally. No framework rewrite needed.
 
 Stage CSP after reports and inline-handler cleanup; review third-party ad trust.
-Keep security gates enforced. Define data purposes/retention/deletion and consent;
-do not fingerprint guests to obtain retention numbers.
+Keep security gates enforced. Define data purposes/retention/deletion and consent
+(self-serve JSON data export `/profile/export.json`, preference/history resets,
+account deletion `/profile/delete-account`, and 90-day `meme_activity_log`
+pruning implemented); do not fingerprint guests to obtain retention numbers.
 
 | Outcome | Definition / caution |
 | --- | --- |
