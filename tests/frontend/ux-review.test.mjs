@@ -133,3 +133,23 @@ test('keyboard help traps Tab, closes from focused controls, and restores focus'
   assert.equal(keyboard.state.helpModalVisible, false);
   assert.equal(restored, true);
 });
+
+test('Trending page wires Daily Top 10 tab to /api/v1/daily-digest with random feed continuation', async () => {
+  const trendingView = await read('views/trending.erb');
+  const trendingJs = await read('public/js/trending.js');
+  assert.match(trendingView, /data-time-window="daily_top_10"/);
+  assert.match(trendingJs, /\/api\/v1\/daily-digest\?limit=10/);
+  assert.match(trendingJs, /Continue in Random Feed/);
+});
+
+test('Profile and Saved views expose self-serve data rights, liked search, and discovery continuation', async () => {
+  const profileView = await read('views/profile.erb');
+  const savedView = await read('views/saved_meme.erb');
+  assert.match(profileView, /name="liked_q"/);
+  assert.match(profileView, /action="\/profile\/unlike"/);
+  assert.match(profileView, /action="\/profile\/clear-history"/);
+  assert.match(profileView, /href="\/profile\/export\.json"/);
+  assert.match(profileView, /action="\/profile\/delete-account"/);
+  assert.match(savedView, /href="\/search\?q=/);
+  assert.match(savedView, /href="\/random"/);
+});
