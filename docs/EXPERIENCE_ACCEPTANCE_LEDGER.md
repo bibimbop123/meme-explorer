@@ -19,7 +19,7 @@ freshness priority in `SimpleMemeSelector`, and replacement of the last seven re
 **Full backend RSpec suite: 1,417 examples, zero failures, zero pending, 79.86%
 coverage (5,844/7,318), exit 0**; **23 real-socket server acceptance checks pass**
 (`tests/app_server_test.rb`), **19 CSRF contract checks pass**
-(`tests/csrf_protection_test.rb`), and **180 frontend tests pass** (`npm test`).
+(`tests/csrf_protection_test.rb`), and **182 frontend tests pass** (`npm test`).
 
 ### Revocation ordering under stale session commit
 

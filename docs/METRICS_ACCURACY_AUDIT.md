@@ -23,11 +23,18 @@ Local implementation; not committed or deployed.
 - DB failure now returns 503 instead of silently showing zeroes or substituting
   lifetime counters. Reports are no-store. Ranking text is HTML escaped; unsafe
   raw media-link interpolation was removed.
+- Save actions (`total_saves`), `save_rate` (`saves / views` percentage), global
+  snapshots (`total_persisted_likes`, `broken_images_count`), per-subreddit
+  `total_views` and `like_rate`, `low_converting_subreddits` (`HAVING SUM(views) >= 25`
+  ordered by lowest `like_rate`), and 7-day `RetentionService.engagement_funnel`
+  (`views`, `likes`, `saves`, `like_conversion_pct`, `save_conversion_pct`,
+  `avg_views_per_account_day`) are now included across `/metrics`, `/metrics.json`,
+  and `/metrics/export` CSV.
 
 ## Validation and limitations
 
-Backend: 1,298 examples, zero failures, seven pending; 77.31% coverage, exit 0.
-Frontend: 143 passing. Syntax/whitespace checks passed. An intermediate patch
+Backend: 1,417 examples, zero failures, zero pending; 79.86% coverage, exit 0.
+Frontend: 182 passing. Syntax/whitespace checks passed. An intermediate patch
 damaged the module header and failed at load time; restored and full suite rerun.
 
 Tests cover all four periods, aged/future fixtures, HTML/JSON/CSV parity,
