@@ -144,6 +144,7 @@ RSpec.describe 'Trending Routes' do
       expect(body).to include('date', 'count', 'data')
       memes_subs = body['data'].map { |m| m['subreddit'] }.compact.reject(&:empty?)
       expect(memes_subs).to eq(memes_subs.uniq)
+      expect(body['data'].first['viewer_path']).to match(/\A\/meme\/[a-f0-9]{64}\z/)
     end
   end
 

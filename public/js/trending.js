@@ -206,6 +206,7 @@ class TrendingPage {
           <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
           <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
           <p style="margin-top: 12px;">
+            ${meme.viewer_path && /^\/meme\/[a-f0-9]{64}$/.test(meme.viewer_path) ? `<a href="${meme.viewer_path}" style="color: #86efac; font-weight: 700; text-decoration: underline; margin-right: 16px;">🎯 Open & Share in Viewer →</a>` : ''}
             <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${meme.subreddit || 'reddit'} →</a>
             <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
           </p>

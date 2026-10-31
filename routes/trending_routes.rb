@@ -112,6 +112,10 @@ module Routes
         if memes.empty? && params[:cursor].to_s.empty?
           memes = TrendingService.curated_top_memes(limit: limit, fallback_pool: (random_memes_pool rescue [])) rescue []
         end
+        memes.each do |m|
+          cid = (MemeIdentityService.register(m) rescue nil)
+          m['viewer_path'] = "/meme/#{cid}" if cid
+        end
 
         {
           data: memes,
@@ -131,6 +135,10 @@ module Routes
         rescue => e
           AppLogger.error("⚠️ [DAILY-DIGEST] #{e.class}: #{e.message}")
           []
+        end
+        pack.each do |m|
+          cid = (MemeIdentityService.register(m) rescue nil)
+          m['viewer_path'] = "/meme/#{cid}" if cid
         end
 
         {
