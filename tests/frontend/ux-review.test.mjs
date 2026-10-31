@@ -153,3 +153,27 @@ test('Profile and Saved views expose self-serve data rights, liked search, and d
   assert.match(savedView, /href="\/search\?q=/);
   assert.match(savedView, /href="\/random"/);
 });
+
+test('TrendingPage escapes untrusted title/subreddit HTML and rejects javascript: media URLs', async () => {
+  const source = await read('public/js/trending.js');
+  const cards = [];
+  const document = {
+    getElementById: () => ({ appendChild: el => cards.push(el) }),
+    querySelectorAll: () => [],
+    createElement: () => ({ style: {}, addEventListener() {} }),
+    body: { appendChild: el => cards.push(el) }
+  };
+  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
+  const page = new Tp();
+  page.renderMemeCard({
+    image_url: 'javascript:alert(1)',
+    title: '<script>xss()</script>',
+    subreddit: '"><img src=x onerror=alert(1)>',
+    likes: 5,
+    views: 10
+  });
+  assert.equal(cards.length, 1);
+  assert.match(cards[0].innerHTML, /&lt;script&gt;xss\(\)&lt;\/script&gt;/);
+  assert.doesNotMatch(cards[0].innerHTML, /<script>xss/);
+  assert.doesNotMatch(cards[0].innerHTML, /javascript:alert/);
+});

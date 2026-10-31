@@ -135,6 +135,24 @@ class TrendingPage {
       });
   }
 
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  safeMediaUrl(rawUrl, fallbackSub) {
+    const str = String(rawUrl || '').trim();
+    if (/^https?:\/\//i.test(str) || str.startsWith('/images/')) {
+      return this.escapeHtml(str);
+    }
+    const cleanSub = String(fallbackSub || 'dank').replace(/[^a-z0-9_]/gi, '') || 'dank';
+    return `/images/${cleanSub}1.jpeg`;
+  }
+
   renderMemeCard(meme) {
     // Check if we should insert an ad before this meme
     if (this.adManager && this.adManager.shouldShowAdAtPosition(this.memeCount)) {
@@ -144,7 +162,12 @@ class TrendingPage {
     }
     
     // Use API image URL with smart fallback
-    const imageUrl = meme.image_url || `/images/${meme.subreddit || 'dank'}1.jpeg`;
+    const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
+    const safeTitle = this.escapeHtml(meme.title || 'Untitled');
+    const safeAlt = this.escapeHtml(meme.title || 'Meme');
+    const safeSub = this.escapeHtml(meme.subreddit || 'local');
+    const safeLikes = parseInt(meme.likes, 10) || 0;
+    const safeViews = parseInt(meme.views, 10) || 0;
     
     const card = document.createElement('div');
     card.className = 'meme-card';
@@ -153,16 +176,16 @@ class TrendingPage {
       <img 
         class="meme-image"
         src="${imageUrl}"
-        alt="${meme.title || 'Meme'}"
+        alt="${safeAlt}"
         loading="lazy"
         onerror="this.src='/images/dank1.jpeg'"
       />
       <div class="meme-info">
-        <h3 class="meme-title">${meme.title || 'Untitled'}</h3>
+        <h3 class="meme-title">${safeTitle}</h3>
         <div class="meme-meta">
-          <span>/r/${meme.subreddit || 'local'}</span>
-          <span>❤️ ${meme.likes || 0}</span>
-          <span>👁️ ${meme.views || 0}</span>
+          <span>/r/${safeSub}</span>
+          <span>❤️ ${safeLikes}</span>
+          <span>👁️ ${safeViews}</span>
         </div>
       </div>
     `;
@@ -194,20 +217,24 @@ class TrendingPage {
       cursor: pointer;
     `;
 
-    const imageUrl = meme.image_url || meme.url;
+    const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
+    const safeTitle = this.escapeHtml(meme.title || 'Meme');
+    const safeSub = this.escapeHtml(meme.subreddit || 'reddit');
+    const safeLikes = parseInt(meme.likes, 10) || 0;
+    const safeViews = parseInt(meme.views, 10) || 0;
     
     modal.innerHTML = `
       <div style="max-width: 90%; max-height: 90%; position: relative;">
-        <img src="${imageUrl}" 
-             alt="${meme.title}" 
+        <img src="${imageUrl}"
+             alt="${safeTitle}"
              style="max-width: 100%; max-height: 90vh; object-fit: contain;"
              onerror="this.src='/images/dank1.jpeg'">
         <div style="color: white; text-align: center; margin-top: 15px;">
-          <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
-          <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
+          <h3 style="margin: 10px 0;">${safeTitle}</h3>
+          <p style="opacity: 0.8;">/r/${safeSub} • ❤️ ${safeLikes} • 👁️ ${safeViews}</p>
           <p style="margin-top: 12px;">
             ${meme.viewer_path && /^\/meme\/[a-f0-9]{64}$/.test(meme.viewer_path) ? `<a href="${meme.viewer_path}" style="color: #86efac; font-weight: 700; text-decoration: underline; margin-right: 16px;">🎯 Open & Share in Viewer →</a>` : ''}
-            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${meme.subreddit || 'reddit'} →</a>
+            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${safeSub} →</a>
             <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
           </p>
           <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Click anywhere to close</p>
