@@ -163,6 +163,31 @@ RSpec.describe TrendingService do
         'https://example.com/backfill2.jpg'
       ])
     end
+
+    it 'excludes broken_images (failure_count >= 2) from both trending SQL and fallback pool' do
+      db.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES (?, ?, ?, 90, 300, CURRENT_TIMESTAMP)",
+        ['https://example.com/broken_trend.jpg', 'Broken Trend', 'memes']
+      )
+      db.execute(
+        "INSERT INTO meme_stats (url, title, subreddit, likes, views, updated_at) VALUES (?, ?, ?, 20, 100, CURRENT_TIMESTAMP)",
+        ['https://example.com/working_trend.jpg', 'Working Trend', 'dankmemes']
+      )
+      db.execute(
+        "INSERT INTO broken_images (url, failure_count) VALUES (?, 2), (?, 3)",
+        ['https://example.com/broken_trend.jpg', 'https://example.com/broken_backfill.jpg']
+      )
+      fallback = [
+        { 'url' => 'https://example.com/broken_backfill.jpg', 'title' => 'Broken Backfill', 'subreddit' => 'wholesomememes' },
+        { 'url' => 'https://example.com/healthy_backfill.jpg', 'title' => 'Healthy Backfill', 'subreddit' => 'wholesomememes' }
+      ]
+
+      curated = TrendingService.curated_top_memes(limit: 2, max_per_subreddit: 1, fallback_pool: fallback)
+      expect(curated.map { |m| m['url'] }).to eq([
+        'https://example.com/working_trend.jpg',
+        'https://example.com/healthy_backfill.jpg'
+      ])
+    end
   end
 
   describe 'integration test' do

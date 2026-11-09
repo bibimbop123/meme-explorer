@@ -177,3 +177,43 @@ test('TrendingPage escapes untrusted title/subreddit HTML and rejects javascript
   assert.doesNotMatch(cards[0].innerHTML, /<script>xss/);
   assert.doesNotMatch(cards[0].innerHTML, /javascript:alert/);
 });
+
+test('TrendingPage modal supports keyboard navigation (ArrowLeft/ArrowRight/Escape) and rank progress', async () => {
+  const source = await read('public/js/trending.js');
+  const modals = [];
+  const keyListeners = [];
+  const removedListeners = [];
+  const document = {
+    getElementById: () => ({ appendChild() {} }),
+    querySelectorAll: () => [],
+    addEventListener: (name, fn) => { if (name === 'keydown') keyListeners.push(fn); },
+    removeEventListener: (name, fn) => { if (name === 'keydown') removedListeners.push(fn); },
+    createElement: () => ({
+      style: {},
+      setAttribute() {},
+      addEventListener() {},
+      parentNode: { removeChild() {} }
+    }),
+    body: { appendChild: el => modals.push(el), removeChild() {} }
+  };
+  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
+  const page = new Tp();
+  page.currentTimeWindow = 'daily_top_10';
+  page.renderMemeCard({ image_url: 'https://i.redd.it/one.jpg', title: 'First Meme', subreddit: 'memes', likes: 10, views: 50 });
+  page.renderMemeCard({ image_url: 'https://i.redd.it/two.jpg', title: 'Second Meme', subreddit: 'dankmemes', likes: 20, views: 80 });
+
+  page.showMemeModal(page.renderedMemes[0], 0);
+  assert.equal(modals.length, 1);
+  assert.match(modals[0].innerHTML, /#1 of 2/);
+  assert.match(modals[0].innerHTML, /data-modal-nav="next"/);
+
+  // Press ArrowRight to advance to second meme
+  keyListeners[keyListeners.length - 1]({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(modals.length, 2);
+  assert.match(modals[1].innerHTML, /#2 of 2/);
+  assert.match(modals[1].innerHTML, /Second Meme/);
+
+  // Press Escape to close
+  keyListeners[keyListeners.length - 1]({ key: 'Escape', preventDefault() {} });
+  assert.equal(removedListeners.length, 2);
+});

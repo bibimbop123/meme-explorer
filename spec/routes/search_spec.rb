@@ -29,6 +29,8 @@ describe "Search Routes" do
       get '/search', {}, 'HTTP_ACCEPT' => 'text/html'
       expect(last_response.status).to eq(200)
       expect(last_response.body).to include('Find a meme by topic or community')
+      expect(last_response.body).to include('class="search-topic-pills"')
+      expect(last_response.body).to include('/search?q=wholesomememes')
       expect(last_response.body).not_to include('No memes found')
     end
 

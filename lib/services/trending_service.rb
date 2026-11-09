@@ -24,6 +24,10 @@ module TrendingService
       FROM meme_stats
       WHERE updated_at >= $1
         AND views > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM broken_images b
+          WHERE b.url = meme_stats.url AND b.failure_count >= 2
+        )
       ORDER BY trending_score DESC, updated_at DESC
       LIMIT $2
     SQL
@@ -53,6 +57,10 @@ module TrendingService
       FROM meme_stats m
       WHERE m.subreddit = $1
         AND m.updated_at >= CURRENT_TIMESTAMP - INTERVAL '48 hours'
+        AND NOT EXISTS (
+          SELECT 1 FROM broken_images b
+          WHERE b.url = m.url AND b.failure_count >= 2
+        )
       ORDER BY score DESC
       LIMIT $2
     SQL
@@ -199,6 +207,11 @@ module TrendingService
     end
 
     if selected.size < limit && fallback_pool.is_a?(Array) && fallback_pool.any?
+      broken_urls = if defined?(MemeExplorer::SimpleMemeSelector)
+                      MemeExplorer::SimpleMemeSelector.send(:broken_urls_set)
+                    else
+                      []
+                    end
       sorted_fallback = fallback_pool.sort_by do |m|
         sub = (m['subreddit'] || m[:subreddit]).to_s.downcase
         humor_first.include?(sub) ? 0 : (commentary.include?(sub) ? 2 : 1)
@@ -206,7 +219,7 @@ module TrendingService
       sorted_fallback.each do |meme|
         break if selected.size >= limit
         url = (meme['url'] || meme[:url] || meme['file'] || meme[:file]).to_s
-        next if url.empty? || seen_urls[url]
+        next if url.empty? || seen_urls[url] || broken_urls.include?(url)
         sub = (meme['subreddit'] || meme[:subreddit]).to_s.downcase
         next if commentary.include?(sub)
         next if !sub.empty? && sub_counts[sub] >= max_per_subreddit

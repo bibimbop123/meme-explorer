@@ -91,12 +91,24 @@ module MemeExplorer
       def select(all_memes, session_id, options = {})
         user_id = options[:user_id] || options['user_id']
         last_subreddit = (options[:last_subreddit] || options['last_subreddit']).to_s.strip.downcase
+        recent_subreddits = Array(options[:recent_subreddits] || options['recent_subreddits']).map { |s| s.to_s.strip.downcase }.reject(&:empty?)
         return all_memes.sample if all_memes.empty?
         
-        # 1. Filter out previously seen memes and deduplicate crossposted identical titles
+        # 1. Filter out previously seen memes, known broken media (failure_count >= 2),
+        # and deduplicate crossposted identical titles
         all_memes = deduplicate_crossposts(
           all_memes.uniq { |m| m['url'] || m[:url] || m['file'] || m[:file] || m['id'] || m[:id] }
         )
+        if all_memes.size > 1
+          broken = broken_urls_set
+          if broken.any?
+            healthy = all_memes.reject do |m|
+              url = (m['url'] || m[:url] || m['file'] || m[:file]).to_s
+              broken.include?(url)
+            end
+            all_memes = healthy unless healthy.empty?
+          end
+        end
         seen = ViewingHistoryService.get_seen_memes(session_id)
         if user_id && !session_id.to_s.start_with?('user:')
           account_seen = ViewingHistoryService.get_seen_memes("user:#{user_id}")
@@ -154,7 +166,7 @@ module MemeExplorer
             user_prefs[key] = [user_prefs[key].to_f, bounded].max if bounded > 1.0
           end
         end
-        selected = weighted_sample(pool, user_prefs, last_subreddit: last_subreddit)
+        selected = weighted_sample(pool, user_prefs, last_subreddit: last_subreddit, recent_subreddits: recent_subreddits)
         selection_method = if selected && !user_prefs.empty?
                              'personalized_weighted_random'
                            elsif selected && has_engagement_data?(pool)
@@ -220,6 +232,19 @@ module MemeExplorer
         {}
       end
 
+      def broken_urls_set
+        return Set.new unless defined?(DB) && DB
+
+        rows = DB.execute("SELECT url FROM broken_images WHERE failure_count >= 2")
+        rows.each_with_object(Set.new) do |row, set|
+          url = (row['url'] || row[:url]).to_s
+          set.add(url) unless url.empty?
+        end
+      rescue => e
+        AppLogger.warn("[SimpleMemeSelector] broken_urls_set failed: #{e.message}") if defined?(AppLogger)
+        Set.new
+      end
+
       # Weighted random selection by engagement score (likes/views),
       # optionally scaled by this specific user's subreddit preference.
       # score = sqrt(likes * 2 + views), with a floor so untested memes
@@ -231,10 +256,13 @@ module MemeExplorer
       # subreddit, so a user with no signal for a given subreddit sees
       # the exact same weighting as before this change - this only ever
       # boosts, never penalizes, since preference_score only increases).
-      def weighted_sample(pool, user_prefs = {}, last_subreddit: nil)
+      def weighted_sample(pool, user_prefs = {}, last_subreddit: nil, recent_subreddits: nil)
         return nil if pool.empty?
         last_sub = last_subreddit.to_s.strip.downcase
+        recent_subs = Array(recent_subreddits).map { |s| s.to_s.strip.downcase }.reject { |s| s.empty? || s == last_sub }.uniq
         has_alternative_sub = !last_sub.empty? && pool.any? { |item| (item['subreddit'] || item[:subreddit]).to_s.downcase != last_sub }
+        all_recent = (recent_subs + [last_sub]).reject(&:empty?).to_set
+        has_non_recent_sub = recent_subs.any? && pool.any? { |item| !all_recent.include?((item['subreddit'] || item[:subreddit]).to_s.downcase) }
 
         weights = pool.map do |m|
           likes = (m['likes'] || m[:likes]).to_i
@@ -266,7 +294,11 @@ module MemeExplorer
             end
           end
 
-          score *= 0.25 if has_alternative_sub && source == last_sub
+          if has_alternative_sub && source == last_sub
+            score *= 0.25
+          elsif has_non_recent_sub && recent_subs.include?(source)
+            score *= 0.5
+          end
 
           score
         end

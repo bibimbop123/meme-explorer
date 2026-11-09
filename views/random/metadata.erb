@@ -28,6 +28,11 @@
     <span class="signal-icon"><%= signal[:icon] %></span>
     <span class="signal-text"><%= signal[:message] %></span>
   </div>
+  <% if @meme['total_unseen'].to_i > 0 %>
+    <div class="memes-remaining">
+      <small><%= @meme['total_unseen'].to_i %> unseen memes remaining</small>
+    </div>
+  <% end %>
 <% end %>
 
 <div class="meme-meta-wrapper">

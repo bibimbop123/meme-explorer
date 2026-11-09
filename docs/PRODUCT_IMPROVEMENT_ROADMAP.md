@@ -166,7 +166,7 @@ Coordinate ACK/confirmed-view integration with existing contracts. Local fixture
 do not approve rollout. Agree resource/error/latency budgets, rollback and canary
 scope first. Keep `feed.legacy_pending_store` unchanged until operational acceptance.
 Prevent frontend drift, inventory script ownership, replace removed-service pending
-tests (completed: 1,417 backend examples, 0 failures, 0 pending) and add browser
+tests (completed: 1,420 backend examples, 0 failures, 0 pending) and add browser
 critical paths incrementally. No framework rewrite needed.
 
 Stage CSP after reports and inline-handler cleanup; review third-party ad trust.

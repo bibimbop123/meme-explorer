@@ -33,8 +33,8 @@ Local implementation; not committed or deployed.
 
 ## Validation and limitations
 
-Backend: 1,417 examples, zero failures, zero pending; 79.86% coverage, exit 0.
-Frontend: 182 passing. Syntax/whitespace checks passed. An intermediate patch
+Backend: 1,420 examples, zero failures, zero pending; 79.89% coverage, exit 0.
+Frontend: 184 passing. Syntax/whitespace checks passed. An intermediate patch
 damaged the module header and failed at load time; restored and full suite rerun.
 
 Tests cover all four periods, aged/future fixtures, HTML/JSON/CSV parity,

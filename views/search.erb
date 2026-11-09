@@ -26,6 +26,11 @@
     <p id="search-feedback" role="alert"><%= Rack::Utils.escape_html(@search_error.to_s) %>. Edit your query and try again.</p>
   <% elsif @query.nil? %>
     <p id="search-feedback">Find a meme by topic or community. Try cats, programming, or wholesome.</p>
+    <div class="search-topic-pills" aria-label="Popular humor topics and communities" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px;">
+      <% %w[wholesomememes programmerhumor dankmemes me_irl animalsbeingderps starterpacks cats].each do |topic| %>
+        <a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(topic)) %>" style="padding: 6px 14px; border-radius: 16px; background: #eef2ff; color: #312e81; text-decoration: none; font-size: 13px; font-weight: 600;">r/<%= Rack::Utils.escape_html(topic) %></a>
+      <% end %>
+    </div>
   <% elsif @results.empty? %>
     <div id="search-feedback" class="search-empty" role="status">
       <h2>No matching memes</h2>
@@ -72,7 +77,7 @@
             </h3>
 
             <p style="margin: 8px 0; font-size: 12px; color: #666;">
-              r/<%= Rack::Utils.escape_html(meme['subreddit'].to_s) %>
+              <a href="/search?q=<%= Rack::Utils.escape_html(URI.encode_www_form_component(meme['subreddit'].to_s)) %>" style="color: #4169e1; text-decoration: none; font-weight: 600;">r/<%= Rack::Utils.escape_html(meme['subreddit'].to_s) %></a>
             </p>
 
             <!-- Engagement Stats -->
