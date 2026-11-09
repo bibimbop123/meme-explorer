@@ -343,6 +343,38 @@ RSpec.describe MemeExplorer::SimpleMemeSelector do
         selected = described_class.select(pool, session_id, last_subreddit: nil)
         expect(selected['url']).to eq('/fresh.jpg')
       end
+
+      it 'filters out known broken media URLs (failure_count >= 2) when healthy candidates exist' do
+        DB.execute(
+          "INSERT INTO broken_images (url, failure_count) VALUES (?, 3) ON CONFLICT(url) DO UPDATE SET failure_count = 3",
+          ['/known_broken.jpg']
+        )
+        pool = [
+          { 'url' => '/known_broken.jpg', 'title' => 'Broken meme', 'subreddit' => 'memes', 'likes' => 100, 'views' => 500 },
+          { 'url' => '/healthy_meme.jpg', 'title' => 'Healthy meme', 'subreddit' => 'dankmemes', 'likes' => 5, 'views' => 20 }
+        ]
+
+        selected = described_class.select(pool, session_id, boost_fresh: false)
+        expect(selected['url']).to eq('/healthy_meme.jpg')
+      end
+
+      it 'applies a rolling cooldown to recent_subreddits so sessions do not ping-pong between two communities' do
+        pool = [
+          { 'url' => '/recent_sub.jpg', 'subreddit' => 'memes' },
+          { 'url' => '/novel_sub.jpg', 'subreddit' => 'wholesomememes' }
+        ]
+        allow(described_class).to receive(:rand).and_return(0.4)
+        expect(described_class.send(:weighted_sample, pool)['url']).to eq('/recent_sub.jpg')
+        expect(
+          described_class.send(
+            :weighted_sample,
+            pool,
+            {},
+            last_subreddit: 'dankmemes',
+            recent_subreddits: %w[memes dankmemes]
+          )['url']
+        ).to eq('/novel_sub.jpg')
+      end
     end
   end
 end

@@ -16,10 +16,16 @@ migration (`migrate_guest_activity`), cross-device `ViewingHistoryService.sync_a
 email exposure, `low_converting_subreddits` (25+ views) on `/metrics`, first-impression
 freshness priority in `SimpleMemeSelector`, and replacement of the last seven removed-service
 `pending` specs in `spec/integration/random_algorithm_integration_spec.rb`.
-**Full backend RSpec suite: 1,417 examples, zero failures, zero pending, 79.86%
-coverage (5,844/7,318), exit 0**; **23 real-socket server acceptance checks pass**
+Also added broken-media self-healing (`broken_images` with `failure_count >= 2`
+excluded in `SimpleMemeSelector` and `TrendingService`), rolling multi-subreddit
+session diversity (`recent_subreddits` cooldown in `SimpleMemeSelector`),
+`total_unseen` inventory count in `/random.json` & `/random`, keyboard/button
+navigation (`ArrowLeft`/`ArrowRight`/`Escape`) and rank badges in the Trending /
+Daily Top 10 modal, and clickable community pills on `/search`.
+**Full backend RSpec suite: 1,420 examples, zero failures, zero pending, 79.89%
+coverage (5,876/7,355), exit 0**; **23 real-socket server acceptance checks pass**
 (`tests/app_server_test.rb`), **19 CSRF contract checks pass**
-(`tests/csrf_protection_test.rb`), and **180 frontend tests pass** (`npm test`).
+(`tests/csrf_protection_test.rb`), and **184 frontend tests pass** (`npm test`).
 
 ### Revocation ordering under stale session commit
 

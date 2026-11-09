@@ -46,6 +46,9 @@ module Routes
         inventory_exhausted: meme['inventory_exhausted'] == true,
         **MediaDimensions.for(meme)
       }
+      if meme["total_unseen"].is_a?(Integer)
+        response_data[:total_unseen] = meme["total_unseen"]
+      end
 
       if meme["is_gallery"] && meme["gallery_images"]
         response_data[:is_gallery] = true
@@ -278,7 +281,14 @@ module Routes
             # /random.json below - this is the first-load HTML path, the
             # other real entry point into selection.
             SelectionBenchmark.measure(stage: :selection) do
-              MemeExplorer::SimpleMemeSelector.select(meme_pool, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit], session_prefs: session[:liked_subreddits])
+              MemeExplorer::SimpleMemeSelector.select(
+                meme_pool,
+                session_id,
+                user_id: current_user_id,
+                last_subreddit: session[:last_subreddit],
+                recent_subreddits: session[:recent_subreddits],
+                session_prefs: session[:liked_subreddits]
+              )
             end
           end
 
@@ -307,7 +317,10 @@ module Routes
         end
         
         @meme = filter_feed_communities([@meme].compact).first
-        session[:last_subreddit] = @meme["subreddit"]&.downcase if @meme
+        if @meme && (chosen_sub = @meme["subreddit"]&.downcase)
+          session[:last_subreddit] = chosen_sub
+          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
+        end
 
         # View count tracking (session-based, works for both logged-in and anonymous users)
         session[:view_count] ||= 0
@@ -440,7 +453,14 @@ module Routes
           # never-called apply_user_preferences path.
           SelectionBenchmark.measure(stage: :selection) do
             selection_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            selected = MemeExplorer::SimpleMemeSelector.select(memes, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit], session_prefs: session[:liked_subreddits])
+            selected = MemeExplorer::SimpleMemeSelector.select(
+              memes,
+              session_id,
+              user_id: current_user_id,
+              last_subreddit: session[:last_subreddit],
+              recent_subreddits: session[:recent_subreddits],
+              session_prefs: session[:liked_subreddits]
+            )
             selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
             selected
           end
@@ -465,7 +485,10 @@ module Routes
           MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
         end
         history_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        session[:last_subreddit] = @meme["subreddit"]&.downcase
+        if (chosen_sub = @meme["subreddit"]&.downcase)
+          session[:last_subreddit] = chosen_sub
+          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
+        end
         
         image_url = @meme["url"] || @meme["file"]
 

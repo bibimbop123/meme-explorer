@@ -21,6 +21,7 @@ class TrendingPage {
     }) : null;
     
     this.memeCount = 0; // Track total memes rendered for ad placement
+    this.renderedMemes = [];
   }
 
   initialize() {
@@ -100,6 +101,7 @@ class TrendingPage {
           if (!append) {
             this.container.innerHTML = '';
             this.memeCount = 0; // Reset counter when loading fresh
+            this.renderedMemes = [];
             if (isDailyPack) {
               const banner = document.createElement('div');
               banner.style.cssText = 'width: 100%; max-width: 860px; background: #eef2ff; color: #312e81; padding: 12px 18px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 8px;';
@@ -135,6 +137,24 @@ class TrendingPage {
       });
   }
 
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  safeMediaUrl(rawUrl, fallbackSub) {
+    const str = String(rawUrl || '').trim();
+    if (/^https?:\/\//i.test(str) || str.startsWith('/images/')) {
+      return this.escapeHtml(str);
+    }
+    const cleanSub = String(fallbackSub || 'dank').replace(/[^a-z0-9_]/gi, '') || 'dank';
+    return `/images/${cleanSub}1.jpeg`;
+  }
+
   renderMemeCard(meme) {
     // Check if we should insert an ad before this meme
     if (this.adManager && this.adManager.shouldShowAdAtPosition(this.memeCount)) {
@@ -144,8 +164,19 @@ class TrendingPage {
     }
     
     // Use API image URL with smart fallback
-    const imageUrl = meme.image_url || `/images/${meme.subreddit || 'dank'}1.jpeg`;
+    const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
+    const safeTitle = this.escapeHtml(meme.title || 'Untitled');
+    const safeAlt = this.escapeHtml(meme.title || 'Meme');
+    const safeSub = this.escapeHtml(meme.subreddit || 'local');
+    const safeLikes = parseInt(meme.likes, 10) || 0;
+    const safeViews = parseInt(meme.views, 10) || 0;
     
+    this.renderedMemes = this.renderedMemes || [];
+    const cardIndex = this.renderedMemes.length;
+    this.renderedMemes.push(meme);
+    const isDailyPack = this.currentTimeWindow === 'daily_top_10';
+    const rankBadge = isDailyPack ? `<span style="background:#312e81;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;font-size:0.75rem;">#${cardIndex + 1}</span>` : '';
+
     const card = document.createElement('div');
     card.className = 'meme-card';
     card.style.cursor = 'pointer';
@@ -153,33 +184,41 @@ class TrendingPage {
       <img 
         class="meme-image"
         src="${imageUrl}"
-        alt="${meme.title || 'Meme'}"
+        alt="${safeAlt}"
         loading="lazy"
         onerror="this.src='/images/dank1.jpeg'"
       />
       <div class="meme-info">
-        <h3 class="meme-title">${meme.title || 'Untitled'}</h3>
+        <h3 class="meme-title">${safeTitle}</h3>
         <div class="meme-meta">
-          <span>/r/${meme.subreddit || 'local'}</span>
-          <span>❤️ ${meme.likes || 0}</span>
-          <span>👁️ ${meme.views || 0}</span>
+          ${rankBadge}
+          <span>/r/${safeSub}</span>
+          <span>❤️ ${safeLikes}</span>
+          <span>👁️ ${safeViews}</span>
         </div>
       </div>
     `;
     
     // Make card clickable - shows meme in modal (no redirect)
     card.addEventListener('click', () => {
-      this.showMemeModal(meme);
+      this.showMemeModal(meme, cardIndex);
     });
     
     this.container.appendChild(card);
     this.memeCount++; // Increment meme counter
   }
 
-  showMemeModal(meme) {
-    // Create modal overlay
+  showMemeModal(meme, index = -1) {
+    this.renderedMemes = this.renderedMemes || [];
+    const resolvedIndex = index >= 0 ? index : this.renderedMemes.indexOf(meme);
+    const totalLoaded = this.renderedMemes.length;
+    const hasPrev = resolvedIndex > 0;
+    const hasNext = resolvedIndex >= 0 && resolvedIndex < totalLoaded - 1;
+
     const modal = document.createElement('div');
     modal.className = 'meme-modal';
+    modal.setAttribute?.('role', 'dialog');
+    modal.setAttribute?.('aria-modal', 'true');
     modal.style.cssText = `
       position: fixed;
       top: 0;
@@ -194,29 +233,85 @@ class TrendingPage {
       cursor: pointer;
     `;
 
-    const imageUrl = meme.image_url || meme.url;
+    const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
+    const safeTitle = this.escapeHtml(meme.title || 'Meme');
+    const safeSub = this.escapeHtml(meme.subreddit || 'reddit');
+    const safeLikes = parseInt(meme.likes, 10) || 0;
+    const safeViews = parseInt(meme.views, 10) || 0;
+    const positionLabel = resolvedIndex >= 0 && totalLoaded > 1 ? `#${resolvedIndex + 1} of ${totalLoaded} • ` : '';
     
     modal.innerHTML = `
       <div style="max-width: 90%; max-height: 90%; position: relative;">
-        <img src="${imageUrl}" 
-             alt="${meme.title}" 
-             style="max-width: 100%; max-height: 90vh; object-fit: contain;"
+        <img src="${imageUrl}"
+             alt="${safeTitle}"
+             style="max-width: 100%; max-height: 75vh; object-fit: contain;"
              onerror="this.src='/images/dank1.jpeg'">
         <div style="color: white; text-align: center; margin-top: 15px;">
-          <h3 style="margin: 10px 0;">${meme.title || 'Meme'}</h3>
-          <p style="opacity: 0.8;">/r/${meme.subreddit || 'reddit'} • ❤️ ${meme.likes || 0} • 👁️ ${meme.views || 0}</p>
+          <h3 style="margin: 10px 0;">${safeTitle}</h3>
+          <p style="opacity: 0.8;">${positionLabel}/r/${safeSub} • ❤️ ${safeLikes} • 👁️ ${safeViews}</p>
+          ${totalLoaded > 1 ? `
+            <div style="margin-top: 10px; display: flex; justify-content: center; gap: 12px;">
+              <button type="button" data-modal-nav="prev" ${hasPrev ? '' : 'disabled'} style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: ${hasPrev ? 'pointer' : 'not-allowed'}; opacity: ${hasPrev ? '1' : '0.4'};">← Prev</button>
+              <button type="button" data-modal-nav="close" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: pointer;">✕ Close (Esc)</button>
+              <button type="button" data-modal-nav="next" ${hasNext ? '' : 'disabled'} style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: ${hasNext ? 'pointer' : 'not-allowed'}; opacity: ${hasNext ? '1' : '0.4'};">Next →</button>
+            </div>
+          ` : ''}
           <p style="margin-top: 12px;">
-            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${meme.subreddit || 'reddit'} →</a>
+            ${meme.viewer_path && /^\/meme\/[a-f0-9]{64}$/.test(meme.viewer_path) ? `<a href="${meme.viewer_path}" style="color: #86efac; font-weight: 700; text-decoration: underline; margin-right: 16px;">🎯 Open & Share in Viewer →</a>` : ''}
+            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${safeSub} →</a>
             <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
           </p>
-          <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Click anywhere to close</p>
+          <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Use ← / → arrow keys to browse, Esc or click backdrop to close</p>
         </div>
       </div>
     `;
 
-    // Close on click
-    modal.addEventListener('click', () => {
-      document.body.removeChild(modal);
+    const closeModal = () => {
+      document.removeEventListener?.('keydown', onKeyDown);
+      if (modal.parentNode) {
+        modal.parentNode.removeChild(modal);
+      } else {
+        document.body?.removeChild?.(modal);
+      }
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault?.();
+        closeModal();
+      } else if (event.key === 'ArrowLeft' && hasPrev) {
+        event.preventDefault?.();
+        closeModal();
+        this.showMemeModal(this.renderedMemes[resolvedIndex - 1], resolvedIndex - 1);
+      } else if (event.key === 'ArrowRight' && hasNext) {
+        event.preventDefault?.();
+        closeModal();
+        this.showMemeModal(this.renderedMemes[resolvedIndex + 1], resolvedIndex + 1);
+      }
+    };
+
+    document.addEventListener?.('keydown', onKeyDown);
+
+    modal.addEventListener('click', (event) => {
+      const navBtn = event?.target?.closest?.('[data-modal-nav]');
+      if (navBtn) {
+        event.stopPropagation?.();
+        const action = navBtn.getAttribute('data-modal-nav');
+        if (action === 'prev' && hasPrev) {
+          closeModal();
+          this.showMemeModal(this.renderedMemes[resolvedIndex - 1], resolvedIndex - 1);
+        } else if (action === 'next' && hasNext) {
+          closeModal();
+          this.showMemeModal(this.renderedMemes[resolvedIndex + 1], resolvedIndex + 1);
+        } else if (action === 'close') {
+          closeModal();
+        }
+        return;
+      }
+      if (event?.target?.closest?.('a')) {
+        return;
+      }
+      closeModal();
     });
 
     document.body.appendChild(modal);

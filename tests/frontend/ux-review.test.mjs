@@ -133,3 +133,87 @@ test('keyboard help traps Tab, closes from focused controls, and restores focus'
   assert.equal(keyboard.state.helpModalVisible, false);
   assert.equal(restored, true);
 });
+
+test('Trending page wires Daily Top 10 tab to /api/v1/daily-digest with random feed continuation', async () => {
+  const trendingView = await read('views/trending.erb');
+  const trendingJs = await read('public/js/trending.js');
+  assert.match(trendingView, /data-time-window="daily_top_10"/);
+  assert.match(trendingJs, /\/api\/v1\/daily-digest\?limit=10/);
+  assert.match(trendingJs, /Continue in Random Feed/);
+});
+
+test('Profile and Saved views expose self-serve data rights, liked search, and discovery continuation', async () => {
+  const profileView = await read('views/profile.erb');
+  const savedView = await read('views/saved_meme.erb');
+  assert.match(profileView, /name="liked_q"/);
+  assert.match(profileView, /action="\/profile\/unlike"/);
+  assert.match(profileView, /action="\/profile\/clear-history"/);
+  assert.match(profileView, /href="\/profile\/export\.json"/);
+  assert.match(profileView, /action="\/profile\/delete-account"/);
+  assert.match(savedView, /href="\/search\?q=/);
+  assert.match(savedView, /href="\/random"/);
+});
+
+test('TrendingPage escapes untrusted title/subreddit HTML and rejects javascript: media URLs', async () => {
+  const source = await read('public/js/trending.js');
+  const cards = [];
+  const document = {
+    getElementById: () => ({ appendChild: el => cards.push(el) }),
+    querySelectorAll: () => [],
+    createElement: () => ({ style: {}, addEventListener() {} }),
+    body: { appendChild: el => cards.push(el) }
+  };
+  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
+  const page = new Tp();
+  page.renderMemeCard({
+    image_url: 'javascript:alert(1)',
+    title: '<script>xss()</script>',
+    subreddit: '"><img src=x onerror=alert(1)>',
+    likes: 5,
+    views: 10
+  });
+  assert.equal(cards.length, 1);
+  assert.match(cards[0].innerHTML, /&lt;script&gt;xss\(\)&lt;\/script&gt;/);
+  assert.doesNotMatch(cards[0].innerHTML, /<script>xss/);
+  assert.doesNotMatch(cards[0].innerHTML, /javascript:alert/);
+});
+
+test('TrendingPage modal supports keyboard navigation (ArrowLeft/ArrowRight/Escape) and rank progress', async () => {
+  const source = await read('public/js/trending.js');
+  const modals = [];
+  const keyListeners = [];
+  const removedListeners = [];
+  const document = {
+    getElementById: () => ({ appendChild() {} }),
+    querySelectorAll: () => [],
+    addEventListener: (name, fn) => { if (name === 'keydown') keyListeners.push(fn); },
+    removeEventListener: (name, fn) => { if (name === 'keydown') removedListeners.push(fn); },
+    createElement: () => ({
+      style: {},
+      setAttribute() {},
+      addEventListener() {},
+      parentNode: { removeChild() {} }
+    }),
+    body: { appendChild: el => modals.push(el), removeChild() {} }
+  };
+  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
+  const page = new Tp();
+  page.currentTimeWindow = 'daily_top_10';
+  page.renderMemeCard({ image_url: 'https://i.redd.it/one.jpg', title: 'First Meme', subreddit: 'memes', likes: 10, views: 50 });
+  page.renderMemeCard({ image_url: 'https://i.redd.it/two.jpg', title: 'Second Meme', subreddit: 'dankmemes', likes: 20, views: 80 });
+
+  page.showMemeModal(page.renderedMemes[0], 0);
+  assert.equal(modals.length, 1);
+  assert.match(modals[0].innerHTML, /#1 of 2/);
+  assert.match(modals[0].innerHTML, /data-modal-nav="next"/);
+
+  // Press ArrowRight to advance to second meme
+  keyListeners[keyListeners.length - 1]({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(modals.length, 2);
+  assert.match(modals[1].innerHTML, /#2 of 2/);
+  assert.match(modals[1].innerHTML, /Second Meme/);
+
+  // Press Escape to close
+  keyListeners[keyListeners.length - 1]({ key: 'Escape', preventDefault() {} });
+  assert.equal(removedListeners.length, 2);
+});
