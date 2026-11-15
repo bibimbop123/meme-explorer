@@ -27,7 +27,7 @@ module Routes
           # instead of trusting a possibly-stale MEME_CACHE snapshot.
           pool = filter_feed_communities(random_memes_pool)
           session_id = feed_session_id
-          @meme = MemeExplorer::SimpleMemeSelector.select(pool, session_id, user_id: current_user_id, last_subreddit: session[:last_subreddit], recent_subreddits: session[:recent_subreddits], session_prefs: session[:liked_subreddits])
+          @meme = MemeExplorer::SimpleMemeSelector.select(pool, session_id, **feed_selection_options(session, current_user_id))
           @meme ||= fallback_meme
         rescue => e
           AppLogger.error("Error in root route: #{e.class}: #{e.message}")
@@ -35,10 +35,7 @@ module Routes
         end
 
         @meme = filter_feed_communities([@meme].compact).first
-        if @meme && (chosen_sub = @meme["subreddit"]&.downcase)
-          session[:last_subreddit] = chosen_sub
-          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
-        end
+        record_displayed_subreddit(session, @meme)
         
         @image_src = meme_image_src(@meme)
         engagement = viewer_engagement_state(@meme['url'] || @meme['file'])

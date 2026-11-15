@@ -61,6 +61,30 @@ module Routes
 
     def self.registered(app)
       app.helpers do
+        # Single source of truth for the per-request selection option bundle
+        # shared by /, /random and /random.json. These three routes used to
+        # each inline this hash, which is exactly how / silently drifted
+        # (missing recent_subreddits) when the diversity window was added.
+        def feed_selection_options(session, user_id, defer_mark: false)
+          opts = {
+            user_id: user_id,
+            last_subreddit: session[:last_subreddit],
+            recent_subreddits: session[:recent_subreddits],
+            session_prefs: session[:liked_subreddits]
+          }
+          opts[:defer_mark] = true if defer_mark
+          opts
+        end
+
+        # Single writer for the rolling community window + immediate-repeat
+        # guard, updated identically by every route that displays a meme.
+        def record_displayed_subreddit(session, meme)
+          chosen = meme && meme["subreddit"]&.downcase
+          return unless chosen
+          session[:last_subreddit] = chosen
+          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen]).last(4)
+        end
+
         def viewer_engagement_state(url, likes: nil)
           {
             liked: current_user_id ? EngagementService.user_liked?(user_id: current_user_id, meme_url: url) : (session[:liked_memes] || []).include?(url),
@@ -314,10 +338,7 @@ module Routes
               MemeExplorer::SimpleMemeSelector.select(
                 meme_pool,
                 session_id,
-                user_id: current_user_id,
-                last_subreddit: session[:last_subreddit],
-                recent_subreddits: session[:recent_subreddits],
-                session_prefs: session[:liked_subreddits]
+                **feed_selection_options(session, current_user_id)
               )
             end
           end
@@ -339,10 +360,7 @@ module Routes
         end
         
         @meme = filter_feed_communities([@meme].compact).first
-        if @meme && (chosen_sub = @meme["subreddit"]&.downcase)
-          session[:last_subreddit] = chosen_sub
-          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
-        end
+        record_displayed_subreddit(session, @meme)
 
         # View count tracking (session-based, works for both logged-in and anonymous users)
         session[:view_count] ||= 0
@@ -486,11 +504,7 @@ module Routes
             selected = MemeExplorer::SimpleMemeSelector.select(
               memes,
               session_id,
-              user_id: current_user_id,
-              last_subreddit: session[:last_subreddit],
-              recent_subreddits: session[:recent_subreddits],
-              session_prefs: session[:liked_subreddits],
-              defer_mark: defer_view_mark
+              **feed_selection_options(session, current_user_id, defer_mark: defer_view_mark)
             )
             selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
             selected
@@ -517,10 +531,7 @@ module Routes
           MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
         end
         history_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        if (chosen_sub = @meme["subreddit"]&.downcase)
-          session[:last_subreddit] = chosen_sub
-          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
-        end
+        record_displayed_subreddit(session, @meme)
         
         image_url = @meme["url"] || @meme["file"]
 
