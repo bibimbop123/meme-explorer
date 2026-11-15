@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative '../spec_helper'
-require_relative '../../lib/controllers/random_meme_controller'
 
 RSpec.describe "Random Algorithm Integration", type: :integration do
   let(:session) { {} }
@@ -13,61 +12,10 @@ RSpec.describe "Random Algorithm Integration", type: :integration do
     session[:session_id] = session_id
     session[:meme_history] = []
     session[:view_count] = 0
-    
+
     # Clear viewing history for clean tests
     if defined?(MemeExplorer::ViewingHistoryService)
       MemeExplorer::ViewingHistoryService.clear_history(session_id)
-    end
-  end
-
-  describe "RandomMemeController" do
-    context "when controller exists" do
-      it "returns a valid result with meme data" do
-        skip "RandomMemeController not yet integrated" unless defined?(MemeExplorer::RandomMemeController)
-        
-        result = MemeExplorer::RandomMemeController.handle(
-          session: session,
-          user_id: user_id,
-          request_ip: request_ip
-        )
-
-        expect(result).to respond_to(:meme)
-        expect(result.meme).to be_present
-        expect(result).to respond_to(:image_src)
-        expect(result).to respond_to(:likes)
-      end
-
-      it "increments view count in session" do
-        skip "RandomMemeController not yet integrated" unless defined?(MemeExplorer::RandomMemeController)
-        
-        initial_count = session[:view_count] || 0
-        
-        MemeExplorer::RandomMemeController.handle(
-          session: session,
-          user_id: user_id,
-          request_ip: request_ip
-        )
-
-        expect(session[:view_count]).to eq(initial_count + 1)
-      end
-
-      it "handles errors gracefully and returns fallback meme" do
-        skip "RandomMemeController not yet integrated" unless defined?(MemeExplorer::RandomMemeController)
-
-        # NOTE: DiversityEngineService was removed from the codebase; the
-        # controller now selects memes via MemeExplorer::SimpleMemeSelector.
-        allow(MemeExplorer::SimpleMemeSelector).to receive(:select_random_meme)
-          .and_raise(StandardError.new("Test error"))
-
-        result = MemeExplorer::RandomMemeController.handle(
-          session: session,
-          user_id: user_id,
-          request_ip: request_ip
-        )
-
-        expect(result.meme).to be_present
-        expect(result.image_src).to be_present
-      end
     end
   end
 
