@@ -298,61 +298,6 @@ rescue PG::Error, ConnectionPool::TimeoutError => e
   0
 end
 
-# Toggle like for meme (only count once per session)
-def toggle_like(url, liked_now, session)
-  return 0 unless url
-  
-  session[:meme_like_counts] ||= {}
-  was_liked_before = session[:meme_like_counts][url] || false
-  user_id = session[:user_id]
-  
-  # Only update DB on first like/unlike transition
-  if liked_now && !was_liked_before
-    # First time liking in this session
-    # Update global meme_stats
-    DB.execute("INSERT INTO meme_stats (url, likes) VALUES (?, 0) ON CONFLICT(url) DO NOTHING", [url])
-    DB.execute("UPDATE meme_stats SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP WHERE url = ?", [url])
-
-    # Update user-specific meme_stats (if user logged in)
-    if user_id
-      DB.execute(
-        "INSERT INTO user_meme_stats (user_id, meme_url, liked, liked_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(user_id, meme_url) DO NOTHING",
-        [user_id, url]
-      )
-      DB.execute(
-        "UPDATE user_meme_stats SET liked = 1, liked_at = CURRENT_TIMESTAMP, unliked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND meme_url = ?",
-        [user_id, url]
-      )
-      
-      # GAMIFICATION: Award XP for liking + update leaderboard
-      begin
-        xp_result = add_xp(user_id, :like_meme)
-        session[:last_xp_gain] = xp_result if xp_result
-        update_weekly_leaderboard(user_id, 1)
-      rescue => e
-        AppLogger.error("⚠️ XP/Leaderboard error: #{e.message}")
-      end
-    end
-    session[:meme_like_counts][url] = true
-  elsif !liked_now && was_liked_before
-    # Unliking after having liked in this session
-    DB.execute("UPDATE meme_stats SET likes = likes - 1, updated_at = CURRENT_TIMESTAMP WHERE url = ? AND likes > 0", [url])
-    
-    # Update user-specific meme_stats (if user logged in)
-    if user_id
-      DB.execute(
-        "UPDATE user_meme_stats SET liked = 0, unliked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND meme_url = ?",
-        [user_id, url]
-      )
-    end
-    session[:meme_like_counts][url] = false
-  end
-
-  likes = DB.execute("SELECT likes FROM meme_stats WHERE url = ?", [url]).first&.dig("likes").to_i
-  RedisService.set("meme:likes:#{url}", likes, ttl: 300)  # MIGRATED: 5 min cache (Phase 3 Week 1)
-  likes
-end
-
 # Flatten memes from YAML structure
 def flatten_memes
   return [] unless MEMES.is_a?(Hash)

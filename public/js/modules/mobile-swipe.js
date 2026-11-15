@@ -176,16 +176,6 @@
         console.log('📱 Swipe: Next meme');
         navigateNext();
       }
-      
-      // Haptic feedback if available
-      if (window.hapticSystem) {
-        window.hapticSystem.trigger('light');
-      }
-      
-      // Sound feedback if available
-      if (window.soundSystem && !window.soundSystem.isMuted()) {
-        window.soundSystem.play('click');
-      }
     }
 
     // Reset

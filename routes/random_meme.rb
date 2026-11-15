@@ -295,19 +295,11 @@ module Routes
           # Fallback if something goes wrong
           @meme ||= fallback_meme
           
-          # ✅ NEW: Track in Redis (NOT session) - fixes 4KB cookie limit!
+          # ✅ Track in Redis (NOT session) - fixes 4KB cookie limit!
           if @meme
             meme_identifier = @meme["url"] || @meme["file"]
             if meme_identifier
               MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
-            end
-            
-            # Track subreddit for diversity tracking
-            if defined?(REDIS) && REDIS && @meme["subreddit"]
-              key = "recent_subreddits:#{session_id}"
-              recent_subs = (JSON.parse(REDIS.get(key) || '[]') rescue [])
-              recent_subs << @meme["subreddit"].downcase
-              REDIS.setex(key, 3600, recent_subs.last(20).to_json)
             end
           end
         rescue => e
