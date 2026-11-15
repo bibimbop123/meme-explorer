@@ -1,15 +1,19 @@
 /**
  * Keyboard Navigation Module
  * Provides intuitive keyboard shortcuts for meme browsing
- * 
- * Shortcuts:
+ *
+ * Shortcuts owned here:
  * - j: Next meme
  * - k: Previous meme
- * - l: Like current meme
- * - s: Save/bookmark current meme
  * - Shift+S: Share current meme
  * - ?: Show shortcuts help modal
  * - Esc: Close modals/overlays
+ *
+ * NOTE: l (like) and s (save) are owned by MemeNavigation
+ * (public/js/modules/meme-navigation.js, bundled on every page). This
+ * module used to bind them too, and which of the two handlers won depended
+ * purely on script load order. The help modal still documents them because
+ * they keep working on the viewer - just with a single owner now.
  */
 
 (function() {
@@ -22,8 +26,6 @@
       shortcuts: {
         'j': 'nextMeme',
         'k': 'previousMeme',
-        'l': 'likeMeme',
-        's': 'saveMeme',
         'S': 'shareMeme',  // Shift+S
         '?': 'showHelp',
         'Escape': 'closeModals'
@@ -157,40 +159,6 @@
           window.previousMeme();
         } else if (typeof window.loadPreviousMeme === 'function') {
           window.loadPreviousMeme();
-        }
-      }
-    },
-
-    /**
-     * Like current meme
-     */
-    likeMeme() {
-      console.log('❤️ Like meme (l)');
-      const likeButton = document.querySelector('#like-btn, [data-action="like"], .like-button, button[onclick*="like"]');
-      if (likeButton) {
-        likeButton.click();
-        this.showFeedback('Liked!');
-      } else {
-        // Fallback
-        if (typeof window.likeMeme === 'function') {
-          window.likeMeme();
-        }
-      }
-    },
-
-    /**
-     * Save/bookmark current meme
-     */
-    saveMeme() {
-      console.log('💾 Save meme (s)');
-      const saveButton = document.querySelector('#save-btn, [data-action="save"], .save-button, button[onclick*="save"]');
-      if (saveButton) {
-        saveButton.click();
-        this.showFeedback('Saved!');
-      } else {
-        // Fallback
-        if (typeof window.saveMeme === 'function') {
-          window.saveMeme();
         }
       }
     },
