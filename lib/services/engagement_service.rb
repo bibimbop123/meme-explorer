@@ -450,34 +450,10 @@ class EngagementService
          DO UPDATE SET metric_value = metric_value + ?, updated_at = CURRENT_TIMESTAMP",
         [week_num, user_id, increment, increment]
       )
-      
-      # Update ranks (could be done async in production)
-      update_leaderboard_ranks(week_num, db)
     rescue PG::UndefinedTable, StandardError => e
       AppLogger.warn("⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
-    
-    # Update leaderboard ranks
-    def update_leaderboard_ranks(week_num, db)
-      # Get all users sorted by metric_value
-      users = db.execute(
-        "SELECT id, metric_value FROM weekly_leaderboard 
-         WHERE week_number = ? 
-         ORDER BY metric_value DESC",
-        [week_num]
-      )
-      
-      # Update ranks
-      users.each_with_index do |user, index|
-        db.execute(
-          "UPDATE weekly_leaderboard SET rank = ? WHERE id = ?",
-          [index + 1, user['id']]
-        )
-      end
-    rescue => e
-      AppLogger.error("⚠️ [ENGAGEMENT] Rank update failed: #{e.message}")
-    end
-    
+
     # Check collection progress after save
     def check_collections(user_id, db)
       return unless defined?(GamificationHelpers)

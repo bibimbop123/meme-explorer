@@ -33,31 +33,6 @@ module QueryOptimizationHelpers
       []
     end
     
-    # Fetch leaderboard with user details (prevents N+1)
-    def fetch_leaderboard_with_users(limit: 50, week_start: nil)
-      week_filter = week_start ? "AND wl.week_start = ?" : ""
-      params = week_start ? [week_start, limit] : [limit]
-      
-      DB.execute("
-        SELECT 
-          wl.*,
-          u.username,
-          u.reddit_username,
-          u.created_at as user_created_at
-        FROM weekly_leaderboard wl
-        JOIN users u ON wl.user_id = u.id
-        WHERE 1=1 #{week_filter}
-        ORDER BY wl.xp DESC
-        LIMIT ?
-      ", params)
-    rescue => e
-      AppLogger.error("Failed to fetch leaderboard", 
-        error: e.message,
-        limit: limit
-      )
-      []
-    end
-    
     # Fetch saved memes with stats (prevents N+1)
     def fetch_saved_memes_with_stats(user_id, limit: 50, offset: 0)
       DB.execute("
