@@ -60,8 +60,8 @@ RSpec.describe 'Trending Routes' do
       # fixture through /trending.json (covered directly by that route's
       # own spec examples below).
       get '/trending'
-      expect(last_response.body).to include('trending.js')
-      expect(last_response.body).to include('TrendingPage')
+      expect(last_response.body).to include('/css/trending.css')
+      expect(last_response.body).to include('trendingContainer')
     end
     
     it 'orders memes by engagement score' do

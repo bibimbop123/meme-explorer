@@ -156,35 +156,50 @@ test('Profile and Saved views expose self-serve data rights, liked search, and d
 
 test('TrendingPage escapes untrusted title/subreddit HTML and rejects javascript: media URLs', async () => {
   const source = await read('public/js/trending.js');
+  // Import BEFORE assigning globals so the module boot guard stays inert.
+  const { TrendingPage } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const cards = [];
-  const document = {
-    getElementById: () => ({ appendChild: el => cards.push(el) }),
+  const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
+  globalThis.window = {};
+  globalThis.document = {
+    getElementById: () => null,
     querySelectorAll: () => [],
     createElement: () => ({ style: {}, addEventListener() {} }),
     body: { appendChild: el => cards.push(el) }
   };
-  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
-  const page = new Tp();
-  page.renderMemeCard({
-    image_url: 'javascript:alert(1)',
-    title: '<script>xss()</script>',
-    subreddit: '"><img src=x onerror=alert(1)>',
-    likes: 5,
-    views: 10
-  });
-  assert.equal(cards.length, 1);
-  assert.match(cards[0].innerHTML, /&lt;script&gt;xss\(\)&lt;\/script&gt;/);
-  assert.doesNotMatch(cards[0].innerHTML, /<script>xss/);
-  assert.doesNotMatch(cards[0].innerHTML, /javascript:alert/);
+  try {
+    const page = new TrendingPage();
+    page.container = { appendChild: el => cards.push(el) };
+    page.renderMemeCard({
+      image_url: 'javascript:alert(1)',
+      title: '<script>xss()</script>',
+      subreddit: '"><img src=x onerror=alert(1)>',
+      likes: 5,
+      views: 10
+    });
+    assert.equal(cards.length, 1);
+    assert.match(cards[0].innerHTML, /&lt;script&gt;xss\(\)&lt;\/script&gt;/);
+    assert.doesNotMatch(cards[0].innerHTML, /<script>xss/);
+    assert.doesNotMatch(cards[0].innerHTML, /javascript:alert/);
+  } finally {
+    globalThis.document = previousDocument;
+    globalThis.window = previousWindow;
+  }
 });
 
 test('TrendingPage modal supports keyboard navigation (ArrowLeft/ArrowRight/Escape) and rank progress', async () => {
   const source = await read('public/js/trending.js');
+  // Import BEFORE assigning globals so the module boot guard stays inert.
+  const { TrendingPage } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const modals = [];
   const keyListeners = [];
   const removedListeners = [];
-  const document = {
-    getElementById: () => ({ appendChild() {} }),
+  const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
+  globalThis.window = {};
+  globalThis.document = {
+    getElementById: () => null,
     querySelectorAll: () => [],
     addEventListener: (name, fn) => { if (name === 'keydown') keyListeners.push(fn); },
     removeEventListener: (name, fn) => { if (name === 'keydown') removedListeners.push(fn); },
@@ -196,24 +211,29 @@ test('TrendingPage modal supports keyboard navigation (ArrowLeft/ArrowRight/Esca
     }),
     body: { appendChild: el => modals.push(el), removeChild() {} }
   };
-  const Tp = vm.runInNewContext(`${source}; TrendingPage;`, { window: {}, document });
-  const page = new Tp();
-  page.currentTimeWindow = 'daily_top_10';
-  page.renderMemeCard({ image_url: 'https://i.redd.it/one.jpg', title: 'First Meme', subreddit: 'memes', likes: 10, views: 50 });
-  page.renderMemeCard({ image_url: 'https://i.redd.it/two.jpg', title: 'Second Meme', subreddit: 'dankmemes', likes: 20, views: 80 });
+  try {
+    const page = new TrendingPage();
+    page.container = { appendChild() {} };
+    page.currentTimeWindow = 'daily_top_10';
+    page.renderMemeCard({ image_url: 'https://i.redd.it/one.jpg', title: 'First Meme', subreddit: 'memes', likes: 10, views: 50 });
+    page.renderMemeCard({ image_url: 'https://i.redd.it/two.jpg', title: 'Second Meme', subreddit: 'dankmemes', likes: 20, views: 80 });
 
-  page.showMemeModal(page.renderedMemes[0], 0);
-  assert.equal(modals.length, 1);
-  assert.match(modals[0].innerHTML, /#1 of 2/);
-  assert.match(modals[0].innerHTML, /data-modal-nav="next"/);
+    page.showMemeModal(page.renderedMemes[0], 0);
+    assert.equal(modals.length, 1);
+    assert.match(modals[0].innerHTML, /#1 of 2/);
+    assert.match(modals[0].innerHTML, /data-modal-nav="next"/);
 
-  // Press ArrowRight to advance to second meme
-  keyListeners[keyListeners.length - 1]({ key: 'ArrowRight', preventDefault() {} });
-  assert.equal(modals.length, 2);
-  assert.match(modals[1].innerHTML, /#2 of 2/);
-  assert.match(modals[1].innerHTML, /Second Meme/);
+    // Press ArrowRight to advance to second meme
+    keyListeners[keyListeners.length - 1]({ key: 'ArrowRight', preventDefault() {} });
+    assert.equal(modals.length, 2);
+    assert.match(modals[1].innerHTML, /#2 of 2/);
+    assert.match(modals[1].innerHTML, /Second Meme/);
 
-  // Press Escape to close
-  keyListeners[keyListeners.length - 1]({ key: 'Escape', preventDefault() {} });
-  assert.equal(removedListeners.length, 2);
+    // Press Escape to close
+    keyListeners[keyListeners.length - 1]({ key: 'Escape', preventDefault() {} });
+    assert.equal(removedListeners.length, 2);
+  } finally {
+    globalThis.document = previousDocument;
+    globalThis.window = previousWindow;
+  }
 });
