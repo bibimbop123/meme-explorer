@@ -60,6 +60,12 @@ class Rack::Attack
     req.ip if req.post? && req.path == '/api/visitor-observation'
   end
 
+  # Password recovery is an abuse magnet (mailbombing, enumeration probing):
+  # bound tightly per IP alongside the per-account cap in PasswordResetService.
+  throttle('password-reset/ip', limit: 10, period: 60) do |req|
+    req.ip if req.post? && req.path.start_with?('/password/forgot', '/password/reset')
+  end
+
   # 5. Login attempts: STRICT (brute force protection)
   throttle("login/ip", limit: 10, period: 60) do |req|
     req.ip if req.path == "/login" && req.post?

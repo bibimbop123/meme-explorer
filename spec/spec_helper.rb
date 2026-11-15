@@ -253,6 +253,7 @@ RSpec.configure do |config|
       DB.execute("DELETE FROM saved_memes") rescue nil
       DB.execute("DELETE FROM meme_stats")
       DB.execute("DELETE FROM broken_images") rescue nil
+      DB.execute("DELETE FROM password_reset_tokens") rescue nil
       DB.execute("DELETE FROM users")
     rescue PG::UndefinedTable, PG::Error => e
       # Tables might not exist yet in a fresh test DB — that is fine

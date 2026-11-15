@@ -289,6 +289,19 @@
   color: #5568d3;
 }
 
+.auth-notice-success {
+  background: #d1e7dd;
+  color: #0f5132;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+html.dark-mode .auth-notice-success {
+  background: #0f3d26;
+  color: #75b798;
+}
+
 /* Dark theme */
 html.dark-mode .auth-card {
   background: #1e1e1e;

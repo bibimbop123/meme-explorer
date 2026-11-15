@@ -10,7 +10,10 @@
 
     <!-- Content -->
     <div class="auth-content">
-      
+      <% if params[:reset] == '1' %>
+        <p class="auth-notice-success" role="status">Your password has been updated. Log in with your new password.</p>
+      <% end %>
+
       <!-- Value Proposition -->
       <div class="value-proposition">
         <div class="value-item">
@@ -59,6 +62,9 @@
         <div class="form-group">
           <div class="form-label-row">
             <label for="password" class="form-label">Password</label>
+            <% if defined?(Mailer) && Mailer.configured? %>
+              <a href="/password/forgot" class="form-link">Forgot password?</a>
+            <% end %>
           </div>
           <input type="password" id="password" name="password" placeholder="Your password" required 
                  class="form-input"
