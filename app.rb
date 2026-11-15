@@ -82,6 +82,7 @@ require_relative "./routes/user_api_routes"
 require_relative "./routes/system_routes"
 require_relative "./routes/admin_inline_routes"
 require_relative "./routes/premium_routes"
+require_relative "./routes/password_reset_routes"
 require_relative "./lib/middleware/request_timer"
 require_relative "./lib/middleware/security_headers"
 # BUG FIX (ROADMAP.md Phase 2, "CDN integration"): lib/helpers/cdn_helpers.rb
@@ -414,6 +415,7 @@ METRICS = {
   register Routes::SystemRoutes
   register Routes::AdminInlineRoutes
   register Routes::PremiumRoutes
+  register Routes::PasswordResetRoutes
 
   end  # End of App class
 end  # End of MemeExplorer module

@@ -188,6 +188,26 @@ test('TrendingPage escapes untrusted title/subreddit HTML and rejects javascript
   }
 });
 
+test('auth pages scope their styles (no global body/star selectors) and prevent iOS input zoom', async () => {
+  const login = await read('views/login.erb');
+  const signup = await read('views/signup.erb');
+  const authCss = await read('public/css/auth.css');
+  for (const view of [login, signup]) {
+    assert.doesNotMatch(view, /<style>/);
+    assert.match(view, /href="\/css\/auth\.css"/);
+  }
+  // The old inline blocks reset every element and flex-centered <body>,
+  // which broke the site nav and clipped the card on mobile.
+  assert.doesNotMatch(authCss, /(^|\s)\*\s*\{/);
+  assert.doesNotMatch(authCss, /(^|\s)body\s*\{/);
+  // iOS Safari zooms the page on inputs below 16px.
+  assert.match(authCss, /\.form-input\s*\{[^}]*font-size:\s*16px/);
+  // Mobile chrome (Safari toolbar) must not push the card under the fold.
+  assert.match(authCss, /100svh/);
+  // Tall cards scroll from the top on small screens instead of clipping.
+  assert.match(authCss, /@media\s*\(max-width:\s*480px\)[\s\S]*align-items:\s*flex-start/);
+});
+
 test('TrendingPage modal supports keyboard navigation (ArrowLeft/ArrowRight/Escape) and rank progress', async () => {
   const source = await read('public/js/trending.js');
   // Import BEFORE assigning globals so the module boot guard stays inert.
