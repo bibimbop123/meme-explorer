@@ -214,6 +214,51 @@ test('missing connection API does not disable normal prefetch behavior', () => {
   }
 });
 
+test('prefetch marks speculative selections and a later render reports the confirmed view', async () => {
+  const nav = navigation();
+  const calls = [];
+  Object.assign(nav, {
+    loading: false, prefetchedMeme: null, prefetchPromise: null, discoveryControlsActive: false,
+    async fetchMeme(url, options) { calls.push({ url, options }); return { url: '/prefetched.jpg', view_marking: 'render' }; }
+  });
+  await nav.prefetchNext();
+  assert.equal(calls[0].url, '/random.json');
+  assert.equal(calls[0].options.headers['X-Prefetch'], '1');
+  assert.equal(nav.prefetchedMeme.needs_view_report, true);
+
+  // When that prefetched meme is actually rendered via Next, the client
+  // reports the confirmed view exactly once and clears the marker.
+  const reported = [];
+  Object.assign(nav, {
+    showLoadingState() {}, hideLoadingState() {}, trackView() {}, prefetchNext() {},
+    reportViewed(url) { reported.push(url); },
+    async renderMeme() { return true; }
+  });
+  nav.currentMeme = { url: '/current.jpg' };
+  await nav.loadNextMeme();
+  assert.deepEqual(reported, ['/prefetched.jpg']);
+  assert.equal(nav.currentMeme.needs_view_report, undefined);
+});
+
+test('reportViewed posts the confirmed view fire-and-forget and ignores invalid urls', () => {
+  const requests = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (url, opts) => { requests.push({ url, opts }); return Promise.resolve({ ok: true }); };
+  try {
+    navigation().reportViewed('/seen.jpg');
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, '/api/viewed');
+    assert.equal(requests[0].opts.method, 'POST');
+    assert.equal(requests[0].opts.keepalive, true);
+    assert.equal(JSON.parse(requests[0].opts.body).url, '/seen.jpg');
+    navigation().reportViewed('');
+    navigation().reportViewed(null);
+    navigation().reportViewed(42);
+    assert.equal(requests.length, 1);
+  } finally { globalThis.fetch = original; }
+});
+
+
 test('stale prefetched flags cannot override confirmed page-session interactions', async () => {
   const nav = navigation();
   const stale = { url: '/favorite.jpg', liked: false, saved: false, likes: 3, impression_id: 'new-selection' };

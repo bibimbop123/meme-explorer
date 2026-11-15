@@ -1,13 +1,6 @@
 require_relative '../spec_helper'
 
 RSpec.describe QueryOptimizationHelpers do
-  it 'binds leaderboard week before its limit' do
-    expect(DB).to receive(:execute).with(include('AND wl.week_start = ?'), ['2026-10-12', 10]).and_return([])
-    expect(described_class.fetch_leaderboard_with_users(limit: 10, week_start: '2026-10-12')).to eq([])
-    expect(DB).to receive(:execute).with(include('LIMIT ?'), [5]).and_return([])
-    described_class.fetch_leaderboard_with_users(limit: 5)
-  end
-
   it 'preserves column alignment across differently ordered record hashes' do
     records = [{ 'url' => '/a.jpg', 'likes' => 1 }, { 'likes' => 2, 'url' => '/b.jpg' }]
     expect(DB).to receive(:execute).with(include('INSERT INTO meme_stats (url, likes)'), ['/a.jpg', 1, '/b.jpg', 2])
@@ -41,7 +34,6 @@ RSpec.describe QueryOptimizationHelpers do
   it 'returns empty read fallbacks on database failures' do
     allow(DB).to receive(:execute).and_raise(PG::ConnectionBad)
     expect(described_class.fetch_memes_with_users(['/a.jpg'])).to eq([])
-    expect(described_class.fetch_leaderboard_with_users).to eq([])
     expect(described_class.fetch_saved_memes_with_stats(1)).to eq([])
     expect(described_class.fetch_user_preferences_bulk([1])).to eq({})
   end

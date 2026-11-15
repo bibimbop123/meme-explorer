@@ -20,6 +20,12 @@
 features:
   feed:
     legacy_pending_store: false # Requires explicit staging/canary approval.
+    # When true, prefetched /random.json selections (X-Prefetch: 1) are NOT
+    # marked seen at selection time; the client reports the view via
+    # POST /api/viewed only when the meme actually renders. Prevents the
+    # prefetch-ahead pattern from burning unseen inventory the user never
+    # looked at. Default off until canary acceptance.
+    view_on_render: false
   # Core features (always on, not actually flag-gated anywhere - kept
   # here as documentation of what exists, not as a real on/off switch)
   core:

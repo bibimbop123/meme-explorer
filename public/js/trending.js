@@ -1,27 +1,31 @@
-// Phase 1: Trending Page - Real Image Display
-// Fetches memes from API and displays with real image URLs
+// Trending Page - ES module (bundled via public/js/main.js)
+// Fetches memes from /api/v1/trending and /api/v1/daily-digest and renders
+// cards; the click-to-open lightbox is class-based (see /css/trending.css),
+// focus-trapped, scroll-locked and restores focus on close.
 
-class TrendingPage {
+export class TrendingPage {
   constructor() {
     this.container = document.getElementById('trendingContainer');
     this.sortDropdown = document.getElementById('sortDropdown');
     this.tabButtons = document.querySelectorAll('.tab-button');
     this.scrollObserver = document.getElementById('scrollObserver');
-    
+
     this.currentPage = 0;
     this.currentTimeWindow = '24h';
     this.currentSort = 'trending';
     this.isLoading = false;
-    
+
     // Initialize Ad Manager if available (feed-position placeholders only
     // - real ad revenue comes from Monetag's site-wide tag, loaded
     // independently via public/js/cookie-consent.js)
     this.adManager = window.AdManager ? new AdManager({
       frequency: parseInt(window.AD_FREQUENCY || '12', 10)
     }) : null;
-    
+
     this.memeCount = 0; // Track total memes rendered for ad placement
     this.renderedMemes = [];
+    this.previousFocus = null;
+    this.previousBodyOverflow = null;
   }
 
   initialize() {
@@ -104,7 +108,7 @@ class TrendingPage {
             this.renderedMemes = [];
             if (isDailyPack) {
               const banner = document.createElement('div');
-              banner.style.cssText = 'width: 100%; max-width: 860px; background: #eef2ff; color: #312e81; padding: 12px 18px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 8px;';
+              banner.className = 'trending-daily-banner';
               banner.textContent = `🎯 Today's Top ${memes.length} Daily Pack — Strictly 1 top meme per humor community`;
               this.container.appendChild(banner);
             }
@@ -112,16 +116,16 @@ class TrendingPage {
           memes.forEach(meme => this.renderMemeCard(meme));
           if (isDailyPack && memes.length > 0) {
             const doneCard = document.createElement('div');
-            doneCard.style.cssText = 'width: 100%; max-width: 860px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 16px; border-radius: 10px; text-align: center; margin-top: 12px;';
-            doneCard.innerHTML = '<strong>🎉 You’ve reached the end of Today’s Top 10!</strong> <a href="/random" style="margin-left: 12px; color: #e52e71; font-weight: 700; text-decoration: underline;">🔥 Continue in Random Feed →</a>';
+            doneCard.className = 'trending-daily-done';
+            doneCard.innerHTML = '<strong>🎉 You’ve reached the end of Today’s Top 10!</strong> <a href="/random">🔥 Continue in Random Feed →</a>';
             this.container.appendChild(doneCard);
           }
-          
+
           // Setup lazy loading for ads after rendering
           if (this.adManager) {
             setTimeout(() => this.adManager.setupLazyLoading(), 200);
           }
-          
+
           // Store next cursor for infinite scroll
           this.nextCursor = isDailyPack ? null : (data.pagination?.next_cursor || null);
           this.hasMore = isDailyPack ? false : (data.pagination?.has_more || false);
@@ -131,7 +135,7 @@ class TrendingPage {
       .catch(error => {
         console.error('Error loading trending memes:', error);
         if (!append) {
-          this.container.innerHTML = '<p style="text-align:center;color:#666;">Failed to load memes. Please refresh.</p>';
+          this.container.innerHTML = '<p class="trending-error">Failed to load memes. Please refresh.</p>';
         }
         this.isLoading = false;
       });
@@ -162,7 +166,7 @@ class TrendingPage {
       this.container.appendChild(ad);
       this.adManager.adCount++;
     }
-    
+
     // Use API image URL with smart fallback
     const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
     const safeTitle = this.escapeHtml(meme.title || 'Untitled');
@@ -170,23 +174,23 @@ class TrendingPage {
     const safeSub = this.escapeHtml(meme.subreddit || 'local');
     const safeLikes = parseInt(meme.likes, 10) || 0;
     const safeViews = parseInt(meme.views, 10) || 0;
-    
+
     this.renderedMemes = this.renderedMemes || [];
     const cardIndex = this.renderedMemes.length;
     this.renderedMemes.push(meme);
     const isDailyPack = this.currentTimeWindow === 'daily_top_10';
-    const rankBadge = isDailyPack ? `<span style="background:#312e81;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;font-size:0.75rem;">#${cardIndex + 1}</span>` : '';
+    const rankBadge = isDailyPack ? `<span class="trending-rank-badge">#${cardIndex + 1}</span>` : '';
 
     const card = document.createElement('div');
     card.className = 'meme-card';
     card.style.cursor = 'pointer';
     card.innerHTML = `
-      <img 
+      <img
         class="meme-image"
         src="${imageUrl}"
         alt="${safeAlt}"
         loading="lazy"
-        onerror="this.src='/images/dank1.jpeg'"
+        onerror="this.src='/images/meme-placeholder.svg'"
       />
       <div class="meme-info">
         <h3 class="meme-title">${safeTitle}</h3>
@@ -198,12 +202,12 @@ class TrendingPage {
         </div>
       </div>
     `;
-    
+
     // Make card clickable - shows meme in modal (no redirect)
     card.addEventListener('click', () => {
       this.showMemeModal(meme, cardIndex);
     });
-    
+
     this.container.appendChild(card);
     this.memeCount++; // Increment meme counter
   }
@@ -216,22 +220,10 @@ class TrendingPage {
     const hasNext = resolvedIndex >= 0 && resolvedIndex < totalLoaded - 1;
 
     const modal = document.createElement('div');
-    modal.className = 'meme-modal';
+    modal.className = 'trending-modal-overlay';
     modal.setAttribute?.('role', 'dialog');
     modal.setAttribute?.('aria-modal', 'true');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      cursor: pointer;
-    `;
+    modal.setAttribute?.('aria-label', this.escapeHtml(meme.title || 'Meme'));
 
     const imageUrl = this.safeMediaUrl(meme.image_url || meme.url, meme.subreddit);
     const safeTitle = this.escapeHtml(meme.title || 'Meme');
@@ -239,54 +231,86 @@ class TrendingPage {
     const safeLikes = parseInt(meme.likes, 10) || 0;
     const safeViews = parseInt(meme.views, 10) || 0;
     const positionLabel = resolvedIndex >= 0 && totalLoaded > 1 ? `#${resolvedIndex + 1} of ${totalLoaded} • ` : '';
-    
+
     modal.innerHTML = `
-      <div style="max-width: 90%; max-height: 90%; position: relative;">
-        <img src="${imageUrl}"
+      <div class="trending-modal-content">
+        <img class="trending-modal-img" src="${imageUrl}"
              alt="${safeTitle}"
-             style="max-width: 100%; max-height: 75vh; object-fit: contain;"
-             onerror="this.src='/images/dank1.jpeg'">
-        <div style="color: white; text-align: center; margin-top: 15px;">
-          <h3 style="margin: 10px 0;">${safeTitle}</h3>
-          <p style="opacity: 0.8;">${positionLabel}/r/${safeSub} • ❤️ ${safeLikes} • 👁️ ${safeViews}</p>
+             onerror="this.src='/images/meme-placeholder.svg'">
+        <div class="trending-modal-info">
+          <h3>${safeTitle}</h3>
+          <p class="trending-modal-meta">${positionLabel}/r/${safeSub} • ❤️ ${safeLikes} • 👁️ ${safeViews}</p>
           ${totalLoaded > 1 ? `
-            <div style="margin-top: 10px; display: flex; justify-content: center; gap: 12px;">
-              <button type="button" data-modal-nav="prev" ${hasPrev ? '' : 'disabled'} style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: ${hasPrev ? 'pointer' : 'not-allowed'}; opacity: ${hasPrev ? '1' : '0.4'};">← Prev</button>
-              <button type="button" data-modal-nav="close" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: pointer;">✕ Close (Esc)</button>
-              <button type="button" data-modal-nav="next" ${hasNext ? '' : 'disabled'} style="padding: 6px 14px; border-radius: 6px; border: 1px solid #fff; background: rgba(255,255,255,0.15); color: white; cursor: ${hasNext ? 'pointer' : 'not-allowed'}; opacity: ${hasNext ? '1' : '0.4'};">Next →</button>
+            <div class="trending-modal-nav">
+              <button type="button" class="trending-modal-btn" data-modal-nav="prev" ${hasPrev ? '' : 'disabled'}>← Prev</button>
+              <button type="button" class="trending-modal-btn" data-modal-nav="close">✕ Close (Esc)</button>
+              <button type="button" class="trending-modal-btn" data-modal-nav="next" ${hasNext ? '' : 'disabled'}>Next →</button>
             </div>
           ` : ''}
-          <p style="margin-top: 12px;">
-            ${meme.viewer_path && /^\/meme\/[a-f0-9]{64}$/.test(meme.viewer_path) ? `<a href="${meme.viewer_path}" style="color: #86efac; font-weight: 700; text-decoration: underline; margin-right: 16px;">🎯 Open & Share in Viewer →</a>` : ''}
-            <a href="/search?q=${encodeURIComponent(meme.subreddit || '')}" style="color: #93c5fd; text-decoration: underline; margin-right: 16px;">More from r/${safeSub} →</a>
-            <a href="/random" style="color: #f9a8d4; text-decoration: underline;">Explore Random Feed →</a>
+          <p class="trending-modal-links">
+            ${meme.viewer_path && /^\/meme\/[a-f0-9]{64}$/.test(meme.viewer_path) ? `<a class="trending-modal-link-viewer" href="${meme.viewer_path}">🎯 Open & Share in Viewer →</a>` : ''}
+            <a class="trending-modal-link-community" href="/search?q=${encodeURIComponent(meme.subreddit || '')}">More from r/${safeSub} →</a>
+            <a class="trending-modal-link-random" href="/random">Explore Random Feed →</a>
           </p>
-          <p style="font-size: 12px; opacity: 0.6; margin-top: 10px;">Use ← / → arrow keys to browse, Esc or click backdrop to close</p>
+          <p class="trending-modal-hint">Use ← / → arrow keys to browse, Esc or click backdrop to close</p>
         </div>
       </div>
     `;
 
+    // Scroll lock + focus management while the dialog is open.
+    this.previousFocus = typeof document !== 'undefined' ? document.activeElement : null;
+    const body = document.body;
+    this.previousBodyOverflow = body?.style ? body.style.overflow : null;
+    if (body?.style) body.style.overflow = 'hidden';
+    body?.classList?.add?.('modal-open');
+
     const closeModal = () => {
       document.removeEventListener?.('keydown', onKeyDown);
+      if (body?.style) body.style.overflow = this.previousBodyOverflow || '';
+      body?.classList?.remove?.('modal-open');
       if (modal.parentNode) {
         modal.parentNode.removeChild(modal);
       } else {
-        document.body?.removeChild?.(modal);
+        body?.removeChild?.(modal);
       }
+      this.previousFocus?.focus?.({ preventScroll: true });
     };
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault?.();
         closeModal();
-      } else if (event.key === 'ArrowLeft' && hasPrev) {
+        return;
+      }
+      if (event.key === 'ArrowLeft' && hasPrev) {
         event.preventDefault?.();
         closeModal();
         this.showMemeModal(this.renderedMemes[resolvedIndex - 1], resolvedIndex - 1);
-      } else if (event.key === 'ArrowRight' && hasNext) {
+        return;
+      }
+      if (event.key === 'ArrowRight' && hasNext) {
         event.preventDefault?.();
         closeModal();
         this.showMemeModal(this.renderedMemes[resolvedIndex + 1], resolvedIndex + 1);
+        return;
+      }
+      if (event.key === 'Tab') {
+        const controls = Array.from(
+          modal.querySelectorAll?.('button, a[href]') || []
+        ).filter(control => !control.disabled);
+        if (!controls.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (!controls.includes(document.activeElement)) {
+          event.preventDefault?.();
+          first.focus?.();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault?.();
+          last.focus?.();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault?.();
+          first.focus?.();
+        }
       }
     };
 
@@ -315,5 +339,22 @@ class TrendingPage {
     });
 
     document.body.appendChild(modal);
+    modal.querySelector?.('[data-modal-nav="close"]')?.focus?.({ preventScroll: true });
+  }
+}
+
+// Boot only on the trending page in a real browser (never under Node tests).
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const bootTrendingPage = () => {
+    if (document.getElementById?.('trendingContainer')) {
+      const trendingPage = new TrendingPage();
+      trendingPage.initialize();
+      window.trendingPage = trendingPage;
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootTrendingPage);
+  } else {
+    bootTrendingPage();
   }
 }

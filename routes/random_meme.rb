@@ -61,6 +61,30 @@ module Routes
 
     def self.registered(app)
       app.helpers do
+        # Single source of truth for the per-request selection option bundle
+        # shared by /, /random and /random.json. These three routes used to
+        # each inline this hash, which is exactly how / silently drifted
+        # (missing recent_subreddits) when the diversity window was added.
+        def feed_selection_options(session, user_id, defer_mark: false)
+          opts = {
+            user_id: user_id,
+            last_subreddit: session[:last_subreddit],
+            recent_subreddits: session[:recent_subreddits],
+            session_prefs: session[:liked_subreddits]
+          }
+          opts[:defer_mark] = true if defer_mark
+          opts
+        end
+
+        # Single writer for the rolling community window + immediate-repeat
+        # guard, updated identically by every route that displays a meme.
+        def record_displayed_subreddit(session, meme)
+          chosen = meme && meme["subreddit"]&.downcase
+          return unless chosen
+          session[:last_subreddit] = chosen
+          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen]).last(4)
+        end
+
         def viewer_engagement_state(url, likes: nil)
           {
             liked: current_user_id ? EngagementService.user_liked?(user_id: current_user_id, meme_url: url) : (session[:liked_memes] || []).include?(url),
@@ -243,6 +267,36 @@ module Routes
         { success: true, recorded: recorded }.to_json
       end
 
+      # Confirmed-render view receipt (feed.view_on_render). The client POSTs
+      # here when a prefetched meme (X-Prefetch: 1, which was deliberately
+      # NOT marked seen at selection time) actually renders on screen.
+      # Only URLs from this session's own server-issued pending impressions
+      # can be marked - a client cannot mark arbitrary URLs.
+      app.post '/api/viewed' do
+        content_type :json
+        halt 404, { error: 'Not found' }.to_json unless FeatureFlags.enabled?('feed.view_on_render')
+
+        begin
+          request.body.rewind
+          data = JSON.parse(request.body.read)
+          halt 400, { error: 'JSON object required' }.to_json unless data.is_a?(Hash)
+        rescue JSON::ParserError
+          halt 400, { error: 'Invalid JSON' }.to_json
+        end
+
+        url = data['url']
+        unless url.is_a?(String) && url.length <= 4096 && url.match?(%r{\A(https?://|/(?!/))})
+          halt 400, { error: 'Invalid url' }.to_json
+        end
+
+        known = (session[:pending_impressions] || {}).any? { |_, item| item['url'] == url }
+        if known
+          MemeExplorer::ViewingHistoryService.mark_seen(feed_session_id, url)
+          MemeExplorer::ViewingHistoryService.mark_seen("user:#{current_user_id}", url) if current_user_id
+        end
+        { marked: known }.to_json
+      end
+
       # Render random meme page
       app.get "/random" do
         begin
@@ -284,10 +338,7 @@ module Routes
               MemeExplorer::SimpleMemeSelector.select(
                 meme_pool,
                 session_id,
-                user_id: current_user_id,
-                last_subreddit: session[:last_subreddit],
-                recent_subreddits: session[:recent_subreddits],
-                session_prefs: session[:liked_subreddits]
+                **feed_selection_options(session, current_user_id)
               )
             end
           end
@@ -295,19 +346,11 @@ module Routes
           # Fallback if something goes wrong
           @meme ||= fallback_meme
           
-          # ✅ NEW: Track in Redis (NOT session) - fixes 4KB cookie limit!
+          # ✅ Track in Redis (NOT session) - fixes 4KB cookie limit!
           if @meme
             meme_identifier = @meme["url"] || @meme["file"]
             if meme_identifier
               MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
-            end
-            
-            # Track subreddit for diversity tracking
-            if defined?(REDIS) && REDIS && @meme["subreddit"]
-              key = "recent_subreddits:#{session_id}"
-              recent_subs = (JSON.parse(REDIS.get(key) || '[]') rescue [])
-              recent_subs << @meme["subreddit"].downcase
-              REDIS.setex(key, 3600, recent_subs.last(20).to_json)
             end
           end
         rescue => e
@@ -317,10 +360,7 @@ module Routes
         end
         
         @meme = filter_feed_communities([@meme].compact).first
-        if @meme && (chosen_sub = @meme["subreddit"]&.downcase)
-          session[:last_subreddit] = chosen_sub
-          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
-        end
+        record_displayed_subreddit(session, @meme)
 
         # View count tracking (session-based, works for both logged-in and anonymous users)
         session[:view_count] ||= 0
@@ -424,6 +464,14 @@ module Routes
 
         session_id = feed_session_id
 
+        # When feed.view_on_render is enabled AND this is a prefetch
+        # (X-Prefetch: 1), the selected meme has NOT been viewed - it sits
+        # in the client's prefetch buffer and may never render. Marking it
+        # seen burns unseen inventory on memes the user never looked at, so
+        # both the selector's selection-time mark and this route's own mark
+        # are deferred to the client's POST /api/viewed render receipt.
+        defer_view_mark = FeatureFlags.enabled?('feed.view_on_render') && request.env['HTTP_X_PREFETCH'] == '1'
+
         # The core product loop, timed end-to-end AND per-stage - see
         # lib/services/selection_benchmark.rb. This is the endpoint most
         # real usage actually hits (every subsequent meme after the first
@@ -456,10 +504,7 @@ module Routes
             selected = MemeExplorer::SimpleMemeSelector.select(
               memes,
               session_id,
-              user_id: current_user_id,
-              last_subreddit: session[:last_subreddit],
-              recent_subreddits: session[:recent_subreddits],
-              session_prefs: session[:liked_subreddits]
+              **feed_selection_options(session, current_user_id, defer_mark: defer_view_mark)
             )
             selection_work_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - selection_started) * 1000
             selected
@@ -478,17 +523,15 @@ module Routes
         
         AppLogger.info("✅ [/random.json] Selected meme: #{@meme['title']}")
         
-        # ✅ Track in Redis (NOT session)
+        # ✅ Track in Redis (NOT session) - deferred along with the
+        # selector's own mark for flag-enabled prefetch requests (above).
         meme_identifier = @meme["url"] || @meme["file"]
         history_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        if meme_identifier
+        if meme_identifier && !defer_view_mark
           MemeExplorer::ViewingHistoryService.mark_seen(session_id, meme_identifier)
         end
         history_finished = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        if (chosen_sub = @meme["subreddit"]&.downcase)
-          session[:last_subreddit] = chosen_sub
-          session[:recent_subreddits] = (Array(session[:recent_subreddits]) + [chosen_sub]).last(4)
-        end
+        record_displayed_subreddit(session, @meme)
         
         image_url = @meme["url"] || @meme["file"]
 
@@ -506,6 +549,9 @@ module Routes
           media_type: media_type,
           likes: likes
         )
+        # Self-describing contract: tells the client it must report the view
+        # via POST /api/viewed when (and only if) this meme actually renders.
+        response_data[:view_marking] = 'render' if defer_view_mark
 
         content_type :json
         AppLogger.info("✅ [/random.json] Returning validated meme response#{@meme['is_gallery'] ? ' (GALLERY with ' + @meme['gallery_images'].size.to_s + ' images)' : ''}")

@@ -1,0 +1,295 @@
+/* Search page styles - form, topic pills, result cards, pagination
+   Class names match views/search.erb exactly. */
+
+.search-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.search-page h1 {
+  margin-bottom: 10px;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 12px;
+}
+
+.search-submit {
+  padding: 12px 20px;
+}
+
+.search-query-note {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.search-topic-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 24px;
+}
+
+.search-pill {
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: #eef2ff;
+  color: #312e81;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.search-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.search-ad-slot {
+  grid-column: 1 / -1;
+}
+
+/* Result card: the whole card is clickable via the stretched "View Meme"
+   link (.search-result-cta::after covers the card); the community link
+   sits above it (z-index) and remains independently clickable/keyboard
+   reachable. No onmouseover/onmouseout handlers - hover/focus is pure CSS. */
+.search-result-card {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.search-result-card:hover,
+.search-result-card:focus-within {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-result-thumb {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #f0f0f0;
+  overflow: hidden;
+}
+
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-result-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  background: #4caf50;
+  color: white;
+}
+
+.search-result-badge--reddit {
+  background: #ff4500;
+}
+
+.search-result-body {
+  padding: 12px;
+}
+
+.search-result-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #333;
+  min-height: 40px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.search-result-sub {
+  margin: 8px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.search-result-sub a {
+  position: relative;
+  z-index: 1;
+  color: #4169e1;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.search-result-stats {
+  display: flex;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.search-stat {
+  flex: 1;
+  text-align: center;
+}
+
+.search-stat-value-likes {
+  color: #e52e71;
+  font-weight: 600;
+}
+
+.search-stat-value-views {
+  color: #2196f3;
+  font-weight: 600;
+}
+
+.search-stat-label {
+  color: #999;
+  font-size: 11px;
+}
+
+.search-result-cta {
+  display: block;
+  margin-top: 12px;
+  padding: 8px;
+  text-align: center;
+  background: #ff9800;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-result-cta:hover,
+.search-result-cta:focus-visible {
+  background: #f57c00;
+}
+
+.search-result-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.search-results-count {
+  text-align: center;
+  color: #999;
+  margin-top: 30px;
+}
+
+.search-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px;
+}
+
+.search-back-home {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.search-back-home a {
+  color: #2196f3;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Empty / recovery state */
+.search-page .search-empty {
+  padding: 24px;
+  border: 1px solid #737373;
+  border-radius: 12px;
+  background: #f5f5f5;
+  color: #222;
+  overflow-wrap: anywhere;
+}
+
+.search-page .search-empty p {
+  line-height: 1.6;
+}
+
+.search-page .search-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.search-page .search-recovery a {
+  padding: 12px;
+  color: #174ea6;
+  text-decoration: underline;
+}
+
+/* Dark theme */
+html.dark-mode .search-result-card {
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode .search-result-title {
+  color: #f5f5f5;
+}
+
+html.dark-mode .search-result-thumb {
+  background: #2a2a2a;
+}
+
+html.dark-mode .search-result-stats {
+  border-top-color: #333;
+}
+
+html.dark-mode .search-query-note {
+  color: #aaa;
+}
+
+html.dark-mode .search-page .search-empty {
+  background: #1e1e1e;
+  color: #f5f5f5;
+}
+
+html.dark-mode .search-page .search-recovery a {
+  color: #a8c7fa;
+}
+
+html.dark-mode .search-pill {
+  background: #1e1b4b;
+  color: #c7d2fe;
+}
+
+@media (max-width: 768px) {
+  .search-results-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .search-results-grid {
+    grid-template-columns: 1fr;
+  }
+}

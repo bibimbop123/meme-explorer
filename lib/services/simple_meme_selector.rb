@@ -175,11 +175,15 @@ module MemeExplorer
                              'simple_random'
                            end
         selected ||= pool.sample
-        
-        # 5. Mark as seen (for next time)
+
+        # 5. Mark as seen (for next time) - skipped when the caller passes
+        # defer_mark: true (feed.view_on_render prefetch path: the meme has
+        # only been selected, not viewed; the client reports the render via
+        # POST /api/viewed instead - see routes/random_meme.rb).
         selected = selected.dup
         meme_id = selected['url'] || selected[:url] || selected['file'] || selected[:file] || selected['id'] || selected[:id]
-        ViewingHistoryService.mark_seen(session_id, meme_id.to_s)
+        defer_mark = options[:defer_mark] || options['defer_mark']
+        ViewingHistoryService.mark_seen(session_id, meme_id.to_s) unless defer_mark
         
         # 6. Add metadata for debugging
         selected['selection_method'] = selection_method

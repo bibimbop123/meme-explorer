@@ -100,18 +100,8 @@ class EngagementService
         
         # 3. Update user_meme_stats (user-specific tracking)
         update_user_meme_stats(user_id, meme_url, liked_now, db) if user_id
-        
-        # 4. Award XP and update gamification (only for likes, not unlikes)
-        if liked_now && user_id
-          xp_result = award_xp(user_id, :like_meme, db)
-          if xp_result
-            result[:xp_awarded] = xp_result[:xp_gained] || 0
-            result[:level_up] = xp_result[:leveled_up] || false
-            result[:new_level] = xp_result[:level] if xp_result[:leveled_up]
-          end
-        end
-        
-        # 5. Update weekly leaderboard
+
+        # 4. Update weekly leaderboard
         if user_id
           # Optional legacy leaderboard tables may be absent. Its rescued SQL
           # must not poison the critical membership/count transaction.
@@ -214,18 +204,8 @@ class EngagementService
         
         # 2. Log activity for metrics
         log_activity(user_id, meme_url, saved_now ? 'save' : 'unsave', session, db)
-        
-        # 3. Award XP for saves (only for saves, not unsaves)
-        if saved_now
-          xp_result = award_xp(user_id, :save_meme, db)
-          if xp_result
-            result[:xp_awarded] = xp_result[:xp_gained] || 0
-            result[:level_up] = xp_result[:leveled_up] || false
-            result[:new_level] = xp_result[:level] if xp_result[:leveled_up]
-          end
-        end
-        
-        # 4. Update weekly leaderboard
+
+        # 3. Update weekly leaderboard
         update_weekly_leaderboard(user_id, 'save', db) if saved_now
         
         # 5. Record in ActivityTrackerService (Redis)
@@ -451,29 +431,6 @@ class EngagementService
       AppLogger.warn("⚠️ [ENGAGEMENT] user_meme_stats update skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
     
-    # Award XP using GamificationHelpers
-    def award_xp(user_id, activity_type, db)
-      return nil unless defined?(GamificationHelpers)
-      
-      # Use a helper object that includes GamificationHelpers
-      helper = Object.new
-      helper.extend(GamificationHelpers)
-      
-      # Temporarily set DB constant if not set
-      original_db = defined?(::DB) ? ::DB : nil
-      Object.const_set(:DB, db) unless defined?(::DB)
-      
-      result = helper.add_xp(user_id, activity_type)
-      
-      # Restore original DB constant
-      Object.const_set(:DB, original_db) if original_db && !defined?(::DB)
-      
-      result
-    rescue => e
-      AppLogger.error("⚠️ [ENGAGEMENT] XP award failed: #{e.message}")
-      nil
-    end
-    
     # Update weekly leaderboard
     def update_weekly_leaderboard(user_id, action_type, db)
       week_num = Date.today.strftime("%Y%U").to_i
@@ -493,34 +450,10 @@ class EngagementService
          DO UPDATE SET metric_value = metric_value + ?, updated_at = CURRENT_TIMESTAMP",
         [week_num, user_id, increment, increment]
       )
-      
-      # Update ranks (could be done async in production)
-      update_leaderboard_ranks(week_num, db)
     rescue PG::UndefinedTable, StandardError => e
       AppLogger.warn("⚠️ [ENGAGEMENT] Leaderboard update skipped: #{e.message}") unless e.message =~ /does not exist|no such table/
     end
-    
-    # Update leaderboard ranks
-    def update_leaderboard_ranks(week_num, db)
-      # Get all users sorted by metric_value
-      users = db.execute(
-        "SELECT id, metric_value FROM weekly_leaderboard 
-         WHERE week_number = ? 
-         ORDER BY metric_value DESC",
-        [week_num]
-      )
-      
-      # Update ranks
-      users.each_with_index do |user, index|
-        db.execute(
-          "UPDATE weekly_leaderboard SET rank = ? WHERE id = ?",
-          [index + 1, user['id']]
-        )
-      end
-    rescue => e
-      AppLogger.error("⚠️ [ENGAGEMENT] Rank update failed: #{e.message}")
-    end
-    
+
     # Check collection progress after save
     def check_collections(user_id, db)
       return unless defined?(GamificationHelpers)

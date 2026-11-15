@@ -617,6 +617,10 @@ export class MemeNavigation {
       if (rendered === false || version !== this.navigationVersion) return;
       this.currentMeme = meme;
       this.currentMemeShownAt = Date.now();
+      if (meme.needs_view_report) {
+        delete meme.needs_view_report;
+        this.reportViewed(meme.url);
+      }
 
       // Prefetch next meme in background
       succeeded = true;
@@ -1021,8 +1025,13 @@ export class MemeNavigation {
 
     console.log('[MemeNavigation] Prefetching next meme...');
 
-    this.prefetchPromise = this.fetchMeme('/random.json')
+    // X-Prefetch tells the server this selection is speculative: when
+    // feed.view_on_render is enabled the server does NOT mark it seen and
+    // instead answers with view_marking: 'render' - we report the view via
+    // /api/viewed only if the meme actually renders (see loadNextMeme).
+    this.prefetchPromise = this.fetchMeme('/random.json', { headers: { 'X-Prefetch': '1' } })
       .then(meme => {
+        if (meme && meme.view_marking === 'render') meme.needs_view_report = true;
         this.prefetchedMeme = meme;
         console.log('[MemeNavigation] ✅ Next meme prefetched');
 
@@ -1040,15 +1049,27 @@ export class MemeNavigation {
     return this.prefetchPromise;
   }
 
+  // Confirmed-render receipt: fire-and-forget, mirrors the skip-meme
+  // tracking pattern - a lost report must never block or delay navigation.
+  reportViewed(url) {
+    if (typeof url !== 'string' || !url) return;
+    fetch('/api/viewed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+      keepalive: true
+    }).catch(() => {});
+  }
+
   dataSavingEnabled() {
     return typeof navigator !== 'undefined' && navigator.connection?.saveData === true;
   }
 
-  async fetchMeme(url) {
+  async fetchMeme(url, options = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      const response = await fetch(url, { signal: controller.signal, cache: 'no-store', ...options });
       if (!response.ok) {
         if (response.status === 409) {
           let body;
