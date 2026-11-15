@@ -303,7 +303,13 @@ RSpec.describe MemeExplorer::FeedTraversal do
 
   it 'returns issued credentials without another scheduling step even if issuance is slow' do
     traversal = described_class.new([{ url: '/slow-issuance.jpg' }], identity)
-    expect(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).once.and_return(10.0)
+    # NOTE: at_least(:once), not .once - redis-client >= 0.31 also calls
+    # Process.clock_gettime internally (redis_client.rb's `now`), and this
+    # example's real store access goes through it. The behavioral contract
+    # being tested (issued credentials returned, no second issue call, next
+    # advance is :closed) is unchanged; only the brittle exact-count of a
+    # now-shared clock call is relaxed.
+    expect(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).at_least(:once).and_return(10.0)
     expect(issuer).to receive(:issue).once.and_return(status: :issued, token: 'keep-credential')
     expect(traversal.advance_with_budget).to include(status: :issued, token: 'keep-credential')
     expect(traversal.advance).to eq(status: :closed)

@@ -1,18 +1,19 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    activesupport (7.2.4)
+    activesupport (8.1.4.1)
       base64
-      benchmark (>= 0.3)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.3.1)
-      connection_pool (>= 2.2.5, < 3)
+      connection_pool (>= 2.2.5)
       drb
       i18n (>= 1.6, < 2)
+      json
       logger (>= 1.4.2)
-      minitest (>= 5.1, < 6)
+      minitest (>= 5.1)
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
+      uri (>= 0.13.1)
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
     anonymous_loader (0.1.3)
@@ -21,24 +22,23 @@ GEM
       version_gem (~> 1.1, >= 1.1.14)
     base64 (0.3.0)
     bcrypt (3.1.22)
-    benchmark (0.5.0)
-    bigdecimal (3.3.1)
+    bigdecimal (4.1.3)
     colorize (1.1.0)
     concurrent-ruby (1.3.8)
-    connection_pool (2.5.4)
+    connection_pool (2.5.5)
     crack (1.0.1)
       bigdecimal
       rexml
     csv (3.3.5)
-    database_cleaner (1.99.0)
-    database_cleaner-sequel (1.99.0)
-      database_cleaner (~> 1.99.0)
+    database_cleaner-core (2.0.1)
+    database_cleaner-sequel (2.0.2)
+      database_cleaner-core (~> 2.0.0)
       sequel
     diff-lcs (1.6.2)
     docile (1.4.1)
     dotenv (2.8.1)
     drb (2.2.3)
-    et-orbi (1.4.0)
+    et-orbi (1.4.2)
       tzinfo
     faraday (2.14.4)
       faraday-net_http (>= 2.0, < 3.5)
@@ -48,7 +48,7 @@ GEM
       net-http (>= 0.5.0)
     ffi (1.17.2)
     ffi (1.17.2-arm64-darwin)
-    fugit (1.12.1)
+    fugit (1.14.0)
       et-orbi (~> 1.4)
       raabro (~> 1.4)
     hashdiff (1.2.1)
@@ -57,7 +57,7 @@ GEM
       csv
       mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
-    i18n (1.14.7)
+    i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     json (2.21.2)
     jwt (3.3.0)
@@ -68,10 +68,12 @@ GEM
     logger (1.7.0)
     mini_mime (1.1.5)
     mini_portile2 (2.8.9)
-    minitest (5.26.0)
+    minitest (6.1.0)
+      drb (~> 2.0)
+      prism (>= 1.5, < 3)
     multi_json (1.17.0)
-    multi_xml (0.7.2)
-      bigdecimal (~> 3.1)
+    multi_xml (0.9.1)
+      bigdecimal (>= 3.1, < 5)
     mustermann (3.0.0)
       ruby2_keywords (~> 0.0.1)
     net-http (0.7.0)
@@ -92,11 +94,12 @@ GEM
     openssl (4.0.1)
     pg (1.6.2)
     pg (1.6.2-arm64-darwin)
+    prism (2.1.0)
     public_suffix (7.0.5)
     puma (7.2.1)
       nio4r (~> 2.0)
-    raabro (1.4.0)
-    rack (3.2.7)
+    raabro (1.5.0)
+    rack (3.2.8)
     rack-attack (6.8.0)
       rack (>= 1.0, < 4)
     rack-csrf (0.1.0)
@@ -117,7 +120,7 @@ GEM
       ffi (~> 1.0)
     redis (5.4.1)
       redis-client (>= 0.22.0)
-    redis-client (0.26.1)
+    redis-client (0.31.0)
       connection_pool
     redis-rack (3.0.0)
       rack-session (>= 0.2.0)
@@ -144,17 +147,18 @@ GEM
     rufus-scheduler (3.9.2)
       fugit (~> 1.1, >= 1.11.1)
     securerandom (0.4.1)
-    sentry-ruby (5.28.1)
+    sentry-ruby (6.7.0)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.0.2)
-    sequel (5.98.0)
-      bigdecimal
-    sidekiq (7.3.9)
-      base64
-      connection_pool (>= 2.3.0)
       logger
-      rack (>= 2.2.4)
-      redis-client (>= 0.22.2)
+    sequel (5.110.0)
+      bigdecimal
+    sidekiq (8.0.10)
+      connection_pool (>= 2.5.0)
+      json (>= 2.9.0)
+      logger (>= 1.6.2)
+      rack (>= 3.1.0)
+      redis-client (>= 0.23.2)
     sidekiq-scheduler (6.0.2)
       rufus-scheduler (~> 3.2)
       sidekiq (>= 7.3, < 9)
@@ -202,12 +206,12 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  activesupport (~> 7.1)
+  activesupport (~> 8.1)
   bcrypt (~> 3.1)
   colorize (~> 1.1)
   concurrent-ruby (~> 1.2)
   connection_pool (~> 2.4)
-  database_cleaner-sequel (~> 1.8)
+  database_cleaner-sequel (~> 2.0)
   dotenv (~> 2.8)
   httparty (~> 0.21)
   net-http-persistent (~> 4.0)
@@ -223,7 +227,7 @@ DEPENDENCIES
   redis-rack (~> 3.0)
   rerun
   rspec (~> 3.12)
-  sentry-ruby (~> 5.0)
+  sentry-ruby (~> 6.0)
   sidekiq
   sidekiq-scheduler
   simplecov (~> 0.22)
