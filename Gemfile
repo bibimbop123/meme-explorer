@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.2.1"
+ruby "~> 3.2.1"
 
 # Core web stack
 gem "sinatra", "~> 4.0"
