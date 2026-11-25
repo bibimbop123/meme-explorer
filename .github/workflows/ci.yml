@@ -41,7 +41,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 3.2.1
+        ruby-version: "3.2"
         bundler-cache: true
 
     - name: Install dependencies
@@ -118,7 +118,7 @@ jobs:
   #   - name: Set up Ruby
   #     uses: ruby/setup-ruby@v1
   #     with:
-  #       ruby-version: 3.2.1
+  #       ruby-version: "3.2"
   #       bundler-cache: true
   #
   #   - name: Run RuboCop
@@ -133,7 +133,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 3.2.1
+        ruby-version: "3.2"
         bundler-cache: true
 
     - name: Install bundler-audit
